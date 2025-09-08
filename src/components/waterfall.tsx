@@ -22,7 +22,7 @@ export function Waterfall({ streamId }: { streamId: string }) {
   const [binBandwidth, setBinBandwidth] = createSignal(1);
   const [canvasRef, setCanvasRef] = createSignal<HTMLCanvasElement>();
   const [wrapper, setWrapper] = createSignal<HTMLDivElement>();
-  const [palette, setPalette] = createSignal(new Uint8ClampedArray(0x40000));
+  const [palette, setPalette] = createSignal(new Uint8ClampedArray(0x400));
   const [lastCalculatedCenter, setLastCalculatedCenter] = createSignal(0);
   const [expectedFrame, setExpectedFrame] = createSignal(0);
   const [lastBandwidth, setLastBandwidth] = createSignal(0);
@@ -34,7 +34,7 @@ export function Waterfall({ streamId }: { streamId: string }) {
   const canvasSize = createElementSize(canvasRef);
   const streamIdInt = parseInt(streamId, 16);
 
-  const paletteCanvas = new OffscreenCanvas(0xffff, 1);
+  const paletteCanvas = new OffscreenCanvas(0xff, 1);
 
   createEffect(() => {
     const { colorMin } = state.palette;
@@ -218,7 +218,7 @@ export function Waterfall({ streamId }: { streamId: string }) {
       const p = palette();
       const imageData = context.createImageData(totalBins, height);
       for (let index = 0; index < totalBins; index++) {
-        const y = bins[index];
+        const y = Math.round(bins[index] / 257);
         imageData.data.set(p.subarray(y * 4, y * 4 + 4), index * 4); // Copy first 4 bytes (RGBA)
       }
       context.putImageData(imageData, startingBin - 1, 0);

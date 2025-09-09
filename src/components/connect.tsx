@@ -43,8 +43,8 @@ export default function Connect() {
       <DialogTrigger
         as={Button<"button">}
         size="xs"
-        variant="ghost"
-        class="backdrop-brightness-200"
+        variant="outline"
+        class="font-sans"
       >
         {state.clientHandle ? "Disconnect" : "Connect"}
       </DialogTrigger>

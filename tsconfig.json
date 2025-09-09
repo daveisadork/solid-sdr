@@ -11,7 +11,8 @@
     "noEmit": true,
     "strict": true,
     "types": [
-      "vinxi/types/client"
+      "vinxi/types/client",
+      "unplugin-icons/types/solid"
     ],
     "isolatedModules": true,
     "paths": {

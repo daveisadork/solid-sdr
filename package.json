@@ -10,6 +10,7 @@
     "@corvu/resizable": "^0.2.5",
     "@kobalte/core": "^0.13.11",
     "@solid-primitives/bounds": "^0.1.3",
+    "@solid-primitives/fullscreen": "^1.3.3",
     "@solid-primitives/mouse": "^2.1.4",
     "@solid-primitives/pointer": "^0.3.3",
     "@solid-primitives/resize-observer": "^2.1.3",
@@ -19,7 +20,6 @@
     "@solidjs/start": "^1.1.7",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "phosphor-solid": "^1.1.5",
     "solid-js": "^1.9.9",
     "tailwind-merge": "^3.3.1",
     "tailwindcss-animate": "^1.0.7",
@@ -27,9 +27,11 @@
     "vite-plugin-assemblyscript-asc": "^1.0.5"
   },
   "devDependencies": {
+    "@iconify/json": "^2.2.382",
     "@tailwindcss/vite": "^4.1.12",
     "@vitejs/plugin-basic-ssl": "^2.1.0",
-    "tailwindcss": "^4.1.12"
+    "tailwindcss": "^4.1.12",
+    "unplugin-icons": "^22.2.0"
   },
   "engines": {
     "node": ">=22"

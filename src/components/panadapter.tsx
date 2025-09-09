@@ -70,7 +70,9 @@ export function Panadapter(props: { streamId: string }) {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     const { gradients } = state.palette;
-    const { gradient_index } = state.status.display.waterfall[pan.waterfall];
+    const waterfall = state.status.display.waterfall[pan.waterfall];
+    if (!waterfall) return;
+    const { gradient_index } = waterfall;
     const { colors } = gradients[gradient_index];
     const stepSize = 1 / colors.length;
 

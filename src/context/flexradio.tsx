@@ -1,12 +1,13 @@
 import { createWS, makeWS } from "@solid-primitives/websocket";
 import {
+  batch,
   createContext,
   createEffect,
   createSignal,
   onCleanup,
   useContext,
 } from "solid-js";
-import { createStore, produce } from "solid-js/store";
+import { createStore, produce, reconcile } from "solid-js/store";
 import { showToast } from "~/components/ui/toast";
 import { decodeVita, PacketClass, VitaPacket } from "~/lib/vita";
 
@@ -290,12 +291,13 @@ export interface Stream {
   type: string; // "remote_audio_rx"
 }
 
-export const initialState = {
+export const initialState = () => ({
   clientHandle: null as string | null,
   clientId: null as string | null,
   selectedPanadapter: null as string | null,
   display: {
     scrollOffset: 0,
+    enableTransparencyEffects: true as boolean,
     peakStyle: "points" as "none" | "points" | "line",
     fillStyle: "solid" as "none" | "solid" | "gradient",
   },
@@ -429,9 +431,9 @@ export const initialState = {
     },
     stream: {} as Record<string, Stream>,
   },
-};
+});
 
-const [state, setState] = createStore(initialState);
+const [state, setState] = createStore(initialState());
 
 const commands = {} as Record<
   string,
@@ -492,7 +494,7 @@ const FlexRadioContext = createContext<{
 }>();
 
 export function FlexRadioProvider(props: { children: any }) {
-  const [state, setState] = createStore(initialState);
+  const [state, setState] = createStore(initialState());
   const [ws, setWs] = createSignal<WebSocket | null>(null);
   const [cmdCount, setCmdCount] = createSignal(0);
   const discoveryWs = createWS("/discover");
@@ -1163,8 +1165,8 @@ export function FlexRadioProvider(props: { children: any }) {
   const disconnect = () => {
     ws()?.close();
     setWs(null);
-    setState("status", initialState.status);
     setState(["clientHandle", "selectedPanadapter"], null);
+    setState("status", reconcile(initialState().status));
     setCmdCount(0);
   };
 

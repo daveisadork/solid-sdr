@@ -1,6 +1,7 @@
 import { defineConfig } from "@solidjs/start/config";
 import tailwindcss from "@tailwindcss/vite";
 import assemblyScriptPlugin from "vite-plugin-assemblyscript-asc";
+import Icons from "unplugin-icons/vite";
 
 // Simple dev-only middleware to set COOP/COEP
 function coopCoepDevHeaders() {
@@ -29,7 +30,12 @@ export default defineConfig({
     server: {
       allowedHosts: true,
     },
-    plugins: [coopCoepDevHeaders(), tailwindcss(), assemblyScriptPlugin()],
+    plugins: [
+      coopCoepDevHeaders(),
+      tailwindcss(),
+      assemblyScriptPlugin(),
+      Icons({ compiler: "solid" }),
+    ],
   },
   devOverlay: false,
 })

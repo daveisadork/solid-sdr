@@ -10,9 +10,9 @@ export function AppSidebar() {
       gap={false}
       side="right"
       variant="floating"
-      class="bg-transparent pb-12"
+      class="bg-transparent pb-12 pointer-events-none"
     >
-      <SidebarContent>
+      <SidebarContent class="pointer-events-auto">
         <Show when={state.selectedPanadapter} keyed={true}>
           <TuningPanel streamId={state.selectedPanadapter!} />
         </Show>

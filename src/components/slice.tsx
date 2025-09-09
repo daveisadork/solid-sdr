@@ -18,26 +18,17 @@ import {
 import { Meter as MeterElement } from "@kobalte/core/meter";
 import { NumberField } from "@kobalte/core/number-field";
 
-import type { Component, ComponentProps } from "solid-js";
+import type { Component, ComponentProps, JSX } from "solid-js";
 import { createPointerListeners } from "@solid-primitives/pointer";
 import { createMousePosition } from "@solid-primitives/mouse";
 import { createElementBounds } from "@solid-primitives/bounds";
-import {
-  CaretDown,
-  CaretLeft,
-  CaretRight,
-  SpeakerHigh,
-  SpeakerSlash,
-} from "phosphor-solid";
+import BaselineChevronLeft from "~icons/ic/baseline-chevron-left";
+import BaselineChevronRight from "~icons/ic/baseline-chevron-right";
+import BaselineVolumeUp from "~icons/ic/baseline-volume-up";
+import BaselineVolumeOff from "~icons/ic/baseline-volume-off";
 import { Button } from "./ui/button";
 import { Portal } from "solid-js/web";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  // SelectTrigger,
-  SelectValue,
-} from "./ui/select";
+import { Select, SelectContent, SelectItem, SelectValue } from "./ui/select";
 
 import {
   Slider,
@@ -61,6 +52,7 @@ import {
   SegmentedControlItemsList,
   SegmentedControlLabel,
 } from "./ui/segmented-control";
+import { cn } from "~/lib/utils";
 
 const StatusToggle: Component<ComponentProps<"span"> & { active?: boolean }> = (
   props,
@@ -72,6 +64,20 @@ const StatusToggle: Component<ComponentProps<"span"> & { active?: boolean }> = (
         "text-blue-500": local.active,
         "text-neutral-500": !local.active,
         ...local.classList,
+      }}
+      {...others}
+    />
+  );
+};
+
+const Triangle: Component<ComponentProps<"div">> = (props) => {
+  const [local, others] = splitProps(props, ["class", "style"]);
+  return (
+    <div
+      class={cn("h-1.5 aspect-[2]", local.class)}
+      style={{
+        "clip-path": "polygon(50% 100%,100% 0,0 0)",
+        ...(local.style as JSX.CSSProperties),
       }}
       {...others}
     />
@@ -170,11 +176,11 @@ export function DetachedSlice(props: { sliceIndex: number | string }) {
       }}
     >
       <Show when={slice.RF_frequency < pan.center}>
-        <CaretLeft />
+        <BaselineChevronLeft />
       </Show>
       <span>{slice.index_letter}</span>
       <Show when={slice.RF_frequency > pan.center}>
-        <CaretRight />
+        <BaselineChevronRight />
       </Show>
     </Button>
   );
@@ -273,10 +279,12 @@ export function Slice(props: { sliceIndex: number | string }) {
       const newOffset = originX - newX;
 
       const mhzPerPx = bandwidth / x_pixels;
-      const freq =
-        (Math.round(((originFreq - newOffset * mhzPerPx) * 10_000) / 5) * 5) /
-        10_000;
-      // const freq = Number((originFreq - newOffset * mhzPerPx).toFixed(3));
+      // Round frequency to the nearest step
+      const step = slice.step / 1e6; // Convert Hz to MHz
+      const freqUnrounded = originFreq - newOffset * mhzPerPx;
+      const freqSteps = Math.round(freqUnrounded / step);
+      const freq = freqSteps * step;
+
       if (freq === slice.RF_frequency) {
         return;
       }
@@ -372,7 +380,11 @@ export function Slice(props: { sliceIndex: number | string }) {
     <>
       <Show when={!slice.detached}>
         <div
-          class="absolute h-full left-[var(--slice-offset)] translate-x-[var(--drag-offset)] z-10 cursor-ew-resize"
+          class="absolute h-full left-[var(--slice-offset)] translate-x-[var(--drag-offset)] cursor-ew-resize"
+          classList={{
+            "z-10": !slice.active,
+            "z-20": slice.active,
+          }}
           style={{
             "--slice-offset": `${offset()}px`,
           }}
@@ -383,25 +395,12 @@ export function Slice(props: { sliceIndex: number | string }) {
               originFreq: slice.RF_frequency,
               offset: 0,
             });
+            makeActive();
           }}
           onClick={makeActive}
           ref={setRef}
         >
           <Show when={!slice.diversity_child}>
-            <div
-              class="absolute h-full max-w-px w-px flex flex-col items-center m-auto"
-              classList={{
-                "bg-yellow-300": slice.active,
-                "bg-red-500": !slice.active,
-              }}
-            >
-              <Show when={slice.active}>
-                <CaretDown
-                  class="absolute -top-2 text-yellow-300 size-5"
-                  weight="fill"
-                />
-              </Show>
-            </div>
             <div
               class="absolute h-full backdrop-brightness-125 backdrop-contrast-75 translate-x-[var(--filter-offset)] w-[var(--filter-width)] "
               style={{
@@ -410,9 +409,35 @@ export function Slice(props: { sliceIndex: number | string }) {
               }}
             />
           </Show>
+          <div
+            class="absolute h-full max-w-px w-px flex flex-col items-center m-auto top-0 -translate-x-1/2 transform-3d"
+            classList={{
+              "bg-yellow-300": slice.active,
+              "bg-red-500": !slice.active,
+            }}
+          >
+            <Show when={slice.active}>
+              <Triangle
+                class="relative top-0"
+                classList={{
+                  "bg-red-500": slice.diversity_child,
+                  "bg-yellow-300": !slice.diversity_child,
+                }}
+              />
+              <Show when={slice.diversity}>
+                <Triangle
+                  class="relative -translate-y-1/2"
+                  classList={{
+                    "bg-red-500 -translate-z-1": slice.diversity_parent,
+                    "bg-yellow-300 translate-z-1": slice.diversity_child,
+                  }}
+                />
+              </Show>
+            </Show>
+          </div>
           <Portal>
             <div
-              class="absolute top-0 left-[var(--flag-offset)] pt-2 pl-1 pr-1 z-10"
+              class="absolute top-0 left-[var(--flag-offset)] pt-1.5 pl-1 pr-1 z-20"
               classList={{
                 "-translate-x-full": flagSide() === "left",
               }}
@@ -586,11 +611,20 @@ export function Slice(props: { sliceIndex: number | string }) {
                         setSlice("audio_mute", audio_mute);
                       }}
                     >
-                      <Show when={slice.audio_mute} fallback={<SpeakerHigh />}>
-                        <SpeakerSlash />
+                      <Show
+                        when={slice.audio_mute}
+                        fallback={<BaselineVolumeUp />}
+                      >
+                        <BaselineVolumeOff />
                       </Show>
                     </PopoverTrigger>
-                    <PopoverContent class="space-y-6 bg-transparent backdrop-blur-xl backdrop-brightness-50 shadow-black shadow-lg">
+                    <PopoverContent
+                      class="space-y-6 shadow-black shadow-lg"
+                      classList={{
+                        "bg-background/50 backdrop-blur-xl":
+                          state.display.enableTransparencyEffects,
+                      }}
+                    >
                       <Switch
                         class="flex items-center space-x-2 justify-between"
                         checked={slice.audio_mute}
@@ -650,6 +684,18 @@ export function Slice(props: { sliceIndex: number | string }) {
                           <SliderValueLabel />
                         </div>
                         <SliderTrack>
+                          <SliderFill
+                            style={{
+                              right:
+                                slice.audio_pan > 50
+                                  ? `${100 - slice.audio_pan}%`
+                                  : "50%",
+                              left:
+                                slice.audio_pan <= 50
+                                  ? `${slice.audio_pan}%`
+                                  : "50%",
+                            }}
+                          />
                           <SliderThumb />
                         </SliderTrack>
                       </Slider>
@@ -728,7 +774,13 @@ export function Slice(props: { sliceIndex: number | string }) {
                   </Popover>
                   <Popover>
                     <PopoverTrigger>DSP</PopoverTrigger>
-                    <PopoverContent class="space-y-6 bg-transparent backdrop-blur-xl backdrop-brightness-50 shadow-black shadow-lg">
+                    <PopoverContent
+                      class="space-y-6 shadow-black shadow-lg"
+                      classList={{
+                        "bg-background/50 backdrop-blur-xl":
+                          state.display.enableTransparencyEffects,
+                      }}
+                    >
                       <Slider
                         disabled={!slice.wnb}
                         minValue={0}
@@ -888,8 +940,16 @@ export function Slice(props: { sliceIndex: number | string }) {
                     </PopoverContent>
                   </Popover>
                   <Popover>
-                    <PopoverTrigger>{slice.mode}</PopoverTrigger>
-                    <PopoverContent class="space-y-6 bg-transparent backdrop-blur-xl backdrop-brightness-50 shadow-black shadow-lg">
+                    <PopoverTrigger disabled={slice.diversity_child}>
+                      {slice.mode}
+                    </PopoverTrigger>
+                    <PopoverContent
+                      class="space-y-6 shadow-black shadow-lg"
+                      classList={{
+                        "bg-background/50 backdrop-blur-xl":
+                          state.display.enableTransparencyEffects,
+                      }}
+                    >
                       <ToggleGroup
                         value={slice.mode}
                         onChange={async (mode) => {

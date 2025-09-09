@@ -12,6 +12,7 @@ import {
   NumberFieldLabel,
   NumberFieldInput,
 } from "./ui/number-field";
+import BaselineGpsFixed from "~icons/ic/baseline-gps-fixed";
 
 export function GpsStatus(props: { class?: string }) {
   const { state } = useFlexRadio();
@@ -21,7 +22,10 @@ export function GpsStatus(props: { class?: string }) {
     <Flex class={cn("gap-4 cursor-default select-none", props.class)}>
       <Show when={gps.grid}>
         <HoverCard defaultOpen={true}>
-          <HoverCardTrigger as={"pre"}>{gps.grid}</HoverCardTrigger>
+          <HoverCardTrigger as={"div"} class="flex items-center font-mono">
+            <BaselineGpsFixed />
+            {gps.grid}
+          </HoverCardTrigger>
           <HoverCardContent class="w-80 bg-background/50 backdrop-blur-lg">
             <div class="flex justify-between space-x-4">
               <div class="space-y-1">

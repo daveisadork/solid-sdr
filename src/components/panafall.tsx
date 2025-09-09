@@ -8,12 +8,19 @@ import { createMousePosition } from "@solid-primitives/mouse";
 import { createPointerListeners } from "@solid-primitives/pointer";
 import { debounce } from "@solid-primitives/scheduled";
 import { createStore } from "solid-js/store";
-import { Toggle } from "./ui/toggle";
-import { MagnifyingGlassMinus, MagnifyingGlassPlus } from "phosphor-solid";
+import ArrowCollapseHorizontal from "~icons/mdi/arrow-collapse-horizontal";
+import ArrowExpandHorizontal from "~icons/mdi/arrow-expand-horizontal";
+import Fullscreen from "~icons/mdi/fullscreen";
+import FullscreenExit from "~icons/mdi/fullscreen-exit";
 import { Button } from "./ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
+import { frequencyToLabel } from "~/lib/utils";
+import { createFullscreen } from "@solid-primitives/fullscreen";
 
 export function Panafall() {
   const { state, sendCommand, setState } = useFlexRadio();
+  const [fs, setFullscreen] = createSignal(false);
+  const fullscreen = createFullscreen(() => document.body, fs);
   const [clickRef, setClickRef] = createSignal<HTMLElement>();
   const [panStreamId, setPanStreamId] = createSignal<string | null>(null);
   const [waterfallStreamId, setWaterfallStreamId] = createSignal<string | null>(
@@ -30,6 +37,9 @@ export function Panafall() {
   });
   const [smoothScroll, setSmoothScroll] = createSignal(true);
   const pos = createMousePosition(clickRef);
+  const pan = () => state.status.display.pan[panStreamId()!];
+
+  createEffect(() => setFullscreen(fullscreen()));
 
   const setCenter = createMemo(() => {
     const setCenter = (
@@ -181,89 +191,126 @@ export function Panafall() {
         ref={setClickRef}
       />
       <div class="absolute bottom-12 left-2 grid grid-cols-2 gap-0.5 text-xs">
-        <Button
-          size="icon"
-          variant="ghost"
-          class="backdrop-blur-lg size-5"
-          classList={{
-            "bg-background/50":
-              !state.status.display.pan[panStreamId()!]?.band_zoom,
-            "bg-primary/75 text-primary-foreground":
-              state.status.display.pan[panStreamId()!]?.band_zoom,
-          }}
-          onClick={() => {
-            const zoom = state.status.display.pan[panStreamId()!]?.band_zoom;
-            sendCommand(
-              `display pan s ${panStreamId()} band_zoom=${zoom ? 0 : 1}`,
-            );
-          }}
-        >
-          B
-        </Button>
-        <Button
-          size="icon"
-          variant="ghost"
-          class="backdrop-blur-lg size-5"
-          classList={{
-            "bg-background/50":
-              !state.status.display.pan[panStreamId()!]?.segment_zoom,
-            "bg-primary/75 text-primary-foreground":
-              state.status.display.pan[panStreamId()!]?.segment_zoom,
-          }}
-          onClick={() => {
-            const zoom = state.status.display.pan[panStreamId()!]?.segment_zoom;
-            sendCommand(
-              `display pan s ${panStreamId()} segment_zoom=${zoom ? 0 : 1}`,
-            );
-          }}
-        >
-          S
-        </Button>
-        <Button
-          size="icon"
-          variant="ghost"
-          class="backdrop-blur-lg backdrop-brightness-50 size-5"
-          onClick={async () => {
-            const bandwidth =
-              state.status.display.pan[panStreamId()!]?.bandwidth * 2;
-            sendCommand(
-              `display pan s ${panStreamId()} bandwidth=${bandwidth}`,
-            );
-            setState(
-              "status",
-              "display",
-              "pan",
-              panStreamId()!,
-              "bandwidth",
-              bandwidth,
-            );
-          }}
-        >
-          <MagnifyingGlassMinus />
-        </Button>
-        <Button
-          size="icon"
-          variant="ghost"
-          class="backdrop-blur-lg backdrop-brightness-50 size-5"
-          onClick={async () => {
-            const bandwidth =
-              state.status.display.pan[panStreamId()!]?.bandwidth / 2;
-            sendCommand(
-              `display pan s ${panStreamId()} bandwidth=${bandwidth}`,
-            );
-            setState(
-              "status",
-              "display",
-              "pan",
-              panStreamId()!,
-              "bandwidth",
-              bandwidth,
-            );
-          }}
-        >
-          <MagnifyingGlassPlus />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger
+            as={Button}
+            size="icon"
+            variant="ghost"
+            class="backdrop-blur-lg size-5"
+            classList={{
+              "bg-background/50":
+                !state.status.display.pan[panStreamId()!]?.band_zoom,
+              "bg-primary/75 text-primary-foreground":
+                state.status.display.pan[panStreamId()!]?.band_zoom,
+            }}
+            onClick={() => {
+              const zoom = state.status.display.pan[panStreamId()!]?.band_zoom;
+              sendCommand(
+                `display pan s ${panStreamId()} band_zoom=${zoom ? 0 : 1}`,
+              );
+            }}
+          >
+            B
+          </TooltipTrigger>
+          <TooltipContent>Band Zoom</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger
+            as={Button}
+            size="icon"
+            variant="ghost"
+            class="backdrop-blur-lg size-5"
+            classList={{
+              "bg-background/50":
+                !state.status.display.pan[panStreamId()!]?.segment_zoom,
+              "bg-primary/75 text-primary-foreground":
+                state.status.display.pan[panStreamId()!]?.segment_zoom,
+            }}
+            onClick={() => {
+              const zoom =
+                state.status.display.pan[panStreamId()!]?.segment_zoom;
+              sendCommand(
+                `display pan s ${panStreamId()} segment_zoom=${zoom ? 0 : 1}`,
+              );
+            }}
+          >
+            S
+          </TooltipTrigger>
+          <TooltipContent>Segment Zoom</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger
+            as={Button}
+            size="icon"
+            variant="ghost"
+            class="backdrop-blur-lg backdrop-brightness-50 size-5"
+            onClick={async () => {
+              const bandwidth = pan()?.bandwidth * 2;
+              sendCommand(
+                `display pan s ${panStreamId()} bandwidth=${bandwidth}`,
+              );
+              setState(
+                "status",
+                "display",
+                "pan",
+                panStreamId()!,
+                "bandwidth",
+                bandwidth,
+              );
+            }}
+          >
+            <ArrowCollapseHorizontal />
+          </TooltipTrigger>
+          <TooltipContent>
+            Zoom Out (from {frequencyToLabel(pan()?.bandwidth)} to{" "}
+            {frequencyToLabel(pan()?.bandwidth * 2)})
+          </TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger
+            as={Button}
+            size="icon"
+            variant="ghost"
+            class="backdrop-blur-lg backdrop-brightness-50 size-5"
+            onClick={async () => {
+              const bandwidth = pan()?.bandwidth / 2;
+              sendCommand(
+                `display pan s ${panStreamId()} bandwidth=${bandwidth}`,
+              );
+              setState(
+                "status",
+                "display",
+                "pan",
+                panStreamId()!,
+                "bandwidth",
+                bandwidth,
+              );
+            }}
+          >
+            <ArrowExpandHorizontal />
+          </TooltipTrigger>
+          <TooltipContent>
+            Zoom In (from {frequencyToLabel(pan()?.bandwidth)} to{" "}
+            {frequencyToLabel(pan()?.bandwidth / 2)})
+          </TooltipContent>
+        </Tooltip>
       </div>
+      <Tooltip>
+        <TooltipTrigger
+          as={Button}
+          size="icon"
+          variant="ghost"
+          class="backdrop-blur-lg backdrop-brightness-50 size-5 absolute bottom-12 right-2"
+          onClick={() => setFullscreen(!fullscreen())}
+        >
+          <Show when={fullscreen()} fallback={<Fullscreen />}>
+            <FullscreenExit />
+          </Show>
+        </TooltipTrigger>
+        <TooltipContent>
+          {fullscreen() ? "Exit" : "Enter"} Fullscreen
+        </TooltipContent>
+      </Tooltip>
       <Show when={pos.isInside}>
         <div
           class="absolute h-full left-[calc(var(--cursor-x)-1.5px)] pointer-events-none w-0.5 backdrop-invert-25"

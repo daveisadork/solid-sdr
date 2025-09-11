@@ -1,16 +1,10 @@
 import { createElementSize } from "@solid-primitives/resize-observer";
-import {
-  createEffect,
-  createMemo,
-  createSignal,
-  onCleanup,
-  onMount,
-} from "solid-js";
+import { createEffect, createMemo, createSignal, onCleanup } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 import useFlexRadio, { PacketEvent } from "~/context/flexradio";
 
 export function Waterfall({ streamId }: { streamId: string }) {
-  const { events, state, setState, sendCommand } = useFlexRadio();
+  const { events, state, setState } = useFlexRadio();
   const [waterfall, setWaterfall] = createStore(
     state.status.display.waterfall[streamId],
   );
@@ -22,19 +16,24 @@ export function Waterfall({ streamId }: { streamId: string }) {
   const [binBandwidth, setBinBandwidth] = createSignal(1);
   const [canvasRef, setCanvasRef] = createSignal<HTMLCanvasElement>();
   const [wrapper, setWrapper] = createSignal<HTMLDivElement>();
-  const [palette, setPalette] = createSignal(new Uint8ClampedArray(0x400));
   const [lastCalculatedCenter, setLastCalculatedCenter] = createSignal(0);
   const [expectedFrame, setExpectedFrame] = createSignal(0);
   const [lastBandwidth, setLastBandwidth] = createSignal(0);
   const [autoBlackLevel, setAutoBlackLevel] = createSignal(0);
-  const [paletteBlob, setPaletteBlob] = createSignal<Blob | null>(null);
   const [black, setBlack] = createSignal("#000000");
+
+  // 4096 colors to stay under canvas size limits on iOS
+  const paletteCanvas = new OffscreenCanvas(4096, 1);
+  const [palette, setPalette] = createSignal(
+    new Uint8ClampedArray(paletteCanvas.width * 4),
+  );
+
+  // Used to map the 16-bit waterfall value to the palette index
+  const paletteDivisor = Math.round(0x10000 / paletteCanvas.width);
 
   const wrapperSize = createElementSize(wrapper);
   const canvasSize = createElementSize(canvasRef);
   const streamIdInt = parseInt(streamId, 16);
-
-  const paletteCanvas = new OffscreenCanvas(0xff, 1);
 
   createEffect(() => {
     const { colorMin } = state.palette;
@@ -48,22 +47,19 @@ export function Waterfall({ streamId }: { streamId: string }) {
     const { black_level, auto_black } = waterfall;
 
     if (auto_black) {
+      // Copy the auto black level to the waterfall black level,
+      // so the display is consistent when toggling auto black off.
       setWaterfall(
         "black_level",
         Math.round((autoBlackLevel() / 0x4000) * 100),
       );
     }
+
     setState(
       "palette",
       "colorMin",
       auto_black ? autoBlackLevel() / 0xffff : black_level / 400,
     );
-  });
-
-  onMount(() => {
-    sendCommand(`display pan s ${streamId} line_duration=100`).then(() => {
-      setWaterfall("line_duration", 100);
-    });
   });
 
   createEffect(() => {
@@ -95,7 +91,6 @@ export function Waterfall({ streamId }: { streamId: string }) {
     }
     paletteCtx.fillStyle = gradient;
     paletteCtx.fillRect(0, 0, paletteCanvas.width, paletteCanvas.height);
-    paletteCanvas.convertToBlob().then(setPaletteBlob);
     const imageData = paletteCtx.getImageData(
       0,
       0,
@@ -218,7 +213,7 @@ export function Waterfall({ streamId }: { streamId: string }) {
       const p = palette();
       const imageData = context.createImageData(totalBins, height);
       for (let index = 0; index < totalBins; index++) {
-        const y = Math.round(bins[index] / 257);
+        const y = (bins[index] / paletteDivisor) | 0; // 0-4095 to index into palette
         imageData.data.set(p.subarray(y * 4, y * 4 + 4), index * 4); // Copy first 4 bytes (RGBA)
       }
       context.putImageData(imageData, startingBin - 1, 0);
@@ -249,11 +244,6 @@ export function Waterfall({ streamId }: { streamId: string }) {
       ref={setWrapper}
       class="relative size-full flex justify-center margin-auto overflow-visible select-none"
     >
-      {/* <img */}
-      {/*   src={paletteBlob() ? URL.createObjectURL(paletteBlob()!) : ""} */}
-      {/*   class="absolute top-10 left-10 w-xl h-2 border border-white rounded" */}
-      {/*   alt="Waterfall Palette" */}
-      {/* /> */}
       <canvas
         class="absolute shrink-0 select-none scale-x-[var(--width-multiplier)] translate-x-[var(--drag-offset)]"
         ref={setCanvasRef}

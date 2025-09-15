@@ -15,8 +15,8 @@ export function parseWaterfallPayload(bytes: Uint8Array): WaterfallPayload {
   const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const SCALE: f64 = 1024.0 * 1024.0;
   const p = new WaterfallPayload();
-  p.firstBinFreq = f64(dv.getUint64(0)) / SCALE;
-  p.binBandwidth = f64(dv.getUint64(8)) / SCALE;
+  p.firstBinFreq = f64(dv.getInt64(0)) / SCALE;
+  p.binBandwidth = f64(dv.getInt64(8)) / SCALE;
   p.lineDuration = dv.getUint32(16);
   p.binsInThisFrame = dv.getUint16(20);
   p.height = dv.getUint16(22);

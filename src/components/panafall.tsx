@@ -198,7 +198,7 @@ export function Panafall() {
                   class="overflow-clip select-none"
                   initialSize={0.75}
                 >
-                  <Show when={pan().waterfall} keyed>
+                  <Show when={waterfallStreamId()} keyed>
                     {(streamId) => <Waterfall streamId={streamId} />}
                   </Show>
                 </ResizablePanel>

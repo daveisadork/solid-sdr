@@ -1,6 +1,9 @@
 import { createStore } from "solid-js/store";
 import useFlexRadio, { Meter } from "~/context/flexradio";
-import { createElementSize } from "@solid-primitives/resize-observer";
+import {
+  createElementSize,
+  createWindowSize,
+} from "@solid-primitives/resize-observer";
 import {
   batch,
   createEffect,
@@ -251,6 +254,7 @@ export function Slice(props: { sliceIndex: number | string }) {
     originFreq: 0,
     offset: 0,
   });
+  const windowSize = createWindowSize();
   const wrapperSize = createElementSize(wrapper);
   const pos = createMousePosition();
   const sentinelBounds = createElementBounds(sentinel);
@@ -320,7 +324,7 @@ export function Slice(props: { sliceIndex: number | string }) {
   });
 
   createEffect(() => {
-    const { width } = wrapperSize;
+    const { width } = windowSize;
     if (!width) return;
     const leftFreq = pan.center - pan.bandwidth / 2;
     const offsetMhz = slice.RF_frequency - leftFreq;
@@ -382,8 +386,8 @@ export function Slice(props: { sliceIndex: number | string }) {
         <div
           class="absolute h-full left-[var(--slice-offset)] translate-x-[var(--drag-offset)] cursor-ew-resize"
           classList={{
-            "z-10": !slice.active,
-            "z-20": slice.active,
+            "z-0": !slice.active,
+            "z-10": slice.active,
           }}
           style={{
             "--slice-offset": `${offset()}px`,

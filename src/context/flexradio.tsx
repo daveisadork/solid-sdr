@@ -448,8 +448,6 @@ const commands = {} as Record<
   }
 >;
 
-window.state = state;
-
 interface PacketEventListener<T extends PacketEventType = PacketEventType> {
   (evt: PacketEvent<T>): void;
 }
@@ -528,6 +526,7 @@ export function FlexRadioProvider(props: { children: any }) {
     });
   };
 
+  window.state = state;
   window.sendCommand = sendCommand; // Expose for debugging
 
   // window.state = state; // Expose for debugging

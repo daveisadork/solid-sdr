@@ -7,10 +7,10 @@ export function AppSidebar() {
   const { state } = useFlexRadio();
   return (
     <Sidebar
-      gap={false}
+      gap={true}
       side="right"
       variant="floating"
-      class="bg-transparent pb-12 pointer-events-none"
+      class="bottom-12 bg-transparent pb-10 pointer-events-none z-30"
     >
       <SidebarContent class="pointer-events-auto">
         <Show when={state.selectedPanadapter} keyed={true}>

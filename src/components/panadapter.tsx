@@ -153,23 +153,8 @@ export function Panadapter(props: { streamId: string }) {
         sharpOffset,
         sharpOffset,
       );
+      offscreenCtx.clearRect(startingBin, 0, binsInThisFrame, height);
       offscreenCtx.beginPath();
-      if (state.display.pan3d) {
-        if (startingBin === 0) {
-          offscreenCtx.drawImage(
-            offscreen,
-            3.5,
-            -3.5,
-            offscreen.width - 8,
-            offscreen.height - 0.5,
-          );
-          offscreenCtx.rect(0, 0, offscreen.width, offscreen.height);
-          offscreenCtx.fillStyle = "#00000008";
-          offscreenCtx.fill();
-        }
-      } else {
-        offscreenCtx.clearRect(startingBin, 0, binsInThisFrame, height);
-      }
       offscreenCtx.lineWidth = 1;
       offscreenCtx.fillStyle = "white";
       const { peakStyle, fillStyle } = state.display;
@@ -233,16 +218,18 @@ export function Panadapter(props: { streamId: string }) {
   return (
     <div
       ref={setWrapper}
-      class="relative size-full flex justify-center overflow-clip select-none m-auto"
+      class="relative size-full flex justify-center overflow-clip select-none"
     >
       <canvas
         ref={setCanvasRef}
-        class="absolute size-full translate-x-[var(--drag-offset)] select-none m-auto"
+        class="absolute size-full translate-x-[var(--drag-offset)] select-none"
       />
-      <For each={slices()}>
-        {(sliceIndex) => <Slice sliceIndex={sliceIndex} />}
-      </For>
-      <DetachedSlices streamId={streamId()} />
+      <div class="absolute top-0 left-0 h-[var(--panafall-available-height)] w-[var(--panafall-available-width)]">
+        <For each={slices()}>
+          {(sliceIndex) => <Slice sliceIndex={sliceIndex} />}
+        </For>
+        <DetachedSlices streamId={streamId()} />
+      </div>
     </div>
   );
 }

@@ -107,7 +107,7 @@ export function StatusBar() {
 
   return (
     <Flex
-      class="fixed bottom-0 w-full gap-4 py-2 px-3 text-sm font-mono select-none"
+      class="shrink-0 w-screen gap-4 py-2 px-3 text-sm font-mono select-none"
       classList={{
         "bg-background/50 backdrop-blur-xl":
           state.display.enableTransparencyEffects,

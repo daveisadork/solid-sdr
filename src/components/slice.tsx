@@ -404,15 +404,17 @@ export function Slice(props: { sliceIndex: number | string }) {
           onClick={makeActive}
           ref={setRef}
         >
-          <Show when={!slice.diversity_child}>
-            <div
-              class="absolute h-full backdrop-brightness-125 backdrop-contrast-75 translate-x-[var(--filter-offset)] w-[var(--filter-width)] "
-              style={{
-                "--filter-width": `${filterWidth()}px`,
-                "--filter-offset": `${filterOffset()}px`,
-              }}
-            />
-          </Show>
+          <div
+            class="absolute h-full translate-x-[var(--filter-offset)] w-[var(--filter-width)] "
+            classList={{
+              "backdrop-brightness-125 backdrop-contrast-75":
+                !slice.diversity_child,
+            }}
+            style={{
+              "--filter-width": `${filterWidth()}px`,
+              "--filter-offset": `${filterOffset()}px`,
+            }}
+          />
           <div
             class="absolute h-full max-w-px w-px flex flex-col items-center m-auto top-0 -translate-x-1/2 transform-3d"
             classList={{
@@ -581,7 +583,7 @@ export function Slice(props: { sliceIndex: number | string }) {
                               break;
                             }
                             case "Escape":
-                              setFrequency(slice.RF_frequency.toFixed(6));
+                              setRawFrequency(slice.RF_frequency);
                               break;
                             case "M":
                             case "m":

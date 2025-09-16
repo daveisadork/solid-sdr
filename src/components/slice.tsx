@@ -315,6 +315,7 @@ export function Slice(props: { sliceIndex: number | string }) {
     if (pan.center !== center) {
       setDragState("dragging", false);
     }
+    return pan.center;
   });
 
   createEffect(() => {
@@ -392,10 +393,10 @@ export function Slice(props: { sliceIndex: number | string }) {
           style={{
             "--slice-offset": `${offset()}px`,
           }}
-          onMouseDown={() => {
+          onMouseDown={(event) => {
             setDragState({
               dragging: true,
-              originX: pos.x,
+              originX: event.clientX,
               originFreq: slice.RF_frequency,
               offset: 0,
             });

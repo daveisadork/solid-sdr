@@ -95,6 +95,7 @@ export function Panafall() {
       setDragState({
         down: true,
         downX: x,
+        offset: 0,
         dragging: false,
         originFreq: selectedPan()?.center,
       });

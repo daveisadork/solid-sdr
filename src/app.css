@@ -314,5 +314,5 @@
 html,
 body,
 #app {
-  @apply size-full overflow-clip overscroll-none;
+  @apply w-dvw h-dvh overflow-clip overscroll-none m-0 p-0;
 }

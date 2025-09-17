@@ -21,7 +21,7 @@ import { createElementSize } from "@solid-primitives/resize-observer";
 export function Panafall() {
   const { state, sendCommand, setState } = useFlexRadio();
   const [fs, setFullscreen] = createSignal(false);
-  const fullscreen = createFullscreen(() => document.body, fs);
+  const fullscreen = createFullscreen(() => document.documentElement, fs);
   const [clickRef, setClickRef] = createSignal<HTMLElement>();
   const [sizeRef, setSizeRef] = createSignal<HTMLElement>();
   const [panStreamId, setPanStreamId] = createSignal<string | null>(null);
@@ -254,7 +254,7 @@ export function Panafall() {
                   class="backdrop-blur-lg size-5"
                   classList={{
                     "bg-background/50": !pan().band_zoom,
-                    "bg-primary/75 text-primary-foreground": pan().band_zoom,
+                    "bg-primary/50 text-primary-foreground": pan().band_zoom,
                   }}
                   onClick={() => {
                     const zoom = pan().band_zoom;
@@ -275,7 +275,7 @@ export function Panafall() {
                   class="backdrop-blur-lg size-5"
                   classList={{
                     "bg-background/50": !pan().segment_zoom,
-                    "bg-primary/75 text-primary-foreground": pan().segment_zoom,
+                    "bg-primary/50 text-primary-foreground": pan().segment_zoom,
                   }}
                   onClick={() => {
                     const zoom = pan().segment_zoom;
@@ -293,7 +293,7 @@ export function Panafall() {
                   as={Button}
                   size="icon"
                   variant="ghost"
-                  class="backdrop-blur-lg backdrop-brightness-50 size-5"
+                  class="bg-background/50 backdrop-blur-lg size-5"
                   onClick={async () => {
                     const bandwidth = pan().bandwidth * 2;
                     sendCommand(
@@ -321,7 +321,7 @@ export function Panafall() {
                   as={Button}
                   size="icon"
                   variant="ghost"
-                  class="backdrop-blur-lg backdrop-brightness-50 size-5"
+                  class="bg-background/50 backdrop-blur-lg size-5"
                   onClick={async () => {
                     const bandwidth = pan().bandwidth / 2;
                     sendCommand(
@@ -350,7 +350,7 @@ export function Panafall() {
                 as={Button}
                 size="icon"
                 variant="ghost"
-                class="backdrop-blur-lg backdrop-brightness-50 size-5 absolute bottom-2 right-2"
+                class="bg-background/50 backdrop-blur-lg size-5 absolute bottom-2 right-2"
                 onClick={() => setFullscreen(!fullscreen())}
               >
                 <Show when={fullscreen()} fallback={<Fullscreen />}>

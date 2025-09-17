@@ -156,7 +156,7 @@ export function TuningPanel(props: { streamId: string }) {
   createEffect(() => setRawColorGain(waterfall.color_gain));
 
   return (
-    <div class="flex flex-col gap-4 p-4 size-full text-sm overflow-y-auto overflow-x-hidden select-none">
+    <div class="flex flex-col gap-4 p-4 size-full text-sm overflow-y-auto overflow-x-hidden select-none overscroll-y-contain">
       <SegmentedControl
         value={state.display.peakStyle}
         onChange={(value) => {

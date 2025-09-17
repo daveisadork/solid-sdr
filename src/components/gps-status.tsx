@@ -21,7 +21,7 @@ export function GpsStatus(props: { class?: string }) {
   return (
     <Flex class={cn("gap-4 cursor-default select-none", props.class)}>
       <Show when={gps.grid}>
-        <HoverCard defaultOpen={true}>
+        <HoverCard>
           <HoverCardTrigger as={"div"} class="flex items-center font-mono">
             <BaselineGpsFixed />
             {gps.grid}

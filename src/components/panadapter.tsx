@@ -100,7 +100,7 @@ export function Panadapter(props: { streamId: string }) {
     resizeCallback(width, height);
   });
 
-  const onPanadapter = createMemo(() => {
+  createEffect(() => {
     const canvas = canvasRef();
     if (!canvas) return;
     const ctx = canvas.getContext("2d", {
@@ -115,7 +115,7 @@ export function Panadapter(props: { streamId: string }) {
     if (!offscreenCtx) return;
     const stream_id = parseInt(streamId(), 16);
     let skipFrame = 0;
-    const render = ({ packet }: PacketEvent<"panadapter">) => {
+    const handler = ({ packet }: PacketEvent<"panadapter">) => {
       if (packet.stream_id !== stream_id) return;
       const {
         payload: { startingBin, binsInThisFrame, totalBins, frame, bins },
@@ -203,12 +203,6 @@ export function Panadapter(props: { streamId: string }) {
         ctx.drawImage(offscreen, 0, 0, canvas.width, canvas.height);
       }
     };
-    return render;
-  });
-
-  createEffect(() => {
-    const handler = onPanadapter();
-    if (!handler) return;
     events.addEventListener("panadapter", handler);
     onCleanup(() => {
       events.removeEventListener("panadapter", handler);

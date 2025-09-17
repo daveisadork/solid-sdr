@@ -12,7 +12,7 @@ export function AppSidebar() {
       variant="floating"
       class="absolute h-full bg-transparent pointer-events-none"
     >
-      <SidebarContent class="pointer-events-auto">
+      <SidebarContent class="h-full py-4 overflow-clip pointer-events-auto">
         <Show when={state.selectedPanadapter} keyed={true}>
           <TuningPanel streamId={state.selectedPanadapter!} />
         </Show>

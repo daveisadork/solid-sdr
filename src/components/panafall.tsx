@@ -17,6 +17,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { frequencyToLabel } from "~/lib/utils";
 import { createFullscreen } from "@solid-primitives/fullscreen";
 import { createElementSize } from "@solid-primitives/resize-observer";
+import { TabToSignal } from "./tab-to-signal";
 
 export function Panafall() {
   const { state, sendCommand, setState } = useFlexRadio();
@@ -173,16 +174,16 @@ export function Panafall() {
       style={{
         "--panafall-available-width": `${panafallSize.width}px`,
         "--panafall-available-height": `${panafallSize.height}px`,
+        "--drag-offset": `${dragState.offset}px`,
       }}
     >
       <Show when={selectedPan()}>
         {(pan) => (
           <>
-            <div class="absolute top-0 left-0 w-screen h-screen overflow-clip select-none">
+            <div class="absolute top-0 left-0 w-dvw h-dvh overflow-clip select-none">
               <Resizable
                 class="size-full overflow-clip select-none"
                 orientation="vertical"
-                style={{ "--drag-offset": `${dragState.offset}px` }}
               >
                 <ResizablePanel
                   class="overflow-clip select-none"
@@ -204,6 +205,9 @@ export function Panafall() {
                   </Show>
                 </ResizablePanel>
               </Resizable>
+              <Show when={state.selectedPanadapter} keyed>
+                {(streamId) => <TabToSignal streamId={streamId} />}
+              </Show>
               <div
                 classList={{
                   "cursor-grabbing": dragState.dragging,
@@ -361,9 +365,9 @@ export function Panafall() {
                 {fullscreen() ? "Exit" : "Enter"} Fullscreen
               </TooltipContent>
             </Tooltip>
-            <Show when={pos.isInside}>
+            <Show when={pos.sourceType === "mouse" && pos.isInside}>
               <div
-                class="absolute h-full left-[calc(var(--cursor-x)-1.5px)] pointer-events-none w-0.5 backdrop-invert-25"
+                class="absolute h-full left-[calc(var(--cursor-x)-1.5px)] pointer-events-none w-0.5 backdrop-invert-50"
                 style={{
                   "--cursor-x": `${pos.x}px`,
                 }}

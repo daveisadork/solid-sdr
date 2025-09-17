@@ -312,8 +312,7 @@
 }
 
 html,
-body {
-  height: 100vh;
-  width: 100vw;
-  overflow: hidden;
+body,
+#app {
+  @apply size-full overflow-clip overscroll-none;
 }

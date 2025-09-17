@@ -10,7 +10,7 @@ export function AppSidebar() {
       gap={true}
       side="right"
       variant="floating"
-      class="bottom-12 bg-transparent pb-12 pointer-events-none z-30"
+      class="absolute h-full bg-transparent pointer-events-none"
     >
       <SidebarContent class="pointer-events-auto">
         <Show when={state.selectedPanadapter} keyed={true}>

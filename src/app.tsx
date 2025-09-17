@@ -18,8 +18,8 @@ function App() {
     <FlexRadioProvider>
       <ColorModeScript storageType={storageManager.type} />
       <ColorModeProvider storageManager={storageManager}>
-        <div class="flex flex-col relative inset-0 w-screen h-screen">
-          <SidebarProvider class="relative min-h-0 bg-transparent">
+        <div class="flex flex-col relative items-stretch size-full">
+          <SidebarProvider class="relative grow h-auto overflow-visible min-h-0 bg-transparent">
             <Panafall />
             <SidebarTrigger class="z-50 absolute right-2 top-2 select-none" />
             <AppSidebar />

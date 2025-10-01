@@ -468,7 +468,7 @@ export const TabToSignal: Component<
           return (
             <div
               class="absolute inset-y-0 w-px bg-amber-500"
-              style={{ left: `${x - 2}px` }}
+              style={{ left: `${x}px` }}
               title={`${t.dialMHz.toFixed(6)} MHz  (e=${t.energy.toFixed(2)})`}
             />
           );

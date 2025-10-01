@@ -10,6 +10,8 @@ import useFlexRadio, { PacketEvent } from "~/context/flexradio";
 import { DetachedSlices, Slice } from "./slice";
 import { debounce } from "@solid-primitives/scheduled";
 import { createElementSize } from "@solid-primitives/resize-observer";
+import { SerialQueue } from "~/lib/serial-queue";
+import { Portal } from "solid-js/web";
 
 export function Panadapter(props: { streamId: string }) {
   const streamId = () => props.streamId;
@@ -23,6 +25,10 @@ export function Panadapter(props: { streamId: string }) {
   const [palette, setPalette] = createSignal(new Uint8ClampedArray(0x400));
   const [offscreenCanvasRef, setOffscreenCanvasRef] =
     createSignal<OffscreenCanvas | null>(null);
+
+  const queue = new SerialQueue();
+  const frameTimes: number[] = [];
+  const [fps, setFps] = createSignal(0);
 
   createEffect(() => {
     setSlices(
@@ -115,11 +121,15 @@ export function Panadapter(props: { streamId: string }) {
     if (!offscreenCtx) return;
     const stream_id = parseInt(streamId(), 16);
     let skipFrame = 0;
+    let frameStartTime = performance.now();
     const handler = ({ packet }: PacketEvent<"panadapter">) => {
       if (packet.stream_id !== stream_id) return;
       const {
         payload: { startingBin, binsInThisFrame, totalBins, frame, bins },
       } = packet;
+      if (startingBin === 0) {
+        frameStartTime = performance.now();
+      }
       const p = palette();
       const width = totalBins;
       const height = p.length / 4;
@@ -201,23 +211,42 @@ export function Panadapter(props: { streamId: string }) {
         }
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(offscreen, 0, 0, canvas.width, canvas.height);
+        frameTimes.push(performance.now() - frameStartTime);
+        if (frameTimes.length > 10) frameTimes.shift();
+        const avgFrameTime =
+          frameTimes.reduce((a, b) => a + b, 0) / frameTimes.length;
+        setFps(Math.round(1000 / avgFrameTime));
       }
     };
-    events.addEventListener("panadapter", handler);
+
+    const task = (event: PacketEvent<"panadapter">) => {
+      queue.enqueue(async () => handler(event));
+      if (queue.size() > 1) {
+        console.warn("Panadapter queue size:", queue.size());
+      }
+    };
+
+    events.addEventListener("panadapter", task);
     onCleanup(() => {
-      events.removeEventListener("panadapter", handler);
+      events.removeEventListener("panadapter", task);
     });
   });
 
   return (
     <div
       ref={setWrapper}
-      class="relative size-full flex justify-center overflow-clip select-none"
+      class="relative shrink size-full flex justify-center overflow-clip select-none"
     >
       <canvas
         ref={setCanvasRef}
         class="absolute size-full translate-x-[var(--drag-offset)] select-none"
       />
+
+      <Portal>
+        <div class="fixed top-7 left-2 z-50 text-lg font-bold text-indigo-400">
+          {fps()}
+        </div>
+      </Portal>
       <div class="absolute top-0 left-0 h-[var(--panafall-available-height)] w-[var(--panafall-available-width)]">
         <For each={slices()}>
           {(sliceIndex) => <Slice sliceIndex={sliceIndex} />}

@@ -2,6 +2,7 @@ import { Sidebar, SidebarContent } from "~/components/ui/sidebar";
 import { TuningPanel } from "./tuningpanel";
 import useFlexRadio from "~/context/flexradio";
 import { Show } from "solid-js";
+import { FPSCounter } from "./fps";
 
 export function AppSidebar() {
   const { state } = useFlexRadio();
@@ -17,6 +18,7 @@ export function AppSidebar() {
           <TuningPanel streamId={state.selectedPanadapter!} />
         </Show>
       </SidebarContent>
+      <FPSCounter />
     </Sidebar>
   );
 }

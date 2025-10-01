@@ -456,6 +456,9 @@ export function TuningPanel(props: { streamId: string }) {
       <pre class="block w-full overflow-x-auto overflow-y-visible shrink-0">
         {JSON.stringify(state.status.display.pan, null, 2)}
       </pre>
+      <pre class="block w-full overflow-x-auto overflow-y-visible shrink-0">
+        {JSON.stringify(state.status.display.waterfall, null, 2)}
+      </pre>
     </div>
   );
 }

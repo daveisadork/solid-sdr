@@ -133,13 +133,19 @@ const LevelMeter = (props: { sliceIndex?: string | number }) => {
             }}
             class="flex w-full items-center"
           >
-            <MeterElement.Track class="grow h-2 rounded-sm overflow-hidden">
+            <MeterElement.Track
+              class="grow w-full h-2 rounded-sm overflow-visible flex items-center"
+              style={{
+                background: `linear-gradient(to right, #3b82f6, #34d399, #fbbf24, #f87171, #f87171, #f87171)`,
+              }}
+            >
               <MeterElement.Fill
-                class="h-full bg-blue-500 w-[var(--kb-meter-fill-width)]"
+                class="h-full w-[var(--kb-meter-fill-width)] bg-transparent"
                 style={{
-                  "transition-duration": `${0.5 / (meter.fps || 4)}s`,
+                  "transition-duration": `${1 / (meter.fps || 4)}s`,
                 }}
               />
+              <div class="shrink grow bg-background h-full" />
             </MeterElement.Track>
             <MeterElement.ValueLabel class="font-mono text-xs whitespace-pre" />
           </MeterElement>
@@ -329,12 +335,11 @@ export function Slice(props: { sliceIndex: number | string }) {
     if (!width) return;
     const leftFreq = pan.center - pan.bandwidth / 2;
     const offsetMhz = slice.RF_frequency - leftFreq;
-    // the panadapter display is off by 2px for some reason
-    const offsetPixels = (offsetMhz / pan.bandwidth) * width - 2;
+    const offsetPixels = (offsetMhz / pan.bandwidth) * width;
     const filterWidthMhz = (slice.filter_hi - slice.filter_lo) / 1e6; // Convert Hz to MHz
     batch(() => {
       setFilterWidth((filterWidthMhz / pan.bandwidth) * width);
-      setFilterOffset((slice.filter_lo / 1e6 / pan.bandwidth) * width + 1);
+      setFilterOffset((slice.filter_lo / 1e6 / pan.bandwidth) * width);
       setFilterText(`${(slice.filter_hi - slice.filter_lo) / 1e3}K`);
       setOffset(offsetPixels);
     });
@@ -346,15 +351,19 @@ export function Slice(props: { sliceIndex: number | string }) {
       setFrequency((slice.RF_frequency * 1e6).toLocaleString()); // Reset display
       return;
     }
-    await sendCommand(`slice t ${props.sliceIndex} ${freq.toFixed(6)}`);
-    const groupedSlices = Object.keys(state.status.slice).filter(
-      (key) =>
-        state.status.slice[key].pan === streamId() &&
-        state.status.slice[key].in_use &&
-        state.status.slice[key].diversity_index === slice.diversity_index,
-    );
+    try {
+      await sendCommand(`slice t ${props.sliceIndex} ${freq.toFixed(6)}`);
+      const groupedSlices = Object.keys(state.status.slice).filter(
+        (key) =>
+          state.status.slice[key].pan === streamId() &&
+          state.status.slice[key].in_use &&
+          state.status.slice[key].diversity_index === slice.diversity_index,
+      );
 
-    setState("status", "slice", groupedSlices, "RF_frequency", freq);
+      setState("status", "slice", groupedSlices, "RF_frequency", freq);
+    } catch (err) {
+      setFrequency((slice.RF_frequency * 1e6).toLocaleString()); // Reset display on error
+    }
   };
 
   createEffect(() => {

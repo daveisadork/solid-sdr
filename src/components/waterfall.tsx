@@ -1,7 +1,9 @@
 import { createElementSize } from "@solid-primitives/resize-observer";
 import { createEffect, createMemo, createSignal, onCleanup } from "solid-js";
 import { createStore, produce } from "solid-js/store";
+import { Portal } from "solid-js/web";
 import useFlexRadio, { PacketEvent } from "~/context/flexradio";
+import { SerialQueue } from "~/lib/serial-queue";
 
 export function Waterfall({ streamId }: { streamId: string }) {
   const { events, state, setState } = useFlexRadio();
@@ -11,13 +13,13 @@ export function Waterfall({ streamId }: { streamId: string }) {
   const [pan, setPan] = createStore(
     state.status.display.pan[waterfall.panadapter],
   );
-  const [canvasWidth, setCanvasWidth] = createSignal(waterfall.x_pixels);
+
+  const [canvasWidth, setCanvasWidth] = createSignal(1);
   const [widthMultiplier, setWidthMultiplier] = createSignal(1.0);
   const [binBandwidth, setBinBandwidth] = createSignal(1);
   const [canvasRef, setCanvasRef] = createSignal<HTMLCanvasElement>();
   const [wrapper, setWrapper] = createSignal<HTMLDivElement>();
   const [lastCalculatedCenter, setLastCalculatedCenter] = createSignal(0);
-  const [expectedFrame, setExpectedFrame] = createSignal(0);
   const [lastBandwidth, setLastBandwidth] = createSignal(0);
   const [autoBlackLevel, setAutoBlackLevel] = createSignal(0);
   const [black, setBlack] = createSignal("#000000");
@@ -28,12 +30,24 @@ export function Waterfall({ streamId }: { streamId: string }) {
     new Uint8ClampedArray(paletteCanvas.width * 4),
   );
 
+  // NEW: packed 32-bit palette for fast strip writes
+  const [palette32, setPalette32] = createSignal<Uint32Array>(
+    new Uint32Array(4096),
+  );
+  const packRGBA = (r: number, g: number, b: number, a: number) =>
+    (a << 24) | (b << 16) | (g << 8) | (r << 0);
+
   // Used to map the 16-bit waterfall value to the palette index
   const paletteDivisor = Math.round(0x10000 / paletteCanvas.width);
 
   const wrapperSize = createElementSize(wrapper);
   const canvasSize = createElementSize(canvasRef);
   const streamIdInt = parseInt(streamId, 16);
+
+  const queue = new SerialQueue();
+
+  const frameTimes: number[] = [];
+  const [fps, setFps] = createSignal(0);
 
   createEffect(() => {
     const { colorMin } = state.palette;
@@ -64,7 +78,6 @@ export function Waterfall({ streamId }: { streamId: string }) {
 
   createEffect(() => {
     const paletteCtx = paletteCanvas.getContext("2d", {
-      colorSpace: "display-p3",
       willReadFrequently: true,
     });
     if (!paletteCtx) return;
@@ -98,6 +111,19 @@ export function Waterfall({ streamId }: { streamId: string }) {
       paletteCanvas.height,
     );
     setPalette(imageData.data);
+
+    // NEW: build packed 32-bit palette once per update
+    const u32 = new Uint32Array(4096);
+    for (let i = 0; i < 4096; i++) {
+      const o = i * 4;
+      u32[i] = packRGBA(
+        imageData.data[o + 0] | 0,
+        imageData.data[o + 1] | 0,
+        imageData.data[o + 2] | 0,
+        imageData.data[o + 3] | 0,
+      );
+    }
+    setPalette32(u32);
   });
 
   createEffect(() => {
@@ -123,7 +149,7 @@ export function Waterfall({ streamId }: { streamId: string }) {
 
   createEffect(() => {
     setWidthMultiplier(
-      (binBandwidth() * waterfall.x_pixels) / 1_000_000 / pan.bandwidth,
+      (binBandwidth() * waterfall.x_pixels) / (pan.bandwidth * 1_000_000),
     );
   });
 
@@ -132,19 +158,42 @@ export function Waterfall({ streamId }: { streamId: string }) {
   });
 
   const onWaterfall = createMemo(() => {
+    // console.log("Waterfall handler created");
     const canvas = canvasRef();
     if (!canvas) return;
-    const screenCtx = canvas.getContext("2d", {
-      colorSpace: "display-p3",
-    });
+    const screenCtx = canvas.getContext("2d");
     if (!screenCtx) return;
+    screenCtx.imageSmoothingEnabled = false;
+
     const offscreen = new OffscreenCanvas(canvas.width, canvas.height);
     if (!offscreen) return;
-    const context = offscreen.getContext("2d", {
-      colorSpace: "display-p3",
-    });
-    if (!context) return;
-    context.fillStyle = "oklch(0.145 0 0)";
+    const offscreenCtx = offscreen.getContext("2d");
+    if (!offscreenCtx) return;
+    offscreenCtx.imageSmoothingEnabled = false;
+
+    let frameStartTime = performance.now();
+    let expFrame = 0;
+    let lastFrame = -1;
+
+    // NEW: reusable strip buffer (avoid per-packet alloc)
+    let stripImageData: ImageData | null = null;
+    let strip32: Uint32Array | null = null;
+    let stripW = 0;
+    let stripH = 0;
+    const ensureStrip = (w: number, h: number) => {
+      if (!stripImageData || stripW !== w || stripH !== h) {
+        stripImageData = offscreenCtx.createImageData(w, h);
+        strip32 = new Uint32Array(stripImageData.data.buffer);
+        stripW = w;
+        stripH = h;
+      }
+    };
+
+    let paintScheduled = false;
+    const paint = () => {
+      paintScheduled = false;
+      screenCtx.drawImage(offscreen, 0, 0, canvas.width, canvas.height);
+    };
 
     return ({ packet }: PacketEvent<"waterfall">) => {
       if (packet.stream_id !== streamIdInt) return;
@@ -162,8 +211,10 @@ export function Waterfall({ streamId }: { streamId: string }) {
         },
       } = packet;
 
-      const expFrame = expectedFrame();
-      const droppedFrameOffset = frame - expFrame;
+      if (startingBin === 0) {
+        frameStartTime = performance.now();
+      }
+
       if (expFrame > 0 && expFrame !== frame) {
         console.warn(
           `Received frame ${frame} does not match expected frame ${expFrame}.`,
@@ -174,58 +225,96 @@ export function Waterfall({ streamId }: { streamId: string }) {
 
       const bandwidth = totalBins * binBandwidth;
       const calculatedCenter = firstBinFreq + binBandwidth + bandwidth / 2;
-      if (startingBin === 0) {
-        context.fillStyle = black();
-        const scale = lastBandwidth() / bandwidth;
+
+      if (frame > lastFrame) {
+        frameStartTime = performance.now();
+        const scale = (lastBandwidth() || bandwidth) / bandwidth;
         setLastBandwidth(bandwidth);
-        let src = offscreen.width === totalBins ? offscreen : canvas;
+
+        let src: CanvasImageSource =
+          offscreen.width === totalBins ? offscreen : canvas;
         if (offscreen.width !== totalBins) {
           offscreen.width = totalBins;
         }
-        const offset = Math.round(
-          (lastCalculatedCenter() - calculatedCenter) / binBandwidth,
-        );
-        const scaleWidth = Math.round(offscreen.width * scale);
+
+        const xOffset =
+          (lastCalculatedCenter() - calculatedCenter) / binBandwidth;
+        const scaleWidth = Math.max(1, Math.round(offscreen.width * scale));
         const scaleOffset = Math.round(
-          offset * scale + (offscreen.width - scaleWidth) / 2,
+          xOffset * scale + (offscreen.width - scaleWidth) / 2,
         );
+
+        offscreenCtx.fillStyle = black();
         if (scale < 1.0) {
+          // shrink path: draw from last on-screen image to avoid smearing
           src = canvas;
-          context.fillRect(0, 0, offscreen.width, offscreen.height);
+          offscreenCtx.fillRect(0, 0, offscreen.width, offscreen.height);
         }
-        context.drawImage(
+
+        const yOffset = (frame - lastFrame) * height;
+        offscreenCtx.drawImage(
           src,
           scaleOffset,
-          height + droppedFrameOffset,
+          yOffset,
           scaleWidth,
           offscreen.height,
         );
-        if (offset !== 0) {
-          context.fillRect(
-            offset > 0 ? 0 : offscreen.width + scaleOffset,
-            height + droppedFrameOffset,
+
+        if (scaleOffset !== 0) {
+          offscreenCtx.fillRect(
+            scaleOffset > 0 ? 0 : offscreen.width + scaleOffset,
+            yOffset,
             Math.abs(scaleOffset),
             offscreen.height,
           );
         }
       }
 
-      const p = palette();
-      const imageData = context.createImageData(totalBins, height);
-      for (let index = 0; index < totalBins; index++) {
-        const y = (bins[index] / paletteDivisor) | 0; // 0-4095 to index into palette
-        imageData.data.set(p.subarray(y * 4, y * 4 + 4), index * 4); // Copy first 4 bytes (RGBA)
+      // We got a packet out of order, so we compute the offset to draw it in the correct place.
+      const yOffset = lastFrame > frame ? (lastFrame - frame) * height : 0;
+      lastFrame = frame;
+
+      // FAST PATH: write only the incoming strip, using packed Uint32 palette
+      {
+        const pal32 = palette32();
+        const w = binsInThisFrame;
+        const h = height;
+        ensureStrip(w, h);
+
+        // Fill the strip: replicate each bin color vertically for 'height' rows
+        // line layout is row-major: [row][x]
+        for (let x = 0; x < w; x++) {
+          const idx = (bins[x] / paletteDivisor) | 0; // 0..4095
+          const color = pal32[idx];
+          for (let r = 0; r < h; r++) {
+            strip32![r * w + x] = color;
+          }
+        }
+
+        // Keep your working shim (-1) to maintain current visual alignment
+        offscreenCtx.putImageData(stripImageData!, startingBin - 1, yOffset);
       }
-      context.putImageData(imageData, startingBin - 1, 0);
 
       if (startingBin + binsInThisFrame >= totalBins) {
         if (canvas.width !== offscreen.width) {
           setCanvasWidth(offscreen.width);
         }
-        screenCtx.drawImage(offscreen, 0, 0, canvas.width, canvas.height);
+
+        // Coalesce to one paint per frame
+        if (!paintScheduled) {
+          paintScheduled = true;
+          requestAnimationFrame(paint);
+        }
+
+        frameTimes.push(performance.now() - frameStartTime);
+        if (frameTimes.length > 10) frameTimes.shift();
+        const avgFrameTime =
+          frameTimes.reduce((a, b) => a + b, 0) / frameTimes.length;
+        setFps(Math.round(1000 / avgFrameTime));
+
         setBinBandwidth(binBandwidth);
         setLastCalculatedCenter(calculatedCenter);
-        setExpectedFrame(frame + 1);
+        expFrame = Math.max(frame + 1, expFrame);
       }
     };
   });
@@ -233,16 +322,22 @@ export function Waterfall({ streamId }: { streamId: string }) {
   createEffect(() => {
     const handler = onWaterfall();
     if (!handler) return;
-    events.addEventListener("waterfall", handler);
+    const task = (event: PacketEvent<"waterfall">) => {
+      queue.enqueue(async () => handler(event));
+      if (queue.size() > 1) {
+        console.warn("Waterfall queue size:", queue.size());
+      }
+    };
+    events.addEventListener("waterfall", task);
     onCleanup(() => {
-      events.removeEventListener("waterfall", handler);
+      events.removeEventListener("waterfall", task);
     });
   });
 
   return (
     <div
       ref={setWrapper}
-      class="relative size-full flex justify-center margin-auto overflow-visible select-none"
+      class="relative size-full flex justify-center overflow-visible select-none"
     >
       <canvas
         class="absolute shrink-0 select-none scale-x-[var(--width-multiplier)] translate-x-[var(--drag-offset)]"
@@ -251,8 +346,16 @@ export function Waterfall({ streamId }: { streamId: string }) {
         height={window.screen.height}
         style={{
           "--width-multiplier": widthMultiplier(),
+          // "image-rendering": "pixelated", // crisper columns when CSS-scaled
+          // "will-change": "transform", // hint for translate-x
         }}
       />
+
+      <Portal>
+        <div class="fixed top-12 left-2 z-50 text-lg font-bold text-emerald-400">
+          {fps()}
+        </div>
+      </Portal>
     </div>
   );
 }

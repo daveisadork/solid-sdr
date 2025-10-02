@@ -1,6 +1,3 @@
 packages:
-  - "src/as"
-onlyBuiltDependencies:
-  - "@parcel/watcher"
-  - "@tailwindcss/oxide"
-  - esbuild
+  - "apps/*"
+  - "packages/*"

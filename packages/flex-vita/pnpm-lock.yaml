@@ -1,0 +1,38 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .:
+    devDependencies:
+      assemblyscript:
+        specifier: ^0.28.4
+        version: 0.28.4
+
+packages:
+
+  assemblyscript@0.28.4:
+    resolution: {integrity: sha512-FHJ1Sm+d1siK6J+sqNUXsl9h9lzSQbnhZxG4X4Vp7LmlwD3DRvW0uk4rB4ekisw0XhrPaIKaFDqkjo1bpHzM6w==}
+    engines: {node: '>=20', npm: '>=10'}
+    hasBin: true
+
+  binaryen@123.0.0-nightly.20250530:
+    resolution: {integrity: sha512-d1zPHBN5YlOd3Ff+OUxvVExuFeh8heSnqe+X3bjItFxGLvn4VGBKmrvv7pgy/cRhrIUGuPW138iaWfDhwjyDqg==}
+    hasBin: true
+
+  long@5.3.2:
+    resolution: {integrity: sha512-mNAgZ1GmyNhD7AuqnTG3/VQ26o760+ZYBPKjPvugO8+nLbYfX6TVpJPseBvopbdY+qpZ/lKUnmEc1LeZYS3QAA==}
+
+snapshots:
+
+  assemblyscript@0.28.4:
+    dependencies:
+      binaryen: 123.0.0-nightly.20250530
+      long: 5.3.2
+
+  binaryen@123.0.0-nightly.20250530: {}
+
+  long@5.3.2: {}

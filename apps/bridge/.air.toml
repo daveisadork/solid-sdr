@@ -1,0 +1,17 @@
+root = "."
+tmp_dir = "tmp"
+
+[build]
+cmd = "go build -o ./tmp/bridge ./cmd/bridge"
+bin = "tmp/bridge"
+full_bin = ""
+exclude_dir = ["tmp", "node_modules", ".git", "dist", "build"]
+include_ext = ["go"]
+exclude_regex = ["_test\\.go$"]
+delay = 100                                                    # ms debounce
+
+[log]
+time = true
+
+[env]
+# example: PORT="8080"

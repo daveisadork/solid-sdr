@@ -1,0 +1,20 @@
+{
+  "name": "@repo/bridge",
+  "private": true,
+  "description": "Flex Bridge (Go sidecar) - HTTP/WS server",
+  "scripts": {
+    "dev": "pnpm -s run dev:air || pnpm -s run dev:reflex || pnpm -s run dev:go",
+    "dev:air": "air -c ./.air.toml",
+    "dev:reflex": "reflex -r '\\.go$' -- sh -c 'go run ./cmd/bridge -addr :8080 -coi'",
+    "dev:go": "go run ./cmd/bridge -addr :8080 -coi",
+    "build": "pnpm -s run build:clean && go build -o dist/bridge ./cmd/bridge",
+    "build:prod": "pnpm -s run build:clean && go build -ldflags='-s -w' -o dist/bridge ./cmd/bridge",
+    "build:clean": "rimraf dist",
+    "test": "go test ./...",
+    "lint": "golangci-lint run || echo \"golangci-lint not installed; skipping\"",
+    "clean": "pnpm -s run build:clean && go clean"
+  },
+  "devDependencies": {
+    "rimraf": "^5.0.10"
+  }
+}

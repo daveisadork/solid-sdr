@@ -1,0 +1,28 @@
+{
+  "name": "@repo/flex-vita",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "node tests",
+    "build:debug": "asc assembly/index.ts --target debug",
+    "build:release": "asc assembly/index.ts --target release",
+    "build": "pnpm run build:debug && pnpm run build:release",
+    "start": "pnpx serve .",
+    "dev": "pnpm run build:debug"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@9.0.0",
+  "devDependencies": {
+    "assemblyscript": "^0.28.4"
+  },
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./build/assembly.js",
+      "types": "./build/assembly.d.ts"
+    }
+  }
+}

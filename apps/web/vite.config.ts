@@ -8,7 +8,7 @@ export default defineConfig({
   plugins: [solidPlugin(), tailwindcss(), Icons({ compiler: "solid" })],
   resolve: {
     alias: {
-      "~": path.resolve(__dirname, "./src"),
+      "~": path.resolve(__dirname, "src"),
     },
   },
   server: {

@@ -205,9 +205,9 @@ export function Panafall() {
                   </Show>
                 </ResizablePanel>
               </Resizable>
-              <Show when={state.selectedPanadapter} keyed>
-                {/* {(streamId) => <TabToSignal streamId={streamId} />} */}
-              </Show>
+              {/* <Show when={state.selectedPanadapter} keyed> */}
+              {/*   {(streamId) => <TabToSignal streamId={streamId} />} */}
+              {/* </Show> */}
               <div
                 classList={{
                   "cursor-grabbing": dragState.dragging,

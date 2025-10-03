@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"net/netip"
@@ -70,7 +69,7 @@ func WSHandler(w http.ResponseWriter, r *http.Request) {
 			if !ok {
 				return
 			}
-			log.Printf("[radio->tcp] %q", line)
+			// log.Printf("[radio->tcp] %q", line)
 			_ = ws.SetWriteDeadline(time.Now().Add(10 * time.Second))
 			if err := ws.WriteMessage(websocket.TextMessage, []byte(line)); err != nil {
 				return
@@ -163,7 +162,7 @@ func (s *Session) WriteTCP(b []byte) error {
 	if len(b) == 0 || b[len(b)-1] != '\n' {
 		b = append(b, '\n')
 	}
-	log.Printf("[tcp->radio] %q", b)
+	// log.Printf("[tcp->radio] %q", b)
 	_, err := s.tcp.Write(b)
 	return err
 }

@@ -31,7 +31,7 @@ export default function Connect() {
       disconnect();
     }
     return open();
-  }, open());
+  }, state.connectModal.open);
 
   createEffect((prevHandle) => {
     if (!prevHandle && state.clientHandle) setOpen(false);

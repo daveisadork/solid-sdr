@@ -9,7 +9,12 @@ import {
 } from "solid-js";
 import { createStore, produce, reconcile } from "solid-js/store";
 import { showToast } from "~/components/ui/toast";
-import { decodeVita, PacketClass, VitaPacket } from "~/lib/vita";
+import {
+  decodeVita,
+  DiscoveryPayload,
+  PacketClass,
+  VitaPacket,
+} from "~/lib/vita";
 
 type EventTypePacketClassMap = {
   ["meter"]: PacketClass.meter;
@@ -52,36 +57,9 @@ const PacketClassEventMap: Record<string | number, PacketEventType> = {
   [PacketClass.discovery]: "discovery",
 };
 
-export type DiscoveryRadio = {
-  model: string; // "FLEX-8600"
-  serial: string; // "1225-1213-8600-7918"
-  version: string; // "3.8.23.35640"
-  nickname: string; // "FlexRadio"
-  callsign: string; // "KF0SMY"
-  ip: string; // "10.16.83.234";
-  port: number; // 4992
-  status: string; // "Available"
-  inuse_ip: string; // ""
-  inuse_host: string; // ""
-  max_licensed_version: string; // "v3"
-  radio_license_id: string; // "00-1C-2D-05-33-BA"
-  requires_additional_license: boolean; //
-  fpc_mac: string; //""
-  wan_connected: boolean;
-  licensed_clients: number;
-  available_clients: number;
-  max_panadapters: number;
-  available_panadapters: number;
-  max_slices: number;
-  available_slices: number;
-  gui_client_ips: string; //""
-  gui_client_hosts: string; // ""
-  gui_client_programs: string; // ""
-  gui_client_stations: string; // ""
-  gui_client_handles: string; // ""
-  min_software_version: string; // "3.8.0.0"
+export interface DiscoveryRadio extends DiscoveryPayload {
   last_seen: Date;
-};
+}
 
 export enum MeterUnit {
   dB = "dB",

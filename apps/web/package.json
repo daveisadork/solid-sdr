@@ -11,6 +11,8 @@
   },
   "license": "MIT",
   "devDependencies": {
+    "@repo/eslint-config": "workspace:*",
+    "@repo/tailwind-config": "workspace:*",
     "@iconify/json": "^2.2.384",
     "@tailwindcss/vite": "^4.1.12",
     "tailwind-merge": "^3.3.1",

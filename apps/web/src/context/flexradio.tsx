@@ -15,6 +15,7 @@ import {
   PacketClass,
   VitaPacket,
 } from "~/lib/vita";
+import { useRtc } from "./rtc";
 
 type EventTypePacketClassMap = {
   ["meter"]: PacketClass.meter;
@@ -471,9 +472,11 @@ const FlexRadioContext = createContext<{
 
 export function FlexRadioProvider(props: { children: any }) {
   const [state, setState] = createStore(initialState());
+  const { connect: connectRTC, session: sessionRTC } = useRtc();
+
   const [ws, setWs] = createSignal<WebSocket | null>(null);
   const [cmdCount, setCmdCount] = createSignal(0);
-  const discoveryWs = createWS("/ws/discovery");
+  const discoveryWs = createWS("http://localhost:8080/ws/discovery");
   discoveryWs.binaryType = "arraybuffer";
 
   createEffect(() => {
@@ -949,6 +952,9 @@ export function FlexRadioProvider(props: { children: any }) {
         // Handle preamble
         const handle = payload.slice(1);
         console.log("Handle:", handle);
+        console.log("Connecting RTC with handle:", handle);
+        await connectRTC(handle).catch(console.error);
+        console.log("Requesting initial data...");
         // setState("clientHandle", handle);
         try {
           // await sendCommand("client program SolidFlexRadio");
@@ -992,6 +998,9 @@ export function FlexRadioProvider(props: { children: any }) {
               s.clientHandle = handle;
               s.clientId = clientId;
             }),
+          );
+          await sendCommand(
+            "stream create type=remote_audio_rx compression=OPUS",
           );
         } catch (error) {
           console.error("Failed to subscribe to initial data:", error);
@@ -1039,6 +1048,7 @@ export function FlexRadioProvider(props: { children: any }) {
           case "slice":
             return updateSlice(rest);
           case "stream":
+            console.log(payload);
             return updateStream(rest);
         }
 
@@ -1121,17 +1131,13 @@ export function FlexRadioProvider(props: { children: any }) {
 
     setWs(conn);
 
+    // const sessionId = crypto.randomUUID();
+    // console.log("Connecting to RTC with session ID:", sessionId);
+    // connectRTC(sessionId).catch(console.error);
     conn.addEventListener("message", (event) => {
       switch (typeof event.data) {
         case "string":
           handleTcpMessage(event.data);
-          break;
-        case "object":
-          if (event.data instanceof ArrayBuffer) {
-            handleUdpPacket(event.data);
-          } else {
-            console.warn("Unknown message type:", event.data);
-          }
           break;
         default:
           console.warn("Unknown message type:", event.data);
@@ -1139,7 +1145,36 @@ export function FlexRadioProvider(props: { children: any }) {
     });
   };
 
+  // createEffect((prevClientHandle) => {
+  //   const sessionId = state.clientHandle;
+  //   if (prevClientHandle === sessionId) return sessionId;
+  //   if (!sessionId) return;
+  //   console.log("Connecting to RTC with session ID:", sessionId);
+  //   connectRTC(sessionId).catch(console.error);
+  //   return sessionId;
+  // });
+
+  createEffect(() => {
+    const session = sessionRTC();
+    if (!session) return;
+    const listener = (event: MessageEvent) => {
+      if (event.data instanceof ArrayBuffer) {
+        handleUdpPacket(event.data);
+      } else {
+        console.warn("Unknown RTC data message type:", event);
+      }
+    };
+
+    console.log("Setting up RTC data channel listener");
+    session.data.addEventListener("message", listener);
+    onCleanup(() => {
+      console.log("Cleaning up RTC data channel listener");
+      session.data.removeEventListener("message", listener);
+    });
+  });
+
   const disconnect = () => {
+    sessionRTC()?.close();
     ws()?.close();
     setWs(null);
     setState(["clientHandle", "selectedPanadapter"], null);

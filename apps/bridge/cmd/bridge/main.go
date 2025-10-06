@@ -9,8 +9,11 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/daveisadork/flex-bridge/internal/core"
 	"github.com/daveisadork/flex-bridge/internal/discovery"
 	"github.com/daveisadork/flex-bridge/internal/radio"
+	"github.com/daveisadork/flex-bridge/internal/rtc"
+	"github.com/pion/webrtc/v4"
 )
 
 func main() {
@@ -18,8 +21,6 @@ func main() {
 	staticDir := flag.String("static", "", "directory to serve built UI (optional)")
 	discPort := flag.Int("discovery-port", 4992, "UDP discovery port")
 	flag.Parse()
-
-	mux := http.NewServeMux()
 
 	// Discovery service (long-lived, shared)
 	disco := discovery.New(discovery.Options{Port: *discPort})
@@ -29,16 +30,29 @@ func main() {
 		}
 	}()
 
-	// WebSocket endpoints
-	mux.HandleFunc("/ws/radio", radio.WSHandler)
+	sessions := core.NewSessionManager()
+
+	rtcServer := rtc.New(sessions, []webrtc.ICEServer{
+		{URLs: []string{"stun:stun.l.google.com:19302"}},
+	})
+
+	wsHandler := radio.NewWSHandler(sessions, rtcServer)
+
+	mux := http.NewServeMux()
 	mux.HandleFunc("/ws/discovery", disco.WSHandler)
+	mux.Handle("/ws/radio", wsHandler)
+	mux.HandleFunc("/rtc/offer", rtcServer.OfferHandler)
 
 	// Optional static UI
 	if *staticDir != "" {
 		mux.Handle("/", http.FileServer(http.Dir(*staticDir)))
 	}
 
-	srv := &http.Server{Addr: *addr, Handler: withCOI(withCORS(mux))}
+	srv := &http.Server{
+		Addr:              ":8080",
+		Handler:           withCOI(withCORS(mux)),
+		ReadHeaderTimeout: 10 * time.Second,
+	}
 
 	go func() {
 		log.Printf("listening on %s", *addr)

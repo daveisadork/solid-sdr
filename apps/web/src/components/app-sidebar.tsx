@@ -10,6 +10,7 @@ export function AppSidebar() {
     <Sidebar
       gap={true}
       side="right"
+      variant="floating"
       class="absolute h-full bg-transparent pointer-events-none"
     >
       <SidebarContent class="h-full py-4 overflow-clip pointer-events-auto">

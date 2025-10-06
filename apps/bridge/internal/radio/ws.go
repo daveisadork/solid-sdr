@@ -2,229 +2,200 @@ package radio
 
 import (
 	"bufio"
-	"context"
-	"errors"
-	"fmt"
+	"log"
 	"net"
 	"net/http"
-	"net/netip"
 	"strconv"
+	"strings"
 	"time"
 
+	"github.com/daveisadork/flex-bridge/internal/core"
+	"github.com/daveisadork/flex-bridge/internal/rtc"
 	"github.com/gorilla/websocket"
 )
 
-// WSHandler bridges a single Flex radio session to one WebSocket client.
-// Query: /ws/radio?host=192.168.1.10&port=4992
-func WSHandler(w http.ResponseWriter, r *http.Request) {
-	up := websocket.Upgrader{
-		CheckOrigin:       func(*http.Request) bool { return true },
-		EnableCompression: false,
+type WSHandler struct {
+	Sessions *core.SessionManager
+	RTC      *rtc.Server
+
+	Upgrader websocket.Upgrader
+}
+
+func NewWSHandler(sessions *core.SessionManager, rtcServer *rtc.Server) *WSHandler {
+	return &WSHandler{
+		Sessions: sessions,
+		RTC:      rtcServer,
+		Upgrader: websocket.Upgrader{
+			ReadBufferSize:    64 * 1024,
+			WriteBufferSize:   64 * 1024,
+			CheckOrigin:       func(*http.Request) bool { return true },
+			EnableCompression: false, // avoid permessage-deflate
+		},
 	}
-	ws, err := up.Upgrade(w, r, nil)
+}
+
+// /ws/radio?host=X&port=Y
+func (h *WSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	ws, err := h.Upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		return
 	}
 	defer func() { _ = ws.Close() }()
 
-	host := r.URL.Query().Get("host")
-	portStr := r.URL.Query().Get("port")
-	port, _ := strconv.Atoi(portStr)
-	if host == "" || port <= 0 || port > 65535 {
-		_ = ws.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(1008, "bad params"), time.Now().Add(time.Second))
+	q := r.URL.Query()
+	host := q.Get("host")
+	portStr := q.Get("port")
+	if host == "" || portStr == "" {
+		_ = ws.WriteControl(websocket.CloseMessage,
+			websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "missing host/port"),
+			time.Now().Add(2*time.Second))
+		return
+	}
+	basePort, err := strconv.Atoi(portStr)
+	if err != nil || basePort <= 0 || basePort > 65535 {
+		_ = ws.WriteControl(websocket.CloseMessage,
+			websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "invalid port"),
+			time.Now().Add(2*time.Second))
 		return
 	}
 
-	ctx, cancel := context.WithCancel(r.Context())
-	defer cancel()
-
-	sess, err := NewSession(ctx, host, port)
+	// TCP connect to radio
+	tcp, err := net.DialTimeout("tcp", net.JoinHostPort(host, portStr), 9*time.Second)
 	if err != nil {
-		_ = ws.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(1011, "connect failed"), time.Now().Add(time.Second))
+		log.Printf("[ws] tcp dial error: %v", err)
+		_ = ws.WriteControl(websocket.CloseMessage,
+			websocket.FormatCloseMessage(websocket.CloseTryAgainLater, "tcp connect failed"),
+			time.Now().Add(2*time.Second))
 		return
 	}
-	defer sess.Close()
+	defer func() { _ = tcp.Close() }()
 
-	// pumps
-	// 1) WS -> TCP (commands)
+	rd := bufio.NewReader(tcp)
+
+	// Read first two lines from radio (version "V..." and handle "H....")
+	// Always TRIM whitespace before sending to UI.
+	line1Raw, err1 := rd.ReadString('\n')
+	if err1 != nil {
+		log.Printf("[ws] read first line: %v", err1)
+		return
+	}
+	line2Raw, err2 := rd.ReadString('\n')
+	if err2 != nil {
+		log.Printf("[ws] read second line: %v", err2)
+		return
+	}
+	l1 := strings.TrimSpace(line1Raw)
+	l2 := strings.TrimSpace(line2Raw)
+
+	// Determine version vs handle
+	versionLine, handleLine := l1, l2
+	if strings.HasPrefix(l1, "H") {
+		versionLine, handleLine = l2, l1
+	}
+
+	// Extract hex handle (uppercase, no leading "H")
+	handleHex := strings.ToUpper(strings.TrimPrefix(handleLine, "H"))
+
+	// Register session (store TCP, host/port, and metadata)
+	rs := h.Sessions.PutTCP(handleHex, host, basePort, tcp)
+	rs.Version = versionLine
+	if u, err := strconv.ParseUint(handleHex, 16, 32); err == nil {
+		rs.HandleU32 = uint32(u)
+	}
+
+	// Forward the first two lines TRIMMED to the frontend
+	_ = ws.WriteMessage(websocket.TextMessage, []byte(versionLine))
+	_ = ws.WriteMessage(websocket.TextMessage, []byte(handleLine))
+
+	// TCP -> WS forwarder (trim + stream detection)
+	done := make(chan struct{})
 	go func() {
+		defer close(done)
 		for {
-			mt, data, err := ws.ReadMessage()
+			b, err := rd.ReadString('\n')
 			if err != nil {
-				cancel()
 				return
 			}
-			if mt == websocket.TextMessage || mt == websocket.BinaryMessage {
-				_ = sess.WriteTCP(data)
+			line := strings.TrimSpace(b)
+
+			// Forward trimmed line to UI
+			if err := ws.WriteMessage(websocket.TextMessage, []byte(line)); err != nil {
+				return
+			}
+
+			// Observe "stream …" creations and notify RTC
+			if ok, sid, typ, comp := parseStreamCreate(line); ok {
+				// We already know the handle for this TCP session (handleHex)
+				if h.RTC != nil {
+					h.RTC.NoteStreamCreated(handleHex, sid, typ, comp)
+				}
 			}
 		}
 	}()
 
-	// 2) TCP lines -> WS text; 3) UDP -> WS binary
+	// WS -> TCP writer (commands from UI)
+	ws.SetReadLimit(1 << 20)
+	_ = ws.SetReadDeadline(time.Time{})
 	for {
-		select {
-		case <-ctx.Done():
-			return
-		case line, ok := <-sess.TCPLines:
-			if !ok {
-				return
-			}
-			// log.Printf("[radio->tcp] %q", line)
-			_ = ws.SetWriteDeadline(time.Now().Add(10 * time.Second))
-			if err := ws.WriteMessage(websocket.TextMessage, []byte(line)); err != nil {
-				return
-			}
-		case pkt, ok := <-sess.UDPPackets:
-			if !ok {
-				return
-			}
-			_ = ws.SetWriteDeadline(time.Now().Add(10 * time.Second))
-			if err := ws.WriteMessage(websocket.BinaryMessage, pkt); err != nil {
-				return
-			}
-		}
-	}
-}
-
-// Session owns one TCP + one UDP connection to a Flex radio.
-// It exposes line-oriented TCP and raw UDP packets as channels.
-
-type Session struct {
-	ctx    context.Context
-	cancel context.CancelFunc
-
-	tcp net.Conn
-	udp *net.UDPConn
-
-	TCPLines   chan string
-	UDPPackets chan []byte
-}
-
-func NewSession(parent context.Context, host string, port int) (*Session, error) {
-	ctx, cancel := context.WithCancel(parent)
-	tcp, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", host, port), 9*time.Second)
-	if err != nil {
-		cancel()
-		return nil, err
-	}
-
-	// Determine local IP used by TCP
-	var lip netip.Addr
-	if la, ok := tcp.LocalAddr().(*net.TCPAddr); ok {
-		if a, ok := netip.AddrFromSlice(la.IP); ok {
-			lip = a
-		}
-	}
-
-	udp, err := dialUDP(lip, host, port+1)
-	if err != nil {
-		_ = tcp.Close()
-		cancel()
-		return nil, err
-	}
-
-	s := &Session{
-		ctx:        ctx,
-		cancel:     cancel,
-		tcp:        tcp,
-		udp:        udp,
-		TCPLines:   make(chan string, 256),
-		UDPPackets: make(chan []byte, 256),
-	}
-
-	// Tell radio our UDP port
-	if ua, ok := udp.LocalAddr().(*net.UDPAddr); ok {
-		_ = s.WriteTCP(fmt.Appendf(nil, "C0|client udpport %d\n", ua.Port))
-	}
-
-	go s.readTCPLines()
-	go s.readUDPPackets()
-	return s, nil
-}
-
-func (s *Session) Close() {
-	s.cancel()
-	if s.tcp != nil {
-		_ = s.tcp.Close()
-	}
-	if s.udp != nil {
-		_ = s.udp.Close()
-	}
-	close(s.TCPLines)
-	close(s.UDPPackets)
-}
-
-func (s *Session) WriteTCP(b []byte) error {
-	if s.tcp == nil {
-		return errors.New("tcp closed")
-	}
-	// Ensure a single trailing newline so commands are always parsed correctly
-	if len(b) == 0 || b[len(b)-1] != '\n' {
-		b = append(b, '\n')
-	}
-	// log.Printf("[tcp->radio] %q", b)
-	_, err := s.tcp.Write(b)
-	return err
-}
-
-func (s *Session) readTCPLines() {
-	defer func() { _ = recover() }()
-	scan := bufio.NewScanner(s.tcp)
-	scan.Buffer(make([]byte, 0, 64*1024), 512*1024)
-	for scan.Scan() {
-		select {
-		case <-s.ctx.Done():
-			return
-		case s.TCPLines <- scan.Text():
-		}
-	}
-}
-
-func (s *Session) readUDPPackets() {
-	defer func() { _ = recover() }()
-	buf := make([]byte, 64*1024)
-	for {
-		_ = s.udp.SetReadDeadline(time.Now().Add(10 * time.Second))
-		n, _, err := s.udp.ReadFromUDP(buf)
-		if ne, ok := err.(net.Error); ok && ne.Timeout() {
-			if s.ctx.Err() != nil {
-				return
-			}
-			continue
-		}
+		mt, msg, err := ws.ReadMessage()
 		if err != nil {
-			return
+			break
 		}
-		pkt := make([]byte, n)
-		copy(pkt, buf[:n])
-		select {
-		case <-s.ctx.Done():
-			return
-		case s.UDPPackets <- pkt:
-		}
-	}
-}
-
-func dialUDP(local netip.Addr, host string, port int) (*net.UDPConn, error) {
-	// Resolve remote preferring the same family as local if provided
-	rAddrs, err := net.LookupIP(host)
-	if err != nil || len(rAddrs) == 0 {
-		return nil, errors.New("resolve failed")
-	}
-	sel := rAddrs[0]
-	if local.IsValid() {
-		is4 := local.Is4()
-		for _, ip := range rAddrs {
-			if (is4 && ip.To4() != nil) || (!is4 && ip.To4() == nil) {
-				sel = ip
+		if mt == websocket.TextMessage || mt == websocket.BinaryMessage {
+			// Pass through as-is; UI includes newline when needed.
+			if _, err := tcp.Write(msg); err != nil {
 				break
 			}
 		}
 	}
-	var laddr *net.UDPAddr
-	if local.IsValid() {
-		laddr = &net.UDPAddr{IP: local.AsSlice(), Port: 0}
+
+	<-done
+}
+
+// Example expected line (trimmed):
+// S143460AF|stream 0x04000008 type=remote_audio_rx compression=OPUS client_handle=0x143460AF ip=...
+func parseStreamCreate(line string) (ok bool, streamID uint32, typ string, compression string) {
+	if !strings.Contains(line, "stream ") || !strings.Contains(line, "type=") {
+		return false, 0, "", ""
 	}
-	raddr := &net.UDPAddr{IP: sel, Port: port}
-	return net.DialUDP("udp", laddr, raddr)
+	// type
+	if i := strings.Index(line, "type="); i != -1 {
+		j := i + len("type=")
+		k := j
+		for k < len(line) && line[k] != ' ' {
+			k++
+		}
+		typ = line[j:k]
+	}
+	// compression
+	if i := strings.Index(line, "compression="); i != -1 {
+		j := i + len("compression=")
+		k := j
+		for k < len(line) && line[k] != ' ' {
+			k++
+		}
+		compression = line[j:k]
+	}
+	// stream id
+	const key = "stream 0x"
+	if i := strings.Index(line, key); i != -1 {
+		j := i + len(key)
+		k := j
+		for k < len(line) && isHex(line[k]) {
+			k++
+		}
+		if k > j {
+			if v, err := strconv.ParseUint(line[j:k], 16, 32); err == nil {
+				streamID = uint32(v)
+			}
+		}
+	}
+	if streamID == 0 || typ == "" {
+		return false, 0, "", ""
+	}
+	return true, streamID, typ, compression
+}
+
+func isHex(b byte) bool {
+	return (b >= '0' && b <= '9') || (b|0x20 >= 'a' && b|0x20 <= 'f')
 }

@@ -476,7 +476,7 @@ export function FlexRadioProvider(props: { children: any }) {
 
   const [ws, setWs] = createSignal<WebSocket | null>(null);
   const [cmdCount, setCmdCount] = createSignal(0);
-  const discoveryWs = createWS("http://localhost:8080/ws/discovery");
+  const discoveryWs = createWS("/ws/discovery");
   discoveryWs.binaryType = "arraybuffer";
 
   createEffect(() => {

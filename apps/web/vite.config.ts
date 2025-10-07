@@ -12,7 +12,7 @@ export default defineConfig({
     },
   },
   server: {
-    port: 3000,
+    port: 3003,
     allowedHosts: true,
     proxy: {
       "/ws": {
@@ -20,6 +20,7 @@ export default defineConfig({
         ws: true,
         rewriteWsOrigin: true,
       },
+      "/rtc": { target: "http://localhost:8080" },
     },
     headers: {
       // cross-origin isolation for SAB in dev

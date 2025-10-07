@@ -6,35 +6,41 @@ export type RtcSession = {
 
 export async function startRTC(
   sessionId: string,
-  onTrack: (ev: RTCTrackEvent) => void,
-): Promise<RtcSession> {
+  onTrack?: (ev: RTCTrackEvent) => void,
+) {
   const pc = new RTCPeerConnection({
     iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
   });
 
-  pc.addEventListener("track", onTrack);
-
-  // offer recvonly audio so the server can send
+  const data = pc.createDataChannel("udp", {
+    ordered: false, // no head-of-line blocking
+    maxRetransmits: 0, // drop instead of retry
+    // OR use maxPacketLifeTime: 100 for “soft” realtime
+  });
+  data.binaryType = "arraybuffer"; // important for Firefox
   pc.addTransceiver("audio", { direction: "recvonly" });
+  if (onTrack) pc.addEventListener("track", onTrack);
 
-  const data = pc.createDataChannel("udp");
+  // Create the offer, then MUNGE it to force opus stereo.
+  const offer = await pc.createOffer({ offerToReceiveAudio: true });
+  const mungedSDP = forceStereoInSDP(offer.sdp!);
+  await pc.setLocalDescription({ type: "offer", sdp: mungedSDP });
 
-  const offer = await pc.createOffer();
-  await pc.setLocalDescription(offer);
+  // Wait for ICE, post to server, set remote description as usual
   await waitForIceComplete(pc);
-
-  const res = await fetch("http://localhost:8080/rtc/offer", {
+  const res = await fetch("/rtc/offer", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ sessionId, sdp: pc.localDescription!.sdp }),
   });
-  const raw = await res.text();
-  if (!res.ok) throw new Error(raw);
-  const { sdp } = JSON.parse(raw);
-  await pc.setRemoteDescription({ type: "answer", sdp });
+  const { sdp: answer } = await res.json();
+  await pc.setRemoteDescription({ type: "answer", sdp: answer });
 
-  const close = () => pc.close();
-  return { pc, data, close };
+  return {
+    pc,
+    data,
+    close: () => pc.close(),
+  };
 }
 
 function waitForIceComplete(pc: RTCPeerConnection) {
@@ -50,4 +56,54 @@ function waitForIceComplete(pc: RTCPeerConnection) {
     // small safety timer to avoid hanging on environments with blocked STUN
     setTimeout(resolve, 1500);
   });
+}
+
+function forceStereoInSDP(sdp: string): string {
+  // Find the audio "m=" section
+  const sections = sdp.split("\r\nm=");
+  for (let i = 0; i < sections.length; i++) {
+    const isFirst = i === 0;
+    const sec = isFirst ? sections[i] : "m=" + sections[i];
+    if (!sec.startsWith("m=audio")) continue;
+
+    // Find opus payload type (rtpmap)
+    const rtpmapRe = /a=rtpmap:(\d+)\s+opus\/48000\/2\r?\n/i;
+    const m =
+      sec.match(rtpmapRe) ||
+      sec.match(/a=rtpmap:(\d+)\s+opus\/48000(?:\/\d+)?\r?\n/i);
+    if (!m) continue;
+    const pt = m[1];
+
+    // Ensure/patch fmtp for that PT
+    const fmtpLineRe = new RegExp(`a=fmtp:${pt}\\s+([^\r\\n]*)`, "i");
+    if (fmtpLineRe.test(sec)) {
+      // append stereo flags if not present
+      const newSec = sec.replace(fmtpLineRe, (_all, params) => {
+        let p = params || "";
+        const add = (k: string) => {
+          if (!new RegExp(`(^|;)\\s*${k}(=|;|$)`, "i").test(p)) {
+            p = p ? p + `;${k}` : k;
+          }
+        };
+        add("stereo=1");
+        add("sprop-stereo=1");
+        return `a=fmtp:${pt} ${p}`;
+      });
+      sections[i] = isFirst ? newSec : newSec.slice(2); // remove the re-added "m="
+    } else {
+      // insert a new fmtp line right after rtpmap
+      const lines = sec.split("\r\n");
+      const idx = lines.findIndex(
+        (l) =>
+          l.toLowerCase() === `a=rtpmap:${pt} opus/48000/2`.toLowerCase() ||
+          l.toLowerCase() === `a=rtpmap:${pt} opus/48000`.toLowerCase(),
+      );
+      if (idx >= 0) {
+        lines.splice(idx + 1, 0, `a=fmtp:${pt} stereo=1;sprop-stereo=1`);
+        const newSec = lines.join("\r\n");
+        sections[i] = isFirst ? newSec : newSec.slice(2);
+      }
+    }
+  }
+  return sections.join("\r\nm=");
 }

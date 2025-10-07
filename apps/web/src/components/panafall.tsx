@@ -63,6 +63,7 @@ export function Panafall() {
     sendCommand(`display pan s ${streamId} center=${newCenter}`);
   };
 
+  // eslint-disable-next-line solid/reactivity
   const _setPanCenterDebounced = debounce(_setPanCenter, 100);
 
   const setPanCenter = (newCenter: number, debounce: boolean = false) => {
@@ -81,9 +82,8 @@ export function Panafall() {
       if (!dragState.dragging) return;
       setDragState("dragging", false);
       if (!smoothScroll()) return;
-      const { originX, originFreq } = dragState;
-      const newOffset = event.x - originX;
-      const freq = originFreq - newOffset / pxPerMHz();
+      const newOffset = event.x - dragState.originX;
+      const freq = dragState.originFreq - newOffset / pxPerMHz();
       setPanCenter(freq);
     });
   };
@@ -96,8 +96,6 @@ export function Panafall() {
       setDragState({
         down: true,
         downX: x,
-        offset: 0,
-        dragging: false,
         originFreq: selectedPan()?.center,
       });
     },
@@ -106,12 +104,11 @@ export function Panafall() {
       if (!dragState.dragging) {
         setDragState({
           dragging: true,
-          originX: dragState.downX,
+          originX: dragState.originX || dragState.downX,
         });
       }
-      const { originX, originFreq } = dragState;
-      const newOffset = event.x - originX;
-      const freq = originFreq - newOffset / pxPerMHz();
+      const newOffset = event.x - dragState.originX;
+      const freq = dragState.originFreq - newOffset / pxPerMHz();
       if (smoothScroll()) {
         setDragState("offset", Math.round(newOffset));
       }
@@ -122,22 +119,18 @@ export function Panafall() {
   });
 
   const updateScroll = (prevCenter: number, newCenter: number) => {
-    let { originFreq, originX, offset } = dragState;
-    if (offset === 0) {
+    if (dragState.offset === 0) {
       return;
     }
     const deltaPx = (newCenter - prevCenter) * pxPerMHz();
-    offset = smoothScroll() ? Math.round(offset + deltaPx) : 0;
-    originX -= deltaPx;
+    let offset = smoothScroll() ? Math.round(dragState.offset + deltaPx) : 0;
+    let originX = dragState.down ? dragState.originX - deltaPx : 0;
     if (Math.abs(deltaPx) > (panafallSize.width ?? 0)) {
       // this typically happens when changing bands
       offset = 0;
       originX = (panafallSize.width ?? 0) / 2;
     }
-    originFreq = newCenter;
-    const newState = { offset, originX, originFreq };
-    console.log("Updating scroll", newState);
-    setDragState(newState);
+    setDragState({ offset, originX, originFreq: newCenter });
   };
 
   createEffect((prev?: { center?: number; pxPerMHz?: number }) => {
@@ -148,7 +141,6 @@ export function Panafall() {
       // bandwidth changed or screen resize
       setDragState("offset", 0);
     } else if (prevCenter && newCenter && prevCenter !== newCenter) {
-      console.log("Center changed externally", prevCenter, "->", newCenter);
       updateScroll(prevCenter, newCenter);
     }
     return { center: newCenter, pxPerMHz: pxPerMHz() };
@@ -298,18 +290,20 @@ export function Panafall() {
                   size="icon"
                   variant="ghost"
                   class="bg-background/50 backdrop-blur-lg size-5"
-                  onClick={async () => {
+                  onClick={() => {
                     const bandwidth = pan().bandwidth * 2;
+                    const streamId = panStreamId();
                     sendCommand(
-                      `display pan s ${panStreamId()} bandwidth=${bandwidth}`,
-                    );
-                    setState(
-                      "status",
-                      "display",
-                      "pan",
-                      panStreamId()!,
-                      "bandwidth",
-                      bandwidth,
+                      `display pan s ${streamId} bandwidth=${bandwidth}`,
+                    ).then(() =>
+                      setState(
+                        "status",
+                        "display",
+                        "pan",
+                        streamId,
+                        "bandwidth",
+                        bandwidth,
+                      ),
                     );
                   }}
                 >
@@ -326,18 +320,20 @@ export function Panafall() {
                   size="icon"
                   variant="ghost"
                   class="bg-background/50 backdrop-blur-lg size-5"
-                  onClick={async () => {
+                  onClick={() => {
                     const bandwidth = pan().bandwidth / 2;
+                    const streamId = panStreamId();
                     sendCommand(
-                      `display pan s ${panStreamId()} bandwidth=${bandwidth}`,
-                    );
-                    setState(
-                      "status",
-                      "display",
-                      "pan",
-                      panStreamId()!,
-                      "bandwidth",
-                      bandwidth,
+                      `display pan s ${streamId} bandwidth=${bandwidth}`,
+                    ).then(() =>
+                      setState(
+                        "status",
+                        "display",
+                        "pan",
+                        streamId,
+                        "bandwidth",
+                        bandwidth,
+                      ),
                     );
                   }}
                 >

@@ -1,13 +1,18 @@
 import { createWS, makeWS } from "@solid-primitives/websocket";
 import {
-  batch,
   createContext,
   createEffect,
   createSignal,
   onCleanup,
+  ParentComponent,
   useContext,
 } from "solid-js";
-import { createStore, produce, reconcile } from "solid-js/store";
+import {
+  createStore,
+  produce,
+  reconcile,
+  SetStoreFunction,
+} from "solid-js/store";
 import { showToast } from "~/components/ui/toast";
 import {
   decodeVita,
@@ -270,149 +275,211 @@ export interface Stream {
   type: string; // "remote_audio_rx"
 }
 
-export const initialState = () => ({
-  clientHandle: null as string | null,
-  clientId: null as string | null,
-  selectedPanadapter: null as string | null,
-  display: {
-    scrollOffset: 0,
-    enableTransparencyEffects: true as boolean,
-    peakStyle: "points" as "none" | "points" | "line",
-    fillStyle: "solid" as "none" | "solid" | "gradient",
-  },
-  palette: {
-    colorMin: 0.0,
-    colorMax: 1.0,
-    gradients: [
-      {
-        name: "SmartSDR",
-        clip: "#ffffff",
-        colors: [
-          "#000000",
-          "#0000ff",
-          "#00ffff",
-          "#00ff00",
-          "#ffff00",
-          "#ff8000",
-          "#ff0000",
-        ],
-      },
-      {
-        name: "SmartSDR + Purple",
-        clip: "#ffffff",
-        colors: [
-          "#000000",
-          "#0000ff",
-          "#00ffff",
-          "#00ff00",
-          "#ffff00",
-          "#ff8000",
-          "#ff0000",
-          "#ff00ff",
-        ],
-      },
-      {
-        name: "Vintage Warm",
-        clip: "#ffffff",
-        colors: [
-          "#000000",
-          "#1d4877",
-          // "#1ba4a1",
-          "#1b8a5a",
-          "#fbb021",
-          "#f68838",
-          "#ee3e32",
-        ],
-      },
-      {
-        name: "Grayscale",
-        colors: ["#000000", "#ffffff"],
-      },
-      {
-        name: "CMYK",
-        clip: "#ffffff",
-        colors: ["#000000", "#00ffff", "#ffff00", "#ff00ff"],
-      },
-      {
-        name: "RGB",
-        clip: "#ffffff",
-        colors: ["#000000", "#0000ff", "#00ff00", "#ff0000"],
-      },
-      {
-        name: "Solarized",
-        clip: "#ffffff",
-        colors: [
-          "#002b36",
-          "#268bd2",
-          // "#2aa198",
-          "#859900",
-          "#b58900",
-          "#cb4b16",
-          "#dc322f",
-          // "#d33682",
-        ],
-      },
-    ] as Gradient[],
-  },
-  connectModal: {
-    radios: {} as Record<string, DiscoveryRadio>,
-    open: true,
-  },
-  status: {
-    meters: {} as Record<number | string, Meter>,
-    gps: {} as GPS,
-    eq: {
-      rx: {},
-      rxsc: {},
-    },
-    slice: {} as Record<number | string, Slice>,
-    display: {
-      pan: {} as Record<string, Panadapter>,
-      waterfall: {} as Record<string, Waterfall>,
-    },
-    interlock: {
-      band: {} as Record<string, IterlockBand>,
-    },
-    radio: {
-      // slices: 4,
-      // panadapters: 4,
-      // lineout_gain: 60,
-      // lineout_mute: false,
-      // headphone_gain: 50,
-      // headphone_mute: false,
-      // remote_on_enabled: false,
-      // pll_done: 0,
-      // freq_error_ppb: 0,
-      // cal_freq: 15.0,
-      // tnf_enabled: true,
-      // nickname: "FLEX-8600",
-      // callsign: "KF0SMY",
-      // binaural_rx: false,
-      // full_duplex_enabled: false,
-      // band_persistence_enabled: true,
-      // rtty_mark_default: 2125,
-      // enforce_private_ip_connections: true,
-      // backlight: 50,
-      // mute_local_audio_when_remote: true,
-      // daxiq_capacity: 16,
-      // daxiq_available: 16,
-      // alpha: 0,
-      // low_latency_digital_modes: true,
-      // mf_enable: true,
-      // auto_save: true,
-      oscillator: {},
-      static_net_params: {},
-      filter_sharpness: {
-        VOICE: {},
-        CW: {},
-        DIGITAL: {},
-      },
-    },
-    stream: {} as Record<string, Stream>,
-  },
-});
+export interface Gradient {
+  name: string;
+  clip?: string;
+  colors: string[];
+}
 
-const [state, setState] = createStore(initialState());
+export interface DisplaySettings {
+  scrollOffset: number;
+  enableTransparencyEffects: boolean;
+  peakStyle: "none" | "points" | "line";
+  fillStyle: "none" | "solid" | "gradient";
+}
+
+export interface PaletteSettings {
+  colorMin: number;
+  colorMax: number;
+  gradients: Gradient[];
+}
+
+export interface ConnectModalState {
+  radios: Record<string, DiscoveryRadio>;
+  open: boolean;
+}
+
+export interface StatusState {
+  meters: Record<number | string, Meter>;
+  gps: GPS;
+  eq: {
+    rx: Record<string, unknown>;
+    rxsc: Record<string, unknown>;
+  };
+  slice: Record<number | string, Slice>;
+  display: {
+    pan: Record<string, Panadapter>;
+    waterfall: Record<string, Waterfall>;
+  };
+  interlock: {
+    band: Record<string, IterlockBand>;
+  };
+  radio: {
+    oscillator: Record<string, unknown>;
+    static_net_params: Record<string, unknown>;
+    filter_sharpness: {
+      VOICE: Record<string, unknown>;
+      CW: Record<string, unknown>;
+      DIGITAL: Record<string, unknown>;
+    };
+  };
+  stream: Record<string, Stream>;
+}
+
+export interface AppState {
+  clientHandle: string | null;
+  clientHandleInt: number | null;
+  clientId: string | null;
+  selectedPanadapter: string | null;
+  display: DisplaySettings;
+  palette: PaletteSettings;
+  connectModal: ConnectModalState;
+  status: StatusState;
+}
+
+export const initialState = () =>
+  ({
+    clientHandle: null,
+    clientHandleInt: null,
+    clientId: null,
+    selectedPanadapter: null,
+    display: {
+      scrollOffset: 0,
+      enableTransparencyEffects: true,
+      peakStyle: "points",
+      fillStyle: "solid",
+    },
+    palette: {
+      colorMin: 0.0,
+      colorMax: 1.0,
+      gradients: [
+        {
+          name: "SmartSDR",
+          clip: "#ffffff",
+          colors: [
+            "#000000",
+            "#0000ff",
+            "#00ffff",
+            "#00ff00",
+            "#ffff00",
+            "#ff8000",
+            "#ff0000",
+          ],
+        },
+        {
+          name: "SmartSDR + Purple",
+          clip: "#ffffff",
+          colors: [
+            "#000000",
+            "#0000ff",
+            "#00ffff",
+            "#00ff00",
+            "#ffff00",
+            "#ff8000",
+            "#ff0000",
+            "#ff00ff",
+          ],
+        },
+        {
+          name: "Vintage Warm",
+          clip: "#ffffff",
+          colors: [
+            "#000000",
+            "#1d4877",
+            // "#1ba4a1",
+            "#1b8a5a",
+            "#fbb021",
+            "#f68838",
+            "#ee3e32",
+          ],
+        },
+        {
+          name: "Grayscale",
+          colors: ["#000000", "#ffffff"],
+        },
+        {
+          name: "CMYK",
+          clip: "#ffffff",
+          colors: ["#000000", "#00ffff", "#ffff00", "#ff00ff"],
+        },
+        {
+          name: "RGB",
+          clip: "#ffffff",
+          colors: ["#000000", "#0000ff", "#00ff00", "#ff0000"],
+        },
+        {
+          name: "Solarized",
+          clip: "#ffffff",
+          colors: [
+            "#002b36",
+            "#268bd2",
+            // "#2aa198",
+            "#859900",
+            "#b58900",
+            "#cb4b16",
+            "#dc322f",
+            // "#d33682",
+          ],
+        },
+      ],
+    },
+    connectModal: {
+      radios: {},
+      open: true,
+    },
+    status: {
+      meters: {},
+      gps: {},
+      eq: {
+        rx: {},
+        rxsc: {},
+      },
+      slice: {},
+      display: {
+        pan: {},
+        waterfall: {},
+      },
+      interlock: {
+        band: {},
+      },
+      radio: {
+        // slices: 4,
+        // panadapters: 4,
+        // lineout_gain: 60,
+        // lineout_mute: false,
+        // headphone_gain: 50,
+        // headphone_mute: false,
+        // remote_on_enabled: false,
+        // pll_done: 0,
+        // freq_error_ppb: 0,
+        // cal_freq: 15.0,
+        // tnf_enabled: true,
+        // nickname: "FLEX-8600",
+        // callsign: "KF0SMY",
+        // binaural_rx: false,
+        // full_duplex_enabled: false,
+        // band_persistence_enabled: true,
+        // rtty_mark_default: 2125,
+        // enforce_private_ip_connections: true,
+        // backlight: 50,
+        // mute_local_audio_when_remote: true,
+        // daxiq_capacity: 16,
+        // daxiq_available: 16,
+        // alpha: 0,
+        // low_latency_digital_modes: true,
+        // mf_enable: true,
+        // auto_save: true,
+        oscillator: {},
+        static_net_params: {},
+        filter_sharpness: {
+          VOICE: {},
+          CW: {},
+          DIGITAL: {},
+        },
+      },
+      stream: {},
+    },
+  }) as AppState;
 
 const commands = {} as Record<
   string,
@@ -458,8 +525,8 @@ interface UDPEventTarget extends EventTarget {
 const _events = new EventTarget() as UDPEventTarget;
 
 const FlexRadioContext = createContext<{
-  state: typeof state;
-  setState: typeof setState;
+  state: AppState;
+  setState: SetStoreFunction<AppState>;
   connect: (addr: { host: string; port: number }) => void;
   disconnect: () => void;
   sendCommand: (command: string) => Promise<{
@@ -470,7 +537,7 @@ const FlexRadioContext = createContext<{
   events: UDPEventTarget;
 }>();
 
-export function FlexRadioProvider(props: { children: any }) {
+export const FlexRadioProvider: ParentComponent = (props) => {
   const [state, setState] = createStore(initialState());
   const { connect: connectRTC, session: sessionRTC } = useRtc();
 
@@ -480,25 +547,33 @@ export function FlexRadioProvider(props: { children: any }) {
   discoveryWs.binaryType = "arraybuffer";
 
   createEffect(() => {
-    discoveryWs.addEventListener("message", (event) => {
-      handleUdpPacket(event.data as ArrayBuffer);
+    discoveryWs.addEventListener("message", handleUdpPacket);
+    onCleanup(() => {
+      discoveryWs.removeEventListener("message", handleUdpPacket);
     });
   });
 
+  createEffect(() => {
+    setState(
+      "clientHandleInt",
+      state.clientHandle === null ? null : parseInt(state.clientHandle, 16),
+    );
+  });
+
   const sendCommand = (command: string) => {
+    const count = cmdCount() + 1;
+    setCmdCount(count);
+    const cmd = `C${count}|${command}\n`;
+    ws()?.send(cmd);
+
     return new Promise<{
       response: number;
       message: string;
       debugOutput?: string;
-    }>(async (resolve, reject) => {
-      const count = cmdCount() + 1;
-      setCmdCount(count);
-      const cmd = `C${count}|${command}\n`;
-      ws()?.send(cmd);
+    }>((resolve, reject) => {
       commands[`R${count}`] = { command, resolve, reject };
       setTimeout(() => {
         if (count in commands) {
-          const { reject } = commands[count];
           console.warn(`Command ${command} timed out after 5 seconds`);
           reject(new Error("Command timed out"));
           delete commands[count];
@@ -1018,24 +1093,35 @@ export function FlexRadioProvider(props: { children: any }) {
         const response = parseInt(responseCode);
         const command = commands[prefix];
         if (!command) return;
-        response === 0
-          ? command.resolve({ response, message, debugOutput })
-          : command.reject(
-              new Error(`${responseCode}: ${message}, ${command.command}`),
-            );
+        if (response === 0) {
+          command.resolve({ response, message, debugOutput });
+        } else {
+          command.reject(
+            new Error(`${responseCode}: ${message}, ${command.command}`),
+          );
+        }
         delete commands[prefix];
         break;
       }
       case "M": {
         // Message
-        const [_, description] = payload.split("|");
+        const [, description] = payload.split("|");
         showToast({ description, variant: "info" });
         break;
       }
       case "S": {
         // Status message
         const [prefix, message] = payload.split("|");
-        const handle = prefix.slice(1);
+        const handle = parseInt(prefix.slice(1), 16);
+        if (
+          handle &&
+          state.clientHandleInt &&
+          state.clientHandleInt !== handle
+        ) {
+          // Message not for us
+          console.log("Ignoring message for handle", handle);
+          return;
+        }
 
         const [key, ...rest] = message.split(" ");
         switch (key) {
@@ -1055,8 +1141,8 @@ export function FlexRadioProvider(props: { children: any }) {
         const split = message.split(" ").filter((part) => part.length);
         const parts = split.filter((part) => !part.includes("="));
 
-        let current = state.status;
-        let currentPath = ["status"];
+        const current = state.status;
+        const currentPath = ["status"];
         for (const part of parts) {
           currentPath.push(part);
           if (!(part in current)) {
@@ -1090,7 +1176,7 @@ export function FlexRadioProvider(props: { children: any }) {
     }
   };
 
-  const handleUdpPacket = (data: ArrayBuffer) => {
+  const handleUdpPacket = ({ data }: MessageEvent) => {
     try {
       const packet = decodeVita(new Uint8Array(data));
       if (!packet) {
@@ -1145,31 +1231,14 @@ export function FlexRadioProvider(props: { children: any }) {
     });
   };
 
-  // createEffect((prevClientHandle) => {
-  //   const sessionId = state.clientHandle;
-  //   if (prevClientHandle === sessionId) return sessionId;
-  //   if (!sessionId) return;
-  //   console.log("Connecting to RTC with session ID:", sessionId);
-  //   connectRTC(sessionId).catch(console.error);
-  //   return sessionId;
-  // });
-
   createEffect(() => {
     const session = sessionRTC();
     if (!session) return;
-    const listener = (event: MessageEvent) => {
-      if (event.data instanceof ArrayBuffer) {
-        handleUdpPacket(event.data);
-      } else {
-        console.warn("Unknown RTC data message type:", event);
-      }
-    };
-
     console.log("Setting up RTC data channel listener");
-    session.data.addEventListener("message", listener);
+    session.data.addEventListener("message", handleUdpPacket);
     onCleanup(() => {
       console.log("Cleaning up RTC data channel listener");
-      session.data.removeEventListener("message", listener);
+      session.data.removeEventListener("message", handleUdpPacket);
     });
   });
 
@@ -1203,7 +1272,7 @@ export function FlexRadioProvider(props: { children: any }) {
       {props.children}
     </FlexRadioContext.Provider>
   );
-}
+};
 
 export default function useFlexRadio() {
   const context = useContext(FlexRadioContext);

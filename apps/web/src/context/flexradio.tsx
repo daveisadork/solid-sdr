@@ -67,6 +67,12 @@ export interface DiscoveryRadio extends DiscoveryPayload {
   last_seen: Date;
 }
 
+export enum ConnectionState {
+  disconnected,
+  connecting,
+  connected,
+}
+
 export enum MeterUnit {
   dB = "dB",
   dBm = "dBm", // dBm power, referenced generally to the radio input connector, as described in VITA-49 7.1.5.9. (Two's complement, radix between bits 6/7)
@@ -297,6 +303,7 @@ export interface PaletteSettings {
 export interface ConnectModalState {
   radios: Record<string, DiscoveryRadio>;
   open: boolean;
+  status: ConnectionState;
 }
 
 export interface StatusState {
@@ -426,6 +433,7 @@ export const initialState = () =>
     connectModal: {
       radios: {},
       open: true,
+      status: ConnectionState.disconnected,
     },
     status: {
       meters: {},
@@ -1068,15 +1076,16 @@ export const FlexRadioProvider: ParentComponent = (props) => {
             sendCommand("keepalive enable"),
           ]);
           const { message: clientId } = await sendCommand("client gui");
+          await sendCommand(
+            "stream create type=remote_audio_rx compression=OPUS",
+          );
           setState(
             produce((s) => {
               s.clientHandle = handle;
               s.clientId = clientId;
             }),
           );
-          await sendCommand(
-            "stream create type=remote_audio_rx compression=OPUS",
-          );
+          setState("connectModal", "status", ConnectionState.connected);
         } catch (error) {
           console.error("Failed to subscribe to initial data:", error);
           showToast({
@@ -1212,6 +1221,16 @@ export const FlexRadioProvider: ParentComponent = (props) => {
 
   const connect = (addr: { host: string; port: number }) => {
     console.log("Connecting to", addr);
+    setState("connectModal", "status", ConnectionState.connecting);
+    setTimeout(() => {
+      if (state.connectModal.status !== ConnectionState.connecting) return;
+      console.warn("Connection timed out");
+      showToast({
+        description: "Connection timed out",
+        variant: "error",
+      });
+      disconnect();
+    }, 5_000);
     const conn = makeWS(`/ws/radio?host=${addr.host}&port=${addr.port}`);
     conn.binaryType = "arraybuffer";
 
@@ -1247,6 +1266,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     ws()?.close();
     setWs(null);
     setState(["clientHandle", "selectedPanadapter"], null);
+    setState("connectModal", "status", ConnectionState.disconnected);
     setState("status", reconcile(initialState().status));
     setCmdCount(0);
   };

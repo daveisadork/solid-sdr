@@ -10,7 +10,7 @@ import {
 } from "./ui/dialog";
 import { Skeleton } from "./ui/skeleton";
 import { createStore } from "solid-js/store";
-import useFlexRadio from "~/context/flexradio";
+import useFlexRadio, { ConnectionState } from "~/context/flexradio";
 
 export default function Connect() {
   const { connect, disconnect, events, state } = useFlexRadio();
@@ -31,12 +31,15 @@ export default function Connect() {
       disconnect();
     }
     return open();
-  }, state.connectModal.open);
+  }, false);
 
-  createEffect((prevHandle) => {
-    if (!prevHandle && state.clientHandle) setOpen(false);
-    return state.clientHandle;
-  }, state.clientHandle);
+  createEffect((prevStatus) => {
+    const status = state.connectModal.status;
+    if (status === ConnectionState.connected && prevStatus !== status) {
+      setOpen(false);
+    }
+    return status;
+  }, state.connectModal.status);
 
   return (
     <Dialog open={open()} onOpenChange={setOpen}>
@@ -80,9 +83,17 @@ export default function Connect() {
                   </div>
                   <div>
                     <Button
-                      onClick={() =>
-                        connect({ host: radio.ip, port: radio.port })
+                      disabled={
+                        state.connectModal.status === ConnectionState.connecting
                       }
+                      onClick={() => {
+                        if (
+                          state.connectModal.status !==
+                          ConnectionState.disconnected
+                        )
+                          return;
+                        connect({ host: radio.ip, port: radio.port });
+                      }}
                     >
                       Connect
                     </Button>

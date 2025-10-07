@@ -7,7 +7,7 @@
     "start": "vite",
     "dev": "vite",
     "dev:web": "vite",
-    "dev:server": "vite build",
+    "dev:server": "vite build --watch",
     "build": "vite build",
     "serve": "vite preview"
   },

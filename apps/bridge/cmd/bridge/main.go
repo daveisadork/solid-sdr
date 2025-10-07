@@ -49,7 +49,7 @@ func main() {
 	}
 
 	srv := &http.Server{
-		Addr:              ":8080",
+		Addr:              *addr,
 		Handler:           withCOI(withCORS(mux)),
 		ReadHeaderTimeout: 10 * time.Second,
 	}

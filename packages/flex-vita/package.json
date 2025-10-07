@@ -9,7 +9,8 @@
     "build:release": "asc assembly/index.ts --target release",
     "build": "pnpm run build:debug && pnpm run build:release",
     "start": "pnpx serve .",
-    "dev": "pnpm run build:debug"
+    "dev": "pnpm run build:debug",
+    "dev:web": "pnpm run build:debug"
   },
   "keywords": [],
   "author": "",

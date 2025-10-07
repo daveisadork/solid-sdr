@@ -7,7 +7,7 @@ export default function RtcAudio() {
   // (Optional) pre-prompt for mic so enumerateDevices works well:
   onMount(async () => {
     try {
-      await navigator.mediaDevices.getUserMedia({ audio: true });
+      // await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch {}
   });
 

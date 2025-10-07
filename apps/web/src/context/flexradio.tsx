@@ -1230,7 +1230,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         variant: "error",
       });
       disconnect();
-    }, 5_000);
+    }, 15_000);
     const conn = makeWS(`/ws/radio?host=${addr.host}&port=${addr.port}`);
     conn.binaryType = "arraybuffer";
 

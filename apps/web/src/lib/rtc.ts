@@ -9,7 +9,14 @@ export async function startRTC(
   onTrack?: (ev: RTCTrackEvent) => void,
 ) {
   const pc = new RTCPeerConnection({
-    iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+    // iceServers: [
+    //   // keep your STUN for normal runs…
+    //   { urls: "stun:stun.cloudflare.com:3478" },
+    //   { urls: "stun:stun.l.google.com:19302" },
+    //   // …and add your TURN (we’ll set up in step 2)
+    //   // { urls: ["turns:turn.example.com:443?transport=tcp"], username, credential },
+    // ],
+    // iceTransportPolicy: "relay", // <— TEMP: force TURN to test
   });
 
   const data = pc.createDataChannel("udp", {
@@ -17,7 +24,13 @@ export async function startRTC(
     maxRetransmits: 0, // drop instead of retry
     // OR use maxPacketLifeTime: 100 for “soft” realtime
   });
+
   data.binaryType = "arraybuffer"; // important for Firefox
+  data.onopen = () => console.log("[dc] open");
+  data.onclosing = () => console.log("[dc] closing");
+  data.onclose = () => console.log("[dc] closed");
+  data.onerror = (e) => console.warn("[dc] error", e);
+
   pc.addTransceiver("audio", { direction: "recvonly" });
   if (onTrack) pc.addEventListener("track", onTrack);
 
@@ -35,7 +48,27 @@ export async function startRTC(
   });
   const { sdp: answer } = await res.json();
   await pc.setRemoteDescription({ type: "answer", sdp: answer });
+  pc.addEventListener("iceconnectionstatechange", () => {
+    console.log("[ice]", pc.iceConnectionState);
+  });
 
+  async function logSelected() {
+    const stats = await pc.getStats();
+    for (const r of stats.values()) {
+      if (r.type === "transport" && r.selectedCandidatePairId) {
+        const pair = stats.get(r.selectedCandidatePairId);
+        const local = stats.get(pair.localCandidateId);
+        const remote = stats.get(pair.remoteCandidateId);
+        console.log("[ice selected]", {
+          pairState: pair.state,
+          localType: local.candidateType,
+          remoteType: remote.candidateType,
+          proto: local.protocol,
+        });
+      }
+    }
+  }
+  // setInterval(logSelected, 2000);
   return {
     pc,
     data,

@@ -117,6 +117,7 @@ func (s *Server) handleOffer(handleHex, offerSDP string) (string, error) {
 	})
 
 	pc.OnConnectionStateChange(func(st webrtc.PeerConnectionState) {
+		log.Printf("[rtc] PeerConnection state: %s (handle %s)", st.String(), handleHex)
 		if st == webrtc.PeerConnectionStateFailed || st == webrtc.PeerConnectionStateClosed {
 			_ = pc.Close()
 		}

@@ -1,4 +1,4 @@
-import { createEffect, For, onMount } from "solid-js";
+import { For, onMount } from "solid-js";
 import { useRtc } from "../context/rtc";
 
 export default function RtcAudio() {
@@ -9,10 +9,6 @@ export default function RtcAudio() {
     try {
       // await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch {}
-  });
-
-  createEffect(() => {
-    console.log("Audio tracks", tracks());
   });
 
   return (

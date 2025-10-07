@@ -33,6 +33,9 @@ func main() {
 	sessions := core.NewSessionManager()
 
 	rtcServer := rtc.New(sessions, []webrtc.ICEServer{
+		{URLs: []string{"stun:stun.cloudflare.com:3478"}},
+		{URLs: []string{"stun:stun.nextcloud.com:3478"}},
+		// {URLs: []string{"stun:stunserver.stunprotocol.org:3478"}},
 		{URLs: []string{"stun:stun.l.google.com:19302"}},
 	})
 

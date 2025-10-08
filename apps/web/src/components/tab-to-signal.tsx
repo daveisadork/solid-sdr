@@ -8,7 +8,6 @@ import {
   onCleanup,
   splitProps,
 } from "solid-js";
-import { createShortcut } from "@solid-primitives/keyboard";
 import { throttle } from "@solid-primitives/scheduled";
 import useFlexRadio, { PacketEvent } from "~/context/flexradio";
 import { cn } from "~/lib/utils";
@@ -468,7 +467,7 @@ export const TabToSignal: Component<
           return (
             <div
               class="absolute inset-y-0 w-px bg-amber-500"
-              style={{ left: `${x}px` }}
+              style={{ left: `${x - 2}px` }}
               title={`${t.dialMHz.toFixed(6)} MHz  (e=${t.energy.toFixed(2)})`}
             />
           );
@@ -482,8 +481,8 @@ export const TabToSignal: Component<
             <div
               class="absolute top-0 h-full bg-amber-500/10"
               style={{
-                left: `${t.leftBin}px`,
-                width: `${t.rightBin - t.leftBin + 1}px`,
+                left: `${t.leftBin - 2}px`,
+                width: `${t.rightBin - t.leftBin - 1}px`,
               }}
             />
           )}

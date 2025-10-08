@@ -262,7 +262,6 @@ export function Slice(props: { sliceIndex: number | string }) {
   });
   const windowSize = createWindowSize();
   const wrapperSize = createElementSize(wrapper);
-  const pos = createMousePosition();
   const sentinelBounds = createElementBounds(sentinel);
   const flagBounds = createElementBounds(flag);
 
@@ -341,7 +340,8 @@ export function Slice(props: { sliceIndex: number | string }) {
       setFilterWidth((filterWidthMhz / pan.bandwidth) * width);
       setFilterOffset((slice.filter_lo / 1e6 / pan.bandwidth) * width);
       setFilterText(`${(slice.filter_hi - slice.filter_lo) / 1e3}K`);
-      setOffset(offsetPixels);
+      // panadapter display is off by 2 pixels, so adjust
+      setOffset(offsetPixels - 2);
     });
   });
 

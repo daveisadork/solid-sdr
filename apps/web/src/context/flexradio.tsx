@@ -19,7 +19,7 @@ import {
   DiscoveryPayload,
   PacketClass,
   VitaPacket,
-} from "~/lib/vita";
+} from "~/lib/vita49";
 import { useRtc } from "./rtc";
 
 type EventTypePacketClassMap = {
@@ -1243,6 +1243,9 @@ export const FlexRadioProvider: ParentComponent = (props) => {
       switch (typeof event.data) {
         case "string":
           handleTcpMessage(event.data);
+          break;
+        case "object":
+          handleUdpPacket(event);
           break;
         default:
           console.warn("Unknown message type:", event.data);

@@ -3,6 +3,7 @@ package discovery
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"math/rand"
 	"net"
@@ -76,6 +77,8 @@ func (s *Service) Run(ctx context.Context) error {
 func (s *Service) bindAll(ctx context.Context) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	// Close any prior sockets first
 	if s.c4 != nil {
 		_ = s.c4.Close()
 		s.c4 = nil
@@ -85,14 +88,25 @@ func (s *Service) bindAll(ctx context.Context) error {
 		s.c6 = nil
 	}
 
-	addr := ":" + itoa(s.opt.Port)
+	addr := fmt.Sprintf(":%d", s.opt.Port)
 	lc := net.ListenConfig{Control: applyUDPSocketOptions}
 
+	// 1) Try dual-stack UDP6 first
+	if c6, err := lc.ListenPacket(ctx, "udp6", addr); err == nil {
+		s.c6 = c6
+		s.lastPktUnix.Store(time.Now().UnixNano())
+		return nil
+	}
+
+	// 2) Fallback: bind separate sockets for IPv4 and IPv6
+	var e4, e6 error
 	c4, e4 := lc.ListenPacket(ctx, "udp4", addr)
 	c6, e6 := lc.ListenPacket(ctx, "udp6", addr)
+
 	if e4 != nil && e6 != nil {
 		return errors.Join(e4, e6)
 	}
+
 	s.c4, s.c6 = c4, c6
 	s.lastPktUnix.Store(time.Now().UnixNano())
 	return nil
@@ -223,8 +237,9 @@ func (s *Service) WSHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // helpers
+// next grows exponential backoff with bounded jitter (all in time.Duration units).
 func next(cur, max time.Duration) time.Duration {
-	if cur == 0 {
+	if cur <= 0 {
 		cur = 250 * time.Millisecond
 	} else {
 		cur *= 2
@@ -232,28 +247,12 @@ func next(cur, max time.Duration) time.Duration {
 			cur = max
 		}
 	}
-	jitter := time.Duration(rand.Intn(int(cur/4)+50)) * time.Millisecond
+	// jitter in [0, max(cur/4, 50ms)]
+	jmax := cur / 4
+	if jmax < 50*time.Millisecond {
+		jmax = 50 * time.Millisecond
+	}
+	// rand.Int63n expects int64 nanoseconds; no extra *time.Millisecond!
+	jitter := time.Duration(rand.Int63n(int64(jmax)))
 	return cur + jitter
-}
-func itoa(i int) string { return fmtInt(int64(i)) }
-func fmtInt(i int64) string {
-	if i == 0 {
-		return "0"
-	}
-	neg := i < 0
-	if neg {
-		i = -i
-	}
-	var b [20]byte
-	n := len(b)
-	for i > 0 {
-		n--
-		b[n] = byte('0' + (i % 10))
-		i /= 10
-	}
-	if neg {
-		n--
-		b[n] = '-'
-	}
-	return string(b[n:])
 }

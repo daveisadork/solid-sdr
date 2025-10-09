@@ -2,80 +2,90 @@ package main
 
 import (
 	"context"
-	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"time"
 
+	"github.com/daveisadork/flex-bridge/internal/config"
 	"github.com/daveisadork/flex-bridge/internal/core"
 	"github.com/daveisadork/flex-bridge/internal/discovery"
 	"github.com/daveisadork/flex-bridge/internal/radio"
 	"github.com/daveisadork/flex-bridge/internal/rtc"
-	"github.com/pion/webrtc/v4"
 )
 
 func main() {
-	addr := flag.String("addr", ":8080", "HTTP listen address")
-	staticDir := flag.String("static", "", "directory to serve built UI (optional)")
-	discPort := flag.Int("discovery-port", 4992, "UDP discovery port")
-	flag.Parse()
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("config error: %v", err)
+	}
 
-	// Discovery service (long-lived, shared)
-	disco := discovery.New(discovery.Options{Port: *discPort})
+	// ---- Discovery ----
+	disco := discovery.New(discovery.Options{Port: cfg.DiscoveryPort})
 	go func() {
 		if err := disco.Run(context.Background()); err != nil {
 			log.Printf("discovery terminated: %v", err)
 		}
 	}()
 
+	// ---- Sessions + RTC ----
 	sessions := core.NewSessionManager()
-
-	rtcServer := rtc.New(sessions, []webrtc.ICEServer{
-		{URLs: []string{"stun:stun.l.google.com:19302"}},
-		{URLs: []string{"stun:stun.cloudflare.com:3478"}},
-		{URLs: []string{"stun:stun.nextcloud.com:3478"}},
-		// {URLs: []string{"stun:stunserver.stunprotocol.org:3478"}},
+	rtcServer := rtc.New(sessions, rtc.Options{
+		ICEPort:    cfg.ICEPort,
+		STUN:       cfg.StunURLs,
+		NAT1To1IPs: cfg.NAT1To1IPs,
+		EnableUPnP: cfg.EnableUPnP,
 	})
 
+	// ---- HTTP mux ----
 	wsHandler := radio.NewWSHandler(sessions, rtcServer)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ws/discovery", disco.WSHandler)
 	mux.Handle("/ws/radio", wsHandler)
 	mux.HandleFunc("/rtc/offer", rtcServer.OfferHandler)
-
-	// Optional static UI
-	if *staticDir != "" {
-		mux.Handle("/", http.FileServer(http.Dir(*staticDir)))
+	if cfg.StaticDir != "" {
+		mux.Handle("/", http.FileServer(http.Dir(cfg.StaticDir)))
+	} else {
+		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			_, _ = w.Write([]byte("flex-bridge up"))
+		})
 	}
 
+	handler := http.Handler(mux)
+	if cfg.EnableCOI {
+		handler = withCOI(handler)
+	}
+	if cfg.EnableCORS {
+		handler = withCORS(handler)
+	}
+
+	addr := fmt.Sprintf(":%d", cfg.HTTPPort)
 	srv := &http.Server{
-		Addr:              *addr,
-		Handler:           withCOI(withCORS(mux)),
+		Addr:              addr,
+		Handler:           handler,
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
 	go func() {
-		log.Printf("listening on %s", *addr)
+		log.Printf("listening on %s", addr)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("server error: %v", err)
 		}
 	}()
 
-	// graceful shutdown
+	// ---- graceful shutdown ----
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt)
 	<-sig
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	_ = srv.Shutdown(ctx)
+	rtcServer.Close()
 }
 
-// withCOI adds COOP/COEP/CORP so SharedArrayBuffer works.
-// Enable this in dev; be aware COEP requires all cross-origin
-// subresources to be CORS-enabled or to send CORP: cross-origin.
 func withCOI(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cross-Origin-Opener-Policy", "same-origin")

@@ -10,34 +10,73 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/daveisadork/flex-bridge/internal/core"
+	"github.com/daveisadork/flex-bridge/internal/nat"
+	"github.com/pion/ice/v4"
 	"github.com/pion/interceptor"
 	"github.com/pion/webrtc/v4"
 )
+
+// Options configures the RTC server.
+type Options struct {
+	// ICE port
+	ICEPort int
+
+	// STUN servers (full URLs like stun:stun.l.google.com:19302).
+	STUN []string
+
+	// Optional public IPs to advertise for host candidates (static NAT).
+	NAT1To1IPs []string
+
+	EnableUPnP bool
+}
 
 type Server struct {
 	Sessions   *core.SessionManager
 	ICEServers []webrtc.ICEServer
 	api        *webrtc.API
+	mapper     *nat.Mapper
 }
 
-func New(sessions *core.SessionManager, iceServers []webrtc.ICEServer) *Server {
+func New(sessions *core.SessionManager, opt Options) *Server {
 	m := &webrtc.MediaEngine{}
-	if err := m.RegisterDefaultCodecs(); err != nil {
-		panic(err)
-	}
+	_ = m.RegisterDefaultCodecs()
 	ir := &interceptor.Registry{}
-	if err := webrtc.RegisterDefaultInterceptors(m, ir); err != nil {
-		panic(err)
-	}
+	_ = webrtc.RegisterDefaultInterceptors(m, ir)
 
 	var se webrtc.SettingEngine
 
-	_ = se.SetEphemeralUDPPortRange(50313, 50323)
+	if mux, err := ice.NewMultiUDPMuxFromPort(opt.ICEPort); err == nil {
+		se.SetICEUDPMux(mux)
+		log.Printf("[rtc] using UDP mux on all interfaces, port %d\n", opt.ICEPort)
+	} else {
+		log.Fatalf("[rtc] failed to create UDP mux on port %d: %v", opt.ICEPort, err)
+	}
 
-	// If you have 1:1 port forwarding on a public IP, advertise it as HOST candidates:
-	// se.SetNAT1To1IPs([]string{"203.0.113.10"}, webrtc.ICECandidateTypeHost)
+	mapper, pubIP, err := nat.Discover()
+	if err != nil {
+		log.Printf("[nat] discovery: %v", err)
+	} else {
+		log.Printf("[nat] external IP: %s", pubIP)
+		if opt.EnableUPnP {
+			if err := mapper.MapUDP(opt.ICEPort, "flex-bridge webrtc", 30*time.Minute); err != nil {
+				log.Printf("[nat] map udp %d: %v", opt.ICEPort, err)
+				mapper.Close()
+			} else {
+				mapper.StartRefresher(10 * time.Minute)
+				// On shutdown:
+				// defer mapper.Close()
+			}
+		} else if len(opt.NAT1To1IPs) == 0 {
+			opt.NAT1To1IPs = []string{pubIP}
+		}
+	}
+
+	if len(opt.NAT1To1IPs) > 0 {
+		se.SetNAT1To1IPs(opt.NAT1To1IPs, webrtc.ICECandidateTypeHost)
+	}
 
 	api := webrtc.NewAPI(
 		webrtc.WithMediaEngine(m),
@@ -45,10 +84,16 @@ func New(sessions *core.SessionManager, iceServers []webrtc.ICEServer) *Server {
 		webrtc.WithSettingEngine(se),
 	)
 
+	var iceServers []webrtc.ICEServer
+	if len(opt.STUN) > 0 {
+		iceServers = append(iceServers, webrtc.ICEServer{URLs: opt.STUN})
+	}
+
 	return &Server{
 		Sessions:   sessions,
 		ICEServers: iceServers,
 		api:        api,
+		mapper:     mapper,
 	}
 }
 
@@ -89,6 +134,12 @@ func (s *Server) OfferHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = json.NewEncoder(w).Encode(answerResponse{SDP: ans})
+}
+
+func (s *Server) Close() {
+	if s.mapper != nil {
+		s.mapper.Close()
+	}
 }
 
 func normalizeHandle(h string) string {

@@ -22,27 +22,32 @@ type Server struct {
 	api        *webrtc.API
 }
 
-func New(sessions *core.SessionManager, ice []webrtc.ICEServer) *Server {
-	// Media: register Opus; defaults are fine (48kHz, stereo supported).
+func New(sessions *core.SessionManager, iceServers []webrtc.ICEServer) *Server {
 	m := &webrtc.MediaEngine{}
 	if err := m.RegisterDefaultCodecs(); err != nil {
 		panic(err)
 	}
-
-	// Interceptors: required so TrackLocalStaticSample emits RTP/RTCP.
 	ir := &interceptor.Registry{}
 	if err := webrtc.RegisterDefaultInterceptors(m, ir); err != nil {
 		panic(err)
 	}
 
+	var se webrtc.SettingEngine
+
+	_ = se.SetEphemeralUDPPortRange(50313, 50323)
+
+	// If you have 1:1 port forwarding on a public IP, advertise it as HOST candidates:
+	// se.SetNAT1To1IPs([]string{"203.0.113.10"}, webrtc.ICECandidateTypeHost)
+
 	api := webrtc.NewAPI(
 		webrtc.WithMediaEngine(m),
 		webrtc.WithInterceptorRegistry(ir),
+		webrtc.WithSettingEngine(se),
 	)
 
 	return &Server{
 		Sessions:   sessions,
-		ICEServers: ice,
+		ICEServers: iceServers,
 		api:        api,
 	}
 }

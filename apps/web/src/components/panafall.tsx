@@ -197,7 +197,7 @@ export function Panafall() {
                   </Show>
                 </ResizablePanel>
               </Resizable>
-              <Show when={state.selectedPanadapter} keyed>
+              <Show when={false && state.selectedPanadapter} keyed>
                 {(streamId) => <TabToSignal streamId={streamId} />}
               </Show>
               <div

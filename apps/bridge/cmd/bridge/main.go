@@ -33,10 +33,10 @@ func main() {
 	// ---- Sessions + RTC ----
 	sessions := core.NewSessionManager()
 	rtcServer := rtc.New(sessions, rtc.Options{
-		ICEPort:    cfg.ICEPort,
-		STUN:       cfg.StunURLs,
-		NAT1To1IPs: cfg.NAT1To1IPs,
-		EnableUPnP: cfg.EnableUPnP,
+		ICEPortStart: cfg.ICEPortStart,
+		ICEPortEnd:   cfg.ICEPortEnd,
+		STUN:         cfg.StunURLs,
+		NAT1To1IPs:   cfg.NAT1To1IPs,
 	})
 
 	// ---- HTTP mux ----
@@ -83,7 +83,6 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	_ = srv.Shutdown(ctx)
-	rtcServer.Close()
 }
 
 func withCOI(next http.Handler) http.Handler {

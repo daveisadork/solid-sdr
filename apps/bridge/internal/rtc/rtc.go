@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/daveisadork/flex-bridge/internal/core"
 	"github.com/daveisadork/flex-bridge/internal/nat"
@@ -22,15 +21,14 @@ import (
 // Options configures the RTC server.
 type Options struct {
 	// ICE port
-	ICEPort int
+	ICEPortStart int
+	ICEPortEnd   int
 
 	// STUN servers (full URLs like stun:stun.l.google.com:19302).
 	STUN []string
 
 	// Optional public IPs to advertise for host candidates (static NAT).
 	NAT1To1IPs []string
-
-	EnableUPnP bool
 }
 
 type Server struct {
@@ -48,11 +46,20 @@ func New(sessions *core.SessionManager, opt Options) *Server {
 
 	var se webrtc.SettingEngine
 
-	if mux, err := ice.NewMultiUDPMuxFromPort(opt.ICEPort); err == nil {
-		se.SetICEUDPMux(mux)
-		log.Printf("[rtc] using UDP mux on all interfaces, port %d\n", opt.ICEPort)
+	if opt.ICEPortStart == opt.ICEPortEnd {
+		// ---- single fixed port => create mux ----
+		port := opt.ICEPortStart
+		if mux, err := ice.NewMultiUDPMuxFromPort(port); err == nil {
+			se.SetICEUDPMux(mux)
+			log.Printf("[rtc] using UDP mux on all interfaces, port %d\n", port)
+		} else {
+			log.Fatalf("[rtc] failed to create UDP mux on port %d: %v", port, err)
+		}
 	} else {
-		log.Fatalf("[rtc] failed to create UDP mux on port %d: %v", opt.ICEPort, err)
+		// ---- normal ephemeral range ----
+		if err := se.SetEphemeralUDPPortRange(uint16(opt.ICEPortStart), uint16(opt.ICEPortEnd)); err != nil {
+			log.Fatalf("[rtc] invalid ICE port range %d..%d: %v", opt.ICEPortStart, opt.ICEPortEnd, err)
+		}
 	}
 
 	mapper, pubIP, err := nat.Discover()
@@ -60,18 +67,10 @@ func New(sessions *core.SessionManager, opt Options) *Server {
 		log.Printf("[nat] discovery: %v", err)
 	} else {
 		log.Printf("[nat] external IP: %s", pubIP)
-		if opt.EnableUPnP {
-			if err := mapper.MapUDP(opt.ICEPort, "flex-bridge webrtc", 30*time.Minute); err != nil {
-				log.Printf("[nat] map udp %d: %v", opt.ICEPort, err)
-				mapper.Close()
-			} else {
-				mapper.StartRefresher(10 * time.Minute)
-				// On shutdown:
-				// defer mapper.Close()
-			}
-		} else if len(opt.NAT1To1IPs) == 0 {
+		if len(opt.NAT1To1IPs) == 0 {
 			opt.NAT1To1IPs = []string{pubIP}
 		}
+		mapper.Close()
 	}
 
 	if len(opt.NAT1To1IPs) > 0 {
@@ -93,7 +92,6 @@ func New(sessions *core.SessionManager, opt Options) *Server {
 		Sessions:   sessions,
 		ICEServers: iceServers,
 		api:        api,
-		mapper:     mapper,
 	}
 }
 
@@ -134,12 +132,6 @@ func (s *Server) OfferHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = json.NewEncoder(w).Encode(answerResponse{SDP: ans})
-}
-
-func (s *Server) Close() {
-	if s.mapper != nil {
-		s.mapper.Close()
-	}
 }
 
 func normalizeHandle(h string) string {

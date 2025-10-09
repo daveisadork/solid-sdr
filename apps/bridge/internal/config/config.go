@@ -19,10 +19,10 @@ type Config struct {
 	DiscoveryPort int    `mapstructure:"discovery-port"`
 
 	// WebRTC / ICE
-	ICEPort    int      `mapstructure:"ice-port"`
-	StunURLs   []string `mapstructure:"stun"`
-	NAT1To1IPs []string `mapstructure:"nat-1to1-ips"`
-	EnableUPnP bool     `mapstructure:"enable-upnp"`
+	ICEPortStart int      `mapstructure:"ice-port-start"`
+	ICEPortEnd   int      `mapstructure:"ice-port-end"`
+	StunURLs     []string `mapstructure:"stun"`
+	NAT1To1IPs   []string `mapstructure:"nat-1to1-ips"`
 
 	// Config file path (optional)
 	ConfigFile string `mapstructure:"-"`
@@ -41,13 +41,13 @@ func Load() (Config, error) {
 	fs.Bool("enable-cors", true, "Enable permissive CORS headers")
 	fs.Int("discovery-port", 4992, "UDP discovery port")
 
-	fs.Int("ice-port", 50313, "UDP port for ICE")
+	fs.Int("ice-port-start", 50313, "Lowest UDP port for ICE (inclusive)")
+	fs.Int("ice-port-end", 50323, "Highest UDP port for ICE (inclusive)")
 	fs.StringSlice("stun", []string{
 		"stun:stun.l.google.com:19302",
 		"stun:stun.cloudflare.com:3478",
 	}, "Comma-separated STUN URLs")
 	fs.StringSlice("nat-1to1-ips", nil, "Optional public IPs for NAT 1:1 mapping (e.g. 203.0.113.2,2001:db8::2)")
-	fs.Bool("enable-upnp", false, "Enable UPnP port mapping (may require root/admin)")
 	fs.String("config", "", "Path to optional config file")
 
 	// Usage
@@ -109,8 +109,13 @@ Config file:
 		return cfg, fmt.Errorf("unmarshal: %w", err)
 	}
 	cfg.ConfigFile = v.ConfigFileUsed()
-	log.Printf("[config] http=:%d static=%q ice=%d file=%q\n",
-		cfg.HTTPPort, cfg.StaticDir, cfg.ICEPort, cfg.ConfigFile)
+	log.Printf("[config] http=:%d static=%q ice=%d..%d file=%q\n",
+		cfg.HTTPPort, cfg.StaticDir, cfg.ICEPortStart, cfg.ICEPortEnd, cfg.ConfigFile)
+
+	// Sanity checks
+	if cfg.ICEPortEnd < cfg.ICEPortStart {
+		return cfg, fmt.Errorf("invalid ICE port range %d–%d", cfg.ICEPortStart, cfg.ICEPortEnd)
+	}
 
 	return cfg, nil
 }

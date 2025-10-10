@@ -48,9 +48,7 @@ export async function startRTC(
   });
   const { sdp: answer } = await res.json();
   await pc.setRemoteDescription({ type: "answer", sdp: answer });
-  pc.addEventListener("iceconnectionstatechange", () => {
-    console.log("[ice]", pc.iceConnectionState);
-  });
+  await waitForIceConnected(pc);
 
   async function logSelected() {
     const stats = await pc.getStats();
@@ -74,6 +72,27 @@ export async function startRTC(
     data,
     close: () => pc.close(),
   };
+}
+
+function waitForIceConnected(pc: RTCPeerConnection) {
+  if (pc.iceConnectionState === "connected") return Promise.resolve();
+
+  return new Promise<void>((resolve, reject) => {
+    pc.addEventListener(
+      "iceconnectionstatechange",
+      () => {
+        if (pc.iceConnectionState === "connected") {
+          resolve();
+        } else {
+          reject(new Error("Failed to connect: " + pc.iceConnectionState));
+        }
+      },
+      { once: true },
+    );
+    setTimeout(() => {
+      reject(new Error("Timed out waiting for connection"));
+    }, 15000);
+  });
 }
 
 function waitForIceComplete(pc: RTCPeerConnection) {

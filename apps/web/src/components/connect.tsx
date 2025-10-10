@@ -1,4 +1,4 @@
-import { createEffect, createSignal, For } from "solid-js";
+import { createEffect, createSignal, For, Show } from "solid-js";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import {
@@ -11,6 +11,7 @@ import {
 import { Skeleton } from "./ui/skeleton";
 import { createStore } from "solid-js/store";
 import useFlexRadio, { ConnectionState } from "~/context/flexradio";
+import { ProgressCircle } from "./ui/progress-circle";
 
 export default function Connect() {
   const { connect, disconnect, events, state } = useFlexRadio();
@@ -76,27 +77,42 @@ export default function Connect() {
               }
             >
               {(radio) => (
-                <li class="flex p-2">
+                <li class="flex p-2 items-center">
                   <div class="text-sm flex-col grow">
                     <div class="font-semibold">{radio.nickname}</div>
                     <div class="text-muted-foreground">{radio.ip}</div>
                   </div>
                   <div>
-                    <Button
-                      disabled={
-                        state.connectModal.status === ConnectionState.connecting
+                    <Show
+                      when={
+                        state.connectModal.status ===
+                          ConnectionState.connecting &&
+                        state.connectModal.selectedRadio === radio.ip
                       }
-                      onClick={() => {
-                        if (
-                          state.connectModal.status !==
-                          ConnectionState.disconnected
-                        )
-                          return;
-                        connect({ host: radio.ip, port: radio.port });
-                      }}
+                      fallback={
+                        <Button
+                          disabled={
+                            state.connectModal.status ===
+                            ConnectionState.connecting
+                          }
+                          onClick={() => {
+                            if (
+                              state.connectModal.status !==
+                              ConnectionState.disconnected
+                            )
+                              return;
+                            connect({ host: radio.ip, port: radio.port });
+                          }}
+                        >
+                          Connect
+                        </Button>
+                      }
                     >
-                      Connect
-                    </Button>
+                      <ProgressCircle
+                        size="xs"
+                        value={state.connectModal.stage * 33.33}
+                      />
+                    </Show>
                   </div>
                 </li>
               )}

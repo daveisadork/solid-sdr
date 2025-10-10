@@ -35,7 +35,6 @@ type Server struct {
 	Sessions   *core.SessionManager
 	ICEServers []webrtc.ICEServer
 	api        *webrtc.API
-	mapper     *nat.Mapper
 }
 
 func New(sessions *core.SessionManager, opt Options) *Server {

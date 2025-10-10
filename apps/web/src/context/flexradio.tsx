@@ -73,6 +73,13 @@ export enum ConnectionState {
   connected,
 }
 
+export enum ConnectionStage {
+  TCP = 0,
+  UDP = 1,
+  Data = 2,
+  Done = 3,
+}
+
 export enum MeterUnit {
   dB = "dB",
   dBm = "dBm", // dBm power, referenced generally to the radio input connector, as described in VITA-49 7.1.5.9. (Two's complement, radix between bits 6/7)
@@ -304,6 +311,8 @@ export interface ConnectModalState {
   radios: Record<string, DiscoveryRadio>;
   open: boolean;
   status: ConnectionState;
+  selectedRadio: string | null;
+  stage: ConnectionStage;
 }
 
 export interface StatusState {
@@ -1036,7 +1045,9 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         const handle = payload.slice(1);
         console.log("Handle:", handle);
         console.log("Connecting RTC with handle:", handle);
+        setState("connectModal", "stage", ConnectionStage.UDP);
         await connectRTC(handle).catch(console.error);
+        setState("connectModal", "stage", ConnectionStage.Data);
         console.log("Requesting initial data...");
         // setState("clientHandle", handle);
         try {
@@ -1079,13 +1090,16 @@ export const FlexRadioProvider: ParentComponent = (props) => {
           await sendCommand(
             "stream create type=remote_audio_rx compression=OPUS",
           );
-          setState(
-            produce((s) => {
-              s.clientHandle = handle;
-              s.clientId = clientId;
-            }),
-          );
-          setState("connectModal", "status", ConnectionState.connected);
+          setState("connectModal", "stage", ConnectionStage.Done);
+          setTimeout(() => {
+            setState(
+              produce((s) => {
+                s.clientHandle = handle;
+                s.clientId = clientId;
+                s.connectModal.status = ConnectionState.connected;
+              }),
+            );
+          }, 300);
         } catch (error) {
           console.error("Failed to subscribe to initial data:", error);
           showToast({
@@ -1221,7 +1235,11 @@ export const FlexRadioProvider: ParentComponent = (props) => {
 
   const connect = (addr: { host: string; port: number }) => {
     console.log("Connecting to", addr);
-    setState("connectModal", "status", ConnectionState.connecting);
+    setState("connectModal", {
+      status: ConnectionState.connecting,
+      selectedRadio: addr.host,
+      stage: ConnectionStage.TCP,
+    });
     setTimeout(() => {
       if (state.connectModal.status !== ConnectionState.connecting) return;
       console.warn("Connection timed out");
@@ -1268,9 +1286,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     sessionRTC()?.close();
     ws()?.close();
     setWs(null);
-    setState(["clientHandle", "selectedPanadapter"], null);
-    setState("connectModal", "status", ConnectionState.disconnected);
-    setState("status", reconcile(initialState().status));
+    setState(reconcile(initialState()));
     setCmdCount(0);
   };
 

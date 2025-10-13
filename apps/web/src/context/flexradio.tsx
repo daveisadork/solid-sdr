@@ -1,5 +1,6 @@
 import { createReconnectingWS, makeWS } from "@solid-primitives/websocket";
 import {
+  batch,
   createContext,
   createEffect,
   createSignal,
@@ -576,7 +577,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
   createEffect(() => {
     if (state.connectModal.status !== ConnectionState.connecting) return;
 
-    const handle = setTimeout(() => {
+    const handle = setTimeout(async () => {
       console.warn("Connection timed out");
       showToast({
         description: "Connection timed out",
@@ -584,10 +585,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
       });
       disconnect();
     }, 15_000);
-    onCleanup(() => {
-      console.log("clearing timeout", handle);
-      clearTimeout(handle);
-    });
+    onCleanup(() => clearTimeout(handle));
   });
 
   createEffect(() => {
@@ -609,7 +607,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
       debugOutput?: string;
     }>((resolve, reject) => {
       commands[`R${count}`] = { command, resolve, reject };
-      setTimeout(() => {
+      setTimeout(async () => {
         if (count in commands) {
           console.warn(`Command ${command} timed out after 5 seconds`);
           reject(new Error("Command timed out"));
@@ -1111,15 +1109,14 @@ export const FlexRadioProvider: ParentComponent = (props) => {
             "stream create type=remote_audio_rx compression=OPUS",
           );
           setState("connectModal", "stage", ConnectionStage.Done);
-          setTimeout(() => {
-            setState(
-              produce((s) => {
-                s.clientHandle = handle;
-                s.clientId = clientId;
-                s.connectModal.status = ConnectionState.connected;
-              }),
-            );
-          }, 300);
+          batch(() => {
+            setState("clientHandle", handle);
+            setState("clientId", clientId);
+          });
+          setTimeout(
+            () => setState("connectModal", "status", ConnectionState.connected),
+            300,
+          );
         } catch (error) {
           console.error("Failed to subscribe to initial data:", error);
           showToast({

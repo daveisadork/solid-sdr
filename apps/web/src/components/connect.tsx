@@ -43,7 +43,13 @@ export default function Connect() {
   }, state.connectModal.status);
 
   return (
-    <Dialog open={open()} onOpenChange={setOpen}>
+    <Dialog
+      open={open()}
+      onOpenChange={(openState) => {
+        (document.activeElement as HTMLElement)?.blur();
+        setOpen(openState);
+      }}
+    >
       <DialogTrigger
         as={Button<"button">}
         size="xs"

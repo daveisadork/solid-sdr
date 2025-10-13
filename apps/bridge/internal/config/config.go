@@ -42,7 +42,7 @@ func Load() (Config, error) {
 	fs.Int("discovery-port", 4992, "UDP discovery port")
 
 	fs.Int("ice-port-start", 50313, "Lowest UDP port for ICE (inclusive)")
-	fs.Int("ice-port-end", 50323, "Highest UDP port for ICE (inclusive)")
+	fs.Int("ice-port-end", 50413, "Highest UDP port for ICE (inclusive)")
 	fs.StringSlice("stun", []string{
 		"stun:stun.l.google.com:19302",
 		"stun:stun.cloudflare.com:3478",

@@ -219,16 +219,9 @@ export function Panadapter(props: { streamId: string }) {
       }
     };
 
-    const task = (event: PacketEvent<"panadapter">) => {
-      queue.enqueue(async () => handler(event));
-      if (queue.size() > 1) {
-        console.warn("Panadapter queue size:", queue.size());
-      }
-    };
-
-    events.addEventListener("panadapter", task);
+    events.addEventListener("panadapter", handler);
     onCleanup(() => {
-      events.removeEventListener("panadapter", task);
+      events.removeEventListener("panadapter", handler);
     });
   });
 

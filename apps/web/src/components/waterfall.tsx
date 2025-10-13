@@ -3,16 +3,15 @@ import { createEffect, createMemo, createSignal, onCleanup } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 import { Portal } from "solid-js/web";
 import useFlexRadio, { PacketEvent } from "~/context/flexradio";
-import { SerialQueue } from "~/lib/serial-queue";
 
-export function Waterfall({ streamId }: { streamId: string }) {
+export function Waterfall(props: { streamId: string }) {
+  const streamId = () => props.streamId;
   const { events, state, setState } = useFlexRadio();
   const [waterfall, setWaterfall] = createStore(
-    state.status.display.waterfall[streamId],
+    state.status.display.waterfall[streamId()],
   );
-  const [pan, setPan] = createStore(
-    state.status.display.pan[waterfall.panadapter],
-  );
+  const panadapter = () => waterfall.panadapter;
+  const [pan, setPan] = createStore(state.status.display.pan[panadapter()]);
 
   const [canvasWidth, setCanvasWidth] = createSignal(1);
   const [widthMultiplier, setWidthMultiplier] = createSignal(1.0);
@@ -26,9 +25,6 @@ export function Waterfall({ streamId }: { streamId: string }) {
 
   // 4096 colors to stay under canvas size limits on iOS
   const paletteCanvas = new OffscreenCanvas(4096, 1);
-  const [palette, setPalette] = createSignal(
-    new Uint8ClampedArray(paletteCanvas.width * 4),
-  );
 
   // NEW: packed 32-bit palette for fast strip writes
   const [palette32, setPalette32] = createSignal<Uint32Array>(
@@ -42,9 +38,6 @@ export function Waterfall({ streamId }: { streamId: string }) {
 
   const wrapperSize = createElementSize(wrapper);
   const canvasSize = createElementSize(canvasRef);
-  const streamIdInt = parseInt(streamId, 16);
-
-  const queue = new SerialQueue();
 
   const frameTimes: number[] = [];
   const [fps, setFps] = createSignal(0);
@@ -110,7 +103,6 @@ export function Waterfall({ streamId }: { streamId: string }) {
       paletteCanvas.width,
       paletteCanvas.height,
     );
-    setPalette(imageData.data);
 
     // NEW: build packed 32-bit palette once per update
     const u32 = new Uint32Array(4096);
@@ -194,6 +186,8 @@ export function Waterfall({ streamId }: { streamId: string }) {
       paintScheduled = false;
       screenCtx.drawImage(offscreen, 0, 0, canvas.width, canvas.height);
     };
+
+    const streamIdInt = parseInt(streamId(), 16);
 
     return ({ packet }: PacketEvent<"waterfall">) => {
       if (packet.stream_id !== streamIdInt) return;
@@ -322,15 +316,9 @@ export function Waterfall({ streamId }: { streamId: string }) {
   createEffect(() => {
     const handler = onWaterfall();
     if (!handler) return;
-    const task = (event: PacketEvent<"waterfall">) => {
-      queue.enqueue(async () => handler(event));
-      if (queue.size() > 1) {
-        console.warn("Waterfall queue size:", queue.size());
-      }
-    };
-    events.addEventListener("waterfall", task);
+    events.addEventListener("waterfall", handler);
     onCleanup(() => {
-      events.removeEventListener("waterfall", task);
+      events.removeEventListener("waterfall", handler);
     });
   });
 
@@ -346,8 +334,6 @@ export function Waterfall({ streamId }: { streamId: string }) {
         height={window.screen.height}
         style={{
           "--width-multiplier": widthMultiplier(),
-          // "image-rendering": "pixelated", // crisper columns when CSS-scaled
-          // "will-change": "transform", // hint for translate-x
         }}
       />
 

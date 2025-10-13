@@ -45,6 +45,10 @@ func New(sessions *core.SessionManager, opt Options) *Server {
 
 	var se webrtc.SettingEngine
 
+	se.SetNetworkTypes([]webrtc.NetworkType{
+		webrtc.NetworkTypeUDP4, webrtc.NetworkTypeUDP6,
+	})
+
 	if opt.ICEPortStart == opt.ICEPortEnd {
 		// ---- single fixed port => create mux ----
 		port := opt.ICEPortStart

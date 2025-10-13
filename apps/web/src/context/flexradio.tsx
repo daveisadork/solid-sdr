@@ -1,4 +1,4 @@
-import { createWS, makeWS } from "@solid-primitives/websocket";
+import { createReconnectingWS, makeWS } from "@solid-primitives/websocket";
 import {
   createContext,
   createEffect,
@@ -560,13 +560,33 @@ export const FlexRadioProvider: ParentComponent = (props) => {
 
   const [ws, setWs] = createSignal<WebSocket | null>(null);
   const [cmdCount, setCmdCount] = createSignal(0);
-  const discoveryWs = createWS("/ws/discovery");
-  discoveryWs.binaryType = "arraybuffer";
+  const discoveryWs = createReconnectingWS("/ws/discovery");
+
+  discoveryWs.addEventListener("open", ({ target }) => {
+    (target as WebSocket).binaryType = "arraybuffer";
+  });
 
   createEffect(() => {
     discoveryWs.addEventListener("message", handleUdpPacket);
     onCleanup(() => {
       discoveryWs.removeEventListener("message", handleUdpPacket);
+    });
+  });
+
+  createEffect(() => {
+    if (state.connectModal.status !== ConnectionState.connecting) return;
+
+    const handle = setTimeout(() => {
+      console.warn("Connection timed out");
+      showToast({
+        description: "Connection timed out",
+        variant: "error",
+      });
+      disconnect();
+    }, 15_000);
+    onCleanup(() => {
+      console.log("clearing timeout", handle);
+      clearTimeout(handle);
     });
   });
 
@@ -1240,15 +1260,6 @@ export const FlexRadioProvider: ParentComponent = (props) => {
       selectedRadio: addr.host,
       stage: ConnectionStage.TCP,
     });
-    setTimeout(() => {
-      if (state.connectModal.status !== ConnectionState.connecting) return;
-      console.warn("Connection timed out");
-      showToast({
-        description: "Connection timed out",
-        variant: "error",
-      });
-      disconnect();
-    }, 15_000);
     const conn = makeWS(`/ws/radio?host=${addr.host}&port=${addr.port}`);
     conn.binaryType = "arraybuffer";
 

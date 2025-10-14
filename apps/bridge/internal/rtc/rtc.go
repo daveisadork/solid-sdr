@@ -14,7 +14,6 @@ import (
 	"github.com/daveisadork/flex-bridge/internal/core"
 	"github.com/daveisadork/flex-bridge/internal/nat"
 	"github.com/pion/ice/v4"
-	"github.com/pion/interceptor"
 	"github.com/pion/webrtc/v4"
 )
 
@@ -38,11 +37,6 @@ type Server struct {
 }
 
 func New(sessions *core.SessionManager, opt Options) *Server {
-	m := &webrtc.MediaEngine{}
-	_ = m.RegisterDefaultCodecs()
-	ir := &interceptor.Registry{}
-	_ = webrtc.RegisterDefaultInterceptors(m, ir)
-
 	var se webrtc.SettingEngine
 
 	se.SetNetworkTypes([]webrtc.NetworkType{
@@ -81,8 +75,6 @@ func New(sessions *core.SessionManager, opt Options) *Server {
 	}
 
 	api := webrtc.NewAPI(
-		webrtc.WithMediaEngine(m),
-		webrtc.WithInterceptorRegistry(ir),
 		webrtc.WithSettingEngine(se),
 	)
 

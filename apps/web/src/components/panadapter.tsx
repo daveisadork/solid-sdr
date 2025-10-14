@@ -10,7 +10,6 @@ import useFlexRadio, { PacketEvent } from "~/context/flexradio";
 import { DetachedSlices, Slice } from "./slice";
 import { debounce } from "@solid-primitives/scheduled";
 import { createElementSize } from "@solid-primitives/resize-observer";
-import { SerialQueue } from "~/lib/serial-queue";
 import { Portal } from "solid-js/web";
 
 export function Panadapter(props: { streamId: string }) {
@@ -26,7 +25,6 @@ export function Panadapter(props: { streamId: string }) {
   const [offscreenCanvasRef, setOffscreenCanvasRef] =
     createSignal<OffscreenCanvas | null>(null);
 
-  const queue = new SerialQueue();
   const frameTimes: number[] = [];
   const [fps, setFps] = createSignal(0);
 
@@ -106,7 +104,7 @@ export function Panadapter(props: { streamId: string }) {
     resizeCallback(width, height);
   });
 
-  createEffect(() => {
+  const onPanadapter = createMemo(() => {
     const canvas = canvasRef();
     if (!canvas) return;
     const ctx = canvas.getContext("2d", {
@@ -122,7 +120,7 @@ export function Panadapter(props: { streamId: string }) {
     const stream_id = parseInt(streamId(), 16);
     let skipFrame = 0;
     let frameStartTime = performance.now();
-    const handler = ({ packet }: PacketEvent<"panadapter">) => {
+    return ({ packet }: PacketEvent<"panadapter">) => {
       if (packet.stream_id !== stream_id) return;
       const {
         payload: { startingBin, binsInThisFrame, totalBins, frame, bins },
@@ -218,7 +216,11 @@ export function Panadapter(props: { streamId: string }) {
         setFps(Math.round(1000 / avgFrameTime));
       }
     };
+  });
 
+  createEffect(() => {
+    const handler = onPanadapter();
+    if (!handler) return;
     events.addEventListener("panadapter", handler);
     onCleanup(() => {
       events.removeEventListener("panadapter", handler);

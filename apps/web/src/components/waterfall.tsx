@@ -51,9 +51,7 @@ export function Waterfall(props: { streamId: string }) {
   });
 
   createEffect(() => {
-    const { black_level, auto_black } = waterfall;
-
-    if (auto_black) {
+    if (waterfall.auto_black) {
       // Copy the auto black level to the waterfall black level,
       // so the display is consistent when toggling auto black off.
       setWaterfall(
@@ -65,7 +63,9 @@ export function Waterfall(props: { streamId: string }) {
     setState(
       "palette",
       "colorMin",
-      auto_black ? autoBlackLevel() / 0xffff : black_level / 400,
+      waterfall.auto_black
+        ? autoBlackLevel() / 0xffff
+        : waterfall.black_level / 400,
     );
   });
 

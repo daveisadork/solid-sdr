@@ -38,6 +38,11 @@ export default function Connect() {
     const status = state.connectModal.status;
     if (status === ConnectionState.connected && prevStatus !== status) {
       setOpen(false);
+    } else if (
+      status === ConnectionState.disconnected &&
+      prevStatus !== status
+    ) {
+      setOpen(true);
     }
     return status;
   }, state.connectModal.status);

@@ -1290,6 +1290,10 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     });
   });
 
+  createEffect(() => {
+    ws()?.addEventListener("close", () => disconnect(), { once: true });
+  });
+
   const disconnect = () => {
     sessionRTC()?.close();
     ws()?.close();

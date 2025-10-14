@@ -59,7 +59,10 @@ export function Panafall() {
     const streamId = panStreamId();
     if (!streamId) return;
     newCenter = parseFloat(newCenter.toFixed(6));
-    if (newCenter === selectedPan()?.center) return;
+    if (newCenter === selectedPan()?.center) {
+      setDragState("originX", 0);
+      return;
+    }
     sendCommand(`display pan s ${streamId} center=${newCenter}`);
   };
 
@@ -79,7 +82,10 @@ export function Panafall() {
     if (!dragState.down) return;
     batch(() => {
       setDragState("down", false);
-      if (!dragState.dragging) return;
+      if (!dragState.dragging) {
+        setDragState("originX", 0);
+        return;
+      }
       setDragState("dragging", false);
       if (!smoothScroll()) return;
       const newOffset = event.x - dragState.originX;

@@ -22,6 +22,7 @@ export function Panadapter(props: { streamId: string }) {
   const [updating, setUpdating] = createSignal(false);
   const [slices, setSlices] = createSignal([] as (number | string)[]);
   const [palette, setPalette] = createSignal(new Uint8ClampedArray(0x400));
+  const [paletteCss, setPaletteCss] = createSignal<string[]>([]);
   const [offscreenCanvasRef, setOffscreenCanvasRef] =
     createSignal<OffscreenCanvas | null>(null);
 
@@ -65,7 +66,18 @@ export function Panadapter(props: { streamId: string }) {
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, offscreen.width, offscreen.height);
     const imageData = ctx.getImageData(0, 0, offscreen.width, offscreen.height);
-    setPalette(imageData.data);
+    const data = imageData.data;
+    setPalette(data);
+    const css = new Array<string>(data.length / 4);
+    for (let index = 0; index < css.length; index++) {
+      const offset = index * 4;
+      const r = data[offset];
+      const g = data[offset + 1];
+      const b = data[offset + 2];
+      const a = data[offset + 3] / 255;
+      css[index] = `rgba(${r}, ${g}, ${b}, ${a})`;
+    }
+    setPaletteCss(css);
   });
 
   const fillGradient = createMemo(() => {
@@ -117,21 +129,52 @@ export function Panadapter(props: { streamId: string }) {
       colorSpace: "display-p3",
     });
     if (!offscreenCtx) return;
+    ctx.imageSmoothingEnabled = false;
+    offscreenCtx.imageSmoothingEnabled = false;
+
     const stream_id = parseInt(streamId(), 16);
     let skipFrame = 0;
     let frameStartTime = performance.now();
+    let pendingFrameStart = frameStartTime;
+    let rafId: number | null = null;
+    const getPixelRatio = () =>
+      typeof window === "undefined"
+        ? 1
+        : Math.max(window.devicePixelRatio || 1, 1);
+    let pixelRatio = getPixelRatio();
+    let transformDirty = true;
+
+    const flushFrame = () => {
+      rafId = null;
+      if (canvas.width !== offscreen.width) {
+        canvas.width = offscreen.width;
+      }
+      if (canvas.height !== offscreen.height) {
+        canvas.height = offscreen.height;
+      }
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(offscreen, 0, 0, canvas.width, canvas.height);
+    };
+
     return ({ packet }: PacketEvent<"panadapter">) => {
       if (packet.stream_id !== stream_id) return;
       const {
         payload: { startingBin, binsInThisFrame, totalBins, frame, bins },
       } = packet;
+      if (binsInThisFrame === 0) return;
       if (startingBin === 0) {
         frameStartTime = performance.now();
       }
       const p = palette();
+      const colors = paletteCss();
+      if (!p.length || !colors.length) return;
       const width = totalBins;
       const height = p.length / 4;
-      const pixelRatio = Math.max(devicePixelRatio, 1);
+      const nextRatio = getPixelRatio();
+      if (nextRatio !== pixelRatio) {
+        pixelRatio = nextRatio;
+        transformDirty = true;
+      }
       const scaleWidth = Math.round(width * pixelRatio);
       const scaleHeight = Math.round(height * pixelRatio);
       if (offscreen.width !== scaleWidth || offscreen.height !== scaleHeight) {
@@ -143,6 +186,7 @@ export function Panadapter(props: { streamId: string }) {
           offscreen.height = scaleHeight;
           setPan("y_pixels", height);
         }
+        transformDirty = true;
         skipFrame = frame;
       }
       if (updating()) {
@@ -151,41 +195,55 @@ export function Panadapter(props: { streamId: string }) {
       if (frame === skipFrame) {
         return;
       }
-      const sharpOffset = pixelRatio === 1 ? 0.5 : 0;
-      offscreenCtx.imageSmoothingEnabled = false;
-      offscreenCtx.setTransform(
-        pixelRatio,
-        0,
-        0,
-        pixelRatio,
-        sharpOffset,
-        sharpOffset,
-      );
+      if (transformDirty) {
+        const sharpOffset = pixelRatio === 1 ? 0.5 : 0;
+        offscreenCtx.setTransform(
+          pixelRatio,
+          0,
+          0,
+          pixelRatio,
+          sharpOffset,
+          sharpOffset,
+        );
+        offscreenCtx.imageSmoothingEnabled = false;
+        transformDirty = false;
+      }
       offscreenCtx.clearRect(startingBin, 0, binsInThisFrame, height);
-      offscreenCtx.beginPath();
       offscreenCtx.lineWidth = 1;
-      offscreenCtx.fillStyle = "white";
       const { peakStyle, fillStyle } = state.display;
       if (fillStyle === "gradient") {
-        offscreenCtx.strokeStyle = fillGradient() || "white";
-      }
-      if (fillStyle !== "none" || peakStyle === "points") {
+        const gradient = fillGradient();
+        offscreenCtx.strokeStyle = gradient || "white";
+        offscreenCtx.beginPath();
         for (let index = 0; index < binsInThisFrame; index++) {
           const x = startingBin + index;
           const y = bins[index];
-          if (fillStyle === "solid") {
-            const [r, g, b] = p.subarray(y * 4, y * 4 + 4);
-            offscreenCtx.strokeStyle = `rgba(${r}, ${g}, ${b}, 1)`;
-          }
-          if (fillStyle !== "none") {
+          offscreenCtx.moveTo(x, height);
+          offscreenCtx.lineTo(x, y);
+        }
+        offscreenCtx.stroke();
+      } else if (fillStyle === "solid") {
+        let currentColor = "";
+        let hasPath = false;
+        for (let index = 0; index < binsInThisFrame; index++) {
+          const x = startingBin + index;
+          const y = bins[index];
+          const color = colors[y];
+          if (!color) continue;
+          if (color !== currentColor) {
+            if (hasPath) {
+              offscreenCtx.stroke();
+            }
+            offscreenCtx.strokeStyle = color;
             offscreenCtx.beginPath();
-            offscreenCtx.moveTo(x, height);
-            offscreenCtx.lineTo(x, y);
-            offscreenCtx.stroke();
+            hasPath = true;
+            currentColor = color;
           }
-          if (peakStyle === "points") {
-            offscreenCtx.fillRect(x - 0.5, y - 0.5, 1, 1);
-          }
+          offscreenCtx.moveTo(x, height);
+          offscreenCtx.lineTo(x, y);
+        }
+        if (hasPath) {
+          offscreenCtx.stroke();
         }
       }
       if (peakStyle === "line") {
@@ -198,17 +256,20 @@ export function Panadapter(props: { streamId: string }) {
           offscreenCtx.lineTo(x, y);
         }
         offscreenCtx.stroke();
+      } else if (peakStyle === "points") {
+        offscreenCtx.fillStyle = "white";
+        for (let index = 0; index < binsInThisFrame; index++) {
+          const x = startingBin + index;
+          const y = bins[index];
+          offscreenCtx.fillRect(x - 0.5, y - 0.5, 1, 1);
+        }
       }
 
       if (startingBin + binsInThisFrame >= totalBins) {
-        if (canvas.width !== offscreen.width) {
-          canvas.width = offscreen.width;
+        if (rafId !== null) {
+          cancelAnimationFrame(rafId);
         }
-        if (canvas.height !== offscreen.height) {
-          canvas.height = offscreen.height;
-        }
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(offscreen, 0, 0, canvas.width, canvas.height);
+        rafId = requestAnimationFrame(flushFrame);
         frameTimes.push(performance.now() - frameStartTime);
         if (frameTimes.length > 10) frameTimes.shift();
         const avgFrameTime =

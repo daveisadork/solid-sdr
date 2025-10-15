@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "declaration": true,
+    "declarationMap": true,
+    "esModuleInterop": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "noEmit": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "target": "ES2022",
+    "paths": {
+      "~/*": ["./src/*"],
+      "@vita/*": ["./src/vita/*"],
+      "@util/*": ["./src/util/*"],
+      "@flex/*": ["./src/flex/*"]
+    }
+  },
+  "include": ["src", "tests"]
+}

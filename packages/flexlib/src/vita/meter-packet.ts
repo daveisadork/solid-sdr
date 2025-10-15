@@ -8,14 +8,13 @@ import {
   VitaTimeStampIntegerType,
   VitaTimeStampFractionalType,
   emptyTrailer,
-  readBigUint64BE as readU64,
   writeBigUint64BE as writeU64,
-  readHeaderBE,
   writeHeaderBE,
-  readClassIdBE,
   writeClassIdBE,
   readTrailerAtEndBE,
   writeTrailerBE,
+  createPacketContext,
+  VitaPacketContext,
 } from "./common";
 
 export class VitaMeterPacket {
@@ -64,79 +63,11 @@ export class VitaMeterPacket {
     data: Uint8Array,
     out?: { ids?: Uint16Array; values?: Int16Array },
   ): void {
-    const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
-    const parsed = readHeaderBE(view, 0, this.header);
-    let off = parsed.off;
-    const totalBytes = Math.min(parsed.totalBytes, view.byteLength);
-    const trailerPos =
-      this.header.hasTrailer && parsed.trailerPos >= 0
-        ? Math.min(parsed.trailerPos, view.byteLength - 4)
-        : -1;
-
-    // Stream ID if present
-    if (
-      this.header.packetType === VitaPacketType.IFDataWithStream ||
-      this.header.packetType === VitaPacketType.ExtDataWithStream
-    ) {
-      this.streamId = view.getUint32(off, false);
-      off += 4;
-    } else {
-      this.streamId = 0;
+    const ctx = createPacketContext(data, this.header, this.classId);
+    if (!ctx) {
+      throw new Error("Invalid VITA meter packet");
     }
-
-    // Class ID if present
-    ({ classId: this.classId, off } = readClassIdBE(
-      view,
-      off,
-      this.header.hasClassId,
-      this.classId,
-    ));
-
-    // Timestamps
-    if (this.header.timestampIntegerType !== VitaTimeStampIntegerType.None) {
-      this.timestampInt = view.getUint32(off, false);
-      off += 4;
-    } else {
-      this.timestampInt = 0;
-    }
-    if (
-      this.header.timestampFractionalType !== VitaTimeStampFractionalType.None
-    ) {
-      this.timestampFrac = readU64(view, off);
-      off += 8;
-    } else {
-      this.timestampFrac = 0n;
-    }
-
-    const payloadEnd =
-      this.header.hasTrailer && trailerPos >= 0 ? trailerPos : totalBytes;
-    const payloadBytes = Math.max(
-      0,
-      Math.min(payloadEnd, view.byteLength) - off,
-    );
-
-    // Each meter is 4 bytes (id:uint16 + value:int16), BE.
-    const meters = Math.max(0, payloadBytes >> 2);
-
-    // Prepare output arrays (reuse if provided & large enough)
-    let idsOut = out?.ids;
-    let valsOut = out?.values;
-    if (!idsOut || idsOut.length < meters) idsOut = new Uint16Array(meters);
-    if (!valsOut || valsOut.length < meters) valsOut = new Int16Array(meters);
-
-    // Fast single loop; DataView handles BE so no byte swaps needed.
-    for (let i = 0; i < meters; i++) {
-      idsOut[i] = view.getUint16(off, false);
-      valsOut[i] = view.getInt16(off + 2, false);
-      off += 4;
-    }
-
-    // Install views sliced to the actual count (no copy)
-    this.ids = idsOut.subarray(0, meters);
-    this.values = valsOut.subarray(0, meters);
-
-    // --- Trailer (absolute final word)
-    this.trailer = readTrailerAtEndBE(view, trailerPos);
+    this.parseWithContext(ctx, out);
   }
 
   /**
@@ -212,5 +143,45 @@ export class VitaMeterPacket {
     writeTrailerBE(view, off, this.header, this.trailer);
 
     return buf;
+  }
+
+  parseWithContext(
+    ctx: VitaPacketContext,
+    out?: { ids?: Uint16Array; values?: Int16Array },
+  ): void {
+    this.header = ctx.header;
+    this.streamId = ctx.streamId;
+    this.classId = ctx.classId;
+    this.timestampInt = ctx.timestampInt;
+    this.timestampFrac = ctx.timestampFrac;
+
+    const view = ctx.view;
+    const payloadBytes = ctx.payloadLength;
+    let off = ctx.payloadOffset;
+
+    const meters = Math.max(0, payloadBytes >> 2);
+
+    let idsOut = out?.ids;
+    let valsOut = out?.values;
+    if (!idsOut || idsOut.length < meters) idsOut = new Uint16Array(meters);
+    if (!valsOut || valsOut.length < meters) valsOut = new Int16Array(meters);
+    if (out) {
+      out.ids = idsOut;
+      out.values = valsOut;
+    }
+
+    for (let i = 0; i < meters; i++) {
+      idsOut[i] = view.getUint16(off, false);
+      valsOut[i] = view.getInt16(off + 2, false);
+      off += 4;
+    }
+
+    this.ids = idsOut.subarray(0, meters);
+    this.values = valsOut.subarray(0, meters);
+
+    this.trailer =
+      ctx.trailerPos >= 0
+        ? readTrailerAtEndBE(view, ctx.trailerPos)
+        : emptyTrailer();
   }
 }

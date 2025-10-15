@@ -12,6 +12,7 @@
     "serve": "vite preview"
   },
   "license": "MIT",
+  "packageManager": "pnpm@10.18.3",
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",
     "@repo/tailwind-config": "workspace:*",
@@ -26,7 +27,7 @@
     "vite-plugin-solid": "^2.11.8"
   },
   "dependencies": {
-    "@repo/flex-vita": "workspace:*",
+    "@repo/flexlib": "workspace:*",
     "@corvu/resizable": "^0.2.5",
     "@kobalte/core": "^0.13.11",
     "@solid-primitives/bounds": "^0.1.3",

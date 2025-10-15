@@ -117,6 +117,7 @@ func (h *WSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			line := strings.TrimSpace(b)
+			log.Printf("[ws] %s:%d <%s", host, basePort, line)
 
 			// Forward trimmed line to UI
 			if err := ws.WriteMessage(websocket.TextMessage, []byte(line)); err != nil {
@@ -142,6 +143,7 @@ func (h *WSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 		if mt == websocket.TextMessage || mt == websocket.BinaryMessage {
+			log.Printf("[ws] %s:%d >%s", host, basePort, strings.TrimSpace(string(msg)))
 			// Pass through as-is; UI includes newline when needed.
 			if _, err := tcp.Write(msg); err != nil {
 				break

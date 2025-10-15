@@ -391,3 +391,96 @@ export function writeTrailerBE(
   view.setUint32(off, tw >>> 0, false);
   return off + 4;
 }
+
+/**
+ * Parsed VITA packet context describing common header information and payload location.
+ */
+export interface VitaPacketContext {
+  view: DataView;
+  header: VitaHeader;
+  classId: VitaClassId;
+  streamId: number;
+  timestampInt: number;
+  timestampFrac: bigint;
+  payloadOffset: number;
+  payloadLength: number;
+  trailerPos: number;
+  totalBytes: number;
+}
+
+/**
+ * Parse VITA header/preamble (without payload) and return common context that can be reused.
+ * @param data Raw packet bytes
+ * @param header Optional header object to reuse/mutate (avoids allocation)
+ * @param classId Optional classId object to reuse/mutate (avoids allocation)
+ */
+export function createPacketContext(
+  data: Uint8Array,
+  header?: VitaHeader,
+  classId?: VitaClassId,
+): VitaPacketContext | null {
+  if (data.byteLength < 4) return null;
+
+  const fullView = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  const parsed = readHeaderBE(fullView, 0, header);
+  const packetSizeBytes = parsed.header.packetSize << 2;
+  if (packetSizeBytes <= 0) return null;
+
+  const limitedSize = Math.min(packetSizeBytes, fullView.byteLength);
+  if (limitedSize < 4) return null;
+  const view = new DataView(data.buffer, data.byteOffset, limitedSize);
+  const totalBytes = view.byteLength;
+
+  let off = parsed.off;
+  const hasStream =
+    parsed.header.packetType === VitaPacketType.IFDataWithStream ||
+    parsed.header.packetType === VitaPacketType.ExtDataWithStream;
+  const streamId = hasStream ? view.getUint32(off, false) >>> 0 : 0;
+  if (hasStream) off += 4;
+
+  const classIdResult = readClassIdBE(
+    view,
+    off,
+    parsed.header.hasClassId,
+    classId,
+  );
+  off = classIdResult.off;
+  const resolvedClassId = classIdResult.classId;
+
+  let timestampInt = 0;
+  if (parsed.header.timestampIntegerType !== VitaTimeStampIntegerType.None) {
+    if (off + 4 > totalBytes) return null;
+    timestampInt = view.getUint32(off, false) >>> 0;
+    off += 4;
+  }
+
+  let timestampFrac = 0n;
+  if (parsed.header.timestampFractionalType !== VitaTimeStampFractionalType.None) {
+    if (off + 8 > totalBytes) return null;
+    timestampFrac = readBigUint64BE(view, off);
+    off += 8;
+  }
+
+  const rawTrailerPos = parsed.trailerPos;
+  const trailerPos =
+    parsed.header.hasTrailer && rawTrailerPos >= 0
+      ? Math.min(rawTrailerPos, totalBytes - 4)
+      : -1;
+  const payloadEnd = trailerPos >= 0 ? trailerPos : totalBytes;
+  const payloadOffset = Math.min(off, payloadEnd);
+  const payloadLength =
+    payloadOffset <= payloadEnd ? payloadEnd - payloadOffset : 0;
+
+  return {
+    view,
+    header: parsed.header,
+    classId: resolvedClassId,
+    streamId,
+    timestampInt,
+    timestampFrac,
+    payloadOffset,
+    payloadLength,
+    trailerPos,
+    totalBytes,
+  };
+}

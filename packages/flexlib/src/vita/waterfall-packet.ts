@@ -8,16 +8,14 @@ import {
   VitaTimeStampIntegerType,
   VitaTimeStampFractionalType,
   emptyTrailer,
-  readBigUint64BE as readU64,
-  writeBigUint64BE as writeU64,
   readBigInt64BE as readI64,
   writeBigInt64BE as writeI64,
-  readHeaderBE,
   writeHeaderBE,
-  readClassIdBE,
   writeClassIdBE,
   readTrailerAtEndBE,
   writeTrailerBE,
+  createPacketContext,
+  VitaPacketContext,
 } from "./common";
 import type { WaterfallTile } from "@util/waterfall-tile";
 import { VitaFrequency } from "@util/vita-frequency";
@@ -71,106 +69,11 @@ export class VitaWaterfallPacket {
    * @param out optional reusable buffer for tile data (to avoid allocations)
    */
   parse(data: Uint8Array, out?: { data?: Uint16Array }): void {
-    const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
-    const parsed = readHeaderBE(view, 0, this.header);
-    let off = parsed.off;
-    const totalBytes = Math.min(parsed.totalBytes, view.byteLength);
-    const trailerPos =
-      this.header.hasTrailer && parsed.trailerPos >= 0
-        ? Math.min(parsed.trailerPos, view.byteLength - 4)
-        : -1;
-    const hasTrailer = trailerPos >= 0;
-
-    // Stream ID if present
-    if (
-      this.header.packetType === VitaPacketType.IFDataWithStream ||
-      this.header.packetType === VitaPacketType.ExtDataWithStream
-    ) {
-      this.streamId = view.getUint32(off, false);
-      off += 4;
-    } else {
-      this.streamId = 0;
+    const ctx = createPacketContext(data, this.header, this.classId);
+    if (!ctx) {
+      throw new Error("Invalid VITA waterfall packet");
     }
-
-    // Class ID
-    ({ classId: this.classId, off } = readClassIdBE(
-      view,
-      off,
-      this.header.hasClassId,
-      this.classId,
-    ));
-
-    // Timestamps
-    if (this.header.timestampIntegerType !== VitaTimeStampIntegerType.None) {
-      this.timestampInt = view.getUint32(off, false);
-      off += 4;
-    } else {
-      this.timestampInt = 0;
-    }
-    if (
-      this.header.timestampFractionalType !== VitaTimeStampFractionalType.None
-    ) {
-      this.timestampFrac = readU64(view, off);
-      off += 8;
-    } else {
-      this.timestampFrac = 0n;
-    }
-
-    // --- Tile header
-    this.tile.dateTime = new Date();
-
-    const rawLow = readI64(view, off);
-    off += 8;
-    this.tile.frameLowFreq = VitaFrequency.fromRaw(rawLow);
-
-    const rawBw = readI64(view, off);
-    off += 8;
-    this.tile.binBandwidth = VitaFrequency.fromRaw(rawBw);
-
-    this.tile.lineDurationMs = view.getUint32(off, false);
-    off += 4;
-    const width = view.getUint16(off, false);
-    off += 2;
-    const height = view.getUint16(off, false);
-    off += 2;
-    this.tile.width = width;
-    this.tile.height = height;
-
-    this.tile.timecode = view.getUint32(off, false);
-    off += 4;
-    this.tile.autoBlackLevel = view.getUint32(off, false);
-    off += 4;
-
-    this.tile.totalBinsInFrame = view.getUint16(off, false);
-    off += 2;
-    this.tile.firstBinIndex = view.getUint16(off, false);
-    off += 2;
-
-    // --- Tile data
-    const wordsExpected = (width * height) >>> 0;
-    const payloadEnd = hasTrailer ? trailerPos : totalBytes;
-    const clampedEnd = Math.min(payloadEnd, view.byteLength);
-    const readableBytes = Math.max(0, clampedEnd - off);
-    const readableWords = Math.min(wordsExpected, readableBytes >> 1);
-
-    // zero-alloc fast path
-    let arr =
-      out?.data && out.data.length >= wordsExpected
-        ? out.data
-        : new Uint16Array(wordsExpected);
-
-    // tight BE loop
-    for (let i = 0; i < readableWords; i++) {
-      arr[i] = view.getUint16(off + (i << 1), false);
-    }
-    // zero-fill tail if truncated
-    for (let i = readableWords; i < wordsExpected; i++) arr[i] = 0;
-
-    this.tile.data =
-      arr.length === wordsExpected ? arr : arr.subarray(0, wordsExpected);
-
-    // --- Trailer (absolute final word)
-    this.trailer = readTrailerAtEndBE(view, trailerPos);
+    this.parseWithContext(ctx, out);
   }
 
   /**
@@ -267,5 +170,94 @@ export class VitaWaterfallPacket {
     writeTrailerBE(view, off, this.header, this.trailer);
 
     return buf;
+  }
+
+  parseWithContext(
+    ctx: VitaPacketContext,
+    out?: { data?: Uint16Array },
+  ): void {
+    this.header = ctx.header;
+    this.streamId = ctx.streamId;
+    this.classId = ctx.classId;
+    this.timestampInt = ctx.timestampInt;
+    this.timestampFrac = ctx.timestampFrac;
+
+    const view = ctx.view;
+    let off = ctx.payloadOffset;
+    const payloadEnd = ctx.payloadOffset + ctx.payloadLength;
+
+    const tile = this.tile;
+    tile.dateTime = new Date();
+
+    if (off + TILE_HEADER_BYTES > payloadEnd) {
+      tile.frameLowFreq = VitaFrequency.fromHz(0);
+      tile.binBandwidth = VitaFrequency.fromHz(0);
+      tile.lineDurationMs = 0;
+      tile.width = 0;
+      tile.height = 0;
+      tile.timecode = 0;
+      tile.autoBlackLevel = 0;
+      tile.totalBinsInFrame = 0;
+      tile.firstBinIndex = 0;
+      tile.isFrameComplete = false;
+      tile.data =
+        out?.data && out.data.length
+          ? out.data.subarray(0, 0)
+          : new Uint16Array(0);
+      this.trailer =
+        ctx.trailerPos >= 0
+          ? readTrailerAtEndBE(view, ctx.trailerPos)
+          : emptyTrailer();
+      return;
+    }
+
+    const rawLow = readI64(view, off);
+    off += 8;
+    tile.frameLowFreq = VitaFrequency.fromRaw(rawLow);
+
+    const rawBw = readI64(view, off);
+    off += 8;
+    tile.binBandwidth = VitaFrequency.fromRaw(rawBw);
+
+    tile.lineDurationMs = view.getUint32(off, false);
+    off += 4;
+    const width = view.getUint16(off, false);
+    off += 2;
+    const height = view.getUint16(off, false);
+    off += 2;
+    tile.width = width;
+    tile.height = height;
+
+    tile.timecode = view.getUint32(off, false);
+    off += 4;
+    tile.autoBlackLevel = view.getUint32(off, false);
+    off += 4;
+
+    tile.totalBinsInFrame = view.getUint16(off, false);
+    off += 2;
+    tile.firstBinIndex = view.getUint16(off, false);
+    off += 2;
+
+    const wordsExpected = (width * height) >>> 0;
+    const readableBytes = Math.max(0, Math.min(payloadEnd - off, view.byteLength - off));
+    const readableWords = Math.min(wordsExpected, readableBytes >> 1);
+
+    let arr =
+      out?.data && out.data.length >= wordsExpected
+        ? out.data
+        : new Uint16Array(wordsExpected);
+    if (out) out.data = arr;
+
+    for (let i = 0; i < readableWords; i++) {
+      arr[i] = view.getUint16(off + (i << 1), false);
+    }
+    for (let i = readableWords; i < wordsExpected; i++) arr[i] = 0;
+
+    tile.data = arr.length === wordsExpected ? arr : arr.subarray(0, wordsExpected);
+
+    this.trailer =
+      ctx.trailerPos >= 0
+        ? readTrailerAtEndBE(view, ctx.trailerPos)
+        : emptyTrailer();
   }
 }

@@ -190,20 +190,17 @@ export function Waterfall(props: { streamId: string }) {
     const streamIdInt = parseInt(streamId(), 16);
 
     return ({ packet }: PacketEvent<"waterfall">) => {
-      if (packet.stream_id !== streamIdInt) return;
-      const {
-        payload: {
-          binBandwidth,
-          firstBinFreq,
-          autoBlackLevel,
-          binsInThisFrame,
-          totalBins,
-          startingBin,
-          frame,
-          height,
-          bins,
-        },
-      } = packet;
+      if (packet.streamId !== streamIdInt) return;
+      const tile = packet.tile;
+      const binBandwidth = tile.binBandwidth.freqHz;
+      const firstBinFreq = tile.frameLowFreq.freqHz;
+      const autoBlackLevel = tile.autoBlackLevel;
+      const binsInThisFrame = tile.width;
+      const totalBins = tile.totalBinsInFrame;
+      const startingBin = tile.firstBinIndex;
+      const frame = tile.timecode;
+      const height = tile.height;
+      const bins = tile.data;
 
       if (startingBin === 0) {
         frameStartTime = performance.now();

@@ -55,21 +55,16 @@ export class VitaFrequency {
     return this._raw >> Q;
   }
 
-  /**
-   * Integer hertz as number (will clamp to Number range if extremely large).
-   * For typical RF frequencies (<~10^12 Hz), this is safe.
-   */
+  /** Frequency in Hz as a floating point number (includes fractional part). */
   get freqHz(): number {
-    const hzBig = this.freqHzBig;
-    // Convert via string if you want to avoid BigInt → Number overflow silently.
-    // Here we assume RF-range values; otherwise clamp:
-    const n = Number(hzBig);
-    return Number.isFinite(n) ? n : Number.MAX_SAFE_INTEGER;
+    const whole = Number(this._raw >> Q);
+    const fraction = Number(this._raw & (SCALE - 1n)) / Number(SCALE);
+    return whole + fraction;
   }
 
   /** Frequency in MHz as a JS number: MHz = Hz / 1e6. */
   get freqMhz(): number {
-    return this.freqHz / 1e6;
+    return this.freqHz / 1_000_000;
   }
 
   /** Replace underlying raw value. */
@@ -98,7 +93,7 @@ export class VitaFrequency {
 
   /** JSON representation (Hz integer + raw) for debugging/serialization. */
   toJSON(): { hz: string; raw: string } {
-    return { hz: this.freqHzBig.toString(), raw: this._raw.toString() };
+    return { hz: this.freqHz.toString(), raw: this._raw.toString() };
   }
 
   /** Equality check by raw value. */

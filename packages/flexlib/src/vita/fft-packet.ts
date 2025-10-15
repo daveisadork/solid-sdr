@@ -8,14 +8,12 @@ import {
   VitaTimeStampIntegerType,
   VitaTimeStampFractionalType,
   emptyTrailer,
-  readBigUint64BE as readU64,
-  writeBigUint64BE as writeU64,
-  readHeaderBE,
   writeHeaderBE,
-  readClassIdBE,
   writeClassIdBE,
   readTrailerAtEndBE,
   writeTrailerBE,
+  createPacketContext,
+  VitaPacketContext,
 } from "./common";
 
 const FFT_META_BYTES = 12; // start(2) + num(2) + binSize(2) + total(2) + frameIndex(4)
@@ -63,107 +61,11 @@ export class VitaFFTPacket {
    *            (length must be >= numBins)
    */
   parse(data: Uint8Array, out?: { payload?: Uint16Array }): void {
-    const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
-    const parsed = readHeaderBE(view, 0, this.header);
-    let off = parsed.off;
-    const trailerPos = parsed.trailerPos;
-
-    // Stream ID if present
-    if (
-      this.header.packetType === VitaPacketType.IFDataWithStream ||
-      this.header.packetType === VitaPacketType.ExtDataWithStream
-    ) {
-      this.streamId = view.getUint32(off, false);
-      off += 4;
-    } else {
-      this.streamId = 0;
+    const ctx = createPacketContext(data, this.header, this.classId);
+    if (!ctx) {
+      throw new Error("Invalid VITA FFT packet");
     }
-
-    ({ classId: this.classId, off } = readClassIdBE(
-      view,
-      off,
-      this.header.hasClassId,
-      this.classId,
-    ));
-
-    // Timestamps
-    if (this.header.timestampIntegerType !== VitaTimeStampIntegerType.None) {
-      this.timestampInt = view.getUint32(off, false);
-      off += 4;
-    } else {
-      this.timestampInt = 0;
-    }
-    if (
-      this.header.timestampFractionalType !== VitaTimeStampFractionalType.None
-    ) {
-      this.timestampFrac = readU64(view, off);
-      off += 8;
-    } else {
-      this.timestampFrac = 0n;
-    }
-
-    // --- FFT meta (BE)
-    this.startBinIndex = view.getUint16(off, false);
-    off += 2;
-    const num = view.getUint16(off, false);
-    off += 2;
-    const bsize = view.getUint16(off, false);
-    off += 2;
-    const total = view.getUint16(off, false);
-    off += 2;
-    const frameIdx = view.getUint32(off, false);
-    off += 4;
-    this.numBins = num;
-    this.binSize = bsize;
-    this.totalBinsInFrame = total;
-    this.frameIndex = frameIdx;
-
-    // --- Payload
-    const expectedPayloadBytes = num * bsize;
-    const endOfPayload = this.header.hasTrailer
-      ? trailerPos
-      : this.header.packetSize * 4;
-    const available = Math.max(
-      0,
-      Math.min(expectedPayloadBytes, endOfPayload - off),
-    );
-
-    // zero-alloc path if provided
-    const arr =
-      out?.payload && out.payload.length >= num
-        ? out.payload
-        : new Uint16Array(num);
-
-    if (bsize === 2) {
-      // tight BE read
-      const words = Math.min(num, available >> 1);
-      for (let i = 0; i < words; i++) {
-        arr[i] = view.getUint16(off + (i << 1), false);
-      }
-      // If payload truncated, zero remainder
-      for (let i = words; i < num; i++) arr[i] = 0;
-    } else if (bsize >= 2) {
-      // read the last 2 bytes of each bin slot (mirrors writer)
-      const binsReadable = Math.min(num, Math.floor(available / bsize));
-      const tail = bsize - 2;
-      for (let i = 0; i < binsReadable; i++) {
-        arr[i] = view.getUint16(off + i * bsize + tail, false);
-      }
-      for (let i = binsReadable; i < num; i++) arr[i] = 0;
-    } else {
-      // bsize === 1: take LSB
-      const binsReadable = Math.min(num, available);
-      for (let i = 0; i < binsReadable; i++) {
-        arr[i] = view.getUint8(off + i);
-      }
-      for (let i = binsReadable; i < num; i++) arr[i] = 0;
-    }
-
-    this.payload = arr.length === num ? arr : arr.subarray(0, num);
-    // (off is irrelevant now; we read trailer by absolute offset)
-
-    // --- Trailer (absolute final word)
-    this.trailer = readTrailerAtEndBE(view, trailerPos);
+    this.parseWithContext(ctx, out);
   }
 
   /**
@@ -271,5 +173,92 @@ export class VitaFFTPacket {
     // trailer
     off = writeTrailerBE(view, off, this.header, this.trailer);
     return buf;
+  }
+
+  parseWithContext(
+    ctx: VitaPacketContext,
+    out?: { payload?: Uint16Array },
+  ): void {
+    this.header = ctx.header;
+    this.streamId = ctx.streamId;
+    this.classId = ctx.classId;
+    this.timestampInt = ctx.timestampInt;
+    this.timestampFrac = ctx.timestampFrac;
+
+    const view = ctx.view;
+    let off = ctx.payloadOffset;
+    const payloadEnd = ctx.payloadOffset + ctx.payloadLength;
+
+    if (off + FFT_META_BYTES > payloadEnd) {
+      this.startBinIndex = 0;
+      this.numBins = 0;
+      this.binSize = 0;
+      this.totalBinsInFrame = 0;
+      this.frameIndex = 0;
+      this.payload =
+        out?.payload && out.payload.length
+          ? out.payload.subarray(0, 0)
+          : new Uint16Array(0);
+      this.trailer =
+        ctx.trailerPos >= 0
+          ? readTrailerAtEndBE(view, ctx.trailerPos)
+          : emptyTrailer();
+      return;
+    }
+
+    this.startBinIndex = view.getUint16(off, false);
+    off += 2;
+    const num = view.getUint16(off, false);
+    off += 2;
+    const bsize = view.getUint16(off, false);
+    off += 2;
+    const total = view.getUint16(off, false);
+    off += 2;
+    const frameIdx = view.getUint32(off, false);
+    off += 4;
+    this.numBins = num;
+    this.binSize = bsize;
+    this.totalBinsInFrame = total;
+    this.frameIndex = frameIdx;
+
+    const expectedPayloadBytes = num * bsize;
+    const available = Math.max(0, Math.min(expectedPayloadBytes, payloadEnd - off));
+
+    const arr =
+      out?.payload && out.payload.length >= num
+        ? out.payload
+        : new Uint16Array(num);
+    if (out) out.payload = arr;
+
+    if (bsize === 2) {
+      const words = Math.min(num, available >> 1);
+      for (let i = 0; i < words; i++) {
+        arr[i] = view.getUint16(off + (i << 1), false);
+      }
+      for (let i = words; i < num; i++) arr[i] = 0;
+      off += words << 1;
+    } else if (bsize >= 2) {
+      const binsReadable = Math.min(num, Math.floor(available / bsize));
+      const tail = bsize - 2;
+      for (let i = 0; i < binsReadable; i++) {
+        arr[i] = view.getUint16(off + i * bsize + tail, false);
+      }
+      for (let i = binsReadable; i < num; i++) arr[i] = 0;
+      off += binsReadable * bsize;
+    } else {
+      const binsReadable = Math.min(num, available);
+      for (let i = 0; i < binsReadable; i++) {
+        arr[i] = view.getUint8(off + i);
+      }
+      for (let i = binsReadable; i < num; i++) arr[i] = 0;
+      off += binsReadable;
+    }
+
+    this.payload = arr.length === num ? arr : arr.subarray(0, num);
+
+    this.trailer =
+      ctx.trailerPos >= 0
+        ? readTrailerAtEndBE(view, ctx.trailerPos)
+        : emptyTrailer();
   }
 }

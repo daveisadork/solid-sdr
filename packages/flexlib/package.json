@@ -13,9 +13,9 @@
   ],
   "scripts": {
     "build": "tsdown",
-    "dev": "tsdown --watch",
-    "dev:web": "tsdown --watch",
-    "dev:server": "tsdown --watch",
+    "dev": "tsdown --watch src",
+    "dev:web": "tsdown --watch src",
+    "dev:server": "tsdown --watch src",
     "format": "prettier .",
     "lint": "eslint . --max-warnings 0",
     "prepare": "husky",
@@ -42,7 +42,7 @@
     "typescript-eslint": "8.35.0",
     "vitest": "3.2.4"
   },
-  "packageManager": "pnpm@10.4.0",
+  "packageManager": "pnpm@10.18.3",
   "engines": {
     "node": ">=20.19.0"
   },

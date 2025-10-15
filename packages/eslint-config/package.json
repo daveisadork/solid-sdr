@@ -16,6 +16,7 @@
   "keywords": [],
   "author": "",
   "license": "MIT",
+  "packageManager": "pnpm@10.18.3",
   "peerDependencies": {
     "@eslint/eslintrc": "^3.3.0",
     "eslint": "^9.0.0",

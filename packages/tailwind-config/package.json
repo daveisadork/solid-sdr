@@ -13,6 +13,7 @@
   "keywords": [],
   "author": "",
   "license": "MIT",
+  "packageManager": "pnpm@10.18.3",
   "dependencies": {
     "@tailwindcss/vite": "^4.0.9",
     "tailwindcss": "^4.0.9",

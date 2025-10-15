@@ -15,54 +15,42 @@ import {
   SetStoreFunction,
 } from "solid-js/store";
 import { showToast } from "~/components/ui/toast";
-import {
-  decodeVita,
-  DiscoveryPayload,
-  PacketClass,
-  VitaPacket,
-} from "~/lib/vita49";
+import { DiscoveryPayload } from "~/lib/vita49";
 import { useRtc } from "./rtc";
+import {
+  parseVitaPacket,
+  VitaPacketKind,
+  VitaParsedPacket,
+  VitaPacketMetadata,
+} from "@repo/flexlib";
 
-type EventTypePacketClassMap = {
-  ["meter"]: PacketClass.meter;
-  ["panadapter"]: PacketClass.panadapter;
-  ["waterfall"]: PacketClass.waterfall;
-  ["opus"]: PacketClass.opus;
-  ["daxReducedBw"]: PacketClass.daxReducedBw;
-  ["daxIq24"]: PacketClass.daxIq24;
-  ["daxIq48"]: PacketClass.daxIq48;
-  ["daxIq96"]: PacketClass.daxIq96;
-  ["daxIq192"]: PacketClass.daxIq192;
-  ["daxAudio"]: PacketClass.daxAudio;
-  ["discovery"]: PacketClass.discovery;
+export type PacketEventType = VitaPacketKind;
+
+type PacketDetailMap = {
+  [K in PacketEventType]: Extract<VitaParsedPacket, { kind: K }>["packet"];
 };
 
-export type PacketEventType = keyof EventTypePacketClassMap;
+function toMetadata(parsed: VitaParsedPacket): VitaPacketMetadata {
+  const { header, classId, streamId, timestampInt, timestampFrac } = parsed;
+  return { header, classId, streamId, timestampInt, timestampFrac };
+}
 
 export class PacketEvent<
   T extends PacketEventType = PacketEventType,
 > extends Event {
+  public readonly packet: PacketDetailMap[T];
+  public readonly metadata: VitaPacketMetadata;
+
   constructor(
     type: T,
-    public readonly packet: VitaPacket<EventTypePacketClassMap[T]>,
+    packet: PacketDetailMap[T],
+    metadata: VitaPacketMetadata,
   ) {
     super(type);
+    this.packet = packet;
+    this.metadata = metadata;
   }
 }
-
-const PacketClassEventMap: Record<string | number, PacketEventType> = {
-  [PacketClass.meter]: "meter",
-  [PacketClass.panadapter]: "panadapter",
-  [PacketClass.waterfall]: "waterfall",
-  [PacketClass.opus]: "opus",
-  [PacketClass.daxReducedBw]: "daxReducedBw",
-  [PacketClass.daxIq24]: "daxIq24",
-  [PacketClass.daxIq48]: "daxIq48",
-  [PacketClass.daxIq96]: "daxIq96",
-  [PacketClass.daxIq192]: "daxIq192",
-  [PacketClass.daxAudio]: "daxAudio",
-  [PacketClass.discovery]: "discovery",
-};
 
 export interface DiscoveryRadio extends DiscoveryPayload {
   last_seen: Date;
@@ -561,6 +549,9 @@ export const FlexRadioProvider: ParentComponent = (props) => {
 
   const [ws, setWs] = createSignal<WebSocket | null>(null);
   const [cmdCount, setCmdCount] = createSignal(0);
+  const meterScratch = { ids: new Uint16Array(0), values: new Int16Array(0) };
+  const panadapterScratch = { payload: new Uint16Array(0) };
+  const waterfallScratch = { data: new Uint16Array(0) };
   const discoveryWs = createReconnectingWS("/ws/discovery");
 
   discoveryWs.addEventListener("open", ({ target }) => {
@@ -1218,34 +1209,45 @@ export const FlexRadioProvider: ParentComponent = (props) => {
 
   const handleUdpPacket = ({ data }: MessageEvent) => {
     try {
-      const packet = decodeVita(new Uint8Array(data));
-      if (!packet) {
-        console.warn("Failed to decode UDP packet:", data);
+      const parsed = parseVitaPacket(new Uint8Array(data), {
+        meter: meterScratch,
+        panadapter: panadapterScratch,
+        waterfall: waterfallScratch,
+      });
+      if (!parsed) {
+        console.warn("Unhandled UDP packet");
         return;
       }
-      const event = new PacketEvent(
-        PacketClassEventMap[
-          packet.class_id.packet_class_code
-        ] as PacketEventType,
-        packet,
+
+      const metadata = toMetadata(parsed);
+      _events.dispatchEvent(
+        new PacketEvent(
+          parsed.kind,
+          parsed.packet as PacketDetailMap[typeof parsed.kind],
+          metadata,
+        ),
       );
-      _events.dispatchEvent(event);
     } catch (error) {
       console.error("Error decoding UDP packet:", error);
-      return disconnect();
+      disconnect();
     }
   };
 
   createEffect(() => {
-    _events.addEventListener("meter", ({ packet: { payload } }) => {
+    _events.addEventListener("meter", ({ packet }) => {
+      const meterPacket = packet;
       setState(
         "status",
         "meters",
-        produce((meters) =>
-          payload.forEach(({ id, value }) => {
-            if (id in meters) meters[id].value = value / meters[id].scale;
-          }),
-        ),
+        produce((meters) => {
+          const count = meterPacket.numMeters;
+          for (let i = 0; i < count; i++) {
+            const id = meterPacket.ids[i];
+            if (id in meters) {
+              meters[id].value = meterPacket.values[i] / meters[id].scale;
+            }
+          }
+        }),
       );
     });
   });

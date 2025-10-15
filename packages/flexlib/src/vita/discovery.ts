@@ -7,14 +7,13 @@ import {
   VitaTimeStampFractionalType,
   emptyTrailer,
   padToWordBoundary,
-  readBigUint64BE,
   writeBigUint64BE,
-  readHeaderBE,
   writeHeaderBE,
-  readClassIdBE,
   writeClassIdBE,
   readTrailerAtEndBE,
   writeTrailerBE,
+  createPacketContext,
+  VitaPacketContext,
 } from "./common";
 
 // Reuse singletons
@@ -110,58 +109,11 @@ export class VitaDiscoveryPacket {
   }
 
   parse(data: Uint8Array): void {
-    const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
-    const parsed = readHeaderBE(view, 0, this.header);
-    let off = parsed.off;
-    const totalBytes = Math.min(parsed.totalBytes, view.byteLength);
-    const trailerPos =
-      this.header.hasTrailer && parsed.trailerPos >= 0
-        ? Math.min(parsed.trailerPos, view.byteLength - 4)
-        : -1;
-
-    const hasStream =
-      this.header.packetType === VitaPacketType.IFDataWithStream ||
-      this.header.packetType === VitaPacketType.ExtDataWithStream;
-    if (hasStream) {
-      this.streamId = view.getUint32(off, false);
-      off += 4;
-    } else {
-      this.streamId = 0;
+    const ctx = createPacketContext(data, this.header, this.classId);
+    if (!ctx) {
+      throw new Error("Invalid VITA discovery packet");
     }
-
-    ({ classId: this.classId, off } = readClassIdBE(
-      view,
-      off,
-      this.header.hasClassId,
-      this.classId,
-    ));
-
-    if (this.header.timestampIntegerType !== VitaTimeStampIntegerType.None) {
-      this.timestampInt = view.getUint32(off, false);
-      off += 4;
-    } else {
-      this.timestampInt = 0;
-    }
-
-    if (this.header.timestampFractionalType !== VitaTimeStampFractionalType.None) {
-      this.timestampFrac = readBigUint64BE(view, off);
-      off += 8;
-    } else {
-      this.timestampFrac = 0n;
-    }
-
-    const payloadEnd =
-      this.header.hasTrailer && trailerPos >= 0 ? trailerPos : totalBytes;
-    const payloadBytes = Math.max(
-      0,
-      Math.min(payloadEnd, view.byteLength) - off,
-    );
-
-    this._payloadBytes = data.subarray(off, off + payloadBytes);
-    this._payload = UTF8_DECODER.decode(this._payloadBytes);
-    this._payloadDirty = false;
-
-    this.trailer = readTrailerAtEndBE(view, trailerPos);
+    this.parseWithContext(ctx);
   }
 
   /**
@@ -226,5 +178,30 @@ export class VitaDiscoveryPacket {
     writeTrailerBE(view, off, this.header, this.trailer);
 
     return buf;
+  }
+
+  parseWithContext(ctx: VitaPacketContext): void {
+    this.header = ctx.header;
+    this.streamId = ctx.streamId;
+    this.classId = ctx.classId;
+    this.timestampInt = ctx.timestampInt;
+    this.timestampFrac = ctx.timestampFrac;
+
+    const view = ctx.view;
+    const payloadOffset = ctx.payloadOffset;
+    const payloadLength = ctx.payloadLength;
+
+    this._payloadBytes = new Uint8Array(
+      view.buffer,
+      view.byteOffset + payloadOffset,
+      payloadLength,
+    );
+    this._payload = UTF8_DECODER.decode(this._payloadBytes);
+    this._payloadDirty = false;
+
+    this.trailer =
+      ctx.trailerPos >= 0
+        ? readTrailerAtEndBE(view, ctx.trailerPos)
+        : emptyTrailer();
   }
 }

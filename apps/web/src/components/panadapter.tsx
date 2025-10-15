@@ -157,10 +157,12 @@ export function Panadapter(props: { streamId: string }) {
     };
 
     return ({ packet }: PacketEvent<"panadapter">) => {
-      if (packet.stream_id !== stream_id) return;
-      const {
-        payload: { startingBin, binsInThisFrame, totalBins, frame, bins },
-      } = packet;
+      if (packet.streamId !== stream_id) return;
+      const startingBin = packet.startBinIndex;
+      const binsInThisFrame = packet.numBins;
+      const totalBins = packet.totalBinsInFrame;
+      const frame = packet.frameIndex;
+      const bins = packet.payload;
       if (binsInThisFrame === 0) return;
       if (startingBin === 0) {
         frameStartTime = performance.now();

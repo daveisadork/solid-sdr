@@ -1,4 +1,4 @@
-import { createEffect, createSignal, For, Show } from "solid-js";
+import { createEffect, createSignal, For, Show, onCleanup } from "solid-js";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import {
@@ -10,7 +10,11 @@ import {
 } from "./ui/dialog";
 import { Skeleton } from "./ui/skeleton";
 import { createStore } from "solid-js/store";
-import useFlexRadio, { ConnectionState } from "~/context/flexradio";
+import useFlexRadio, {
+  ConnectionState,
+  PacketEvent,
+} from "~/context/flexradio";
+import { decodeDiscoveryPayload } from "~/lib/vita49";
 import { ProgressCircle } from "./ui/progress-circle";
 
 export default function Connect() {
@@ -19,12 +23,19 @@ export default function Connect() {
   const [open, setOpen] = createSignal(state.connectModal.open);
 
   createEffect(() => {
-    events.addEventListener("discovery", ({ packet: { payload } }) => {
+    const textEncoder = new TextEncoder();
+    const listener = ({ packet }: PacketEvent<"discovery">) => {
+      const payload = decodeDiscoveryPayload(
+        textEncoder.encode(packet.payload),
+      );
       setRadios(payload.ip, {
         ...payload,
         last_seen: new Date(),
       });
-    });
+    };
+
+    events.addEventListener("discovery", listener);
+    onCleanup(() => events.removeEventListener("discovery", listener));
   });
 
   createEffect((lastOpen) => {

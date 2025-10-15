@@ -26,7 +26,7 @@ export function FPSCounter() {
 
   return (
     <Portal>
-      <div class="fixed top-2 left-2 z-50 text-lg font-bold text-amber-400">
+      <div class="fixed top-2 left-2 -z-50 text-lg font-bold text-amber-400/50">
         {fps()}
       </div>
     </Portal>

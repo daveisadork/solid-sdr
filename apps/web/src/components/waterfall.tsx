@@ -338,7 +338,7 @@ export function Waterfall(props: { streamId: string }) {
       />
 
       <Portal>
-        <div class="fixed top-12 left-2 z-50 text-lg font-bold text-emerald-400">
+        <div class="fixed top-12 left-2 -z-50 text-lg font-bold text-emerald-400/50">
           {fps()}
         </div>
       </Portal>

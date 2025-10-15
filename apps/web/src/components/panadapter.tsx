@@ -238,7 +238,7 @@ export function Panadapter(props: { streamId: string }) {
       />
 
       <Portal>
-        <div class="fixed top-7 left-2 z-50 text-lg font-bold text-indigo-400">
+        <div class="fixed top-7 left-2 -z-50 text-lg font-bold text-indigo-400/50">
           {fps()}
         </div>
       </Portal>

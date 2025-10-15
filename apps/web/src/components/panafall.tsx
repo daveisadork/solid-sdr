@@ -60,7 +60,7 @@ export function Panafall() {
     if (!streamId) return;
     newCenter = parseFloat(newCenter.toFixed(6));
     if (newCenter === selectedPan()?.center) {
-      setDragState("originX", 0);
+      if (!dragState.down) setDragState("originX", 0);
       return;
     }
     sendCommand(`display pan s ${streamId} center=${newCenter}`);
@@ -116,7 +116,7 @@ export function Panafall() {
       const newOffset = event.x - dragState.originX;
       const freq = dragState.originFreq - newOffset / pxPerMHz();
       if (smoothScroll()) {
-        setDragState("offset", Math.round(newOffset));
+        setDragState("offset", newOffset);
       }
       setPanCenter(freq, smoothScroll());
     },
@@ -214,6 +214,7 @@ export function Panafall() {
                 class="absolute inset-0 select-none"
                 onDblClick={async (e) => {
                   if (dragState.dragging) return;
+                  setDragState("originX", 0);
                   const streamId = panStreamId();
                   if (!streamId) return;
                   const activeSlice = Object.keys(state.status.slice).find(

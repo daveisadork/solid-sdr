@@ -23,7 +23,6 @@ import { NumberField } from "@kobalte/core/number-field";
 
 import type { Component, ComponentProps, JSX } from "solid-js";
 import { createPointerListeners } from "@solid-primitives/pointer";
-import { createMousePosition } from "@solid-primitives/mouse";
 import { createElementBounds } from "@solid-primitives/bounds";
 import BaselineChevronLeft from "~icons/ic/baseline-chevron-left";
 import BaselineChevronRight from "~icons/ic/baseline-chevron-right";
@@ -281,16 +280,14 @@ export function Slice(props: { sliceIndex: number | string }) {
 
   createPointerListeners({
     async onMove(event) {
-      const { dragging, originX, originFreq } = dragState;
-      if (!dragging) return;
-      const { bandwidth, x_pixels } = pan;
-      const newX = Math.max(0, Math.min(event.x, x_pixels - 1));
-      const newOffset = originX - newX;
+      if (!dragState.dragging) return;
+      const newX = Math.max(0, Math.min(event.x, pan.x_pixels - 1));
+      const newOffset = dragState.originX - newX;
 
-      const mhzPerPx = bandwidth / x_pixels;
+      const mhzPerPx = pan.bandwidth / pan.x_pixels;
       // Round frequency to the nearest step
       const step = slice.step / 1e6; // Convert Hz to MHz
-      const freqUnrounded = originFreq - newOffset * mhzPerPx;
+      const freqUnrounded = dragState.originFreq - newOffset * mhzPerPx;
       const freqSteps = Math.round(freqUnrounded / step);
       const freq = freqSteps * step;
 
@@ -361,7 +358,7 @@ export function Slice(props: { sliceIndex: number | string }) {
       );
 
       setState("status", "slice", groupedSlices, "RF_frequency", freq);
-    } catch (err) {
+    } catch {
       setFrequency((slice.RF_frequency * 1e6).toLocaleString()); // Reset display on error
     }
   };
@@ -481,11 +478,9 @@ export function Slice(props: { sliceIndex: number | string }) {
                   <Select
                     value={slice.rxant}
                     options={slice.ant_list}
-                    onChange={async (v) => {
+                    onChange={(v) => {
                       if (!v || v === slice.rxant) return;
-                      await sendCommand(
-                        `slice s ${props.sliceIndex} rxant=${v}`,
-                      );
+                      sendCommand(`slice s ${props.sliceIndex} rxant=${v}`);
                     }}
                     itemComponent={(props) => (
                       <SelectItem item={props.item}>
@@ -506,11 +501,9 @@ export function Slice(props: { sliceIndex: number | string }) {
                   <Select
                     value={slice.txant}
                     options={slice.tx_ant_list}
-                    onChange={async (v) => {
+                    onChange={(v) => {
                       if (!v) return;
-                      await sendCommand(
-                        `slice s ${props.sliceIndex} txant=${v}`,
-                      );
+                      sendCommand(`slice s ${props.sliceIndex} txant=${v}`);
                     }}
                     itemComponent={(props) => (
                       <SelectItem item={props.item}>
@@ -536,11 +529,10 @@ export function Slice(props: { sliceIndex: number | string }) {
                       "opacity-50": !slice.tx,
                     }}
                     pressed={slice.tx}
-                    onChange={async (pressed) => {
-                      await sendCommand(
+                    onChange={(pressed) => {
+                      sendCommand(
                         `slice s ${props.sliceIndex} tx=${pressed ? 1 : 0}`,
-                      );
-                      setSlice("tx", pressed);
+                      ).then(() => setSlice("tx", pressed));
                     }}
                   >
                     TX
@@ -618,13 +610,12 @@ export function Slice(props: { sliceIndex: number | string }) {
                 <div class="flex items-center text-xs font-bold justify-between *:basis-64 *:flex *:flex-col *:items-center">
                   <Popover>
                     <PopoverTrigger
-                      onContextMenu={async (e) => {
+                      onContextMenu={(e) => {
                         e.preventDefault();
                         const audio_mute = !slice.audio_mute;
-                        await sendCommand(
+                        sendCommand(
                           `slice s ${props.sliceIndex} audio_mute=${audio_mute ? 1 : 0}`,
-                        );
-                        setSlice("audio_mute", audio_mute);
+                        ).then(() => setSlice("audio_mute", audio_mute));
                       }}
                     >
                       <Show
@@ -644,11 +635,10 @@ export function Slice(props: { sliceIndex: number | string }) {
                       <Switch
                         class="flex items-center space-x-2 justify-between"
                         checked={slice.audio_mute}
-                        onChange={async (isChecked) => {
-                          await sendCommand(
+                        onChange={(isChecked) => {
+                          sendCommand(
                             `slice s ${props.sliceIndex} audio_mute=${isChecked ? 1 : 0}`,
-                          );
-                          setSlice("audio_mute", isChecked);
+                          ).then(() => setSlice("audio_mute", isChecked));
                         }}
                       >
                         <SwitchLabel>Audio Mute</SwitchLabel>
@@ -660,11 +650,10 @@ export function Slice(props: { sliceIndex: number | string }) {
                         minValue={0}
                         maxValue={100}
                         value={[slice.audio_level]}
-                        onChange={async ([value]) => {
+                        onChange={([value]) => {
                           sendCommand(
                             `slice s ${props.sliceIndex} audio_level=${value}`,
-                          );
-                          setSlice("audio_level", value);
+                          ).then(() => setSlice("audio_level", value));
                         }}
                         getValueLabel={(params) => `${params.values[0]}%`}
                         class="space-y-3"
@@ -682,11 +671,10 @@ export function Slice(props: { sliceIndex: number | string }) {
                         minValue={0}
                         maxValue={100}
                         value={[slice.audio_pan]}
-                        onChange={async ([value]) => {
+                        onChange={([value]) => {
                           sendCommand(
                             `slice s ${props.sliceIndex} audio_pan=${value}`,
-                          );
-                          setSlice("audio_pan", value);
+                          ).then(() => setSlice("audio_pan", value));
                         }}
                         getValueLabel={(params) => {
                           const value = params.values[0] - 50;
@@ -717,11 +705,10 @@ export function Slice(props: { sliceIndex: number | string }) {
                       </Slider>
                       <SegmentedControl
                         value={slice.agc_mode}
-                        onChange={async (value) => {
+                        onChange={(value) => {
                           sendCommand(
                             `slice s ${props.sliceIndex} agc_mode=${value}`,
-                          );
-                          setSlice("agc_mode", value as string);
+                          ).then(() => setSlice("agc_mode", value));
                         }}
                       >
                         <SegmentedControlLabel>AGC Mode</SegmentedControlLabel>
@@ -752,11 +739,10 @@ export function Slice(props: { sliceIndex: number | string }) {
                         minValue={0}
                         maxValue={100}
                         value={[slice.agc_threshold]}
-                        onChange={async ([value]) => {
+                        onChange={([value]) => {
                           sendCommand(
                             `slice s ${props.sliceIndex} agc_threshold=${value}`,
-                          );
-                          setSlice("agc_threshold", value);
+                          ).then(() => setSlice("agc_threshold", value));
                         }}
                         getValueLabel={(params) => `${params.values[0]}%`}
                         class="space-y-3"
@@ -802,11 +788,10 @@ export function Slice(props: { sliceIndex: number | string }) {
                         minValue={0}
                         maxValue={100}
                         value={[slice.wnb_level]}
-                        onChange={async ([value]) => {
+                        onChange={([value]) => {
                           sendCommand(
                             `slice s ${props.sliceIndex} wnb_level=${value}`,
-                          );
-                          setSlice("wnb_level", value);
+                          ).then(() => setSlice("wnb_level", value));
                         }}
                         getValueLabel={(params) => `${params.values[0]}%`}
                         class="space-y-2"
@@ -819,11 +804,10 @@ export function Slice(props: { sliceIndex: number | string }) {
                           <Switch
                             class="h-auto flex items-center origin-left scale-75"
                             checked={slice.wnb}
-                            onChange={async (isChecked) => {
-                              await sendCommand(
+                            onChange={(isChecked) => {
+                              sendCommand(
                                 `slice s ${props.sliceIndex} wnb=${isChecked ? 1 : 0}`,
-                              );
-                              setSlice("wnb", isChecked);
+                              ).then(() => setSlice("wnb", isChecked));
                             }}
                           >
                             <SwitchControl>
@@ -841,11 +825,10 @@ export function Slice(props: { sliceIndex: number | string }) {
                         minValue={0}
                         maxValue={100}
                         value={[slice.nb_level]}
-                        onChange={async ([value]) => {
+                        onChange={([value]) => {
                           sendCommand(
                             `slice s ${props.sliceIndex} nb_level=${value}`,
-                          );
-                          setSlice("nb_level", value);
+                          ).then(() => setSlice("nb_level", value));
                         }}
                         getValueLabel={(params) => `${params.values[0]}%`}
                         class="space-y-2"
@@ -858,11 +841,10 @@ export function Slice(props: { sliceIndex: number | string }) {
                           <Switch
                             class="h-auto flex items-center origin-left scale-75"
                             checked={slice.nb}
-                            onChange={async (isChecked) => {
-                              await sendCommand(
+                            onChange={(isChecked) => {
+                              sendCommand(
                                 `slice s ${props.sliceIndex} nb=${isChecked ? 1 : 0}`,
-                              );
-                              setSlice("nb", isChecked);
+                              ).then(() => setSlice("nb", isChecked));
                             }}
                           >
                             <SwitchControl>
@@ -880,11 +862,10 @@ export function Slice(props: { sliceIndex: number | string }) {
                         minValue={0}
                         maxValue={100}
                         value={[slice.nr_level]}
-                        onChange={async ([value]) => {
+                        onChange={([value]) => {
                           sendCommand(
                             `slice s ${props.sliceIndex} nr_level=${value}`,
-                          );
-                          setSlice("nr_level", value);
+                          ).then(() => setSlice("nr_level", value));
                         }}
                         getValueLabel={(params) => `${params.values[0]}%`}
                         class="space-y-2"
@@ -897,11 +878,10 @@ export function Slice(props: { sliceIndex: number | string }) {
                           <Switch
                             class="h-auto flex items-center origin-left scale-75"
                             checked={slice.nr}
-                            onChange={async (isChecked) => {
-                              await sendCommand(
+                            onChange={(isChecked) => {
+                              sendCommand(
                                 `slice s ${props.sliceIndex} nr=${isChecked ? 1 : 0}`,
-                              );
-                              setSlice("nr", isChecked);
+                              ).then(() => setSlice("nr", isChecked));
                             }}
                           >
                             <SwitchControl>
@@ -919,11 +899,10 @@ export function Slice(props: { sliceIndex: number | string }) {
                         minValue={0}
                         maxValue={100}
                         value={[slice.anf_level]}
-                        onChange={async ([value]) => {
+                        onChange={([value]) => {
                           sendCommand(
                             `slice s ${props.sliceIndex} anf_level=${value}`,
-                          );
-                          setSlice("anf_level", value);
+                          ).then(() => setSlice("anf_level", value));
                         }}
                         getValueLabel={(params) => `${params.values[0]}%`}
                         class="space-y-2"
@@ -936,11 +915,10 @@ export function Slice(props: { sliceIndex: number | string }) {
                           <Switch
                             class="h-auto flex items-center origin-left scale-75"
                             checked={slice.anf}
-                            onChange={async (isChecked) => {
-                              await sendCommand(
+                            onChange={(isChecked) => {
+                              sendCommand(
                                 `slice s ${props.sliceIndex} anf=${isChecked ? 1 : 0}`,
-                              );
-                              setSlice("anf", isChecked);
+                              ).then(() => setSlice("anf", isChecked));
                             }}
                           >
                             <SwitchControl>
@@ -968,12 +946,11 @@ export function Slice(props: { sliceIndex: number | string }) {
                     >
                       <ToggleGroup
                         value={slice.mode}
-                        onChange={async (mode) => {
+                        onChange={(mode) => {
                           if (!mode || mode === slice.mode) return;
-                          await sendCommand(
+                          sendCommand(
                             `slice s ${props.sliceIndex} mode=${mode}`,
-                          );
-                          setSlice("mode", mode);
+                          ).then(() => setSlice("mode", mode));
                         }}
                         class="grid grid-cols-4"
                       >

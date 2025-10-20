@@ -19,7 +19,6 @@ import {
 } from "~/components/ui/popover";
 
 import { Meter as MeterElement } from "@kobalte/core/meter";
-import { NumberField } from "@kobalte/core/number-field";
 
 import type { Component, ComponentProps, JSX } from "solid-js";
 import { createPointerListeners } from "@solid-primitives/pointer";
@@ -55,6 +54,7 @@ import {
   SegmentedControlLabel,
 } from "./ui/segmented-control";
 import { cn } from "~/lib/utils";
+import { FrequencyInput } from "./frequency-input";
 
 const StatusToggle: Component<ComponentProps<"span"> & { active?: boolean }> = (
   props,
@@ -250,8 +250,6 @@ export function Slice(props: { sliceIndex: number | string }) {
   const [filterWidth, setFilterWidth] = createSignal(0);
   const [filterOffset, setFilterOffset] = createSignal(0);
   const [filterText, setFilterText] = createSignal("");
-  const [frequency, setFrequency] = createSignal<string>();
-  const [rawFrequency, setRawFrequency] = createSignal<number>();
   const [flagSide, setFlagSide] = createSignal<"left" | "right">("left");
   const [dragState, setDragState] = createStore({
     dragging: false,
@@ -342,14 +340,16 @@ export function Slice(props: { sliceIndex: number | string }) {
     });
   });
 
-  const tuneSlice = async () => {
-    const freq = rawFrequency() ?? slice.RF_frequency;
-    if (freq === slice.RF_frequency) {
-      setFrequency((slice.RF_frequency * 1e6).toLocaleString()); // Reset display
+  const tuneSlice = async (hz: number) => {
+    if (!Number.isFinite(hz)) {
+      return;
+    }
+    const freqMhz = hz / 1e6;
+    if (Math.abs(freqMhz - slice.RF_frequency) < 1e-9) {
       return;
     }
     try {
-      await sendCommand(`slice t ${props.sliceIndex} ${freq.toFixed(6)}`);
+      await sendCommand(`slice t ${props.sliceIndex} ${freqMhz.toFixed(6)}`);
       const groupedSlices = Object.keys(state.status.slice).filter(
         (key) =>
           state.status.slice[key].pan === streamId() &&
@@ -357,16 +357,11 @@ export function Slice(props: { sliceIndex: number | string }) {
           state.status.slice[key].diversity_index === slice.diversity_index,
       );
 
-      setState("status", "slice", groupedSlices, "RF_frequency", freq);
+      setState("status", "slice", groupedSlices, "RF_frequency", freqMhz);
     } catch {
-      setFrequency((slice.RF_frequency * 1e6).toLocaleString()); // Reset display on error
+      // Ignore errors; the UI will reflect the previous baseline frequency.
     }
   };
-
-  createEffect(() => {
-    const freq = slice.RF_frequency * 1e6;
-    setFrequency(freq.toLocaleString());
-  });
 
   const makeActive = async () => {
     if (slice.active) return;
@@ -551,57 +546,12 @@ export function Slice(props: { sliceIndex: number | string }) {
                 <Show when={!slice.diversity_child}>
                   <div class="flex justify-between items-center space-x-2">
                     <span>{slice.mode}</span>
-                    <NumberField
-                      class="text-lg font-mono"
-                      value={frequency()}
-                      onChange={setFrequency}
-                      rawValue={rawFrequency()} // Convert MHz to Hz for input
-                      onRawValueChange={setRawFrequency}
-                      onFocusOut={tuneSlice}
-                      changeOnWheel={false}
-                      formatOptions={{ maximumFractionDigits: 7 }} // No decimal places for raw Hz input
-                    >
-                      <NumberField.Input
-                        size={14}
-                        onFocus={({ target }) => {
-                          setFrequency(slice.RF_frequency.toFixed(6));
-                          setRawFrequency(slice.RF_frequency);
-                          requestAnimationFrame(() => target.select());
-                        }}
-                        onKeyDown={({ key, currentTarget }) => {
-                          switch (key) {
-                            case "K":
-                            case "k": {
-                              // convert raw frequency from khz to mhz
-                              const freq = rawFrequency()! / 1e3;
-                              setFrequency(freq.toFixed(6));
-                              break;
-                            }
-                            case "G":
-                            case "g": {
-                              // convert raw frequency from ghz to mhz
-                              const freq = rawFrequency()! * 1e3;
-                              setFrequency(freq.toFixed(6));
-                              break;
-                            }
-                            case "Escape":
-                              setRawFrequency(slice.RF_frequency);
-                              break;
-                            case "M":
-                            case "m":
-                            case "Enter":
-                              break;
-                            default:
-                              // Ignore other keys
-                              return;
-                          }
-
-                          // trigger tuning
-                          requestAnimationFrame(() => currentTarget.blur());
-                        }}
-                        class="text-right bg-transparent select-all"
-                      />
-                    </NumberField>
+                    <FrequencyInput
+                      class="text-right bg-transparent text-lg font-mono"
+                      size={14}
+                      valueHz={Math.round(slice.RF_frequency * 1e6)}
+                      onCommit={tuneSlice}
+                    />
                   </div>
                 </Show>
                 <div>
@@ -653,7 +603,8 @@ export function Slice(props: { sliceIndex: number | string }) {
                         onChange={([value]) => {
                           sendCommand(
                             `slice s ${props.sliceIndex} audio_level=${value}`,
-                          ).then(() => setSlice("audio_level", value));
+                          );
+                          setSlice("audio_level", value);
                         }}
                         getValueLabel={(params) => `${params.values[0]}%`}
                         class="space-y-3"
@@ -674,7 +625,8 @@ export function Slice(props: { sliceIndex: number | string }) {
                         onChange={([value]) => {
                           sendCommand(
                             `slice s ${props.sliceIndex} audio_pan=${value}`,
-                          ).then(() => setSlice("audio_pan", value));
+                          );
+                          setSlice("audio_pan", value);
                         }}
                         getValueLabel={(params) => {
                           const value = params.values[0] - 50;
@@ -742,7 +694,8 @@ export function Slice(props: { sliceIndex: number | string }) {
                         onChange={([value]) => {
                           sendCommand(
                             `slice s ${props.sliceIndex} agc_threshold=${value}`,
-                          ).then(() => setSlice("agc_threshold", value));
+                          );
+                          setSlice("agc_threshold", value);
                         }}
                         getValueLabel={(params) => `${params.values[0]}%`}
                         class="space-y-3"
@@ -791,7 +744,8 @@ export function Slice(props: { sliceIndex: number | string }) {
                         onChange={([value]) => {
                           sendCommand(
                             `slice s ${props.sliceIndex} wnb_level=${value}`,
-                          ).then(() => setSlice("wnb_level", value));
+                          );
+                          setSlice("wnb_level", value);
                         }}
                         getValueLabel={(params) => `${params.values[0]}%`}
                         class="space-y-2"
@@ -828,7 +782,8 @@ export function Slice(props: { sliceIndex: number | string }) {
                         onChange={([value]) => {
                           sendCommand(
                             `slice s ${props.sliceIndex} nb_level=${value}`,
-                          ).then(() => setSlice("nb_level", value));
+                          );
+                          setSlice("nb_level", value);
                         }}
                         getValueLabel={(params) => `${params.values[0]}%`}
                         class="space-y-2"
@@ -865,7 +820,8 @@ export function Slice(props: { sliceIndex: number | string }) {
                         onChange={([value]) => {
                           sendCommand(
                             `slice s ${props.sliceIndex} nr_level=${value}`,
-                          ).then(() => setSlice("nr_level", value));
+                          );
+                          setSlice("nr_level", value);
                         }}
                         getValueLabel={(params) => `${params.values[0]}%`}
                         class="space-y-2"
@@ -902,7 +858,8 @@ export function Slice(props: { sliceIndex: number | string }) {
                         onChange={([value]) => {
                           sendCommand(
                             `slice s ${props.sliceIndex} anf_level=${value}`,
-                          ).then(() => setSlice("anf_level", value));
+                          );
+                          setSlice("anf_level", value);
                         }}
                         getValueLabel={(params) => `${params.values[0]}%`}
                         class="space-y-2"

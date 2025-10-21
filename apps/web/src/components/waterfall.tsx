@@ -168,6 +168,7 @@ export function Waterfall(props: { streamId: string }) {
     // NEW: reusable strip buffer (avoid per-packet alloc)
     let stripImageData: ImageData | null = null;
     let strip32: Uint32Array | null = null;
+    let stripRow: Uint32Array | null = null;
     let stripW = 0;
     let stripH = 0;
     const ensureStrip = (w: number, h: number) => {
@@ -176,6 +177,9 @@ export function Waterfall(props: { streamId: string }) {
         strip32 = new Uint32Array(stripImageData.data.buffer);
         stripW = w;
         stripH = h;
+      }
+      if (!stripRow || stripRow.length !== w) {
+        stripRow = new Uint32Array(w);
       }
     };
 
@@ -274,10 +278,15 @@ export function Waterfall(props: { streamId: string }) {
         // line layout is row-major: [row][x]
         for (let x = 0; x < w; x++) {
           const idx = (bins[x] / paletteDivisor) | 0; // 0..4095
-          const color = pal32[idx];
-          for (let r = 0; r < h; r++) {
-            strip32![r * w + x] = color;
-          }
+          stripRow![x] = pal32[idx];
+        }
+        strip32!.set(stripRow!, 0);
+        let filled = w;
+        const total = w * h;
+        while (filled < total) {
+          const copyCount = Math.min(filled, total - filled);
+          strip32!.copyWithin(filled, 0, copyCount);
+          filled += copyCount;
         }
 
         // Keep your working shim (-1) to maintain current visual alignment

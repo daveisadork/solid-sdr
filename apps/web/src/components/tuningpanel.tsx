@@ -407,11 +407,13 @@ export function TuningPanel(props: { streamId: string }) {
         maxValue={100}
         value={[rawLineDuration()]}
         onChange={([value]) => setRawLineDuration(Math.round(value))}
-        getValueLabel={(params) => params.values[0].toString()}
+        getValueLabel={(params) =>
+          `${40 + Math.floor(Math.pow(100 - params.values[0], 3) / 200)} ms`
+        }
         class="space-y-3"
       >
         <div class="flex w-full justify-between">
-          <SliderLabel>Waterfall Speed</SliderLabel>
+          <SliderLabel>Line Duration</SliderLabel>
           <SliderValueLabel />
         </div>
         <SliderTrack>

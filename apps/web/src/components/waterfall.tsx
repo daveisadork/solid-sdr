@@ -1,8 +1,24 @@
 import { createElementSize } from "@solid-primitives/resize-observer";
-import { createEffect, createMemo, createSignal, onCleanup } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  onCleanup,
+  Show,
+} from "solid-js";
 import { Portal } from "solid-js/web";
 import useFlexRadio, { PacketEvent } from "~/context/flexradio";
 import { createKeyedSubstore } from "~/lib/keyed-substore";
+import { LinearScale } from "./linear-scale";
+
+const LINE_DURATION_OFFSET_MS = 40;
+
+function lineDurationToMs(value: number) {
+  if (!Number.isFinite(value)) return 0;
+  const clamped = Math.min(Math.max(value, 0), 100);
+  const delta = 100 - clamped;
+  return LINE_DURATION_OFFSET_MS + Math.floor((delta * delta * delta) / 200);
+}
 
 export function Waterfall(props: { streamId: string }) {
   const streamId = () => props.streamId;
@@ -30,6 +46,9 @@ export function Waterfall(props: { streamId: string }) {
   const [lastBandwidth, setLastBandwidth] = createSignal(0);
   const [autoBlackLevel, setAutoBlackLevel] = createSignal(0);
   const [black, setBlack] = createSignal("#000000");
+  const [lineDurationMs, setLineDurationMs] = createSignal(
+    lineDurationToMs(waterfall().line_duration),
+  );
 
   // 4096 colors to stay under canvas size limits on iOS
   const paletteCanvas = new OffscreenCanvas(4096, 1);
@@ -144,8 +163,27 @@ export function Waterfall(props: { streamId: string }) {
   });
 
   createEffect(() => {
+    setLineDurationMs(lineDurationToMs(waterfall().line_duration));
+  });
+
+  createEffect(() => {
     setPan("center", lastCalculatedCenter() / 1_000_000);
   });
+
+  const totalSeconds = createMemo(() => {
+    const pixels = waterfall().y_pixels;
+    const duration = lineDurationMs();
+    if (!pixels || !duration) return 0;
+    return (pixels * duration) / 1000;
+  });
+
+  const formatSeconds = (value: number) => {
+    if (!Number.isFinite(value)) return "";
+    if (value <= -10) return `${Math.round(value).toFixed(0)}s`;
+    if (value <= -1) return `${value.toFixed(0)}s`;
+    if (value >= 0) return "0s";
+    return `${value.toFixed(2)}s`;
+  };
 
   const onWaterfall = createMemo(() => {
     // console.log("Waterfall handler created");
@@ -203,6 +241,9 @@ export function Waterfall(props: { streamId: string }) {
       const frame = tile.timecode;
       const height = tile.height;
       const bins = tile.data;
+      if (tile.lineDurationMs > 0) {
+        setLineDurationMs(tile.lineDurationMs);
+      }
 
       if (startingBin === 0) {
         frameStartTime = performance.now();
@@ -346,6 +387,26 @@ export function Waterfall(props: { streamId: string }) {
           {fps()}
         </div>
       </Portal>
+      <Show when={totalSeconds() > 0}>
+        <div class="pointer-events-none absolute inset-y-0 right-0 w-10 bg-background/50">
+          <div class="relative h-full px-1.5 flex items-center">
+            <LinearScale
+              min={-totalSeconds()}
+              max={0}
+              class="h-full"
+              tickClass="pr-0.5"
+              labelClass="text-[10px] font-semibold scale-text-shadow"
+              lineClass="bg-primary/25"
+              tickLength={9}
+              tickSpacing={60}
+              showTicks={false}
+              showMin={false}
+              showMax={false}
+              format={formatSeconds}
+            />
+          </div>
+        </div>
+      </Show>
     </div>
   );
 }

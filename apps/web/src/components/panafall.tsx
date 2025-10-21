@@ -1,6 +1,13 @@
 import useFlexRadio from "~/context/flexradio";
 import { Resizable, ResizablePanel } from "./ui/resizable";
-import { batch, createEffect, createMemo, createSignal, Show } from "solid-js";
+import {
+  batch,
+  createEffect,
+  createMemo,
+  createSignal,
+  Show,
+  onCleanup,
+} from "solid-js";
 import { Panadapter } from "./panadapter";
 import { Waterfall } from "./waterfall";
 import { Scale } from "./scale";
@@ -12,14 +19,46 @@ import ArrowCollapseHorizontal from "~icons/mdi/arrow-collapse-horizontal";
 import ArrowExpandHorizontal from "~icons/mdi/arrow-expand-horizontal";
 import Fullscreen from "~icons/mdi/fullscreen";
 import FullscreenExit from "~icons/mdi/fullscreen-exit";
+import ThemeLightDark from "~icons/mdi/theme-light-dark";
 import { Button } from "./ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
+import { createLocalStorageManager, useColorMode } from "@kobalte/core";
 import { frequencyToLabel } from "~/lib/utils";
 import { createFullscreen } from "@solid-primitives/fullscreen";
 import { createElementSize } from "@solid-primitives/resize-observer";
 import { TabToSignal } from "./tab-to-signal";
 
 export function Panafall() {
+  const { colorMode, setColorMode } = useColorMode();
+  const storageManager = createLocalStorageManager("vite-ui-theme");
+  const themeSequence = ["system", "light", "dark"] as const;
+  const [modePreference, setModePreference] = createSignal<
+    (typeof themeSequence)[number]
+  >(storageManager.get("system") ?? "system");
+
+  createEffect(() => {
+    const preference = modePreference();
+    storageManager.set(preference);
+    setColorMode(preference);
+  });
+
+  createEffect(() => {
+    if (modePreference() !== "system") return;
+    if (typeof window === "undefined") return;
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const sync = () => setColorMode(media.matches ? "dark" : "light");
+    sync();
+    media.addEventListener("change", sync);
+    onCleanup(() => media.removeEventListener("change", sync));
+  });
+
+  const cycleTheme = () => {
+    const currentPref = modePreference();
+    const index = themeSequence.indexOf(currentPref);
+    const next = themeSequence[(index + 1) % themeSequence.length];
+    setModePreference(next);
+  };
+
   const { state, sendCommand, setState } = useFlexRadio();
   const [fs, setFullscreen] = createSignal(false);
   const fullscreen = createFullscreen(() => document.documentElement, fs);
@@ -352,22 +391,42 @@ export function Panafall() {
                 </TooltipContent>
               </Tooltip>
             </div>
-            <Tooltip>
-              <TooltipTrigger
-                as={Button}
-                size="icon"
-                variant="ghost"
-                class="bg-background/50 backdrop-blur-lg size-5 absolute bottom-2 right-2"
-                onClick={() => setFullscreen(!fullscreen())}
-              >
-                <Show when={fullscreen()} fallback={<Fullscreen />}>
-                  <FullscreenExit />
-                </Show>
-              </TooltipTrigger>
-              <TooltipContent>
-                {fullscreen() ? "Exit" : "Enter"} Fullscreen
-              </TooltipContent>
-            </Tooltip>
+            <div class="absolute bottom-2 right-2 flex gap-2">
+              <Tooltip>
+                <TooltipTrigger
+                  as={Button}
+                  size="icon"
+                  variant="ghost"
+                  class="bg-background/50 backdrop-blur-lg size-5"
+                  onClick={cycleTheme}
+                  aria-label="Toggle theme"
+                >
+                  <ThemeLightDark />
+                </TooltipTrigger>
+                <TooltipContent>
+                  Theme: {modePreference()} ({colorMode()} active)
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger
+                  as={Button}
+                  size="icon"
+                  variant="ghost"
+                  class="bg-background/50 backdrop-blur-lg size-5"
+                  onClick={() => setFullscreen(!fullscreen())}
+                  aria-label={
+                    fullscreen() ? "Exit fullscreen" : "Enter fullscreen"
+                  }
+                >
+                  <Show when={fullscreen()} fallback={<Fullscreen />}>
+                    <FullscreenExit />
+                  </Show>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {fullscreen() ? "Exit" : "Enter"} Fullscreen
+                </TooltipContent>
+              </Tooltip>
+            </div>
             <Show when={pos.sourceType === "mouse" && pos.isInside}>
               <div
                 class="absolute h-full left-[calc(var(--cursor-x)-1.5px)] pointer-events-none w-0.5 backdrop-invert-50"

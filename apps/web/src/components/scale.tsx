@@ -7,7 +7,6 @@ import {
   createEffect,
   createSignal,
   For,
-  Show,
   splitProps,
   ValidComponent,
 } from "solid-js";
@@ -43,65 +42,93 @@ const stepPrecision = {
   100: 1,
 };
 
+export type FrequencyGridTick = {
+  value: number;
+  label: string;
+  offset: number;
+};
+
+export function buildFrequencyGrid(params: {
+  center: number;
+  bandwidth: number;
+  width: number;
+  minPixelSpacing?: number;
+}): FrequencyGridTick[] {
+  const { center, bandwidth, width, minPixelSpacing = 72 } = params;
+  if (!width || width <= 0 || !Number.isFinite(bandwidth)) return [];
+
+  const start = center - bandwidth * 2;
+  const end = center + bandwidth * 2;
+  const mhzPerPx = bandwidth / width;
+  const minSpacing = minPixelSpacing * mhzPerPx;
+  const stepSize =
+    stepSizes.find((s) => s >= minSpacing) || stepSizes[stepSizes.length - 1];
+  const precision = stepPrecision[stepSize as keyof typeof stepPrecision] || 1;
+  const actualStart = center - bandwidth / 2;
+  const ticks: FrequencyGridTick[] = [];
+
+  for (let freq = Math.floor(start); freq <= end; freq += stepSize) {
+    if (freq < start) continue;
+    let value = freq;
+    let unit = "M";
+    let fixedPrecision = precision;
+    if (value > 1000) {
+      value = freq / 1000;
+      unit = "G";
+      fixedPrecision = Math.max(1, precision - 3);
+    } else if (value < 1) {
+      value = freq * 1_000;
+      unit = "K";
+      fixedPrecision = Math.max(1, precision - 3);
+    }
+
+    const label = `${value.toFixed(fixedPrecision)}${unit}`;
+    const offset = (freq - actualStart) / mhzPerPx - 2;
+    ticks.push({ value: freq, label, offset });
+  }
+
+  return ticks;
+}
+
 type ResizableHandleProps<T extends ValidComponent = "button"> =
   HandleProps<T> & {
     class?: string;
     streamId: string;
+    onGridChange?: (ticks: FrequencyGridTick[]) => void;
   };
 
 export const Scale = <T extends ValidComponent = "button">(
   props: DynamicProps<T, ResizableHandleProps<T>>,
 ) => {
-  const [, rest] = splitProps(props as ResizableHandleProps, ["class"]);
+  const [local, rest] = splitProps(props as ResizableHandleProps, [
+    "class",
+    "streamId",
+    "onGridChange",
+  ]);
   const { state } = useFlexRadio();
-  const [gridFreqs, setGridFreqs] = createSignal<
-    Array<{ label: string; offset: number }>
-  >([]);
+  const [gridFreqs, setGridFreqs] = createSignal<FrequencyGridTick[]>([]);
   const [ref, setRef] = createSignal<HTMLDivElement>();
   const size = createElementSize(ref);
 
   createEffect(() => {
     if (!size.width) return;
-    const { center, bandwidth } = state.status.display.pan[props.streamId];
-    const start = center - bandwidth * 2;
-    const end = center + bandwidth * 2;
+    const { center, bandwidth } = state.status.display.pan[local.streamId];
+    const ticks = buildFrequencyGrid({
+      center,
+      bandwidth,
+      width: size.width,
+    });
+    setGridFreqs(ticks);
+  });
 
-    const mhzPerPx = bandwidth / size.width;
-    const minSpacing = 72 * mhzPerPx;
-    const stepSize =
-      stepSizes.find((s) => s >= minSpacing) || stepSizes[stepSizes.length - 1];
-    const precision =
-      stepPrecision[stepSize as keyof typeof stepPrecision] || 1;
-    const actualStart = center - bandwidth / 2;
-    const freqs = [];
-    for (let freq = Math.floor(start); freq <= end; freq += stepSize) {
-      if (freq < start) continue;
-      // const label = Math.round(freq * 1_000_000).toLocaleString("de-DE");
-      let value = freq;
-      let unit = "M";
-      let fixedPrecision = precision;
-      if (value > 1000) {
-        value = freq / 1000;
-        unit = "G";
-        fixedPrecision = Math.max(1, precision - 3);
-      } else if (1 > value) {
-        value = freq * 1_000;
-        unit = "K";
-        fixedPrecision = Math.max(1, precision - 3);
-      }
-
-      const label = `${value.toFixed(fixedPrecision)}${unit}`;
-      const offset = (freq - actualStart) / mhzPerPx;
-      // convert to string with thousand separator
-      freqs.push({ label, offset });
-    }
-    setGridFreqs(freqs);
+  createEffect(() => {
+    local.onGridChange?.(gridFreqs());
   });
   return (
     <ResizablePrimitive.Handle
       class={cn(
         "relative flex w-full h-4 justify-around select-none font-mono z-10 translate-x-[var(--drag-offset)]",
-        props.class,
+        local.class,
       )}
       ref={setRef}
       {...rest}

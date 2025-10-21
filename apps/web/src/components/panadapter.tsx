@@ -11,6 +11,11 @@ import { debounce } from "@solid-primitives/scheduled";
 import { createElementSize } from "@solid-primitives/resize-observer";
 import { Portal } from "solid-js/web";
 import { createKeyedSubstore } from "~/lib/keyed-substore";
+import { LinearScale } from "./linear-scale";
+import type { LinearScaleTick } from "./linear-scale";
+import { PanadapterGrid } from "./panadapter-grid";
+import { buildFrequencyGrid } from "./scale";
+import type { FrequencyGridTick } from "./scale";
 
 export function Panadapter(props: { streamId: string }) {
   const streamId = () => props.streamId;
@@ -31,9 +36,23 @@ export function Panadapter(props: { streamId: string }) {
   const [paletteCss, setPaletteCss] = createSignal<string[]>([]);
   const [offscreenCanvasRef, setOffscreenCanvasRef] =
     createSignal<OffscreenCanvas | null>(null);
+  const [levelTicks, setLevelTicks] = createSignal<LinearScaleTick[]>([]);
 
   const frameTimes: number[] = [];
   const [fps, setFps] = createSignal(0);
+
+  const frequencyTicks = createMemo<FrequencyGridTick[]>(() => {
+    const width = wrapperSize.width;
+    if (!width) return [];
+    const currentPan = pan();
+    if (!currentPan) return [];
+    return buildFrequencyGrid({
+      center: currentPan.center,
+      bandwidth: currentPan.bandwidth,
+      width,
+      minPixelSpacing: 72,
+    });
+  });
 
   createEffect(() => {
     setSlices(
@@ -310,11 +329,37 @@ export function Panadapter(props: { streamId: string }) {
           {fps()}
         </div>
       </Portal>
+      <div class="pointer-events-none absolute inset-y-0 left-0 w-[var(--panafall-available-width)] translate-x-[var(--drag-offset)] -z-50">
+        <PanadapterGrid
+          class="size-full"
+          horizontalTicks={levelTicks()}
+          verticalTicks={frequencyTicks()}
+          viewportWidth={wrapperSize.width || 0}
+        />
+      </div>
       <div class="absolute top-0 left-0 h-[var(--panafall-available-height)] w-[var(--panafall-available-width)]">
         <For each={slices()}>
           {(sliceIndex) => <Slice sliceIndex={sliceIndex} />}
         </For>
         <DetachedSlices streamId={streamId()} />
+      </div>
+      <div class="pointer-events-none absolute inset-y-0 right-0 w-10 bg-background/50">
+        <div class="relative h-full px-1.5 flex items-center">
+          <LinearScale
+            min={pan().min_dbm}
+            max={pan().max_dbm}
+            class="h-full"
+            tickClass="pr-0.5"
+            labelClass="text-[10px] font-semibold scale-text-shadow"
+            lineClass="bg-primary/25"
+            tickLength={9}
+            showTicks={false}
+            showMin={false}
+            showMax={false}
+            format={(value) => `${Math.round(value)}`}
+            onTicksChange={setLevelTicks}
+          />
+        </div>
       </div>
     </div>
   );

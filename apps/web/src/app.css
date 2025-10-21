@@ -322,6 +322,14 @@ body,
   @apply w-dvw h-dvh overflow-clip overscroll-none m-0 p-0;
 }
 
+.scale-text-shadow {
+  text-shadow:
+    1px 1px 0 var(--color-background),
+    -1px 1px 0 var(--color-background),
+    -1px -1px 0 var(--color-background),
+    1px -1px 0 var(--color-background);
+}
+
 :fullscreen {
   padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
 }

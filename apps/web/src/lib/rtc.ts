@@ -78,17 +78,22 @@ function waitForIceConnected(pc: RTCPeerConnection) {
   if (pc.iceConnectionState === "connected") return Promise.resolve();
 
   return new Promise<void>((resolve, reject) => {
-    pc.addEventListener(
-      "iceconnectionstatechange",
-      () => {
-        if (pc.iceConnectionState === "connected") {
+    const listener = () => {
+      console.log("[ice] state:", pc.iceConnectionState);
+      switch (pc.iceConnectionState) {
+        case "connected":
+          pc.removeEventListener("iceconnectionstatechange", listener);
           resolve();
-        } else {
+          break;
+        case "failed":
+        case "disconnected":
+        case "closed":
+          pc.removeEventListener("iceconnectionstatechange", listener);
           reject(new Error("Failed to connect: " + pc.iceConnectionState));
-        }
-      },
-      { once: true },
-    );
+          break;
+      }
+    };
+    pc.addEventListener("iceconnectionstatechange", listener);
     setTimeout(() => {
       reject(new Error("Timed out waiting for connection"));
     }, 15000);

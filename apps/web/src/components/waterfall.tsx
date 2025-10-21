@@ -1,17 +1,25 @@
 import { createElementSize } from "@solid-primitives/resize-observer";
 import { createEffect, createMemo, createSignal, onCleanup } from "solid-js";
-import { createStore, produce } from "solid-js/store";
 import { Portal } from "solid-js/web";
 import useFlexRadio, { PacketEvent } from "~/context/flexradio";
+import { createKeyedSubstore } from "~/lib/keyed-substore";
 
 export function Waterfall(props: { streamId: string }) {
   const streamId = () => props.streamId;
   const { events, state, setState } = useFlexRadio();
-  const [waterfall, setWaterfall] = createStore(
-    state.status.display.waterfall[streamId()],
+  const [waterfall, setWaterfall] = createKeyedSubstore(
+    () => state.status.display.waterfall,
+    streamId,
+    setState,
+    ["status", "display", "waterfall"],
   );
-  const panadapter = () => waterfall.panadapter;
-  const [pan, setPan] = createStore(state.status.display.pan[panadapter()]);
+
+  const [pan, setPan] = createKeyedSubstore(
+    () => state.status.display.pan,
+    () => waterfall().panadapter,
+    setState,
+    ["status", "display", "pan"],
+  );
 
   const [canvasWidth, setCanvasWidth] = createSignal(1);
   const [widthMultiplier, setWidthMultiplier] = createSignal(1.0);
@@ -45,13 +53,14 @@ export function Waterfall(props: { streamId: string }) {
   createEffect(() => {
     const { colorMin } = state.palette;
     const range = 1 - colorMin;
-    const gain = Math.pow(10, waterfall.color_gain / 50);
+    const gain = Math.pow(10, waterfall().color_gain / 50);
     const colorMax = colorMin + range / gain;
     setState("palette", "colorMax", colorMax);
   });
 
   createEffect(() => {
-    if (waterfall.auto_black) {
+    const { auto_black, black_level } = waterfall();
+    if (auto_black) {
       // Copy the auto black level to the waterfall black level,
       // so the display is consistent when toggling auto black off.
       setWaterfall(
@@ -63,9 +72,7 @@ export function Waterfall(props: { streamId: string }) {
     setState(
       "palette",
       "colorMin",
-      waterfall.auto_black
-        ? autoBlackLevel() / 0xffff
-        : waterfall.black_level / 400,
+      auto_black ? autoBlackLevel() / 0xffff : black_level / 400,
     );
   });
 
@@ -75,7 +82,7 @@ export function Waterfall(props: { streamId: string }) {
     });
     if (!paletteCtx) return;
     const { gradients, colorMin, colorMax } = state.palette;
-    const { clip, colors } = gradients[waterfall.gradient_index];
+    const { clip, colors } = gradients[waterfall().gradient_index];
     setBlack(colors[0]);
     const gradient = paletteCtx.createLinearGradient(
       0,
@@ -119,29 +126,20 @@ export function Waterfall(props: { streamId: string }) {
   });
 
   createEffect(() => {
-    setWaterfall(
-      produce((waterfall) => {
-        waterfall.bandwidth = pan.bandwidth;
-        waterfall.x_pixels = pan.x_pixels;
-      }),
-    );
+    const { bandwidth, x_pixels } = pan();
+    setWaterfall({ bandwidth, x_pixels });
   });
 
   createEffect(() => {
     const { width } = wrapperSize;
     const { height } = canvasSize;
     if (!width || !height) return;
-    setWaterfall(
-      produce((waterfall) => {
-        waterfall.y_pixels = height;
-        waterfall.x_pixels = width;
-      }),
-    );
+    setWaterfall({ x_pixels: width, y_pixels: height });
   });
 
   createEffect(() => {
     setWidthMultiplier(
-      (binBandwidth() * waterfall.x_pixels) / (pan.bandwidth * 1_000_000),
+      (binBandwidth() * waterfall().x_pixels) / (pan().bandwidth * 1_000_000),
     );
   });
 

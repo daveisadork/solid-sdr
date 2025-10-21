@@ -5,17 +5,23 @@ import {
   For,
   onCleanup,
 } from "solid-js";
-import { createStore } from "solid-js/store";
 import useFlexRadio, { PacketEvent } from "~/context/flexradio";
 import { DetachedSlices, Slice } from "./slice";
 import { debounce } from "@solid-primitives/scheduled";
 import { createElementSize } from "@solid-primitives/resize-observer";
 import { Portal } from "solid-js/web";
+import { createKeyedSubstore } from "~/lib/keyed-substore";
 
 export function Panadapter(props: { streamId: string }) {
   const streamId = () => props.streamId;
-  const { events, sendCommand, state } = useFlexRadio();
-  const [pan, setPan] = createStore(state.status.display.pan[streamId()]);
+  const { events, sendCommand, state, setState } = useFlexRadio();
+  const [pan, setPan] = createKeyedSubstore(
+    () => state.status.display.pan,
+    streamId,
+    setState,
+    ["status", "display", "pan"],
+  );
+
   const [canvasRef, setCanvasRef] = createSignal<HTMLCanvasElement>();
   const [wrapper, setWrapper] = createSignal<HTMLDivElement>();
   const wrapperSize = createElementSize(wrapper);
@@ -46,12 +52,12 @@ export function Panadapter(props: { streamId: string }) {
 
   createEffect(() => {
     const { gradients } = state.palette;
-    const { gradient_index } = state.status.display.waterfall[pan.waterfall];
+    const { gradient_index } = state.status.display.waterfall[pan().waterfall];
     const { colors } = gradients[gradient_index];
     const colorMin = 0;
     const colorMax = 1;
     const stepSize = (colorMax - colorMin) / colors.length;
-    const offscreen = new OffscreenCanvas(1, pan.y_pixels);
+    const offscreen = new OffscreenCanvas(1, pan().y_pixels);
     const ctx = offscreen.getContext("2d");
     if (!ctx) return;
     const gradient = ctx.createLinearGradient(
@@ -86,13 +92,13 @@ export function Panadapter(props: { streamId: string }) {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     const { gradients } = state.palette;
-    const waterfall = state.status.display.waterfall[pan.waterfall];
+    const waterfall = state.status.display.waterfall[pan().waterfall];
     if (!waterfall) return;
     const { gradient_index } = waterfall;
     const { colors } = gradients[gradient_index];
     const stepSize = 1 / colors.length;
 
-    const gradient = ctx.createLinearGradient(0, pan.y_pixels, 0, 0);
+    const gradient = ctx.createLinearGradient(0, pan().y_pixels, 0, 0);
     colors.forEach((color, index) => {
       gradient.addColorStop(index * stepSize, color);
     });
@@ -135,7 +141,6 @@ export function Panadapter(props: { streamId: string }) {
     const stream_id = parseInt(streamId(), 16);
     let skipFrame = 0;
     let frameStartTime = performance.now();
-    let pendingFrameStart = frameStartTime;
     let rafId: number | null = null;
     const getPixelRatio = () =>
       typeof window === "undefined"

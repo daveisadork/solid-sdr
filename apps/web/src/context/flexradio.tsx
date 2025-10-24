@@ -3,7 +3,6 @@ import {
   batch,
   createContext,
   createEffect,
-  createSignal,
   onCleanup,
   onMount,
   ParentComponent,
@@ -17,13 +16,21 @@ import {
 } from "solid-js/store";
 import { showToast } from "~/components/ui/toast";
 import {
+  createFlexClient,
   createVitaDiscoveryAdapter,
+  FlexCommandRejectedError,
+  type FlexRadioSession,
+  type RadioStateChange,
+  type FlexWireMessage,
+  type Subscription,
+  type WaterfallSnapshot,
   parseVitaPacket,
   VitaPacketKind,
   VitaParsedPacket,
   VitaPacketMetadata,
 } from "@repo/flexlib";
 import type { DiscoverySession, FlexRadioDescriptor } from "@repo/flexlib";
+import { createWebSocketFlexControlFactory } from "~/lib/flex-control";
 import { useRtc } from "./rtc";
 
 export type PacketEventType = VitaPacketKind;
@@ -490,19 +497,6 @@ export const initialState = () =>
     },
   }) as AppState;
 
-const commands = {} as Record<
-  string,
-  {
-    command: string;
-    resolve: (value: {
-      response: number;
-      message: string;
-      debugOutput?: string;
-    }) => void;
-    reject: (reason?: unknown) => void;
-  }
->;
-
 interface PacketEventListener<T extends PacketEventType = PacketEventType> {
   (evt: PacketEvent<T>): void;
 }
@@ -536,6 +530,7 @@ const _events = new EventTarget() as UDPEventTarget;
 const FlexRadioContext = createContext<{
   state: AppState;
   setState: SetStoreFunction<AppState>;
+  session: FlexRadioSession | null;
   connect: (addr: { host: string; port: number }) => void;
   disconnect: () => void;
   sendCommand: (command: string) => Promise<{
@@ -550,14 +545,16 @@ export const FlexRadioProvider: ParentComponent = (props) => {
   const [state, setState] = createStore(initialState());
   const { connect: connectRTC, session: sessionRTC } = useRtc();
 
-  const [ws, setWs] = createSignal<WebSocket | null>(null);
-  const [cmdCount, setCmdCount] = createSignal(0);
   const meterScratch = { ids: new Uint16Array(0), values: new Int16Array(0) };
   const panadapterScratch = { payload: new Uint16Array(0) };
   const waterfallScratch = { data: new Uint16Array(0) };
   const serialToHost = new Map<string, string>();
   const discoveryWs = createReconnectingWS("/ws/discovery");
   let discoverySession: DiscoverySession | null = null;
+  let flexSession: FlexRadioSession | null = null;
+  let flexSessionSubscriptions: Subscription[] = [];
+  let pendingHandleLine: string | null = null;
+  let pingTimer: ReturnType<typeof setInterval> | undefined;
 
   discoveryWs.addEventListener("open", ({ target }) => {
     (target as WebSocket).binaryType = "arraybuffer";
@@ -626,6 +623,89 @@ export const FlexRadioProvider: ParentComponent = (props) => {
       },
     },
   });
+  const controlFactory = createWebSocketFlexControlFactory({
+    makeSocket(descriptor) {
+      return makeWS(
+        `/ws/radio?host=${descriptor.host}&port=${descriptor.port}`,
+      );
+    },
+    logger: {
+      warn(message, meta) {
+        console.warn(message, meta);
+      },
+      error(message, meta) {
+        console.error(message, meta);
+      },
+    },
+  });
+  const flexClient = createFlexClient(
+    {
+      discovery: discoveryAdapter,
+      control: controlFactory,
+      logger: {
+        warn(message, meta) {
+          console.warn(message, meta);
+        },
+        error(message, meta) {
+          console.error(message, meta);
+        },
+      },
+    },
+    { defaultCommandTimeoutMs: 10_000 },
+  );
+
+  const hzToMHz = (hz: number): number =>
+    Number.isFinite(hz) ? Number((hz / 1_000_000).toFixed(6)) : 0;
+
+  const formatClientHandle = (handle: number): string => {
+    if (!handle) return "0x00000000";
+    return `0x${handle.toString(16).toUpperCase().padStart(8, "0")}`;
+  };
+
+  const applyWaterfallSnapshot = (snapshot: WaterfallSnapshot) => {
+    const key = snapshot.streamId || snapshot.id;
+    const waterfallState: Waterfall = {
+      client_handle: formatClientHandle(snapshot.clientHandle),
+      x_pixels: snapshot.width,
+      y_pixels: snapshot.height,
+      center: hzToMHz(snapshot.centerFrequencyHz),
+      bandwidth: hzToMHz(snapshot.bandwidthHz),
+      band_zoom: snapshot.isBandZoomOn,
+      segment_zoom: snapshot.isSegmentZoomOn,
+      line_duration: snapshot.lineDurationMs ?? 0,
+      rfgain: snapshot.rfGain,
+      rxant: snapshot.rxAntenna,
+      wide: snapshot.wideEnabled,
+      loopa: snapshot.loopAEnabled,
+      loopb: snapshot.loopBEnabled,
+      band: snapshot.band,
+      daxiq_channel: snapshot.daxIqChannel,
+      panadapter: snapshot.panadapterStream,
+      color_gain: snapshot.colorGain,
+      auto_black: snapshot.autoBlackLevelEnabled,
+      black_level: snapshot.blackLevel,
+      gradient_index: snapshot.gradientIndex,
+      xvtr: snapshot.xvtr,
+    };
+    setState("status", "display", "waterfall", key, waterfallState);
+  };
+
+  const handleWaterfallChange = (change: RadioStateChange) => {
+    if (change.entity !== "waterfall") return;
+    if (change.snapshot) {
+      applyWaterfallSnapshot(change.snapshot);
+    } else {
+      const key = change.previous?.streamId ?? change.id;
+      setState(
+        "status",
+        "display",
+        "waterfall",
+        produce((waterfalls) => {
+          delete waterfalls[key];
+        }),
+      );
+    }
+  };
 
   onMount(() => {
     let disposed = false;
@@ -715,25 +795,26 @@ export const FlexRadioProvider: ParentComponent = (props) => {
   });
 
   const sendCommand = (command: string) => {
-    const count = cmdCount() + 1;
-    setCmdCount(count);
-    const cmd = `C${count}|${command}\n`;
-    ws()?.send(cmd);
-
-    return new Promise<{
-      response: number;
-      message: string;
-      debugOutput?: string;
-    }>((resolve, reject) => {
-      commands[`R${count}`] = { command, resolve, reject };
-      setTimeout(async () => {
-        if (count in commands) {
-          console.warn(`Command ${command} timed out after 5 seconds`);
-          reject(new Error("Command timed out"));
-          delete commands[count];
+    const session = flexSession;
+    if (!session) {
+      return Promise.reject(new Error("Not connected to a Flex radio"));
+    }
+    return session
+      .command(command)
+      .then((response) => ({
+        response: response.code ?? (response.accepted ? 0 : 1),
+        message: response.message ?? "",
+        debugOutput: response.raw,
+      }))
+      .catch((error) => {
+        if (error instanceof FlexCommandRejectedError) {
+          showToast({
+            description: error.message,
+            variant: "error",
+          });
         }
-      }, 10_000);
-    });
+        throw error;
+      });
   };
 
   window.state = state;
@@ -1105,7 +1186,9 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         updatePanadapter(stream, split);
         break;
       case "waterfall":
-        updateWaterfall(stream, split);
+        if (!flexSession) {
+          updateWaterfall(stream, split);
+        }
         break;
       default:
         console.warn("Received unknown display update:", message);
@@ -1170,7 +1253,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     setState("selectedPanadapter", firstOwnPan ?? null);
   });
 
-  const handleTcpMessage = async (payload: string) => {
+  const handleControlLine = async (payload: string) => {
     switch (payload[0]) {
       case "V": {
         // Version preamble
@@ -1180,6 +1263,10 @@ export const FlexRadioProvider: ParentComponent = (props) => {
       }
       case "H": {
         // Handle preamble
+        if (!flexSession) {
+          pendingHandleLine = payload;
+          return;
+        }
         const handle = payload.slice(1);
         console.log("Handle:", handle);
         console.log("Connecting RTC with handle:", handle);
@@ -1248,19 +1335,10 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         break;
       }
       case "R": {
-        // Command response
-        const [prefix, responseCode, message, debugOutput] = payload.split("|");
-        const response = parseInt(responseCode);
-        const command = commands[prefix];
-        if (!command) return;
-        if (response === 0) {
-          command.resolve({ response, message, debugOutput });
-        } else {
-          command.reject(
-            new Error(`${responseCode}: ${message}, ${command.command}`),
-          );
+        const [, responseCode, message] = payload.split("|");
+        if (responseCode && responseCode !== "0") {
+          console.warn("Command reply", payload);
         }
-        delete commands[prefix];
         break;
       }
       case "M": {
@@ -1383,31 +1461,105 @@ export const FlexRadioProvider: ParentComponent = (props) => {
 
   const connect = (addr: { host: string; port: number }) => {
     console.log("Connecting to", addr);
-    setState("connectModal", {
-      status: ConnectionState.connecting,
-      selectedRadio: addr.host,
-      stage: ConnectionStage.TCP,
-    });
-    const conn = makeWS(`/ws/radio?host=${addr.host}&port=${addr.port}`);
-    conn.binaryType = "arraybuffer";
+    setState("connectModal", "status", ConnectionState.connecting);
+    setState("connectModal", "selectedRadio", addr.host);
+    setState("connectModal", "stage", ConnectionStage.TCP);
+    const descriptor = state.connectModal.radios[addr.host];
+    if (!descriptor) {
+      showToast({
+        description: "Selected radio is unavailable",
+        variant: "error",
+      });
+      setState("connectModal", "status", ConnectionState.disconnected);
+      setState("connectModal", "selectedRadio", null);
+      return;
+    }
 
-    setWs(conn);
+    void (async () => {
+      try {
+        if (flexSession) {
+          const previous = flexSession;
+          flexSession = null;
+          for (const sub of flexSessionSubscriptions) sub.unsubscribe();
+          flexSessionSubscriptions = [];
+          try {
+            await previous.close();
+          } catch (error) {
+            console.error("Failed to close previous session", error);
+          }
+        }
 
-    // const sessionId = crypto.randomUUID();
-    // console.log("Connecting to RTC with session ID:", sessionId);
-    // connectRTC(sessionId).catch(console.error);
-    conn.addEventListener("message", (event) => {
-      switch (typeof event.data) {
-        case "string":
-          handleTcpMessage(event.data);
-          break;
-        case "object":
-          handleUdpPacket(event);
-          break;
-        default:
-          console.warn("Unknown message type:", event.data);
+        const session = await flexClient.connect(descriptor, {
+          connectionParams: {
+            onControlLine: (line) => {
+              handleControlLine(line).catch((error) =>
+                console.error("Control line handler error", error),
+              );
+            },
+            onBinaryMessage: handleUdpPacket,
+          },
+        });
+        flexSession = session;
+        const changeSubscription = session.on("change", (change) => {
+          handleWaterfallChange(change);
+        });
+        const messageSubscription = session.on(
+          "message",
+          (message: FlexWireMessage) => {
+            if (
+              message.kind === "status" ||
+              message.kind === "reply" ||
+              message.kind === "notice"
+            ) {
+              handleControlLine(message.raw).catch((error) =>
+                console.error("Failed to handle control message", error),
+              );
+            }
+          },
+        );
+        const disconnectedSubscription = session.on("disconnected", () => {
+          disconnect();
+        });
+        flexSessionSubscriptions = [
+          changeSubscription,
+          messageSubscription,
+          disconnectedSubscription,
+        ];
+        if (pendingHandleLine) {
+          const line = pendingHandleLine;
+          pendingHandleLine = null;
+          await handleControlLine(line);
+        }
+        if (pingTimer) clearInterval(pingTimer);
+        pingTimer = setInterval(() => {
+          sendCommand("ping").catch((error) => {
+            console.warn("Ping command failed", error);
+          });
+        }, 1_000);
+      } catch (error) {
+        console.error("Failed to connect to radio", error);
+        showToast({
+          description: "Failed to connect to radio",
+          variant: "error",
+        });
+        if (pingTimer) {
+          clearInterval(pingTimer);
+          pingTimer = undefined;
+        }
+        pendingHandleLine = null;
+        setState("connectModal", "status", ConnectionState.disconnected);
+        setState("connectModal", "selectedRadio", null);
+        setState("connectModal", "stage", ConnectionStage.TCP);
+        if (flexSession) {
+          try {
+            await flexSession.close();
+          } catch (closeError) {
+            console.error("Error while closing failed session", closeError);
+          }
+        }
+        flexSession = null;
       }
-    });
+    })();
   };
 
   createEffect(() => {
@@ -1421,25 +1573,25 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     });
   });
 
-  createEffect(() => {
-    ws()?.addEventListener("close", () => disconnect(), { once: true });
-  });
-
   const disconnect = () => {
     sessionRTC()?.close();
-    ws()?.close();
-    setWs(null);
+    if (pingTimer) {
+      clearInterval(pingTimer);
+      pingTimer = undefined;
+    }
+    const session = flexSession;
+    flexSession = null;
+    pendingHandleLine = null;
+    for (const sub of flexSessionSubscriptions) sub.unsubscribe();
+    flexSessionSubscriptions = [];
+    if (session) {
+      session
+        .close()
+        .catch((error) => console.error("Error closing flex session", error));
+    }
     setState(reconcile(initialState()));
     serialToHost.clear();
-    setCmdCount(0);
   };
-
-  createEffect(() => {
-    const socket = ws();
-    if (!socket) return;
-    const interval = setInterval(() => sendCommand("ping"), 1000);
-    onCleanup(() => clearInterval(interval));
-  });
 
   return (
     <FlexRadioContext.Provider
@@ -1450,6 +1602,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         sendCommand,
         connect,
         disconnect,
+        session: flexSession,
       }}
     >
       {props.children}

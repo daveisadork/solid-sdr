@@ -76,10 +76,12 @@ export function createFlexWireControlFactory(
       const handleReply = (reply: FlexReplyMessage) => {
         const entry = pending.get(reply.sequence);
         if (!entry) {
-          logger?.warn?.("Received reply for unknown sequence", {
-            sequence: reply.sequence,
-            reply: reply.raw,
-          });
+          if (reply.sequence !== 0) {
+            logger?.warn?.("Received reply for unknown sequence", {
+              sequence: reply.sequence,
+              reply: reply.raw,
+            });
+          }
           return;
         }
         pending.delete(reply.sequence);

@@ -69,6 +69,31 @@ export interface FlexControlFactory {
   ): Promise<FlexControlChannel>;
 }
 
+export type FlexWireChunk =
+  | string
+  | ArrayBuffer
+  | ArrayBufferView
+  | Uint8Array;
+
+export interface FlexWireTransportHandlers {
+  onData(chunk: FlexWireChunk): void;
+  onClose?(cause?: unknown): void;
+  onError?(error: unknown): void;
+}
+
+export interface FlexWireTransport {
+  send(payload: string | Uint8Array): Promise<void>;
+  close(): Promise<void>;
+}
+
+export interface FlexWireTransportFactory {
+  connect(
+    radio: FlexRadioDescriptor,
+    handlers: FlexWireTransportHandlers,
+    options?: Record<string, unknown>,
+  ): Promise<FlexWireTransport>;
+}
+
 export interface AudioStreamAdapter {
   openPCMStream(params: {
     streamId: number;

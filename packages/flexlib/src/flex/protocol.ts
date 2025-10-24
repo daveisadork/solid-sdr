@@ -151,7 +151,7 @@ function parseReply(
 
   const payload = body.split("|");
   const sequence = safeParseInt(header);
-  const code = safeParseInt(payload[0]);
+  const code = parseReplyCode(payload[0]);
   const message = payload[1]?.trim();
 
   if (sequence === undefined || code === undefined) return undefined;
@@ -216,6 +216,22 @@ function splitHeader(line: string): { header: string; body?: string } {
 function safeParseInt(value: string | undefined): number | undefined {
   if (!value) return undefined;
   const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function parseReplyCode(value: string | undefined): number | undefined {
+  if (!value) return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  if (/^0[xX]/.test(trimmed)) {
+    const parsed = Number.parseInt(trimmed.slice(2), 16);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  if (trimmed.length >= 8) {
+    const parsed = Number.parseInt(trimmed, 16);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  const parsed = Number.parseInt(trimmed, 10);
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 

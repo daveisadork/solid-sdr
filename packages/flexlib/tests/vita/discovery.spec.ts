@@ -3,9 +3,9 @@ import {
   VitaPacketType,
   VitaTimeStampIntegerType,
   VitaTimeStampFractionalType,
-  VitaTrailer,
-} from "@vita/common";
-import { VitaDiscoveryPacket } from "@vita/discovery";
+  type VitaTrailer,
+} from "../../src/vita/common";
+import { VitaDiscoveryPacket } from "../../src/vita/discovery";
 import { hexToBytes } from "../helpers";
 
 function makePacket(): VitaDiscoveryPacket {

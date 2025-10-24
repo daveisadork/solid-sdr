@@ -1,12 +1,14 @@
 import { defineConfig } from "tsdown";
 
 export default defineConfig({
-  platform: "neutral",
-  dts: true,
-  entry: ["src/**/*.ts", "!src/**/*.test.*"],
-  outDir: "lib",
-  unbundle: true,
-  alias: {
-    "~": "./src",
+  entry: {
+    index: "src/index.ts",
+    flex: "src/flex/index.ts",
+    vita: "src/vita/index.ts",
+    util: "src/util/index.ts",
   },
+  format: ["esm", "cjs"],
+  dts: true,
+  sourcemap: true,
+  clean: true,
 });

@@ -1,24 +1,25 @@
 // VITA-49 Extended Data packet for waterfall tiles — performance tuned
 
 import {
-  VitaHeader,
-  VitaClassId,
-  VitaTrailer,
+  type VitaHeader,
+  type VitaClassId,
+  type VitaTrailer,
   VitaPacketType,
   VitaTimeStampIntegerType,
   VitaTimeStampFractionalType,
   emptyTrailer,
   readBigInt64BE as readI64,
   writeBigInt64BE as writeI64,
+  writeBigUint64BE as writeU64,
   writeHeaderBE,
   writeClassIdBE,
   readTrailerAtEndBE,
   writeTrailerBE,
   createPacketContext,
-  VitaPacketContext,
+  type VitaPacketContext,
 } from "./common";
-import type { WaterfallTile } from "@util/waterfall-tile";
-import { VitaFrequency } from "@util/vita-frequency";
+import type { WaterfallTile } from "../util/waterfall-tile";
+import { VitaFrequency } from "../util/vita-frequency";
 
 const TILE_HEADER_BYTES = 36; // 8+8+4+2+2+4+4+2+2
 
@@ -116,12 +117,7 @@ export class VitaWaterfallPacket {
       off += 4;
     }
 
-    off = writeClassIdBE(
-      view,
-      off,
-      this.header.hasClassId,
-      this.classId,
-    );
+    off = writeClassIdBE(view, off, this.header.hasClassId, this.classId);
 
     if (this.header.timestampIntegerType !== VitaTimeStampIntegerType.None) {
       view.setUint32(off, this.timestampInt >>> 0, false);
@@ -172,10 +168,7 @@ export class VitaWaterfallPacket {
     return buf;
   }
 
-  parseWithContext(
-    ctx: VitaPacketContext,
-    out?: { data?: Uint16Array },
-  ): void {
+  parseWithContext(ctx: VitaPacketContext, out?: { data?: Uint16Array }): void {
     this.header = ctx.header;
     this.streamId = ctx.streamId;
     this.classId = ctx.classId;
@@ -239,7 +232,10 @@ export class VitaWaterfallPacket {
     off += 2;
 
     const wordsExpected = (width * height) >>> 0;
-    const readableBytes = Math.max(0, Math.min(payloadEnd - off, view.byteLength - off));
+    const readableBytes = Math.max(
+      0,
+      Math.min(payloadEnd - off, view.byteLength - off),
+    );
     const readableWords = Math.min(wordsExpected, readableBytes >> 1);
 
     let arr =
@@ -253,7 +249,8 @@ export class VitaWaterfallPacket {
     }
     for (let i = readableWords; i < wordsExpected; i++) arr[i] = 0;
 
-    tile.data = arr.length === wordsExpected ? arr : arr.subarray(0, wordsExpected);
+    tile.data =
+      arr.length === wordsExpected ? arr : arr.subarray(0, wordsExpected);
 
     this.trailer =
       ctx.trailerPos >= 0

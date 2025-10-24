@@ -1,57 +1,80 @@
-<h1 align="center">Flexlib</h1>
+# flexlib-ts
 
-<p align="center">A port of FlexRadio's FlexLib</p>
-
-<p align="center">
-	<!-- prettier-ignore-start -->
-	<!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-	<a href="#contributors" target="_blank"><img alt="👪 All Contributors: 1" src="https://img.shields.io/badge/%F0%9F%91%AA_all_contributors-1-21bb42.svg" /></a>
-<!-- ALL-CONTRIBUTORS-BADGE:END -->
-	<!-- prettier-ignore-end -->
-	<a href="https://github.com/daveisadork/flexlib/blob/main/.github/CODE_OF_CONDUCT.md" target="_blank"><img alt="🤝 Code of Conduct: Kept" src="https://img.shields.io/badge/%F0%9F%A4%9D_code_of_conduct-kept-21bb42" /></a>
-	<a href="https://codecov.io/gh/daveisadork/flexlib" target="_blank"><img alt="🧪 Coverage" src="https://img.shields.io/codecov/c/github/daveisadork/flexlib?label=%F0%9F%A7%AA%20coverage" /></a>
-	<a href="https://github.com/daveisadork/flexlib/blob/main/LICENSE.md" target="_blank"><img alt="📝 License: MIT" src="https://img.shields.io/badge/%F0%9F%93%9D_license-MIT-21bb42.svg" /></a>
-	<a href="http://npmjs.com/package/flexlib" target="_blank"><img alt="📦 npm version" src="https://img.shields.io/npm/v/flexlib?color=21bb42&label=%F0%9F%93%A6%20npm" /></a>
-	<img alt="💪 TypeScript: Strict" src="https://img.shields.io/badge/%F0%9F%92%AA_typescript-strict-21bb42.svg" />
-</p>
+An idiomatic TypeScript client surface for FlexRadio devices. The library mirrors the structure of the official FlexLib SDK: the `flex` domain wraps the TCP command/session workflow, the `vita` domain parses UDP/VITA transport, and `util` modules provide shared helpers for spectral math and conversions. Adapters keep platform integrations (sockets, discovery beacons, audio sinks) separate from the core radio model.
 
 ## Usage
 
-```shell
-npm i flexlib
+```ts
+import { createFlexClient } from "flexlib-ts";
+
+const client = createFlexClient({
+  control: flexControlAdapter, // implements TCP/TLS command I/O
+  discovery: optionalDiscovery, // provides LAN or WAN discovery
+  audio: optionalAudioAdapter, // opens PCM sinks for audio/DAX
+});
+
+const session = await client.connect(radioDescriptor);
+
+session.on("change", (change) => {
+  if (change.entity === "slice") {
+    console.log("slice update", change.id, change.snapshot);
+  }
+});
+
+session.on("reply", (reply) => {
+  if (reply.code && reply.code !== 0) {
+    console.warn("Command failed", reply.code);
+  }
+});
+
+const slice = session.slice("0");
+if (slice) {
+  await slice.tune(14_074_000);
+  await slice.setMode("DIGU");
+  await slice.setFilter(-300, 2800);
+  await slice.setAgcMode("fast");
+  await slice.setNrEnabled(true);
+  await slice.setNrLevel(5);
+}
+
+const pan = session.panadapter("0x40000000");
+if (pan) {
+  await pan.setBandwidth(5_000_000);
+  await pan.setWnbEnabled(true);
+  await pan.setWnbLevel(30);
+}
 ```
 
-```ts
-import { greet } from "flexlib";
+Adapters encapsulate host integrations:
 
-greet("Hello, world! 💖");
+- `control`: opens the command connection and emits parsed wire messages.
+- `discovery` (optional): discovers radios and notifies about availability.
+- `audio` (optional): receives PCM stream parameters and returns a writable sink.
+- Response codes automatically map to friendly reasons (e.g. `0x50000001 → Unable to get foundation receiver assignment`). Extend the map via `registerResponseCode` if you uncover new values.
+
+Complementary parsing helpers live under the `vita` namespace and can be combined with Node, browser, or native socket adapters to decode waterfall, FFT, and meter payloads.
+
+## Directory Layout
+
+- `src/flex/` – session/client implementation, models for slices, panadapters, meters, and response handling.
+- `src/vita/` – UDP/VITA packet parsing utilities (discovery, FFT tiles, waterfall frames, meters).
+- `src/util/` – shared helpers used by both domains (tile math, frequency helpers, etc.).
+- `tests/` – Vitest coverage mirroring the structure above with shared fixtures in `helpers.ts`.
+
+## Importing
+
+The package ships entrypoints per domain to keep bundle size minimal:
+
+```ts
+import { createFlexClient } from "flexlib-ts/flex";
+import { parseVitaPacket } from "flexlib-ts/vita";
+import { createWaterfallTile } from "flexlib-ts/util";
 ```
 
 ## Development
 
-See [`.github/CONTRIBUTING.md`](./.github/CONTRIBUTING.md), then [`.github/DEVELOPMENT.md`](./.github/DEVELOPMENT.md).
-Thanks! 💖
-
-## Contributors
-
-<!-- spellchecker: disable -->
-<!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
-<!-- prettier-ignore-start -->
-<!-- markdownlint-disable -->
-<table>
-  <tbody>
-    <tr>
-      <td align="center"><img src="https://avatars.githubusercontent.com/u/75869?v=4?s=100" width="100px;" alt="Dave Hayes"/><br /><sub><b>Dave Hayes</b></sub><br /><a href="https://github.com/daveisadork/flexlib/commits?author=daveisadork" title="Code">💻</a> <a href="#content-daveisadork" title="Content">🖋</a> <a href="https://github.com/daveisadork/flexlib/commits?author=daveisadork" title="Documentation">📖</a> <a href="#ideas-daveisadork" title="Ideas, Planning, & Feedback">🤔</a> <a href="#infra-daveisadork" title="Infrastructure (Hosting, Build-Tools, etc)">🚇</a> <a href="#maintenance-daveisadork" title="Maintenance">🚧</a> <a href="#projectManagement-daveisadork" title="Project Management">📆</a> <a href="#tool-daveisadork" title="Tools">🔧</a></td>
-    </tr>
-  </tbody>
-</table>
-
-<!-- markdownlint-restore -->
-<!-- prettier-ignore-end -->
-
-<!-- ALL-CONTRIBUTORS-LIST:END -->
-<!-- spellchecker: enable -->
-
-<!-- You can remove this notice if you don't want it 🙂 no worries! -->
-
-> 💝 This package was templated with [`create-typescript-app`](https://github.com/JoshuaKGoldberg/create-typescript-app) using the [Bingo framework](https://create.bingo).
+- Install dependencies: `pnpm install`
+- Run type-checking: `pnpm run typecheck`
+- Run tests: `pnpm run test`
+- Lint the project: `pnpm run lint`
+- Build the library: `pnpm run build`

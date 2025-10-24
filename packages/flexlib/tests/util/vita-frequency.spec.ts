@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { VitaFrequency } from "@util/vita-frequency";
+import { VitaFrequency } from "../../src/util/vita-frequency";
 
 describe("VitaFrequency: constructors and accessors", () => {
   it("fromHz -> raw -> freqHz round-trip", () => {

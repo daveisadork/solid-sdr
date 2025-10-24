@@ -3,9 +3,9 @@ import {
   VitaPacketType,
   VitaTimeStampIntegerType,
   VitaTimeStampFractionalType,
-  VitaTrailer,
-} from "@vita/common";
-import { VitaMeterPacket } from "@vita/meter-packet";
+  type VitaTrailer,
+} from "../../src/vita/common";
+import { VitaMeterPacket } from "../../src/vita/meter-packet";
 
 function makePacketBase(): VitaMeterPacket {
   const p = new VitaMeterPacket();

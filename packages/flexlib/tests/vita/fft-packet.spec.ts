@@ -3,9 +3,9 @@ import {
   VitaPacketType,
   VitaTimeStampIntegerType,
   VitaTimeStampFractionalType,
-  VitaTrailer,
-} from "@vita/common";
-import { VitaFFTPacket } from "@vita/fft-packet";
+  type VitaTrailer,
+} from "../../src/vita/common";
+import { VitaFFTPacket } from "../../src/vita/fft-packet";
 
 function makeBins(n: number, start = 1000): Uint16Array {
   const a = new Uint16Array(n);

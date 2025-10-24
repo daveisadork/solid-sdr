@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { convertVitaToDb, padToWordBoundary, emptyTrailer } from "@vita/common";
+import {
+  convertVitaToDb,
+  padToWordBoundary,
+  emptyTrailer,
+} from "../../src/vita/common";
 
 const enc = new TextEncoder();
 

@@ -1,8 +1,8 @@
 import {
   createPacketContext,
-  VitaPacketContext,
-  VitaHeader,
-  VitaClassId,
+  type VitaPacketContext,
+  type VitaHeader,
+  type VitaClassId,
 } from "./common";
 import { VitaMeterPacket } from "./meter-packet";
 import { VitaFFTPacket } from "./fft-packet";

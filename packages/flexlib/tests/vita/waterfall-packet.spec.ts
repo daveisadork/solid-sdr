@@ -3,10 +3,10 @@ import {
   VitaPacketType,
   VitaTimeStampIntegerType,
   VitaTimeStampFractionalType,
-  VitaTrailer,
-} from "@vita/common";
-import { VitaWaterfallPacket } from "@vita/waterfall-packet";
-import { VitaFrequency } from "@util/vita-frequency";
+  type VitaTrailer,
+} from "../../src/vita/common";
+import { VitaWaterfallPacket } from "../../src/vita/waterfall-packet";
+import { VitaFrequency } from "../../src/util/vita-frequency";
 
 function makeTileData(len: number, start = 1000): Uint16Array {
   const a = new Uint16Array(len);

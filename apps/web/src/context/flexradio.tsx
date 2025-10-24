@@ -217,6 +217,7 @@ export interface Slice {
   loopb: boolean; // "0";
   qsk: boolean; // "0";
   dax: number; // "1";
+  dax_iq_channel: number; // "0";
   dax_clients: number; // "0";
   lock: boolean; // "0";
   tx: boolean; // "1";
@@ -802,6 +803,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
           case "digu_offset":
           case "record_time":
           case "dax":
+          case "dax_iq_channel":
           case "dax_clients":
           case "diversity_index":
           case "anf_level":

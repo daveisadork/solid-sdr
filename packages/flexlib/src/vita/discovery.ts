@@ -1,7 +1,7 @@
 import {
-  VitaHeader,
-  VitaClassId,
-  VitaTrailer,
+  type VitaHeader,
+  type VitaClassId,
+  type VitaTrailer,
   VitaPacketType,
   VitaTimeStampIntegerType,
   VitaTimeStampFractionalType,
@@ -13,7 +13,7 @@ import {
   readTrailerAtEndBE,
   writeTrailerBE,
   createPacketContext,
-  VitaPacketContext,
+  type VitaPacketContext,
 } from "./common";
 
 // Reuse singletons
@@ -144,12 +144,7 @@ export class VitaDiscoveryPacket {
       off += 4;
     }
 
-    off = writeClassIdBE(
-      view,
-      off,
-      this.header.hasClassId,
-      this.classId,
-    );
+    off = writeClassIdBE(view, off, this.header.hasClassId, this.classId);
 
     if (this.header.timestampIntegerType !== VitaTimeStampIntegerType.None) {
       view.setUint32(off, this.timestampInt >>> 0, false);

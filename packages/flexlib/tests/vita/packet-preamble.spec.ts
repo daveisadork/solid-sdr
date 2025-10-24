@@ -3,8 +3,8 @@ import {
   VitaPacketType,
   VitaTimeStampIntegerType,
   VitaTimeStampFractionalType,
-} from "@vita/common";
-import { VitaPacketPreamble } from "@vita/packet-preamble";
+} from "../../src/vita/common";
+import { VitaPacketPreamble } from "../../src/vita/packet-preamble";
 
 describe("VitaPacketPreamble: minimal (no stream, no classId, no timestamps)", () => {
   it("serializes and parses a minimal preamble", () => {

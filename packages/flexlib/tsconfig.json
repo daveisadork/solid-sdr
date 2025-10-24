@@ -1,21 +1,18 @@
 {
   "compilerOptions": {
-    "declaration": true,
-    "declarationMap": true,
-    "esModuleInterop": true,
-    "module": "ESNext",
+    "target": "esnext",
+    "lib": ["es2023"],
+    "moduleDetection": "force",
+    "module": "preserve",
     "moduleResolution": "bundler",
-    "noEmit": true,
     "resolveJsonModule": true,
-    "skipLibCheck": true,
     "strict": true,
-    "target": "ES2022",
-    "paths": {
-      "~/*": ["./src/*"],
-      "@vita/*": ["./src/vita/*"],
-      "@util/*": ["./src/util/*"],
-      "@flex/*": ["./src/flex/*"]
-    }
-  },
-  "include": ["src", "tests"]
+    "noUnusedLocals": true,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true
+  }
 }

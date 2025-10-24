@@ -1,19 +1,20 @@
 // VITA-49 Extended Data packet for FFT bins — performance tuned
 
 import {
-  VitaHeader,
-  VitaClassId,
-  VitaTrailer,
+  type VitaHeader,
+  type VitaClassId,
+  type VitaTrailer,
   VitaPacketType,
   VitaTimeStampIntegerType,
   VitaTimeStampFractionalType,
   emptyTrailer,
+  writeBigUint64BE as writeU64,
   writeHeaderBE,
   writeClassIdBE,
   readTrailerAtEndBE,
   writeTrailerBE,
   createPacketContext,
-  VitaPacketContext,
+  type VitaPacketContext,
 } from "./common";
 
 const FFT_META_BYTES = 12; // start(2) + num(2) + binSize(2) + total(2) + frameIndex(4)
@@ -222,7 +223,10 @@ export class VitaFFTPacket {
     this.frameIndex = frameIdx;
 
     const expectedPayloadBytes = num * bsize;
-    const available = Math.max(0, Math.min(expectedPayloadBytes, payloadEnd - off));
+    const available = Math.max(
+      0,
+      Math.min(expectedPayloadBytes, payloadEnd - off),
+    );
 
     const arr =
       out?.payload && out.payload.length >= num

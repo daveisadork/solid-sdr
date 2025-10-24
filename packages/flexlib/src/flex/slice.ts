@@ -1,0 +1,1244 @@
+import type { FlexCommandOptions, FlexCommandResponse } from "./adapters.js";
+import type { SliceSnapshot, SliceStateChange } from "./radio-state.js";
+import { TypedEventEmitter, type Subscription } from "./events.js";
+import { FlexStateUnavailableError } from "./errors.js";
+
+export type SliceAgcMode = "off" | "slow" | "med" | "fast" | (string & {});
+export type SliceToneMode = "off" | "ctcss_tx" | (string & {});
+export type SliceRepeaterOffsetDirection =
+  | "down"
+  | "simplex"
+  | "up"
+  | (string & {});
+
+export interface SliceControllerEvents extends Record<string, unknown> {
+  readonly change: SliceStateChange;
+}
+
+export interface SliceUpdateRequest {
+  frequencyHz?: number;
+  mode?: string;
+  isActive?: boolean;
+  isLocked?: boolean;
+  isTransmitEnabled?: boolean;
+  rxAntenna?: string;
+  txAntenna?: string | null;
+  daxChannel?: number;
+  rfGain?: number;
+  filterLowHz?: number;
+  filterHighHz?: number;
+  rttyMarkHz?: number;
+  rttyShiftHz?: number;
+  diglOffsetHz?: number;
+  diguOffsetHz?: number;
+  audioPan?: number;
+  audioGain?: number;
+  isMuted?: boolean;
+  anfEnabled?: boolean;
+  anfLevel?: number;
+  apfEnabled?: boolean;
+  apfLevel?: number;
+  wnbEnabled?: boolean;
+  wnbLevel?: number;
+  nbEnabled?: boolean;
+  nbLevel?: number;
+  nrEnabled?: boolean;
+  nrLevel?: number;
+  agcMode?: SliceAgcMode;
+  agcThreshold?: number;
+  agcOffLevel?: number;
+  loopAEnabled?: boolean;
+  loopBEnabled?: boolean;
+  ritEnabled?: boolean;
+  ritOffsetHz?: number;
+  xitEnabled?: boolean;
+  xitOffsetHz?: number;
+  tuneStepHz?: number;
+  tuneStepListHz?: readonly number[];
+  recordingEnabled?: boolean;
+  playbackEnabled?: boolean;
+  fmToneMode?: SliceToneMode;
+  fmToneValue?: number | string;
+  fmDeviation?: number;
+  fmToneBurstEnabled?: boolean;
+  fmPreDeEmphasisEnabled?: boolean;
+  squelchEnabled?: boolean;
+  squelchLevel?: number;
+  txOffsetFrequencyHz?: number;
+  fmRepeaterOffsetFrequencyHz?: number;
+  repeaterOffsetDirection?: SliceRepeaterOffsetDirection;
+  diversityEnabled?: boolean;
+  diversityChild?: boolean;
+  diversityIndex?: number;
+}
+
+export interface SliceController {
+  readonly id: string;
+  readonly state: SliceSnapshot;
+  /**
+   * Slice center frequency in Hz (FlexLib documents this value in MHz).
+   */
+  readonly frequencyHz: number;
+  /**
+   * Demodulation mode for the slice, e.g. "USB", "DIGU", "LSB", "DIGL", "CW", "DSB", "AM", "SAM", "FM".
+   */
+  readonly mode: string;
+  readonly sampleRateHz: number;
+  readonly indexLetter: string;
+  /**
+   * When true, the receive preselector filters in the radio are bypassed.
+   */
+  readonly isWide: boolean;
+  readonly isQskEnabled: boolean;
+  /**
+   * A list of the available RX antenna ports on the radio, e.g. "ANT1", "ANT2", "RX_A", "RX_B", "XVTR".
+   */
+  readonly availableRxAntennas: readonly string[];
+  /**
+   * A list of the available TX antenna ports on the radio, e.g. "ANT1", "ANT2", "XVTR".
+   */
+  readonly availableTxAntennas: readonly string[];
+  readonly owner: string;
+  readonly clientHandle: number;
+  /**
+   * Available demodulation modes for this slice.
+   */
+  readonly modeList: readonly string[];
+  /**
+   * Whether the slice is the active slice.
+   */
+  readonly isActive: boolean;
+  /**
+   * When true, the slice frequency is locked and cannot be changed.
+   */
+  readonly isLocked: boolean;
+  readonly isTransmitEnabled: boolean;
+  /**
+   * The receive antenna port for the slice, e.g. "ANT1", "ANT2", "RX_A", "RX_B", "XVTR".
+   */
+  readonly rxAntenna: string;
+  /**
+   * The transmit antenna port for the slice, e.g. "ANT1", "ANT2", "XVTR".
+   */
+  readonly txAntenna: string;
+  /**
+   * Stream ID of the panadapter associated with this slice.
+   */
+  readonly panadapterStream?: string;
+  /**
+   * DAX channel assigned to the slice (0–8).
+   */
+  readonly daxChannel: number;
+  readonly rfGain: number;
+  /**
+   * Slice receive filter low cut in Hz.
+   */
+  readonly filterLowHz: number;
+  /**
+   * Slice receive filter high cut in Hz.
+   */
+  readonly filterHighHz: number;
+  /**
+   * Slice RTTY mark offset in Hz.
+   */
+  readonly rttyMarkHz: number;
+  /**
+   * Slice RTTY shift offset in Hz.
+   */
+  readonly rttyShiftHz: number;
+  /**
+   * Slice DIGL offset in Hz.
+   */
+  readonly diglOffsetHz: number;
+  /**
+   * Slice DIGU offset in Hz.
+   */
+  readonly diguOffsetHz: number;
+  /**
+   * Left-right audio pan from 0 to 100 (50 centers the audio).
+   */
+  readonly audioPan: number;
+  /**
+   * Slice audio level from 0 to 100.
+   */
+  readonly audioGain: number;
+  /**
+   * Whether slice audio is muted.
+   */
+  readonly isMuted: boolean;
+  /**
+   * Whether the auto-notch filter (ANF) is enabled.
+   */
+  readonly anfEnabled: boolean;
+  /**
+   * Auto-notch filter (ANF) level from 0 to 100.
+   */
+  readonly anfLevel: number;
+  /**
+   * Whether the auto-peaking filter (APF) is enabled.
+   */
+  readonly apfEnabled: boolean;
+  /**
+   * Auto-peaking filter (APF) level from 0 to 100.
+   */
+  readonly apfLevel: number;
+  /**
+   * Whether the Wideband Noise Blanker (WNB) is enabled.
+   */
+  readonly wnbEnabled: boolean;
+  /**
+   * Wideband Noise Blanker (WNB) level from 0 to 100.
+   */
+  readonly wnbLevel: number;
+  /**
+   * Whether the Noise Blanker (NB) is enabled.
+   */
+  readonly nbEnabled: boolean;
+  /**
+   * Noise Blanker (NB) level from 0 to 100.
+   */
+  readonly nbLevel: number;
+  /**
+   * Whether the Noise Reduction (NR) is enabled.
+   */
+  readonly nrEnabled: boolean;
+  /**
+   * Noise Reduction (NR) level from 0 to 100.
+   */
+  readonly nrLevel: number;
+  /**
+   * Current AGC mode for the slice.
+   */
+  readonly agcMode: string;
+  readonly agcThreshold: number;
+  readonly agcOffLevel: number;
+  readonly loopAEnabled: boolean;
+  readonly loopBEnabled: boolean;
+  readonly ritEnabled: boolean;
+  readonly ritOffsetHz: number;
+  readonly xitEnabled: boolean;
+  readonly xitOffsetHz: number;
+  readonly tuneStepHz: number;
+  readonly tuneStepListHz: readonly number[];
+  /**
+   * Whether audio recording is enabled for the slice.
+   */
+  readonly recordingEnabled: boolean;
+  /**
+   * Whether the play button is enabled for the slice.
+   */
+  readonly playbackAvailable: boolean;
+  /**
+   * Whether audio recording playback is enabled for the slice.
+   */
+  readonly playbackEnabled: boolean;
+  readonly fmToneMode: string;
+  /**
+   * FM tone value; in most cases this is the repeater tone.
+   */
+  readonly fmToneValue: string;
+  /**
+   * Controls the FM deviation for the slice (also updates the transmitter when applicable).
+   */
+  readonly fmDeviation: number;
+  /**
+   * Whether the FM 1750 Hz tone burst (PL tone) is enabled.
+   */
+  readonly fmToneBurstEnabled: boolean;
+  /**
+   * Whether FM de-emphasis is enabled on receive (and pre-emphasis on transmit when this slice is the transmitter).
+   */
+  readonly fmPreDeEmphasisEnabled: boolean;
+  /**
+   * Whether the squelch algorithm is enabled for the slice.
+   */
+  readonly squelchEnabled: boolean;
+  /**
+   * Squelch level for modes with squelch (0–100).
+   */
+  readonly squelchLevel: number;
+  /**
+   * Transmit offset frequency in Hz.
+   */
+  readonly txOffsetFrequencyHz: number;
+  /**
+   * FM repeater offset frequency used for wide splits in Hz.
+   */
+  readonly fmRepeaterOffsetHz: number;
+  /**
+   * Direction that the transmit offset is applied in.
+   */
+  readonly repeaterOffsetDirection: string;
+  /**
+   * Identifier of the diversity partner slice when this slice participates in diversity reception.
+   */
+  readonly diversityParent?: string;
+  /**
+   * Whether simple diversity reception is enabled for the slice (FLEX-6700/FLEX-6700R only).
+   */
+  readonly diversityEnabled: boolean;
+  /**
+   * Whether the slice is the diversity child (FLEX-6700/FLEX-6700R only).
+   */
+  readonly diversityChild: boolean;
+  /**
+   * Index of the paired diversity slice.
+   */
+  readonly diversityIndex: number;
+  snapshot(): SliceSnapshot;
+  on<TKey extends keyof SliceControllerEvents>(
+    event: TKey,
+    listener: (payload: SliceControllerEvents[TKey]) => void,
+  ): Subscription;
+  tune(frequencyHz: number): Promise<SliceSnapshot>;
+  nudge(deltaHz: number): Promise<SliceSnapshot>;
+  /**
+   * Sets the demodulation mode for the slice, e.g. "USB", "DIGU", "LSB", "DIGL", "CW", "DSB", "AM", "SAM", "FM".
+   */
+  setMode(mode: string): Promise<SliceSnapshot>;
+  /**
+   * Sets whether the slice is the active slice.
+   */
+  setActive(active: boolean): Promise<SliceSnapshot>;
+  /**
+   * Locks or unlocks the slice so its frequency cannot be changed.
+   */
+  setLocked(locked: boolean): Promise<SliceSnapshot>;
+  enableTransmit(enabled: boolean): Promise<SliceSnapshot>;
+  /**
+   * Sets the receive antenna port for the slice (e.g. "ANT1", "ANT2", "RX_A", "RX_B", "XVTR").
+   */
+  setRxAntenna(port: string): Promise<SliceSnapshot>;
+  /**
+   * Sets the transmit antenna for the slice as a string:
+   * "ANT1", "ANT2", "XVTR"
+   */
+  setTxAntenna(port: string | null): Promise<SliceSnapshot>;
+  /**
+   * Sets the DAX channel for the slice (0–8).
+   */
+  assignDaxChannel(channel: number): Promise<SliceSnapshot>;
+  setRfGain(hundredthsDb: number): Promise<SliceSnapshot>;
+  /**
+   * Sets the slice receive filter low cut in Hz.
+   */
+  setFilterLow(lowHz: number): Promise<SliceSnapshot>;
+  /**
+   * Sets the slice receive filter high cut in Hz.
+   */
+  setFilterHigh(highHz: number): Promise<SliceSnapshot>;
+  /**
+   * Updates the slice receive filter bandwidth.
+   */
+  setFilter(lowHz: number, highHz: number): Promise<SliceSnapshot>;
+  /**
+   * Sets the slice RTTY mark offset in Hz.
+   */
+  setRttyMark(markHz: number): Promise<SliceSnapshot>;
+  /**
+   * Sets the slice RTTY shift offset in Hz.
+   */
+  setRttyShift(shiftHz: number): Promise<SliceSnapshot>;
+  /**
+   * Sets the slice DIGL offset in Hz.
+   */
+  setDigLOffset(offsetHz: number): Promise<SliceSnapshot>;
+  /**
+   * Sets the slice DIGU offset in Hz.
+   */
+  setDigUOffset(offsetHz: number): Promise<SliceSnapshot>;
+  /**
+   * Sets the slice audio level from 0 to 100.
+   */
+  setAudioGain(gain: number): Promise<SliceSnapshot>;
+  /**
+   * Sets the left-right audio pan from 0 to 100 (50 centers the audio).
+   */
+  setAudioPan(pan: number): Promise<SliceSnapshot>;
+  /**
+   * Enables or disables slice audio mute.
+   */
+  setMute(muted: boolean): Promise<SliceSnapshot>;
+  /**
+   * Enables or disables the auto-notch filter (ANF).
+   */
+  setAnfEnabled(enabled: boolean): Promise<SliceSnapshot>;
+  /**
+   * Sets the auto-notch filter (ANF) level from 0 to 100.
+   */
+  setAnfLevel(level: number): Promise<SliceSnapshot>;
+  /**
+   * Enables or disables the auto-peaking filter (APF).
+   */
+  setApfEnabled(enabled: boolean): Promise<SliceSnapshot>;
+  /**
+   * Sets the auto-peaking filter (APF) level from 0 to 100.
+   */
+  setApfLevel(level: number): Promise<SliceSnapshot>;
+  /**
+   * Enables or disables the Wideband Noise Blanker (WNB).
+   */
+  setWnbEnabled(enabled: boolean): Promise<SliceSnapshot>;
+  /**
+   * Sets the Wideband Noise Blanker (WNB) level from 0 to 100.
+   */
+  setWnbLevel(level: number): Promise<SliceSnapshot>;
+  /**
+   * Enables or disables the Noise Blanker (NB).
+   */
+  setNbEnabled(enabled: boolean): Promise<SliceSnapshot>;
+  /**
+   * Sets the Noise Blanker (NB) level from 0 to 100.
+   */
+  setNbLevel(level: number): Promise<SliceSnapshot>;
+  /**
+   * Enables or disables the Noise Reduction (NR).
+   */
+  setNrEnabled(enabled: boolean): Promise<SliceSnapshot>;
+  /**
+   * Sets the Noise Reduction (NR) level from 0 to 100.
+   */
+  setNrLevel(level: number): Promise<SliceSnapshot>;
+  /**
+   * Sets the current AGC mode for the slice.
+   */
+  setAgcMode(mode: SliceAgcMode): Promise<SliceSnapshot>;
+  setAgcSettings(settings: {
+    threshold?: number;
+    offLevel?: number;
+  }): Promise<SliceSnapshot>;
+  setLoopAEnabled(enabled: boolean): Promise<SliceSnapshot>;
+  setLoopBEnabled(enabled: boolean): Promise<SliceSnapshot>;
+  setRitEnabled(enabled: boolean): Promise<SliceSnapshot>;
+  setRitOffset(offsetHz: number): Promise<SliceSnapshot>;
+  setXitEnabled(enabled: boolean): Promise<SliceSnapshot>;
+  setXitOffset(offsetHz: number): Promise<SliceSnapshot>;
+  setTuneStep(stepHz: number): Promise<SliceSnapshot>;
+  setTuneStepList(stepsHz: readonly number[]): Promise<SliceSnapshot>;
+  /**
+   * Enables or disables audio recording for the slice.
+   */
+  setRecordingEnabled(enabled: boolean): Promise<SliceSnapshot>;
+  /**
+   * Enables or disables audio recording playback for the slice.
+   */
+  setPlaybackEnabled(enabled: boolean): Promise<SliceSnapshot>;
+  setFmToneMode(mode: SliceToneMode): Promise<SliceSnapshot>;
+  /**
+   * Sets the FM tone value; in most cases this is the repeater tone.
+   */
+  setFmToneValue(value: number | string): Promise<SliceSnapshot>;
+  /**
+   * Controls the FM deviation for the slice (and transmitter when applicable).
+   */
+  setFmDeviation(deviation: number): Promise<SliceSnapshot>;
+  /**
+   * Enables or disables the FM 1750 Hz tone burst (PL tone).
+   */
+  setFmToneBurstEnabled(enabled: boolean): Promise<SliceSnapshot>;
+  /**
+   * Enables or disables FM de-emphasis on receive (and pre-emphasis on transmit when applicable).
+   */
+  setFmPreDeEmphasisEnabled(enabled: boolean): Promise<SliceSnapshot>;
+  /**
+   * Enables or disables the squelch algorithm for the slice.
+   */
+  setSquelchEnabled(enabled: boolean): Promise<SliceSnapshot>;
+  /**
+   * Sets the squelch level for modes with squelch (0–100).
+   */
+  setSquelchLevel(level: number): Promise<SliceSnapshot>;
+  /**
+   * Sets the transmit offset frequency for the slice in Hz.
+   */
+  setTxOffsetFrequency(offsetHz: number): Promise<SliceSnapshot>;
+  /**
+   * Sets the FM repeater offset frequency for wide splits in Hz.
+   */
+  setFmRepeaterOffsetFrequency(offsetHz: number): Promise<SliceSnapshot>;
+  /**
+   * Sets the direction that the transmit offset is applied in.
+   */
+  setRepeaterOffsetDirection(
+    direction: SliceRepeaterOffsetDirection,
+  ): Promise<SliceSnapshot>;
+  /**
+   * Enables or disables simple diversity reception for the slice (FLEX-6700/FLEX-6700R only).
+   */
+  setDiversityEnabled(enabled: boolean): Promise<SliceSnapshot>;
+  /**
+   * Marks the slice as the diversity child (FLEX-6700/FLEX-6700R only).
+   */
+  setDiversityChildEnabled(enabled: boolean): Promise<SliceSnapshot>;
+  /**
+   * Sets the index of the paired diversity slice.
+   */
+  setDiversityIndex(index: number): Promise<SliceSnapshot>;
+  update(request: SliceUpdateRequest): Promise<SliceSnapshot>;
+}
+
+export interface SliceSessionApi {
+  command(
+    command: string,
+    options?: FlexCommandOptions,
+  ): Promise<FlexCommandResponse>;
+  getSlice(id: string): SliceSnapshot | undefined;
+  patchSlice(id: string, attributes: Record<string, string>): void;
+}
+
+export class SliceControllerImpl implements SliceController {
+  private readonly events = new TypedEventEmitter<SliceControllerEvents>();
+
+  constructor(
+    private readonly session: SliceSessionApi,
+    readonly id: string,
+  ) {}
+
+  private current(): SliceSnapshot {
+    const snapshot = this.session.getSlice(this.id);
+    if (!snapshot)
+      throw new FlexStateUnavailableError(
+        `Slice ${this.id} is no longer available`,
+      );
+    return snapshot;
+  }
+
+  get state(): SliceSnapshot {
+    return this.current();
+  }
+
+  get frequencyHz(): number {
+    return this.current().frequencyHz;
+  }
+
+  get mode(): string {
+    return this.current().mode;
+  }
+
+  get sampleRateHz(): number {
+    return this.current().sampleRateHz;
+  }
+
+  get indexLetter(): string {
+    return this.current().indexLetter;
+  }
+
+  get isWide(): boolean {
+    return this.current().isWide;
+  }
+
+  get isQskEnabled(): boolean {
+    return this.current().isQskEnabled;
+  }
+
+  get modeList(): readonly string[] {
+    return this.current().modeList;
+  }
+
+  get availableRxAntennas(): readonly string[] {
+    return this.current().availableRxAntennas;
+  }
+
+  get availableTxAntennas(): readonly string[] {
+    return this.current().availableTxAntennas;
+  }
+
+  get owner(): string {
+    return this.current().owner;
+  }
+
+  get clientHandle(): number {
+    return this.current().clientHandle;
+  }
+
+  get isActive(): boolean {
+    return this.current().isActive;
+  }
+
+  get isLocked(): boolean {
+    return this.current().isLocked;
+  }
+
+  get isTransmitEnabled(): boolean {
+    return this.current().isTransmitEnabled;
+  }
+
+  get rxAntenna(): string {
+    return this.current().rxAntenna;
+  }
+
+  get txAntenna(): string {
+    return this.current().txAntenna;
+  }
+
+  get panadapterStream(): string | undefined {
+    return this.current().panadapterStream;
+  }
+
+  get daxChannel(): number {
+    return this.current().daxChannel;
+  }
+
+  get rfGain(): number {
+    return this.current().rfGain;
+  }
+
+  get filterLowHz(): number {
+    return this.current().filterLowHz;
+  }
+
+  get filterHighHz(): number {
+    return this.current().filterHighHz;
+  }
+
+  get rttyMarkHz(): number {
+    return this.current().rttyMarkHz;
+  }
+
+  get rttyShiftHz(): number {
+    return this.current().rttyShiftHz;
+  }
+
+  get diglOffsetHz(): number {
+    return this.current().diglOffsetHz;
+  }
+
+  get diguOffsetHz(): number {
+    return this.current().diguOffsetHz;
+  }
+
+  get audioPan(): number {
+    return this.current().audioPan;
+  }
+
+  get audioGain(): number {
+    return this.current().audioGain;
+  }
+
+  get isMuted(): boolean {
+    return this.current().isMuted;
+  }
+
+  get anfEnabled(): boolean {
+    return this.current().anfEnabled;
+  }
+
+  get anfLevel(): number {
+    return this.current().anfLevel;
+  }
+
+  get apfEnabled(): boolean {
+    return this.current().apfEnabled;
+  }
+
+  get apfLevel(): number {
+    return this.current().apfLevel;
+  }
+
+  get wnbEnabled(): boolean {
+    return this.current().wnbEnabled;
+  }
+
+  get wnbLevel(): number {
+    return this.current().wnbLevel;
+  }
+
+  get nbEnabled(): boolean {
+    return this.current().nbEnabled;
+  }
+
+  get nbLevel(): number {
+    return this.current().nbLevel;
+  }
+
+  get nrEnabled(): boolean {
+    return this.current().nrEnabled;
+  }
+
+  get nrLevel(): number {
+    return this.current().nrLevel;
+  }
+
+  get agcMode(): string {
+    return this.current().agcMode;
+  }
+
+  get agcThreshold(): number {
+    return this.current().agcThreshold;
+  }
+
+  get agcOffLevel(): number {
+    return this.current().agcOffLevel;
+  }
+
+  get loopAEnabled(): boolean {
+    return this.current().loopAEnabled;
+  }
+
+  get loopBEnabled(): boolean {
+    return this.current().loopBEnabled;
+  }
+
+  get ritEnabled(): boolean {
+    return this.current().ritEnabled;
+  }
+
+  get ritOffsetHz(): number {
+    return this.current().ritOffsetHz;
+  }
+
+  get xitEnabled(): boolean {
+    return this.current().xitEnabled;
+  }
+
+  get xitOffsetHz(): number {
+    return this.current().xitOffsetHz;
+  }
+
+  get tuneStepHz(): number {
+    return this.current().tuneStepHz;
+  }
+
+  get tuneStepListHz(): readonly number[] {
+    return this.current().tuneStepListHz;
+  }
+
+  get recordingEnabled(): boolean {
+    return this.current().recordingEnabled;
+  }
+
+  get playbackAvailable(): boolean {
+    return this.current().playbackAvailable;
+  }
+
+  get playbackEnabled(): boolean {
+    return this.current().playbackEnabled;
+  }
+
+  get fmToneMode(): string {
+    return this.current().fmToneMode;
+  }
+
+  get fmToneValue(): string {
+    return this.current().fmToneValue;
+  }
+
+  get fmDeviation(): number {
+    return this.current().fmDeviation;
+  }
+
+  get fmToneBurstEnabled(): boolean {
+    return this.current().fmToneBurstEnabled;
+  }
+
+  get fmPreDeEmphasisEnabled(): boolean {
+    return this.current().fmPreDeEmphasisEnabled;
+  }
+
+  get squelchEnabled(): boolean {
+    return this.current().squelchEnabled;
+  }
+
+  get squelchLevel(): number {
+    return this.current().squelchLevel;
+  }
+
+  get txOffsetFrequencyHz(): number {
+    return this.current().txOffsetFrequencyHz;
+  }
+
+  get fmRepeaterOffsetHz(): number {
+    return this.current().fmRepeaterOffsetHz;
+  }
+
+  get repeaterOffsetDirection(): string {
+    return this.current().repeaterOffsetDirection;
+  }
+
+  get diversityEnabled(): boolean {
+    return this.current().diversityEnabled;
+  }
+
+  get diversityChild(): boolean {
+    return this.current().diversityChild;
+  }
+
+  get diversityParent(): string | undefined {
+    return this.current().diversityParent;
+  }
+
+  get diversityIndex(): number {
+    return this.current().diversityIndex;
+  }
+
+  snapshot(): SliceSnapshot {
+    return this.current();
+  }
+
+  on<TKey extends keyof SliceControllerEvents>(
+    event: TKey,
+    listener: (payload: SliceControllerEvents[TKey]) => void,
+  ): Subscription {
+    return this.events.on(event, listener);
+  }
+
+  async tune(frequencyHz: number): Promise<SliceSnapshot> {
+    await this.session.command(
+      `slice tune ${this.id} ${formatMegahertz(frequencyHz)}`,
+    );
+    return this.snapshot();
+  }
+
+  async nudge(deltaHz: number): Promise<SliceSnapshot> {
+    const nextFrequency = this.current().frequencyHz + deltaHz;
+    return this.tune(nextFrequency);
+  }
+
+  async setMode(mode: string): Promise<SliceSnapshot> {
+    await this.sendSet({ mode });
+    return this.snapshot();
+  }
+
+  async setActive(active: boolean): Promise<SliceSnapshot> {
+    await this.sendSet({ active: this.toFlag(active) });
+    return this.snapshot();
+  }
+
+  async setLocked(locked: boolean): Promise<SliceSnapshot> {
+    const command = locked
+      ? `slice lock ${this.id}`
+      : `slice unlock ${this.id}`;
+    await this.session.command(command);
+    this.session.patchSlice(this.id, {
+      lock: this.toFlag(locked),
+    });
+    return this.snapshot();
+  }
+
+  async enableTransmit(enabled: boolean): Promise<SliceSnapshot> {
+    await this.sendSet({ tx: this.toFlag(enabled) });
+    return this.snapshot();
+  }
+
+  async setRxAntenna(port: string): Promise<SliceSnapshot> {
+    await this.sendSet({ rxant: port });
+    return this.snapshot();
+  }
+
+  async setTxAntenna(port: string | null): Promise<SliceSnapshot> {
+    await this.sendSet({ txant: port ?? "" });
+    return this.snapshot();
+  }
+
+  async assignDaxChannel(channel: number): Promise<SliceSnapshot> {
+    await this.sendSet({ dax: this.toIntString(channel) });
+    return this.snapshot();
+  }
+
+  async setRfGain(hundredthsDb: number): Promise<SliceSnapshot> {
+    await this.sendSet({ rfgain: this.toIntString(hundredthsDb) });
+    return this.snapshot();
+  }
+
+  async setFilterLow(lowHz: number): Promise<SliceSnapshot> {
+    await this.sendSet({ filter_lo: this.toIntString(lowHz) });
+    return this.snapshot();
+  }
+
+  async setFilterHigh(highHz: number): Promise<SliceSnapshot> {
+    await this.sendSet({ filter_hi: this.toIntString(highHz) });
+    return this.snapshot();
+  }
+
+  async setFilter(lowHz: number, highHz: number): Promise<SliceSnapshot> {
+    await this.sendSet({
+      filter_lo: this.toIntString(lowHz),
+      filter_hi: this.toIntString(highHz),
+    });
+    return this.snapshot();
+  }
+
+  async setRttyMark(markHz: number): Promise<SliceSnapshot> {
+    await this.sendSet({ rtty_mark: this.toIntString(markHz) });
+    return this.snapshot();
+  }
+
+  async setRttyShift(shiftHz: number): Promise<SliceSnapshot> {
+    await this.sendSet({ rtty_shift: this.toIntString(shiftHz) });
+    return this.snapshot();
+  }
+
+  async setDigLOffset(offsetHz: number): Promise<SliceSnapshot> {
+    await this.sendSet({ digl_offset: this.toIntString(offsetHz) });
+    return this.snapshot();
+  }
+
+  async setDigUOffset(offsetHz: number): Promise<SliceSnapshot> {
+    await this.sendSet({ digu_offset: this.toIntString(offsetHz) });
+    return this.snapshot();
+  }
+
+  async setAudioGain(gain: number): Promise<SliceSnapshot> {
+    await this.sendSet({ audio_level: this.toIntString(gain) });
+    return this.snapshot();
+  }
+
+  async setAudioPan(pan: number): Promise<SliceSnapshot> {
+    await this.sendSet({ audio_pan: this.toIntString(pan) });
+    return this.snapshot();
+  }
+
+  async setMute(muted: boolean): Promise<SliceSnapshot> {
+    await this.sendSet({ audio_mute: this.toFlag(muted) });
+    return this.snapshot();
+  }
+
+  async setAnfEnabled(enabled: boolean): Promise<SliceSnapshot> {
+    await this.sendSet({ anf: this.toFlag(enabled) });
+    return this.snapshot();
+  }
+
+  async setAnfLevel(level: number): Promise<SliceSnapshot> {
+    await this.sendSet({ anf_level: this.toIntString(level) });
+    return this.snapshot();
+  }
+
+  async setApfEnabled(enabled: boolean): Promise<SliceSnapshot> {
+    await this.sendSet({ apf: this.toFlag(enabled) });
+    return this.snapshot();
+  }
+
+  async setApfLevel(level: number): Promise<SliceSnapshot> {
+    await this.sendSet({ apf_level: this.toIntString(level) });
+    return this.snapshot();
+  }
+
+  async setWnbEnabled(enabled: boolean): Promise<SliceSnapshot> {
+    await this.sendSet({ wnb: this.toFlag(enabled) });
+    return this.snapshot();
+  }
+
+  async setWnbLevel(level: number): Promise<SliceSnapshot> {
+    await this.sendSet({ wnb_level: this.toIntString(level) });
+    return this.snapshot();
+  }
+
+  async setNbEnabled(enabled: boolean): Promise<SliceSnapshot> {
+    await this.sendSet({ nb: this.toFlag(enabled) });
+    return this.snapshot();
+  }
+
+  async setNbLevel(level: number): Promise<SliceSnapshot> {
+    await this.sendSet({ nb_level: this.toIntString(level) });
+    return this.snapshot();
+  }
+
+  async setNrEnabled(enabled: boolean): Promise<SliceSnapshot> {
+    await this.sendSet({ nr: this.toFlag(enabled) });
+    return this.snapshot();
+  }
+
+  async setNrLevel(level: number): Promise<SliceSnapshot> {
+    await this.sendSet({ nr_level: this.toIntString(level) });
+    return this.snapshot();
+  }
+
+  async setAgcMode(mode: SliceAgcMode): Promise<SliceSnapshot> {
+    await this.sendSet({ agc_mode: mode });
+    return this.snapshot();
+  }
+
+  async setAgcSettings(settings: {
+    threshold?: number;
+    offLevel?: number;
+  }): Promise<SliceSnapshot> {
+    const entries = Object.create(null) as Record<string, string>;
+    if (settings.threshold !== undefined)
+      entries.agc_threshold = this.toIntString(settings.threshold);
+    if (settings.offLevel !== undefined)
+      entries.agc_off_level = this.toIntString(settings.offLevel);
+    if (Object.keys(entries).length > 0) {
+      await this.sendSet(entries);
+    }
+    return this.snapshot();
+  }
+
+  async setLoopAEnabled(enabled: boolean): Promise<SliceSnapshot> {
+    await this.sendSet({ loopa: this.toFlag(enabled) });
+    return this.snapshot();
+  }
+
+  async setLoopBEnabled(enabled: boolean): Promise<SliceSnapshot> {
+    await this.sendSet({ loopb: this.toFlag(enabled) });
+    return this.snapshot();
+  }
+
+  async setRitEnabled(enabled: boolean): Promise<SliceSnapshot> {
+    await this.sendSet({ rit_on: this.toFlag(enabled) });
+    return this.snapshot();
+  }
+
+  async setRitOffset(offsetHz: number): Promise<SliceSnapshot> {
+    await this.sendSet({ rit_freq: this.toIntString(offsetHz) });
+    return this.snapshot();
+  }
+
+  async setXitEnabled(enabled: boolean): Promise<SliceSnapshot> {
+    await this.sendSet({ xit_on: this.toFlag(enabled) });
+    return this.snapshot();
+  }
+
+  async setXitOffset(offsetHz: number): Promise<SliceSnapshot> {
+    await this.sendSet({ xit_freq: this.toIntString(offsetHz) });
+    return this.snapshot();
+  }
+
+  async setTuneStep(stepHz: number): Promise<SliceSnapshot> {
+    await this.sendSet({ step: this.toIntString(stepHz) });
+    return this.snapshot();
+  }
+
+  async setTuneStepList(stepsHz: readonly number[]): Promise<SliceSnapshot> {
+    const encoded = Array.from(stepsHz, (value) =>
+      this.toIntString(value),
+    ).join(",");
+    await this.sendSet({ step_list: encoded });
+    return this.snapshot();
+  }
+
+  async setRecordingEnabled(enabled: boolean): Promise<SliceSnapshot> {
+    await this.sendSet({ record: this.toFlag(enabled) });
+    return this.snapshot();
+  }
+
+  async setPlaybackEnabled(enabled: boolean): Promise<SliceSnapshot> {
+    await this.sendSet({ play: this.toFlag(enabled) });
+    return this.snapshot();
+  }
+
+  async setFmToneMode(mode: SliceToneMode): Promise<SliceSnapshot> {
+    await this.sendSet({ fm_tone_mode: mode });
+    return this.snapshot();
+  }
+
+  async setFmToneValue(value: number | string): Promise<SliceSnapshot> {
+    await this.sendSet({ fm_tone_value: this.formatToneValue(value) });
+    return this.snapshot();
+  }
+
+  async setFmDeviation(deviation: number): Promise<SliceSnapshot> {
+    await this.sendSet({ fm_deviation: this.toIntString(deviation) });
+    return this.snapshot();
+  }
+
+  async setFmToneBurstEnabled(enabled: boolean): Promise<SliceSnapshot> {
+    await this.sendSet({ fm_tone_burst: this.toFlag(enabled) });
+    return this.snapshot();
+  }
+
+  async setFmPreDeEmphasisEnabled(enabled: boolean): Promise<SliceSnapshot> {
+    await this.sendSet({ dfm_pre_de_emphasis: this.toFlag(enabled) });
+    return this.snapshot();
+  }
+
+  async setSquelchEnabled(enabled: boolean): Promise<SliceSnapshot> {
+    await this.sendSet({ squelch: this.toFlag(enabled) });
+    return this.snapshot();
+  }
+
+  async setSquelchLevel(level: number): Promise<SliceSnapshot> {
+    await this.sendSet({ squelch_level: this.toIntString(level) });
+    return this.snapshot();
+  }
+
+  async setTxOffsetFrequency(offsetHz: number): Promise<SliceSnapshot> {
+    await this.sendSet({ tx_offset_freq: formatMegahertz(offsetHz) });
+    return this.snapshot();
+  }
+
+  async setFmRepeaterOffsetFrequency(offsetHz: number): Promise<SliceSnapshot> {
+    await this.sendSet({ fm_repeater_offset_freq: formatMegahertz(offsetHz) });
+    return this.snapshot();
+  }
+
+  async setRepeaterOffsetDirection(
+    direction: SliceRepeaterOffsetDirection,
+  ): Promise<SliceSnapshot> {
+    await this.sendSet({ repeater_offset_dir: direction });
+    return this.snapshot();
+  }
+
+  async setDiversityEnabled(enabled: boolean): Promise<SliceSnapshot> {
+    await this.sendSet({ diversity: this.toFlag(enabled) });
+    return this.snapshot();
+  }
+
+  async setDiversityChildEnabled(enabled: boolean): Promise<SliceSnapshot> {
+    await this.sendSet({ diversity_child: this.toFlag(enabled) });
+    return this.snapshot();
+  }
+
+  async setDiversityIndex(index: number): Promise<SliceSnapshot> {
+    await this.sendSet({ diversity_index: this.toIntString(index) });
+    return this.snapshot();
+  }
+
+  async update(request: SliceUpdateRequest): Promise<SliceSnapshot> {
+    const { frequencyHz, isLocked, ...setRequest } = request;
+    const entries = this.buildSetEntries(setRequest);
+    if (Object.keys(entries).length > 0) {
+      await this.sendSet(entries);
+    }
+    if (isLocked !== undefined) {
+      await this.setLocked(isLocked);
+    }
+    if (frequencyHz !== undefined) {
+      await this.tune(frequencyHz);
+    }
+    return this.snapshot();
+  }
+
+  onStateChange(change: SliceStateChange): void {
+    this.events.emit("change", change);
+  }
+
+  private async sendSet(entries: Record<string, string>): Promise<void> {
+    const parts = Object.entries(entries).map(
+      ([key, value]) => `${key}=${value}`,
+    );
+    const command = `slice set ${this.id} ${parts.join(" ")}`;
+    await this.session.command(command);
+    this.session.patchSlice(this.id, { index: this.id, ...entries });
+  }
+
+  private buildSetEntries(
+    request: Omit<SliceUpdateRequest, "frequencyHz" | "isLocked">,
+  ): Record<string, string> {
+    const entries = Object.create(null) as Record<string, string>;
+    if (request.mode !== undefined) entries.mode = request.mode;
+    if (request.isActive !== undefined)
+      entries.active = this.toFlag(request.isActive);
+    if (request.isTransmitEnabled !== undefined)
+      entries.tx = this.toFlag(request.isTransmitEnabled);
+    if (request.rxAntenna !== undefined) entries.rxant = request.rxAntenna;
+    if (request.txAntenna !== undefined)
+      entries.txant = request.txAntenna ?? "";
+    if (request.daxChannel !== undefined)
+      entries.dax = this.toIntString(request.daxChannel);
+    if (request.rfGain !== undefined)
+      entries.rfgain = this.toIntString(request.rfGain);
+    if (request.filterLowHz !== undefined)
+      entries.filter_lo = this.toIntString(request.filterLowHz);
+    if (request.filterHighHz !== undefined)
+      entries.filter_hi = this.toIntString(request.filterHighHz);
+    if (request.rttyMarkHz !== undefined)
+      entries.rtty_mark = this.toIntString(request.rttyMarkHz);
+    if (request.rttyShiftHz !== undefined)
+      entries.rtty_shift = this.toIntString(request.rttyShiftHz);
+    if (request.diglOffsetHz !== undefined)
+      entries.digl_offset = this.toIntString(request.diglOffsetHz);
+    if (request.diguOffsetHz !== undefined)
+      entries.digu_offset = this.toIntString(request.diguOffsetHz);
+    if (request.audioPan !== undefined)
+      entries.audio_pan = this.toIntString(request.audioPan);
+    if (request.audioGain !== undefined)
+      entries.audio_level = this.toIntString(request.audioGain);
+    if (request.isMuted !== undefined)
+      entries.audio_mute = this.toFlag(request.isMuted);
+    if (request.anfEnabled !== undefined)
+      entries.anf = this.toFlag(request.anfEnabled);
+    if (request.anfLevel !== undefined)
+      entries.anf_level = this.toIntString(request.anfLevel);
+    if (request.apfEnabled !== undefined)
+      entries.apf = this.toFlag(request.apfEnabled);
+    if (request.apfLevel !== undefined)
+      entries.apf_level = this.toIntString(request.apfLevel);
+    if (request.wnbEnabled !== undefined)
+      entries.wnb = this.toFlag(request.wnbEnabled);
+    if (request.wnbLevel !== undefined)
+      entries.wnb_level = this.toIntString(request.wnbLevel);
+    if (request.nbEnabled !== undefined)
+      entries.nb = this.toFlag(request.nbEnabled);
+    if (request.nbLevel !== undefined)
+      entries.nb_level = this.toIntString(request.nbLevel);
+    if (request.nrEnabled !== undefined)
+      entries.nr = this.toFlag(request.nrEnabled);
+    if (request.nrLevel !== undefined)
+      entries.nr_level = this.toIntString(request.nrLevel);
+    if (request.agcMode !== undefined) entries.agc_mode = request.agcMode;
+    if (request.agcThreshold !== undefined)
+      entries.agc_threshold = this.toIntString(request.agcThreshold);
+    if (request.agcOffLevel !== undefined)
+      entries.agc_off_level = this.toIntString(request.agcOffLevel);
+    if (request.loopAEnabled !== undefined)
+      entries.loopa = this.toFlag(request.loopAEnabled);
+    if (request.loopBEnabled !== undefined)
+      entries.loopb = this.toFlag(request.loopBEnabled);
+    if (request.ritEnabled !== undefined)
+      entries.rit_on = this.toFlag(request.ritEnabled);
+    if (request.ritOffsetHz !== undefined)
+      entries.rit_freq = this.toIntString(request.ritOffsetHz);
+    if (request.xitEnabled !== undefined)
+      entries.xit_on = this.toFlag(request.xitEnabled);
+    if (request.xitOffsetHz !== undefined)
+      entries.xit_freq = this.toIntString(request.xitOffsetHz);
+    if (request.tuneStepHz !== undefined)
+      entries.step = this.toIntString(request.tuneStepHz);
+    if (request.tuneStepListHz !== undefined)
+      entries.step_list = Array.from(request.tuneStepListHz, (value) =>
+        this.toIntString(value),
+      ).join(",");
+    if (request.recordingEnabled !== undefined)
+      entries.record = this.toFlag(request.recordingEnabled);
+    if (request.playbackEnabled !== undefined)
+      entries.play = this.toFlag(request.playbackEnabled);
+    if (request.fmToneMode !== undefined)
+      entries.fm_tone_mode = request.fmToneMode;
+    if (request.fmToneValue !== undefined)
+      entries.fm_tone_value = this.formatToneValue(request.fmToneValue);
+    if (request.fmDeviation !== undefined)
+      entries.fm_deviation = this.toIntString(request.fmDeviation);
+    if (request.fmToneBurstEnabled !== undefined)
+      entries.fm_tone_burst = this.toFlag(request.fmToneBurstEnabled);
+    if (request.fmPreDeEmphasisEnabled !== undefined)
+      entries.dfm_pre_de_emphasis = this.toFlag(request.fmPreDeEmphasisEnabled);
+    if (request.squelchEnabled !== undefined)
+      entries.squelch = this.toFlag(request.squelchEnabled);
+    if (request.squelchLevel !== undefined)
+      entries.squelch_level = this.toIntString(request.squelchLevel);
+    if (request.txOffsetFrequencyHz !== undefined)
+      entries.tx_offset_freq = formatMegahertz(request.txOffsetFrequencyHz);
+    if (request.fmRepeaterOffsetFrequencyHz !== undefined)
+      entries.fm_repeater_offset_freq = formatMegahertz(
+        request.fmRepeaterOffsetFrequencyHz,
+      );
+    if (request.repeaterOffsetDirection !== undefined)
+      entries.repeater_offset_dir = request.repeaterOffsetDirection;
+    if (request.diversityEnabled !== undefined)
+      entries.diversity = this.toFlag(request.diversityEnabled);
+    if (request.diversityChild !== undefined)
+      entries.diversity_child = this.toFlag(request.diversityChild);
+    if (request.diversityIndex !== undefined)
+      entries.diversity_index = this.toIntString(request.diversityIndex);
+    return entries;
+  }
+
+  private toFlag(value: boolean): string {
+    return value ? "1" : "0";
+  }
+
+  private toIntString(value: number): string {
+    return Math.round(value).toString(10);
+  }
+
+  private formatToneValue(value: number | string): string {
+    if (typeof value === "number") {
+      return value.toFixed(1);
+    }
+    return value;
+  }
+}
+function formatMegahertz(frequencyHz: number): string {
+  const mhz = frequencyHz / 1_000_000;
+  return mhz.toFixed(6);
+}

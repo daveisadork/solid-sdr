@@ -5,6 +5,7 @@ import {
   createEffect,
   createSignal,
   onCleanup,
+  onMount,
   ParentComponent,
   useContext,
 } from "solid-js";
@@ -15,14 +16,15 @@ import {
   SetStoreFunction,
 } from "solid-js/store";
 import { showToast } from "~/components/ui/toast";
-import { DiscoveryPayload } from "~/lib/vita49";
-import { useRtc } from "./rtc";
 import {
+  createVitaDiscoveryAdapter,
   parseVitaPacket,
   VitaPacketKind,
   VitaParsedPacket,
   VitaPacketMetadata,
 } from "@repo/flexlib";
+import type { DiscoverySession, FlexRadioDescriptor } from "@repo/flexlib";
+import { useRtc } from "./rtc";
 
 export type PacketEventType = VitaPacketKind;
 
@@ -52,8 +54,8 @@ export class PacketEvent<
   }
 }
 
-export interface DiscoveryRadio extends DiscoveryPayload {
-  last_seen: Date;
+export interface DiscoveryRadio extends FlexRadioDescriptor {
+  lastSeen: Date;
 }
 
 export enum ConnectionState {
@@ -553,16 +555,141 @@ export const FlexRadioProvider: ParentComponent = (props) => {
   const meterScratch = { ids: new Uint16Array(0), values: new Int16Array(0) };
   const panadapterScratch = { payload: new Uint16Array(0) };
   const waterfallScratch = { data: new Uint16Array(0) };
+  const serialToHost = new Map<string, string>();
   const discoveryWs = createReconnectingWS("/ws/discovery");
+  let discoverySession: DiscoverySession | null = null;
 
   discoveryWs.addEventListener("open", ({ target }) => {
     (target as WebSocket).binaryType = "arraybuffer";
   });
 
-  createEffect(() => {
-    discoveryWs.addEventListener("message", handleUdpPacket);
+  const discoveryAdapter = createVitaDiscoveryAdapter({
+    transportFactory: {
+      async start(handlers) {
+        let closed = false;
+
+        const handleMessage = (event: MessageEvent) => {
+          if (closed) return;
+          const { data } = event;
+          if (typeof data === "string") return;
+
+          if (data instanceof ArrayBuffer) {
+            handlers.onMessage(new Uint8Array(data));
+            return;
+          }
+
+          if (data instanceof Blob) {
+            data
+              .arrayBuffer()
+              .then((buffer) => {
+                if (!closed) handlers.onMessage(new Uint8Array(buffer));
+              })
+              .catch((error) => handlers.onError?.(error));
+            return;
+          }
+
+          if (data instanceof Uint8Array) {
+            handlers.onMessage(data);
+            return;
+          }
+
+          handlers.onError?.(
+            new Error(`Unsupported discovery payload type: ${typeof data}`),
+          );
+        };
+
+        const handleError = (error: Event) => {
+          if (closed) return;
+          handlers.onError?.(error);
+        };
+
+        discoveryWs.addEventListener("message", handleMessage);
+        discoveryWs.addEventListener("error", handleError);
+
+        return {
+          async close() {
+            if (closed) return;
+            closed = true;
+            discoveryWs.removeEventListener("message", handleMessage);
+            discoveryWs.removeEventListener("error", handleError);
+            discoveryWs.close();
+          },
+        };
+      },
+    },
+    logger: {
+      warn(message, meta) {
+        console.warn(message, meta);
+      },
+      error(message, meta) {
+        console.error(message, meta);
+      },
+    },
+  });
+
+  onMount(() => {
+    let disposed = false;
+
+    discoveryAdapter
+      .start({
+        onOnline(descriptor) {
+          if (disposed) return;
+          const lastSeenRaw = descriptor.discoveryMeta?.lastSeen;
+          const lastSeen =
+            typeof lastSeenRaw === "number"
+              ? new Date(lastSeenRaw)
+              : new Date();
+          const previousHost = serialToHost.get(descriptor.serial);
+          if (previousHost && previousHost !== descriptor.host) {
+            setState("connectModal", "radios", (radios) => {
+              const next = { ...radios };
+              delete next[previousHost];
+              return next;
+            });
+          }
+          serialToHost.set(descriptor.serial, descriptor.host);
+          setState("connectModal", "radios", descriptor.host, {
+            ...descriptor,
+            lastSeen,
+          });
+        },
+        onOffline(serial) {
+          if (disposed) return;
+          const host = serialToHost.get(serial);
+          if (!host) return;
+          serialToHost.delete(serial);
+          setState("connectModal", "radios", (radios) => {
+            const next = { ...radios };
+            delete next[host];
+            return next;
+          });
+        },
+        onError(error) {
+          console.warn("Discovery adapter error", error);
+        },
+      })
+      .then((session) => {
+        if (disposed) {
+          return session.stop().catch((error) => {
+            console.error("Failed to stop discovery session", error);
+          });
+        }
+        discoverySession = session;
+      })
+      .catch((error) => {
+        console.error("Failed to start discovery session", error);
+      });
+
     onCleanup(() => {
-      discoveryWs.removeEventListener("message", handleUdpPacket);
+      disposed = true;
+      if (discoverySession) {
+        discoverySession
+          .stop()
+          .catch((error) =>
+            console.error("Failed to stop discovery session", error),
+          );
+        discoverySession = null;
+      }
     });
   });
 
@@ -1303,6 +1430,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     ws()?.close();
     setWs(null);
     setState(reconcile(initialState()));
+    serialToHost.clear();
     setCmdCount(0);
   };
 

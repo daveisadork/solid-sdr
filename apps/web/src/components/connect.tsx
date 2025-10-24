@@ -1,4 +1,4 @@
-import { createEffect, createSignal, For, Show, onCleanup } from "solid-js";
+import { createEffect, createSignal, For, Show } from "solid-js";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import {
@@ -9,34 +9,14 @@ import {
   DialogTrigger,
 } from "./ui/dialog";
 import { Skeleton } from "./ui/skeleton";
-import { createStore } from "solid-js/store";
 import useFlexRadio, {
   ConnectionState,
-  PacketEvent,
 } from "~/context/flexradio";
-import { decodeDiscoveryPayload } from "~/lib/vita49";
 import { ProgressCircle } from "./ui/progress-circle";
 
 export default function Connect() {
-  const { connect, disconnect, events, state } = useFlexRadio();
-  const [radios, setRadios] = createStore(state.connectModal.radios);
+  const { connect, disconnect, state } = useFlexRadio();
   const [open, setOpen] = createSignal(state.connectModal.open);
-
-  createEffect(() => {
-    const textEncoder = new TextEncoder();
-    const listener = ({ packet }: PacketEvent<"discovery">) => {
-      const payload = decodeDiscoveryPayload(
-        textEncoder.encode(packet.payload),
-      );
-      setRadios(payload.ip, {
-        ...payload,
-        last_seen: new Date(),
-      });
-    };
-
-    events.addEventListener("discovery", listener);
-    onCleanup(() => events.removeEventListener("discovery", listener));
-  });
 
   createEffect((lastOpen) => {
     if (open() && !lastOpen) {
@@ -81,8 +61,8 @@ export default function Connect() {
         <Card>
           <ul class="grid w-full gap-0">
             <For
-              each={Object.values(radios).filter(
-                (radio) => radio.last_seen > new Date(Date.now() - 1000 * 20),
+              each={Object.values(state.connectModal.radios).filter(
+                (radio) => radio.lastSeen.getTime() > Date.now() - 20_000,
               )}
               fallback={
                 <li class="flex p-2">
@@ -102,14 +82,14 @@ export default function Connect() {
                 <li class="flex p-2 items-center">
                   <div class="text-sm flex-col grow">
                     <div class="font-semibold">{radio.nickname}</div>
-                    <div class="text-muted-foreground">{radio.ip}</div>
+                    <div class="text-muted-foreground">{radio.host}</div>
                   </div>
                   <div>
                     <Show
                       when={
                         state.connectModal.status ===
                           ConnectionState.connecting &&
-                        state.connectModal.selectedRadio === radio.ip
+                        state.connectModal.selectedRadio === radio.host
                       }
                       fallback={
                         <Button
@@ -123,7 +103,7 @@ export default function Connect() {
                               ConnectionState.disconnected
                             )
                               return;
-                            connect({ host: radio.ip, port: radio.port });
+                            connect({ host: radio.host, port: radio.port });
                           }}
                         >
                           Connect

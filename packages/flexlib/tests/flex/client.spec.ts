@@ -80,6 +80,64 @@ describe("FlexClient", () => {
     expect(channel.commands.at(-1)?.command).toBe("slice set 0 nr_level=5");
     expect(slice?.nrLevel).toBe(5);
 
+    await slice?.setNrlEnabled(true);
+    expect(channel.commands.at(-1)?.command).toBe("slice set 0 lms_nr=1");
+    expect(slice?.nrlEnabled).toBe(true);
+
+    await slice?.setNrlLevel(15);
+    expect(channel.commands.at(-1)?.command).toBe("slice set 0 lms_nr_level=15");
+    expect(slice?.nrlLevel).toBe(15);
+
+    await slice?.setAnflEnabled(true);
+    expect(channel.commands.at(-1)?.command).toBe("slice set 0 lms_anf=1");
+    expect(slice?.anflEnabled).toBe(true);
+
+    await slice?.setAnflLevel(25);
+    expect(channel.commands.at(-1)?.command).toBe(
+      "slice set 0 lms_anf_level=25",
+    );
+    expect(slice?.anflLevel).toBe(25);
+
+    await slice?.setNrsEnabled(true);
+    expect(channel.commands.at(-1)?.command).toBe("slice set 0 speex_nr=1");
+    expect(slice?.nrsEnabled).toBe(true);
+
+    await slice?.setNrsLevel(18);
+    expect(channel.commands.at(-1)?.command).toBe(
+      "slice set 0 speex_nr_level=18",
+    );
+    expect(slice?.nrsLevel).toBe(18);
+
+    await slice?.setRnnEnabled(true);
+    expect(channel.commands.at(-1)?.command).toBe("slice set 0 rnnoise=1");
+    expect(slice?.rnnEnabled).toBe(true);
+
+    await slice?.setAnftEnabled(true);
+    expect(channel.commands.at(-1)?.command).toBe("slice set 0 anft=1");
+    expect(slice?.anftEnabled).toBe(true);
+
+    await slice?.setNrfEnabled(true);
+    expect(channel.commands.at(-1)?.command).toBe("slice set 0 nrf=1");
+    expect(slice?.nrfEnabled).toBe(true);
+
+    await slice?.setNrfLevel(40);
+    expect(channel.commands.at(-1)?.command).toBe("slice set 0 nrf_level=40");
+    expect(slice?.nrfLevel).toBe(40);
+
+    await slice?.setEscEnabled(true);
+    expect(channel.commands.at(-1)?.command).toBe("slice set 0 esc=on");
+    expect(slice?.escEnabled).toBe(true);
+
+    await slice?.setEscGain(0.8);
+    expect(channel.commands.at(-1)?.command).toBe("slice set 0 esc_gain=0.8");
+    expect(slice?.escGain).toBeCloseTo(0.8);
+
+    await slice?.setEscPhaseShift(12.5);
+    expect(channel.commands.at(-1)?.command).toBe(
+      "slice set 0 esc_phase_shift=12.5",
+    );
+    expect(slice?.escPhaseShift).toBeCloseTo(12.5);
+
     await slice?.setAgcMode("fast");
     expect(channel.commands.at(-1)?.command).toBe("slice set 0 agc_mode=fast");
     expect(slice?.agcMode).toBe("fast");
@@ -109,6 +167,11 @@ describe("FlexClient", () => {
       "slice set 0 step_list=10,50,100",
     );
     expect(slice?.tuneStepListHz).toEqual([10, 50, 100]);
+
+    await slice?.cwAutoTune({ intermittent: true });
+    expect(channel.commands.at(-1)?.command).toBe(
+      "slice auto_tune 0 int=1",
+    );
 
     await slice?.update({
       audioGain: 55,

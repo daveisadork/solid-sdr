@@ -34,6 +34,8 @@ export interface PanadapterUpdateRequest {
    * Wideband Noise Blanker (WNB) level from 0 to 100.
    */
   wnbLevel?: number;
+  noiseFloorPosition?: number;
+  noiseFloorPositionEnabled?: boolean;
   rxAntenna?: string;
   rfGain?: number;
   daxIqChannel?: number;
@@ -83,6 +85,8 @@ export interface PanadapterController {
    * Whether the noise blanker is currently updating.
    */
   readonly wnbUpdating: boolean;
+  readonly noiseFloorPosition: number;
+  readonly noiseFloorPositionEnabled: boolean;
   readonly rxAntenna: string;
   readonly rfGain: number;
   readonly rfGainLow: number;
@@ -136,6 +140,8 @@ export interface PanadapterController {
    * Sets the Wideband Noise Blanker (WNB) level from 0 to 100.
    */
   setWnbLevel(level: number): Promise<PanadapterSnapshot>;
+  setNoiseFloorPosition(value: number): Promise<PanadapterSnapshot>;
+  setNoiseFloorPositionEnabled(enabled: boolean): Promise<PanadapterSnapshot>;
   setRxAntenna(port: string): Promise<PanadapterSnapshot>;
   setRfGain(value: number): Promise<PanadapterSnapshot>;
   setDaxIqChannel(channel: number): Promise<PanadapterSnapshot>;
@@ -242,6 +248,14 @@ export class PanadapterControllerImpl implements PanadapterController {
 
   get wnbUpdating(): boolean {
     return this.current().wnbUpdating;
+  }
+
+  get noiseFloorPosition(): number {
+    return this.current().noiseFloorPosition;
+  }
+
+  get noiseFloorPositionEnabled(): boolean {
+    return this.current().noiseFloorPositionEnabled;
   }
 
   get rxAntenna(): string {
@@ -427,6 +441,22 @@ export class PanadapterControllerImpl implements PanadapterController {
     return this.snapshot();
   }
 
+  async setNoiseFloorPosition(
+    value: number,
+  ): Promise<PanadapterSnapshot> {
+    await this.sendSet({
+      pan_position: this.toIntString(Math.round(value)),
+    });
+    return this.snapshot();
+  }
+
+  async setNoiseFloorPositionEnabled(
+    enabled: boolean,
+  ): Promise<PanadapterSnapshot> {
+    await this.sendSet({ pan_position_enable: this.toFlag(enabled) });
+    return this.snapshot();
+  }
+
   async setRxAntenna(port: string): Promise<PanadapterSnapshot> {
     await this.sendSet({ rxant: port });
     return this.snapshot();
@@ -581,6 +611,14 @@ export class PanadapterControllerImpl implements PanadapterController {
       const clamped = this.clampNumber(Math.round(request.wnbLevel), 0, 100);
       entries.wnb_level = this.toIntString(clamped);
     }
+    if (request.noiseFloorPosition !== undefined)
+      entries.pan_position = this.toIntString(
+        Math.round(request.noiseFloorPosition),
+      );
+    if (request.noiseFloorPositionEnabled !== undefined)
+      entries.pan_position_enable = this.toFlag(
+        request.noiseFloorPositionEnabled,
+      );
     if (request.rxAntenna !== undefined) entries.rxant = request.rxAntenna;
     if (request.rfGain !== undefined)
       entries.rfgain = this.toIntString(request.rfGain);

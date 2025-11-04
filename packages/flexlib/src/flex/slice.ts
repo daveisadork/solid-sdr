@@ -40,6 +40,19 @@ export interface SliceUpdateRequest {
   apfLevel?: number;
   wnbEnabled?: boolean;
   wnbLevel?: number;
+  nrlEnabled?: boolean;
+  nrlLevel?: number;
+  anflEnabled?: boolean;
+  anflLevel?: number;
+  nrsEnabled?: boolean;
+  nrsLevel?: number;
+  rnnEnabled?: boolean;
+  anftEnabled?: boolean;
+  nrfEnabled?: boolean;
+  nrfLevel?: number;
+  escEnabled?: boolean;
+  escGain?: number;
+  escPhaseShift?: number;
   nbEnabled?: boolean;
   nbLevel?: number;
   nrEnabled?: boolean;
@@ -206,6 +219,19 @@ export interface SliceController {
    * Noise Reduction (NR) level from 0 to 100.
    */
   readonly nrLevel: number;
+  readonly nrlEnabled: boolean;
+  readonly nrlLevel: number;
+  readonly anflEnabled: boolean;
+  readonly anflLevel: number;
+  readonly nrsEnabled: boolean;
+  readonly nrsLevel: number;
+  readonly rnnEnabled: boolean;
+  readonly anftEnabled: boolean;
+  readonly nrfEnabled: boolean;
+  readonly nrfLevel: number;
+  readonly escEnabled: boolean;
+  readonly escGain: number;
+  readonly escPhaseShift: number;
   /**
    * Current AGC mode for the slice.
    */
@@ -292,6 +318,7 @@ export interface SliceController {
   ): Subscription;
   tune(frequencyHz: number): Promise<SliceSnapshot>;
   nudge(deltaHz: number): Promise<SliceSnapshot>;
+  cwAutoTune(options?: { intermittent?: boolean }): Promise<void>;
   /**
    * Sets the demodulation mode for the slice, e.g. "USB", "DIGU", "LSB", "DIGL", "CW", "DSB", "AM", "SAM", "FM".
    */
@@ -383,6 +410,19 @@ export interface SliceController {
    * Sets the Wideband Noise Blanker (WNB) level from 0 to 100.
    */
   setWnbLevel(level: number): Promise<SliceSnapshot>;
+  setNrlEnabled(enabled: boolean): Promise<SliceSnapshot>;
+  setNrlLevel(level: number): Promise<SliceSnapshot>;
+  setAnflEnabled(enabled: boolean): Promise<SliceSnapshot>;
+  setAnflLevel(level: number): Promise<SliceSnapshot>;
+  setNrsEnabled(enabled: boolean): Promise<SliceSnapshot>;
+  setNrsLevel(level: number): Promise<SliceSnapshot>;
+  setRnnEnabled(enabled: boolean): Promise<SliceSnapshot>;
+  setAnftEnabled(enabled: boolean): Promise<SliceSnapshot>;
+  setNrfEnabled(enabled: boolean): Promise<SliceSnapshot>;
+  setNrfLevel(level: number): Promise<SliceSnapshot>;
+  setEscEnabled(enabled: boolean): Promise<SliceSnapshot>;
+  setEscGain(gain: number): Promise<SliceSnapshot>;
+  setEscPhaseShift(phase: number): Promise<SliceSnapshot>;
   /**
    * Enables or disables the Noise Blanker (NB).
    */
@@ -659,6 +699,58 @@ export class SliceControllerImpl implements SliceController {
     return this.current().nrLevel;
   }
 
+  get nrlEnabled(): boolean {
+    return this.current().nrlEnabled;
+  }
+
+  get nrlLevel(): number {
+    return this.current().nrlLevel;
+  }
+
+  get anflEnabled(): boolean {
+    return this.current().anflEnabled;
+  }
+
+  get anflLevel(): number {
+    return this.current().anflLevel;
+  }
+
+  get nrsEnabled(): boolean {
+    return this.current().nrsEnabled;
+  }
+
+  get nrsLevel(): number {
+    return this.current().nrsLevel;
+  }
+
+  get rnnEnabled(): boolean {
+    return this.current().rnnEnabled;
+  }
+
+  get anftEnabled(): boolean {
+    return this.current().anftEnabled;
+  }
+
+  get nrfEnabled(): boolean {
+    return this.current().nrfEnabled;
+  }
+
+  get nrfLevel(): number {
+    return this.current().nrfLevel;
+  }
+
+  get escEnabled(): boolean {
+    return this.current().escEnabled;
+  }
+
+  get escGain(): number {
+    return this.current().escGain;
+  }
+
+  get escPhaseShift(): number {
+    return this.current().escPhaseShift;
+  }
+
   get agcMode(): string {
     return this.current().agcMode;
   }
@@ -794,6 +886,14 @@ export class SliceControllerImpl implements SliceController {
     return this.tune(nextFrequency);
   }
 
+  async cwAutoTune(options?: { intermittent?: boolean }): Promise<void> {
+    const parts = [`slice auto_tune ${this.id}`];
+    if (options?.intermittent !== undefined) {
+      parts.push(`int=${options.intermittent ? "1" : "0"}`);
+    }
+    await this.session.command(parts.join(" "));
+  }
+
   async setMode(mode: string): Promise<SliceSnapshot> {
     await this.sendSet({ mode });
     return this.snapshot();
@@ -920,6 +1020,71 @@ export class SliceControllerImpl implements SliceController {
 
   async setWnbLevel(level: number): Promise<SliceSnapshot> {
     await this.sendSet({ wnb_level: this.toIntString(level) });
+    return this.snapshot();
+  }
+
+  async setNrlEnabled(enabled: boolean): Promise<SliceSnapshot> {
+    await this.sendSet({ lms_nr: this.toFlag(enabled) });
+    return this.snapshot();
+  }
+
+  async setNrlLevel(level: number): Promise<SliceSnapshot> {
+    await this.sendSet({ lms_nr_level: this.toIntString(level) });
+    return this.snapshot();
+  }
+
+  async setAnflEnabled(enabled: boolean): Promise<SliceSnapshot> {
+    await this.sendSet({ lms_anf: this.toFlag(enabled) });
+    return this.snapshot();
+  }
+
+  async setAnflLevel(level: number): Promise<SliceSnapshot> {
+    await this.sendSet({ lms_anf_level: this.toIntString(level) });
+    return this.snapshot();
+  }
+
+  async setNrsEnabled(enabled: boolean): Promise<SliceSnapshot> {
+    await this.sendSet({ speex_nr: this.toFlag(enabled) });
+    return this.snapshot();
+  }
+
+  async setNrsLevel(level: number): Promise<SliceSnapshot> {
+    await this.sendSet({ speex_nr_level: this.toIntString(level) });
+    return this.snapshot();
+  }
+
+  async setRnnEnabled(enabled: boolean): Promise<SliceSnapshot> {
+    await this.sendSet({ rnnoise: this.toFlag(enabled) });
+    return this.snapshot();
+  }
+
+  async setAnftEnabled(enabled: boolean): Promise<SliceSnapshot> {
+    await this.sendSet({ anft: this.toFlag(enabled) });
+    return this.snapshot();
+  }
+
+  async setNrfEnabled(enabled: boolean): Promise<SliceSnapshot> {
+    await this.sendSet({ nrf: this.toFlag(enabled) });
+    return this.snapshot();
+  }
+
+  async setNrfLevel(level: number): Promise<SliceSnapshot> {
+    await this.sendSet({ nrf_level: this.toIntString(level) });
+    return this.snapshot();
+  }
+
+  async setEscEnabled(enabled: boolean): Promise<SliceSnapshot> {
+    await this.sendSet({ esc: enabled ? "on" : "off" });
+    return this.snapshot();
+  }
+
+  async setEscGain(gain: number): Promise<SliceSnapshot> {
+    await this.sendSet({ esc_gain: String(gain) });
+    return this.snapshot();
+  }
+
+  async setEscPhaseShift(phase: number): Promise<SliceSnapshot> {
+    await this.sendSet({ esc_phase_shift: String(phase) });
     return this.snapshot();
   }
 
@@ -1157,6 +1322,32 @@ export class SliceControllerImpl implements SliceController {
       entries.wnb = this.toFlag(request.wnbEnabled);
     if (request.wnbLevel !== undefined)
       entries.wnb_level = this.toIntString(request.wnbLevel);
+    if (request.nrlEnabled !== undefined)
+      entries.lms_nr = this.toFlag(request.nrlEnabled);
+    if (request.nrlLevel !== undefined)
+      entries.lms_nr_level = this.toIntString(request.nrlLevel);
+    if (request.anflEnabled !== undefined)
+      entries.lms_anf = this.toFlag(request.anflEnabled);
+    if (request.anflLevel !== undefined)
+      entries.lms_anf_level = this.toIntString(request.anflLevel);
+    if (request.nrsEnabled !== undefined)
+      entries.speex_nr = this.toFlag(request.nrsEnabled);
+    if (request.nrsLevel !== undefined)
+      entries.speex_nr_level = this.toIntString(request.nrsLevel);
+    if (request.rnnEnabled !== undefined)
+      entries.rnnoise = this.toFlag(request.rnnEnabled);
+    if (request.anftEnabled !== undefined)
+      entries.anft = this.toFlag(request.anftEnabled);
+    if (request.nrfEnabled !== undefined)
+      entries.nrf = this.toFlag(request.nrfEnabled);
+    if (request.nrfLevel !== undefined)
+      entries.nrf_level = this.toIntString(request.nrfLevel);
+    if (request.escEnabled !== undefined)
+      entries.esc = request.escEnabled ? "on" : "off";
+    if (request.escGain !== undefined)
+      entries.esc_gain = String(request.escGain);
+    if (request.escPhaseShift !== undefined)
+      entries.esc_phase_shift = String(request.escPhaseShift);
     if (request.nbEnabled !== undefined)
       entries.nb = this.toFlag(request.nbEnabled);
     if (request.nbLevel !== undefined)

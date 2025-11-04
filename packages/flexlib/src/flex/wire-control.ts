@@ -33,7 +33,17 @@ export interface FlexWireControlFactoryOptions {
   readonly logger?: Logger;
   readonly defaultCommandTimeoutMs?: number;
   readonly commandTerminator?: string;
-  readonly textDecoderFactory?: () => TextDecoder;
+  readonly textDecoderFactory?: () => WireTextDecoder;
+}
+
+type WireDecodeInput =
+  | Uint8Array
+  | ArrayBuffer
+  | ArrayBufferView
+  | undefined;
+
+interface WireTextDecoder {
+  decode(input?: WireDecodeInput, options?: { stream?: boolean }): string;
 }
 
 export function createFlexWireControlFactory(
@@ -47,7 +57,10 @@ export function createFlexWireControlFactory(
   const commandTerminator = options.commandTerminator ?? "\n";
 
   return {
-    async connect(radio, connectOptions) {
+    async connect(
+      radio: FlexRadioDescriptor,
+      connectOptions?: Record<string, unknown>,
+    ) {
       const listeners = new Set<(message: FlexWireMessage) => void>();
       const pending = new Map<number, PendingCommand>();
       let nextSequence = 1;
@@ -172,7 +185,7 @@ export function createFlexWireControlFactory(
         },
       };
 
-      const transport = await transportFactory.connect(
+      const transport: FlexWireTransport = await transportFactory.connect(
         radio,
         transportHandlers,
         connectOptions,
@@ -263,11 +276,14 @@ export function createFlexWireControlFactory(
 }
 
 function createDecoder(
-  factory?: () => TextDecoder,
-): TextDecoder {
+  factory?: () => WireTextDecoder,
+): WireTextDecoder {
   if (factory) return factory();
-  if (typeof TextDecoder !== "undefined") {
-    return new TextDecoder();
+  const Decoder = (globalThis as {
+    TextDecoder?: { new (): WireTextDecoder };
+  }).TextDecoder;
+  if (Decoder) {
+    return new Decoder();
   }
   throw new Error(
     "Flex wire control requires TextDecoder support in the current environment",

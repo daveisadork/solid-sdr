@@ -37,6 +37,19 @@ export interface SliceSnapshot {
   readonly nbLevel: number;
   readonly nrEnabled: boolean;
   readonly nrLevel: number;
+  readonly nrlEnabled: boolean;
+  readonly nrlLevel: number;
+  readonly anflEnabled: boolean;
+  readonly anflLevel: number;
+  readonly nrsEnabled: boolean;
+  readonly nrsLevel: number;
+  readonly rnnEnabled: boolean;
+  readonly anftEnabled: boolean;
+  readonly nrfEnabled: boolean;
+  readonly nrfLevel: number;
+  readonly escEnabled: boolean;
+  readonly escGain: number;
+  readonly escPhaseShift: number;
   readonly agcMode: string;
   readonly agcThreshold: number;
   readonly agcOffLevel: number;
@@ -102,6 +115,8 @@ export interface PanadapterSnapshot {
   readonly wnbEnabled: boolean;
   readonly wnbLevel: number;
   readonly wnbUpdating: boolean;
+  readonly noiseFloorPosition: number;
+  readonly noiseFloorPositionEnabled: boolean;
   readonly width: number;
   readonly height: number;
   readonly fps: number;
@@ -739,6 +754,19 @@ function createSliceSnapshot(
         nbLevel: 0,
         nrEnabled: false,
         nrLevel: 0,
+        nrlEnabled: false,
+        nrlLevel: 0,
+        anflEnabled: false,
+        anflLevel: 0,
+        nrsEnabled: false,
+        nrsLevel: 0,
+        rnnEnabled: false,
+        anftEnabled: false,
+        nrfEnabled: false,
+        nrfLevel: 0,
+        escEnabled: false,
+        escGain: 1,
+        escPhaseShift: 0,
         agcMode: "",
         agcThreshold: 0,
         agcOffLevel: 0,
@@ -948,6 +976,103 @@ function createSliceSnapshot(
         else logParseError("slice", key, value);
         break;
       }
+      case "lms_nr":
+      case "nrl":
+        next.nrlEnabled = isTruthy(value);
+        break;
+      case "lms_nr_level": {
+        const parsed = parseInteger(value);
+        if (parsed !== undefined) next.nrlLevel = parsed;
+        else logParseError("slice", key, value);
+        break;
+      }
+      case "nrl_level": {
+        const parsed = parseInteger(value);
+        if (parsed !== undefined) next.nrlLevel = parsed;
+        else logParseError("slice", key, value);
+        break;
+      }
+      case "lms_anf":
+      case "anfl":
+        next.anflEnabled = isTruthy(value);
+        break;
+      case "lms_anf_level": {
+        const parsed = parseInteger(value);
+        if (parsed !== undefined) next.anflLevel = parsed;
+        else logParseError("slice", key, value);
+        break;
+      }
+      case "anfl_level": {
+        const parsed = parseInteger(value);
+        if (parsed !== undefined) next.anflLevel = parsed;
+        else logParseError("slice", key, value);
+        break;
+      }
+      case "speex_nr":
+      case "nrs":
+        next.nrsEnabled = isTruthy(value);
+        break;
+      case "speex_nr_level": {
+        const parsed = parseInteger(value);
+        if (parsed !== undefined) next.nrsLevel = parsed;
+        else logParseError("slice", key, value);
+        break;
+      }
+      case "nrs_level": {
+        const parsed = parseInteger(value);
+        if (parsed !== undefined) next.nrsLevel = parsed;
+        else logParseError("slice", key, value);
+        break;
+      }
+      case "rnnoise":
+      case "rnn":
+        next.rnnEnabled = isTruthy(value);
+        break;
+      case "anft":
+        next.anftEnabled = isTruthy(value);
+        break;
+      case "nrf":
+        next.nrfEnabled = isTruthy(value);
+        break;
+      case "nrf_level": {
+        const parsed = parseInteger(value);
+        if (parsed !== undefined) next.nrfLevel = parsed;
+        else logParseError("slice", key, value);
+        break;
+      }
+      case "esc":
+        next.escEnabled = isTruthy(value);
+        break;
+      case "esc_gain": {
+        const parsed = parseFloatSafe(value);
+        if (parsed !== undefined) next.escGain = parsed;
+        else logParseError("slice", key, value);
+        break;
+      }
+      case "esc_phase_shift": {
+        const parsed = parseFloatSafe(value);
+        if (parsed !== undefined) next.escPhaseShift = parsed;
+        else logParseError("slice", key, value);
+        break;
+      }
+      case "nr_wlen":
+      case "nr_delay":
+      case "nr_adapt_mode":
+      case "nr_isdft_mode":
+      case "nrl_filter_size":
+      case "nrl_delay":
+      case "nrl_leakage_level":
+      case "nrf_winc":
+      case "nrf_wlen":
+      case "anf_wlen":
+      case "anf_delay":
+      case "anf_adapt_mode":
+      case "anf_isdft_mode":
+      case "anfl_filter_size":
+      case "anfl_delay":
+      case "anfl_leakage_level":
+        // Advanced DSP parameters exposed on 4.x radios; tracked via raw map only.
+        break;
       case "agc_mode":
         next.agcMode = value;
         break;
@@ -1200,6 +1325,8 @@ function createPanadapterSnapshot(
         wnbEnabled: false,
         wnbLevel: 0,
         wnbUpdating: false,
+        noiseFloorPosition: 0,
+        noiseFloorPositionEnabled: false,
         width: 0,
         height: 0,
         fps: 0,
@@ -1350,6 +1477,17 @@ function createPanadapterSnapshot(
       }
       case "wnb_updating":
         next.wnbUpdating = isTruthy(value);
+        break;
+      case "pan_position":
+      case "noise_floor_position": {
+        const parsed = parseInteger(value);
+        if (parsed !== undefined) next.noiseFloorPosition = parsed;
+        else logParseError("panadapter", key, value);
+        break;
+      }
+      case "pan_position_enable":
+      case "noise_floor_position_enable":
+        next.noiseFloorPositionEnabled = isTruthy(value);
         break;
       case "xpixels":
       case "x_pixels": {

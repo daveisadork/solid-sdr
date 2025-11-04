@@ -24,7 +24,7 @@ describe("Panadapter controller", () => {
 
     channel.emit(
       makeStatus(
-        "S3A5E996B|display pan 0x40000000 client_handle=0x68AE2A9B wnb=1 wnb_level=90 wnb_updating=0 band_zoom=0 segment_zoom=0 x_pixels=1902 y_pixels=201 center=14.999367 bandwidth=0.012634 min_dbm=-135.00 max_dbm=-40.00 fps=25 average=50 weighted_average=0 rfgain=8 rxant=ANT1 wide=1 loopa=0 loopb=0 band=33 daxiq_channel=0 waterfall=0x42000000 min_bw=0.001230 max_bw=14.745601 xvtr= pre=+8dB ant_list=ANT1,ANT2,RX_A,RX_B,XVTA,XVTB",
+        "S3A5E996B|display pan 0x40000000 client_handle=0x68AE2A9B wnb=1 wnb_level=90 wnb_updating=0 noise_floor_position=30 noise_floor_position_enable=1 band_zoom=0 segment_zoom=0 x_pixels=1902 y_pixels=201 center=14.999367 bandwidth=0.012634 min_dbm=-135.00 max_dbm=-40.00 fps=25 average=50 weighted_average=0 rfgain=8 rxant=ANT1 wide=1 loopa=0 loopb=0 band=33 daxiq_channel=0 waterfall=0x42000000 min_bw=0.001230 max_bw=14.745601 xvtr= pre=+8dB ant_list=ANT1,ANT2,RX_A,RX_B,XVTA,XVTB",
       ),
     );
 
@@ -37,6 +37,8 @@ describe("Panadapter controller", () => {
     expect(controller).toBeDefined();
     expect(controller!.autoCenterEnabled).toBe(false);
     expect(controller!.wnbUpdating).toBe(false);
+    expect(controller!.noiseFloorPosition).toBe(30);
+    expect(controller!.noiseFloorPositionEnabled).toBe(true);
     expect(controller!.wideEnabled).toBe(true);
     expect(controller!.clientHandle).toBe(0x68ae2a9b);
     expect(controller!.xvtr).toBe("");
@@ -106,6 +108,18 @@ describe("Panadapter controller", () => {
     );
     expect(controller!.wnbLevel).toBe(100);
 
+    await controller!.setNoiseFloorPosition(45);
+    expect(channel.commands.at(-1)?.command).toBe(
+      "display pan set 0x40000000 pan_position=45",
+    );
+    expect(controller!.noiseFloorPosition).toBe(45);
+
+    await controller!.setNoiseFloorPositionEnabled(false);
+    expect(channel.commands.at(-1)?.command).toBe(
+      "display pan set 0x40000000 pan_position_enable=0",
+    );
+    expect(controller!.noiseFloorPositionEnabled).toBe(false);
+
     await controller!.setBandZoom(true);
     expect(channel.commands.at(-1)?.command).toBe(
       "display pan set 0x40000000 band_zoom=1",
@@ -148,13 +162,17 @@ describe("Panadapter controller", () => {
     await controller!.update({
       average: 50,
       weightedAverage: true,
+      noiseFloorPosition: 25,
+      noiseFloorPositionEnabled: true,
       loggerDisplayEnabled: true,
       autoCenterEnabled: false,
     });
     expect(channel.commands.at(-1)?.command).toBe(
-      "display pan set 0x40000000 average=50 weighted_average=1 n1mm_spectrum_enable=1",
+      "display pan set 0x40000000 average=50 weighted_average=1 pan_position=25 pan_position_enable=1 n1mm_spectrum_enable=1",
     );
     expect(controller!.autoCenterEnabled).toBe(false);
+    expect(controller!.noiseFloorPosition).toBe(25);
+    expect(controller!.noiseFloorPositionEnabled).toBe(true);
 
     await controller!.close();
     expect(channel.commands.at(-1)?.command).toBe(

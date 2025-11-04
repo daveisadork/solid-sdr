@@ -156,7 +156,7 @@ const LevelMeter = (props: { sliceIndex?: string | number }) => {
 
 export function DetachedSlice(props: { sliceIndex: number | string }) {
   const sliceIndex = () => props.sliceIndex;
-  const { sendCommand, state, setState } = useFlexRadio();
+  const { sendCommand, session, state, setState } = useFlexRadio();
   const [slice, setSlice] = createStore(state.status.slice[sliceIndex()]);
   const streamId = () => slice.pan;
   const [pan] = createStore(state.status.display.pan[streamId()]);
@@ -179,7 +179,9 @@ export function DetachedSlice(props: { sliceIndex: number | string }) {
       size="sm"
       class="font-black text-md font-mono z-10 pointer-events-auto text-shadow-md text-shadow-black"
       onClick={() => {
-        sendCommand(`display pan s ${streamId()} center=${slice.RF_frequency}`);
+        session()
+          ?.panadapter(streamId())
+          ?.setCenterFrequency(slice.RF_frequency * 1e6);
         makeActive();
       }}
     >

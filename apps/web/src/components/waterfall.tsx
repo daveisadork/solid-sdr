@@ -22,7 +22,7 @@ function lineDurationToMs(value: number) {
 
 export function Waterfall(props: { streamId: string }) {
   const streamId = () => props.streamId;
-  const { events, state, setState } = useFlexRadio();
+  const { events, session, state, setState } = useFlexRadio();
   const [waterfall, setWaterfall] = createKeyedSubstore(
     () => state.status.display.waterfall,
     streamId,
@@ -32,7 +32,7 @@ export function Waterfall(props: { streamId: string }) {
 
   const [pan, setPan] = createKeyedSubstore(
     () => state.status.display.pan,
-    () => waterfall().panadapter,
+    () => waterfall().panadapterStream,
     setState,
     ["status", "display", "pan"],
   );
@@ -47,8 +47,10 @@ export function Waterfall(props: { streamId: string }) {
   const [autoBlackLevel, setAutoBlackLevel] = createSignal(0);
   const [black, setBlack] = createSignal("#000000");
   const [lineDurationMs, setLineDurationMs] = createSignal(
-    lineDurationToMs(waterfall().line_duration),
+    lineDurationToMs(waterfall().lineDurationMs),
   );
+
+  const waterfallController = () => session()?.waterfall(streamId());
 
   // 4096 colors to stay under canvas size limits on iOS
   const paletteCanvas = new OffscreenCanvas(4096, 1);
@@ -72,18 +74,17 @@ export function Waterfall(props: { streamId: string }) {
   createEffect(() => {
     const { colorMin } = state.palette;
     const range = 1 - colorMin;
-    const gain = Math.pow(10, waterfall().color_gain / 50);
+    const gain = Math.pow(10, waterfall().colorGain / 50);
     const colorMax = colorMin + range / gain;
     setState("palette", "colorMax", colorMax);
   });
 
   createEffect(() => {
-    const { auto_black, black_level } = waterfall();
-    if (auto_black) {
+    const { autoBlackLevelEnabled, blackLevel } = waterfall();
+    if (autoBlackLevelEnabled) {
       // Copy the auto black level to the waterfall black level,
       // so the display is consistent when toggling auto black off.
-      setWaterfall(
-        "black_level",
+      waterfallController()?.setBlackLevel(
         Math.round((autoBlackLevel() / 0x4000) * 100),
       );
     }
@@ -91,7 +92,7 @@ export function Waterfall(props: { streamId: string }) {
     setState(
       "palette",
       "colorMin",
-      auto_black ? autoBlackLevel() / 0xffff : black_level / 400,
+      autoBlackLevelEnabled ? autoBlackLevel() / 0xffff : blackLevel / 400,
     );
   });
 
@@ -101,7 +102,7 @@ export function Waterfall(props: { streamId: string }) {
     });
     if (!paletteCtx) return;
     const { gradients, colorMin, colorMax } = state.palette;
-    const { clip, colors } = gradients[waterfall().gradient_index];
+    const { clip, colors } = gradients[waterfall().gradientIndex];
     setBlack(colors[0]);
     const gradient = paletteCtx.createLinearGradient(
       0,
@@ -145,36 +146,27 @@ export function Waterfall(props: { streamId: string }) {
   });
 
   createEffect(() => {
-    const { bandwidth, x_pixels } = pan();
-    setWaterfall({ bandwidth, x_pixels });
-  });
-
-  createEffect(() => {
-    const { width } = wrapperSize;
-    const { height } = canvasSize;
-    if (!width || !height) return;
-    setWaterfall({ x_pixels: width, y_pixels: height });
-  });
-
-  createEffect(() => {
     setWidthMultiplier(
-      (binBandwidth() * waterfall().x_pixels) / (pan().bandwidth * 1_000_000),
+      (binBandwidth() * wrapperSize.width) / (pan().bandwidth * 1_000_000),
     );
   });
 
   createEffect(() => {
-    setLineDurationMs(lineDurationToMs(waterfall().line_duration));
+    setLineDurationMs(lineDurationToMs(waterfall().lineDurationMs));
   });
 
-  createEffect(() => {
-    setPan("center", lastCalculatedCenter() / 1_000_000);
-  });
+  // createEffect(() => {
+  //   // setWaterfall("center", lastCalculatedCenter() / 1_000_000);
+  //   session()
+  //     ?.panadapter(waterfall().panadapter)
+  //     ?.setCenterFrequency(lastCalculatedCenter());
+  // });
 
   const totalSeconds = createMemo(() => {
-    const pixels = waterfall().y_pixels;
+    const { height } = canvasSize;
     const duration = lineDurationMs();
-    if (!pixels || !duration) return 0;
-    return (pixels * duration) / 1000;
+    if (!height || !duration) return 0;
+    return (height * duration) / 1000;
   });
 
   const formatSeconds = (value: number) => {

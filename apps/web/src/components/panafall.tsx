@@ -59,7 +59,7 @@ export function Panafall() {
     setModePreference(next);
   };
 
-  const { state, sendCommand, setState } = useFlexRadio();
+  const { session, state, sendCommand, setState } = useFlexRadio();
   const [fs, setFullscreen] = createSignal(false);
   const fullscreen = createFullscreen(() => document.documentElement, fs);
   const [clickRef, setClickRef] = createSignal<HTMLElement>();
@@ -68,6 +68,8 @@ export function Panafall() {
   const [waterfallStreamId, setWaterfallStreamId] = createSignal<string | null>(
     null,
   );
+
+  const panController = () => session()?.panadapter(panStreamId());
   const [dragState, setDragState] = createStore({
     down: false,
     dragging: false,
@@ -102,7 +104,8 @@ export function Panafall() {
       if (!dragState.down) setDragState("originX", 0);
       return;
     }
-    sendCommand(`display pan s ${streamId} center=${newCenter}`);
+    // sendCommand(`display pan s ${streamId} center=${newCenter}`);
+    panController()?.setCenterFrequency(newCenter * 1e6);
   };
 
   // eslint-disable-next-line solid/reactivity
@@ -200,7 +203,7 @@ export function Panafall() {
       ? state.status.display.waterfall[waterfallStreamId]
       : null;
     setWaterfallStreamId(
-      waterfall?.panadapter === streamId ? waterfallStreamId : null,
+      waterfall?.panadapterStream === streamId ? waterfallStreamId : null,
     );
   });
 
@@ -300,9 +303,7 @@ export function Panafall() {
                   }}
                   onClick={() => {
                     const zoom = pan().band_zoom;
-                    sendCommand(
-                      `display pan s ${panStreamId()} band_zoom=${zoom ? 0 : 1}`,
-                    );
+                    panController()?.setBandZoom(!zoom);
                   }}
                 >
                   B
@@ -321,9 +322,7 @@ export function Panafall() {
                   }}
                   onClick={() => {
                     const zoom = pan().segment_zoom;
-                    sendCommand(
-                      `display pan s ${panStreamId()} segment_zoom=${zoom ? 0 : 1}`,
-                    );
+                    panController()?.setSegmentZoom(!zoom);
                   }}
                 >
                   S
@@ -337,20 +336,8 @@ export function Panafall() {
                   variant="ghost"
                   class="bg-background/50 backdrop-blur-lg size-5"
                   onClick={() => {
-                    const bandwidth = pan().bandwidth * 2;
-                    const streamId = panStreamId();
-                    sendCommand(
-                      `display pan s ${streamId} bandwidth=${bandwidth}`,
-                    ).then(() =>
-                      setState(
-                        "status",
-                        "display",
-                        "pan",
-                        streamId,
-                        "bandwidth",
-                        bandwidth,
-                      ),
-                    );
+                    const controller = panController();
+                    controller.setBandwidth(controller.bandwidthHz * 2);
                   }}
                 >
                   <ArrowCollapseHorizontal />
@@ -367,20 +354,9 @@ export function Panafall() {
                   variant="ghost"
                   class="bg-background/50 backdrop-blur-lg size-5"
                   onClick={() => {
-                    const bandwidth = pan().bandwidth / 2;
-                    const streamId = panStreamId();
-                    sendCommand(
-                      `display pan s ${streamId} bandwidth=${bandwidth}`,
-                    ).then(() =>
-                      setState(
-                        "status",
-                        "display",
-                        "pan",
-                        streamId,
-                        "bandwidth",
-                        bandwidth,
-                      ),
-                    );
+                    const controller = panController();
+                    if (!controller) return;
+                    controller.setBandwidth(controller.bandwidthHz / 2);
                   }}
                 >
                   <ArrowExpandHorizontal />

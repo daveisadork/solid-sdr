@@ -19,8 +19,8 @@ import type { FrequencyGridTick } from "./scale";
 
 export function Panadapter(props: { streamId: string }) {
   const streamId = () => props.streamId;
-  const { events, sendCommand, state, setState } = useFlexRadio();
-  const [pan, setPan] = createKeyedSubstore(
+  const { events, session, state, setState } = useFlexRadio();
+  const [pan] = createKeyedSubstore(
     () => state.status.display.pan,
     streamId,
     setState,
@@ -71,7 +71,8 @@ export function Panadapter(props: { streamId: string }) {
 
   createEffect(() => {
     const { gradients } = state.palette;
-    const { gradient_index } = state.status.display.waterfall[pan().waterfall];
+    const { gradientIndex: gradient_index } =
+      state.status.display.waterfall[pan().waterfall];
     const { colors } = gradients[gradient_index];
     const colorMin = 0;
     const colorMax = 1;
@@ -113,7 +114,7 @@ export function Panadapter(props: { streamId: string }) {
     const { gradients } = state.palette;
     const waterfall = state.status.display.waterfall[pan().waterfall];
     if (!waterfall) return;
-    const { gradient_index } = waterfall;
+    const { gradientIndex: gradient_index } = waterfall;
     const { colors } = gradients[gradient_index];
     const stepSize = 1 / colors.length;
 
@@ -124,14 +125,18 @@ export function Panadapter(props: { streamId: string }) {
     return gradient;
   });
 
+  createEffect(() => {
+    console.log("Panadapter", streamId(), pan().x_pixels, pan().y_pixels);
+  });
+
   const resizeCallback = debounce(async (width: number, height: number) => {
     const xPixels = Math.round(width);
     const yPixels = Math.round(height);
+    console.log("Resizing panadapter", streamId(), xPixels, yPixels);
     setUpdating(true);
-    await sendCommand(
-      `display pan s ${streamId()} xpixels=${xPixels} ypixels=${yPixels}`,
-    );
-    setPan("y_pixels", yPixels);
+    const controller = session()?.panadapter(streamId());
+    await controller?.setWidth(xPixels);
+    await controller?.setHeight(yPixels);
     setUpdating(false);
   }, 250);
 
@@ -206,11 +211,9 @@ export function Panadapter(props: { streamId: string }) {
       if (offscreen.width !== scaleWidth || offscreen.height !== scaleHeight) {
         if (offscreen.width !== scaleWidth) {
           offscreen.width = scaleWidth;
-          setPan("x_pixels", width);
         }
         if (offscreen.height !== scaleHeight) {
           offscreen.height = scaleHeight;
-          setPan("y_pixels", height);
         }
         transformDirty = true;
         skipFrame = frame;

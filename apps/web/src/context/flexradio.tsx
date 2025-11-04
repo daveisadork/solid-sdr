@@ -3,6 +3,7 @@ import {
   batch,
   createContext,
   createEffect,
+  createSignal,
   onCleanup,
   onMount,
   ParentComponent,
@@ -20,6 +21,7 @@ import {
   createVitaDiscoveryAdapter,
   FlexCommandRejectedError,
   type FlexRadioSession,
+  type PanadapterSnapshot,
   type RadioStateChange,
   type FlexWireMessage,
   type Subscription,
@@ -131,57 +133,70 @@ const scalingMap = {
 
 export interface Panadapter {
   client_handle: string; // "0x6EB67FCB"
-  wnb: boolean; //"0"
-  wnb_level: number; //"90"
-  wnb_updating: boolean; //"0"
-  band_zoom: boolean; //"0"
-  segment_zoom: boolean; //"0"
-  x_pixels: number; //"50"
-  y_pixels: number; //"20"
-  center: number; //"14.100000"
-  bandwidth: number; //"0.200000"
-  min_dbm: number; //"-135.00"
-  max_dbm: number; //"-40.00"
-  fps: number; //"25"
-  average: number; //"50"
-  weighted_average: boolean; //"0"
-  rfgain: number; //"8"
-  rxant: string; //"ANT1"
-  wide: boolean; //"0"
-  loopa: string; //"0"
-  loopb: string; //"0"
-  band: string; //"20"
-  daxiq_channel: number; // "0"
-  waterfall: string; // "0x42000000"
-  min_bw: number; // "0.001230"
-  max_bw: number; // "14.745601"
-  xvtr: string; // ""
-  pre: string; // "+8dB"
-  ant_list: string[]; // "ANT1,ANT2,RX_A,RX_B,XVTA,XVTB"
-}
-
-export interface Waterfall {
-  client_handle: string; // "0x6F77DF23"
-  x_pixels: number;
-  center: number; // "14.100000"
-  bandwidth: number; // 0.200000
+  wnb: boolean;
+  wnb_level: number;
+  wnb_updating: boolean;
   band_zoom: boolean;
   segment_zoom: boolean;
-  line_duration: number;
-  rfgain: number; // 8
-  rxant: string; // "ANT1"
+  x_pixels: number;
+  y_pixels: number;
+  center: number;
+  bandwidth: number;
+  min_dbm: number;
+  max_dbm: number;
+  fps: number;
+  average: number;
+  weighted_average: boolean;
+  rfgain: number;
+  rf_gain_low: number;
+  rf_gain_high: number;
+  rf_gain_step: number;
+  rf_gain_markers: number[];
+  noise_floor: number;
+  noise_floor_enabled: boolean;
+  rxant: string;
   wide: boolean;
   loopa: boolean;
   loopb: boolean;
+  band: string;
+  daxiq_channel: number;
+  daxiq_rate: number;
+  waterfall: string;
+  min_bw: number;
+  max_bw: number;
+  auto_center: boolean;
+  xvtr: string;
+  pre: string;
+  ant_list: string[];
+  attached_slices: string[];
+  logger_display_enabled: boolean;
+  logger_display_address: string;
+  logger_display_port: number;
+  logger_display_radio: number;
+}
+
+export interface Waterfall {
+  clientHandle: string; // "0x6F77DF23"
+  width: number;
+  height: number;
+  center: number; // "14.100000"
+  bandwidth: number; // 0.200000
+  isBandZoomOn: boolean;
+  isSegmentZoomOn: boolean;
+  lineDurationMs: number;
+  rfGain: number; // 8
+  rxAntenna: string; // "ANT1"
+  wideEnabled: boolean;
+  loopAEnabled: boolean;
+  loopBEnabled: boolean;
   band: string; // "20"
-  daxiq_channel: number; // 0
-  panadapter: string; // "0x40000000"
-  color_gain: number; // 30
-  auto_black: boolean;
-  black_level: number; // 0
-  gradient_index: number; // "1"
+  daxIqChannel: number; // 0
+  panadapterStream: string; // "0x40000000"
+  colorGain: number; // 30
+  autoBlackLevelEnabled: boolean;
+  blackLevel: number; // 0
+  gradientIndex: number; // "1"
   xvtr: string; // ""
-  y_pixels: number;
 }
 
 export interface Gradient {
@@ -530,7 +545,7 @@ const _events = new EventTarget() as UDPEventTarget;
 const FlexRadioContext = createContext<{
   state: AppState;
   setState: SetStoreFunction<AppState>;
-  session: FlexRadioSession | null;
+  session: () => FlexRadioSession | null;
   connect: (addr: { host: string; port: number }) => void;
   disconnect: () => void;
   sendCommand: (command: string) => Promise<{
@@ -544,6 +559,9 @@ const FlexRadioContext = createContext<{
 export const FlexRadioProvider: ParentComponent = (props) => {
   const [state, setState] = createStore(initialState());
   const { connect: connectRTC, session: sessionRTC } = useRtc();
+  const [flexSession, setFlexSession] = createSignal<FlexRadioSession | null>(
+    null,
+  );
 
   const meterScratch = { ids: new Uint16Array(0), values: new Int16Array(0) };
   const panadapterScratch = { payload: new Uint16Array(0) };
@@ -551,7 +569,6 @@ export const FlexRadioProvider: ParentComponent = (props) => {
   const serialToHost = new Map<string, string>();
   const discoveryWs = createReconnectingWS("/ws/discovery");
   let discoverySession: DiscoverySession | null = null;
-  let flexSession: FlexRadioSession | null = null;
   let flexSessionSubscriptions: Subscription[] = [];
   let pendingHandleLine: string | null = null;
   let pingTimer: ReturnType<typeof setInterval> | undefined;
@@ -662,29 +679,97 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     return `0x${handle.toString(16).toUpperCase().padStart(8, "0")}`;
   };
 
-  const applyWaterfallSnapshot = (snapshot: WaterfallSnapshot) => {
+  const applyPanadapterSnapshot = (snapshot: PanadapterSnapshot) => {
     const key = snapshot.streamId || snapshot.id;
-    const waterfallState: Waterfall = {
+    const panState: Panadapter = {
       client_handle: formatClientHandle(snapshot.clientHandle),
+      wnb: snapshot.wnbEnabled,
+      wnb_level: snapshot.wnbLevel,
+      wnb_updating: snapshot.wnbUpdating,
+      band_zoom: snapshot.isBandZoomOn,
+      segment_zoom: snapshot.isSegmentZoomOn,
       x_pixels: snapshot.width,
       y_pixels: snapshot.height,
       center: hzToMHz(snapshot.centerFrequencyHz),
       bandwidth: hzToMHz(snapshot.bandwidthHz),
-      band_zoom: snapshot.isBandZoomOn,
-      segment_zoom: snapshot.isSegmentZoomOn,
-      line_duration: snapshot.lineDurationMs ?? 0,
+      min_dbm: snapshot.lowDbm,
+      max_dbm: snapshot.highDbm,
+      fps: snapshot.fps,
+      average: snapshot.average,
+      weighted_average: snapshot.weightedAverage,
       rfgain: snapshot.rfGain,
+      rf_gain_low: snapshot.rfGainLow,
+      rf_gain_high: snapshot.rfGainHigh,
+      rf_gain_step: snapshot.rfGainStep,
+      rf_gain_markers: Array.from(snapshot.rfGainMarkers),
+      noise_floor: snapshot.noiseFloorPosition,
+      noise_floor_enabled: snapshot.noiseFloorPositionEnabled,
       rxant: snapshot.rxAntenna,
       wide: snapshot.wideEnabled,
       loopa: snapshot.loopAEnabled,
       loopb: snapshot.loopBEnabled,
       band: snapshot.band,
       daxiq_channel: snapshot.daxIqChannel,
-      panadapter: snapshot.panadapterStream,
-      color_gain: snapshot.colorGain,
-      auto_black: snapshot.autoBlackLevelEnabled,
-      black_level: snapshot.blackLevel,
-      gradient_index: snapshot.gradientIndex,
+      daxiq_rate: snapshot.daxIqRate,
+      waterfall: snapshot.waterfallStreamId,
+      min_bw: hzToMHz(snapshot.minBandwidthHz),
+      max_bw: hzToMHz(snapshot.maxBandwidthHz),
+      auto_center: snapshot.autoCenterEnabled,
+      xvtr: snapshot.xvtr,
+      pre: snapshot.preampSetting,
+      ant_list: Array.from(snapshot.rxAntennas),
+      attached_slices: Array.from(snapshot.attachedSlices),
+      logger_display_enabled: snapshot.loggerDisplayEnabled,
+      logger_display_address: snapshot.loggerDisplayAddress,
+      logger_display_port: snapshot.loggerDisplayPort,
+      logger_display_radio: snapshot.loggerDisplayRadioNum,
+    };
+    setState("status", "display", "pan", key, panState);
+  };
+
+  const handlePanadapterChange = (change: RadioStateChange) => {
+    if (change.entity !== "panadapter") return;
+    if (change.snapshot) {
+      applyPanadapterSnapshot(change.snapshot);
+    } else {
+      const key = change.previous?.streamId ?? change.id;
+      setState(
+        "status",
+        "display",
+        "pan",
+        produce((pan) => {
+          delete pan[key];
+        }),
+      );
+      if (state.selectedPanadapter === key) {
+        setState("selectedPanadapter", null);
+      }
+    }
+  };
+
+  const applyWaterfallSnapshot = (snapshot: WaterfallSnapshot) => {
+    const key = snapshot.streamId || snapshot.id;
+    const waterfallState: Waterfall = {
+      clientHandle: formatClientHandle(snapshot.clientHandle),
+      width: snapshot.width,
+      height: snapshot.height,
+      center: hzToMHz(snapshot.centerFrequencyHz),
+      bandwidth: hzToMHz(snapshot.bandwidthHz),
+      isBandZoomOn: snapshot.isBandZoomOn,
+      isSegmentZoomOn: snapshot.isSegmentZoomOn,
+      lineDurationMs: snapshot.lineDurationMs ?? 0,
+      rfGain: snapshot.rfGain,
+      rxAntenna: snapshot.rxAntenna,
+      wideEnabled: snapshot.wideEnabled,
+      loopAEnabled: snapshot.loopAEnabled,
+      loopBEnabled: snapshot.loopBEnabled,
+      band: snapshot.band,
+      daxIqChannel: snapshot.daxIqChannel,
+      panadapterStream: snapshot.panadapterStream,
+      colorGain: snapshot.colorGain,
+      autoBlackLevelEnabled: snapshot.autoBlackLevelEnabled,
+      blackLevel: snapshot.blackLevel,
+      gradientIndex: snapshot.gradientIndex,
       xvtr: snapshot.xvtr,
     };
     setState("status", "display", "waterfall", key, waterfallState);
@@ -704,6 +789,19 @@ export const FlexRadioProvider: ParentComponent = (props) => {
           delete waterfalls[key];
         }),
       );
+    }
+  };
+
+  const handleStateChange = (change: RadioStateChange) => {
+    switch (change.entity) {
+      case "panadapter":
+        handlePanadapterChange(change);
+        break;
+      case "waterfall":
+        handleWaterfallChange(change);
+        break;
+      default:
+        break;
     }
   };
 
@@ -795,11 +893,11 @@ export const FlexRadioProvider: ParentComponent = (props) => {
   });
 
   const sendCommand = (command: string) => {
-    const session = flexSession;
-    if (!session) {
+    const currentSession = flexSession();
+    if (!currentSession) {
       return Promise.reject(new Error("Not connected to a Flex radio"));
     }
-    return session
+    return currentSession
       .command(command)
       .then((response) => ({
         response: response.code ?? (response.accepted ? 0 : 1),
@@ -884,74 +982,6 @@ export const FlexRadioProvider: ParentComponent = (props) => {
           });
       }),
     );
-  }
-
-  function updatePanadapter(stream: string, split: string[]) {
-    const applyUpdate = (pan: Partial<Panadapter>) => {
-      split.forEach((item) => {
-        const [key, value] = item.split("=");
-        switch (key) {
-          case "x_pixels":
-          case "y_pixels":
-          case "center":
-          case "bandwidth":
-          case "min_dbm":
-          case "max_dbm":
-          case "fps":
-          case "average":
-          case "rfgain":
-          case "daxiq_channel":
-          case "min_bw":
-          case "max_bw":
-          case "wnb_level":
-            pan[key] = Number(value);
-            break;
-          case "wnb":
-          case "wnb_updating":
-          case "band_zoom":
-          case "segment_zoom":
-          case "weighted_average":
-          case "wide":
-            pan[key] = value === "1";
-            break;
-          case "client_handle":
-          case "rxant":
-          case "loopa":
-          case "loopb":
-          case "band":
-          case "waterfall":
-          case "pre":
-          case "xvtr":
-            pan[key] = value;
-            break;
-          case "ant_list":
-            pan[key] = value.split(",");
-            break;
-          default:
-            console.log(split);
-            console.warn(`Unknown key in panadapter update: ${key}`);
-        }
-      });
-    };
-    if (stream in state.status.display.pan) {
-      if (split.includes("removed")) {
-        setState(
-          "status",
-          "display",
-          "pan",
-          produce((pan) => {
-            delete pan[stream];
-          }),
-        );
-      } else {
-        setState("status", "display", "pan", stream, produce(applyUpdate));
-      }
-      // If the stream already exists, we apply the update to the existing panadapter
-    } else {
-      const newPan = {} as Partial<Panadapter>;
-      applyUpdate(newPan);
-      setState("status", "display", "pan", stream, newPan);
-    }
   }
 
   function updateSlice([index, ...split]: string[]) {
@@ -1051,8 +1081,8 @@ export const FlexRadioProvider: ParentComponent = (props) => {
             // Ignore empty keys (can happen with trailing #)
             break;
           default:
-            console.log(split);
-            console.warn(`Unknown key in slice update: ${key}`);
+          // console.log(split);
+          // console.warn(`Unknown key in slice update: ${key}`);
         }
       });
     };
@@ -1076,71 +1106,71 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     }
   }
 
-  function updateWaterfall(stream: string, split: string[]) {
-    const applyUpdate = (waterfall: Partial<Waterfall>) => {
-      split.forEach((item) => {
-        const [key, value] = item.split("=");
-        switch (key) {
-          case "x_pixels":
-          case "y_pixels":
-          case "line_duration":
-          case "color_gain":
-          case "daxiq_channel":
-          case "gradient_index":
-          case "bandwidth":
-          case "center":
-          case "rfgain":
-          case "black_level":
-            waterfall[key] = Number(value);
-            break;
-          case "band_zoom":
-          case "segment_zoom":
-          case "auto_black":
-          case "wide":
-          case "loopa":
-          case "loopb":
-            waterfall[key] = value === "1";
-            break;
-          case "client_handle":
-          case "rxant":
-          case "xvtr":
-          case "panadapter":
-          case "band":
-            waterfall[key] = value;
-            break;
-          default:
-            console.log(split);
-            console.warn(`Unknown key in waterfall update: ${key}`);
-        }
-      });
-      return waterfall;
-    };
-
-    if (stream in state.status.display.waterfall) {
-      if (split.includes("removed")) {
-        setState(
-          "status",
-          "display",
-          "waterfall",
-          produce((waterfall) => {
-            delete waterfall[stream];
-          }),
-        );
-      } else {
-        setState(
-          "status",
-          "display",
-          "waterfall",
-          stream,
-          produce(applyUpdate),
-        );
-      }
-    } else {
-      const newWaterfall = {} as Partial<Waterfall>;
-      applyUpdate(newWaterfall);
-      setState("status", "display", "waterfall", stream, newWaterfall);
-    }
-  }
+  // function updateWaterfall(stream: string, split: string[]) {
+  //   const applyUpdate = (waterfall: Partial<Waterfall>) => {
+  //     split.forEach((item) => {
+  //       const [key, value] = item.split("=");
+  //       switch (key) {
+  //         case "x_pixels":
+  //         case "y_pixels":
+  //         case "line_duration":
+  //         case "color_gain":
+  //         case "daxiq_channel":
+  //         case "gradient_index":
+  //         case "bandwidth":
+  //         case "center":
+  //         case "rfgain":
+  //         case "black_level":
+  //           waterfall[key] = Number(value);
+  //           break;
+  //         case "band_zoom":
+  //         case "segment_zoom":
+  //         case "auto_black":
+  //         case "wide":
+  //         case "loopa":
+  //         case "loopb":
+  //           waterfall[key] = value === "1";
+  //           break;
+  //         case "client_handle":
+  //         case "rxant":
+  //         case "xvtr":
+  //         case "panadapter":
+  //         case "band":
+  //           waterfall[key] = value;
+  //           break;
+  //         default:
+  //           console.log(split);
+  //           console.warn(`Unknown key in waterfall update: ${key}`);
+  //       }
+  //     });
+  //     return waterfall;
+  //   };
+  //
+  //   if (stream in state.status.display.waterfall) {
+  //     if (split.includes("removed")) {
+  //       setState(
+  //         "status",
+  //         "display",
+  //         "waterfall",
+  //         produce((waterfall) => {
+  //           delete waterfall[stream];
+  //         }),
+  //       );
+  //     } else {
+  //       setState(
+  //         "status",
+  //         "display",
+  //         "waterfall",
+  //         stream,
+  //         produce(applyUpdate),
+  //       );
+  //     }
+  //   } else {
+  //     const newWaterfall = {} as Partial<Waterfall>;
+  //     applyUpdate(newWaterfall);
+  //     setState("status", "display", "waterfall", stream, newWaterfall);
+  //   }
+  // }
 
   function updateGPS(rest: string[]) {
     const split = rest.join(" ").split("#");
@@ -1176,24 +1206,26 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     setState("status", "gps", produce(applyUpdate));
   }
 
-  function updateDisplay(message: string) {
-    const [_display, kind, stream, ...split] = message
-      .split(" ")
-      .filter((part) => part.length);
-
-    switch (kind) {
-      case "pan":
-        updatePanadapter(stream, split);
-        break;
-      case "waterfall":
-        if (!flexSession) {
-          updateWaterfall(stream, split);
-        }
-        break;
-      default:
-        console.warn("Received unknown display update:", message);
-    }
-  }
+  // function updateDisplay(message: string) {
+  //   const [_display, kind, stream, ...split] = message
+  //     .split(" ")
+  //     .filter((part) => part.length);
+  //
+  //   switch (kind) {
+  //     case "pan":
+  //       if (!flexSession()) {
+  //         updatePanadapter(stream, split);
+  //       }
+  //       break;
+  //     case "waterfall":
+  //       if (!flexSession()) {
+  //         updateWaterfall(stream, split);
+  //       }
+  //       break;
+  //     default:
+  //       console.warn("Received unknown display update:", message);
+  //   }
+  // }
 
   function updateStream([stream, ...split]: string[]) {
     const applyUpdate = (streamData: Partial<Stream>) => {
@@ -1263,7 +1295,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
       }
       case "H": {
         // Handle preamble
-        if (!flexSession) {
+        if (!flexSession()) {
           pendingHandleLine = payload;
           return;
         }
@@ -1368,7 +1400,8 @@ export const FlexRadioProvider: ParentComponent = (props) => {
           case "meter":
             return updateMeters(message);
           case "display":
-            return updateDisplay(message);
+            return;
+          // return updateDisplay(message);
           case "slice":
             return updateSlice(rest);
           case "stream":
@@ -1477,19 +1510,19 @@ export const FlexRadioProvider: ParentComponent = (props) => {
 
     void (async () => {
       try {
-        if (flexSession) {
-          const previous = flexSession;
-          flexSession = null;
+        const currentSession = flexSession();
+        if (currentSession) {
+          setFlexSession(null);
           for (const sub of flexSessionSubscriptions) sub.unsubscribe();
           flexSessionSubscriptions = [];
           try {
-            await previous.close();
+            await currentSession.close();
           } catch (error) {
             console.error("Failed to close previous session", error);
           }
         }
 
-        const session = await flexClient.connect(descriptor, {
+        const newSession = await flexClient.connect(descriptor, {
           connectionParams: {
             onControlLine: (line) => {
               handleControlLine(line).catch((error) =>
@@ -1499,11 +1532,9 @@ export const FlexRadioProvider: ParentComponent = (props) => {
             onBinaryMessage: handleUdpPacket,
           },
         });
-        flexSession = session;
-        const changeSubscription = session.on("change", (change) => {
-          handleWaterfallChange(change);
-        });
-        const messageSubscription = session.on(
+        setFlexSession(newSession);
+        const changeSubscription = newSession.on("change", handleStateChange);
+        const messageSubscription = newSession.on(
           "message",
           (message: FlexWireMessage) => {
             if (
@@ -1517,7 +1548,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
             }
           },
         );
-        const disconnectedSubscription = session.on("disconnected", () => {
+        const disconnectedSubscription = newSession.on("disconnected", () => {
           disconnect();
         });
         flexSessionSubscriptions = [
@@ -1550,26 +1581,27 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         setState("connectModal", "status", ConnectionState.disconnected);
         setState("connectModal", "selectedRadio", null);
         setState("connectModal", "stage", ConnectionStage.TCP);
-        if (flexSession) {
+        const existing = flexSession();
+        if (existing) {
+          setFlexSession(null);
           try {
-            await flexSession.close();
+            await existing.close();
           } catch (closeError) {
             console.error("Error while closing failed session", closeError);
           }
         }
-        flexSession = null;
       }
     })();
   };
 
   createEffect(() => {
-    const session = sessionRTC();
-    if (!session) return;
+    const rtcSession = sessionRTC();
+    if (!rtcSession) return;
     console.log("Setting up RTC data channel listener");
-    session.data.addEventListener("message", handleUdpPacket);
+    rtcSession.data.addEventListener("message", handleUdpPacket);
     onCleanup(() => {
       console.log("Cleaning up RTC data channel listener");
-      session.data.removeEventListener("message", handleUdpPacket);
+      rtcSession.data.removeEventListener("message", handleUdpPacket);
     });
   });
 
@@ -1579,13 +1611,13 @@ export const FlexRadioProvider: ParentComponent = (props) => {
       clearInterval(pingTimer);
       pingTimer = undefined;
     }
-    const session = flexSession;
-    flexSession = null;
+    const currentSession = flexSession();
+    setFlexSession(null);
     pendingHandleLine = null;
     for (const sub of flexSessionSubscriptions) sub.unsubscribe();
     flexSessionSubscriptions = [];
-    if (session) {
-      session
+    if (currentSession) {
+      currentSession
         .close()
         .catch((error) => console.error("Error closing flex session", error));
     }

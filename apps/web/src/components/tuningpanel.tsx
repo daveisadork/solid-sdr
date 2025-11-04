@@ -56,32 +56,41 @@ const BANDS: { id: string; label: string }[] = [
 
 export function TuningPanel(props: { streamId: string }) {
   const streamId = () => props.streamId;
-  const { state, sendCommand, setState } = useFlexRadio();
-  const [pan, setPan] = createStore(state.status.display.pan[streamId()]);
+  const { session, state, setState } = useFlexRadio();
+  const [pan] = createStore(state.status.display.pan[streamId()]);
+  const panController = () => session()?.panadapter(streamId());
   const waterfallId = () => pan.waterfall;
-  const [waterfall, setWaterfall] = createStore(
+  const wfController = () => session()?.waterfall(waterfallId());
+  const [waterfall] = createStore(
     state.status.display.waterfall[waterfallId()],
   );
   const [gradients] = createStore(state.palette.gradients);
-  const [rawFrequency, setRawFrequency] = createSignal(pan.center);
-  const [rawBandwidth, setRawBandwidth] = createSignal(pan.bandwidth);
-  const [rawAverage, setRawAverage] = createSignal(pan.average);
+  const [rawFrequency, setRawFrequency] = createSignal(
+    panController().centerFrequencyHz / 1_000_000,
+  );
+  const [rawBandwidth, setRawBandwidth] = createSignal(
+    panController().bandwidthHz / 1_000_000,
+  );
+  const [rawAverage, setRawAverage] = createSignal(panController().average);
   const [rawFps, setRawFps] = createSignal(pan.fps);
   const [rawLineDuration, setRawLineDuration] = createSignal(
-    waterfall.line_duration,
+    wfController().lineDurationMs,
   );
-  const [rawColorGain, setRawColorGain] = createSignal(waterfall.color_gain);
-  const [rawBlackLevel, setRawBlackLevel] = createSignal(waterfall.black_level);
+  const [rawColorGain, setRawColorGain] = createSignal(
+    wfController().colorGain,
+  );
+  const [rawBlackLevel, setRawBlackLevel] = createSignal(
+    wfController().blackLevel,
+  );
 
   const updateAverage = debounce((value: number) => {
-    sendCommand(`display pan s ${streamId()} average=${value}`)
-      .then(() => {
-        setPan("average", value);
-      })
-      .catch(() => setRawAverage(pan.average));
+    console.log("Setting Average to", value);
+    const controller = panController();
+    controller.setAverage(value).catch(() => setRawAverage(controller.average));
   }, 250);
 
   createEffect(() => {
+    console.log("Average effect triggered");
     const average = rawAverage();
     if (average !== pan.average) {
       updateAverage(average);
@@ -89,10 +98,9 @@ export function TuningPanel(props: { streamId: string }) {
   });
 
   const updateFps = debounce((value: number) => {
-    sendCommand(`display pan s ${streamId()} fps=${value}`)
-      .then(() => {
-        setPan("fps", value);
-      })
+    console.log("Setting FPS to", value);
+    panController()
+      ?.setFps(value)
       .catch(() => setRawFps(pan.fps));
   }, 250);
 
@@ -104,56 +112,58 @@ export function TuningPanel(props: { streamId: string }) {
   });
 
   const updateLineDuration = debounce((value: number) => {
-    sendCommand(`display pan s ${pan.waterfall} line_duration=${value}`)
-      .then(() => {
-        setWaterfall("line_duration", value);
-      })
-      .catch(() => setRawLineDuration(waterfall.line_duration));
+    console.log("Setting Line Duration to", value);
+    const wf = wfController();
+    wf.setLineDuration(value).catch(() =>
+      setRawLineDuration(wf.lineDurationMs),
+    );
   }, 250);
 
   createEffect(() => {
+    console.log("Line duration effect triggered");
     const lineDuration = rawLineDuration();
-    if (lineDuration !== waterfall.line_duration) {
+    if (lineDuration !== waterfall.lineDurationMs) {
       updateLineDuration(lineDuration);
     }
   });
 
   const updateColorGain = debounce((value: number) => {
-    sendCommand(`display pan s ${pan.waterfall} color_gain=${value}`).catch(
-      () => setRawColorGain(waterfall.color_gain),
-    );
+    console.log("Setting Color Gain to", value);
+    const controller = wfController();
+    controller.setColorGain(value).catch(() => {
+      setRawColorGain(controller.colorGain);
+    });
   }, 250);
 
   createEffect(() => {
+    console.log("Color gain effect triggered");
     const colorGain = rawColorGain();
-    if (colorGain !== waterfall.color_gain) {
-      setWaterfall("color_gain", colorGain);
+    if (colorGain !== waterfall.colorGain) {
       updateColorGain(colorGain);
     }
   });
 
   const updateBlackLevel = debounce((value: number) => {
-    sendCommand(`display pan s ${pan.waterfall} black_level=${value}`).catch(
-      () => setRawBlackLevel(waterfall.black_level),
-    );
+    console.log("Setting Black Level to", value);
+    const wf = wfController();
+    wf.setBlackLevel(value).catch(() => setRawBlackLevel(wf.blackLevel));
   }, 250);
 
   createEffect(() => {
-    const auto_black = waterfall.auto_black;
-    const black_level = waterfall.black_level;
+    const auto_black = waterfall.autoBlackLevelEnabled;
+    const black_level = waterfall.blackLevel;
     const blackLevel = rawBlackLevel();
     if (auto_black) {
       setRawBlackLevel(black_level);
     } else if (blackLevel !== black_level) {
-      setWaterfall("black_level", blackLevel);
       updateBlackLevel(blackLevel);
     }
   });
 
   createEffect(() => setRawAverage(pan.average));
   createEffect(() => setRawFps(pan.fps));
-  createEffect(() => setRawLineDuration(waterfall.line_duration));
-  createEffect(() => setRawColorGain(waterfall.color_gain));
+  createEffect(() => setRawLineDuration(waterfall.lineDurationMs));
+  createEffect(() => setRawColorGain(waterfall.colorGain));
 
   return (
     <div class="flex flex-col px-4 gap-4 size-full text-sm overflow-y-auto overflow-x-hidden select-none overscroll-y-contain">
@@ -206,11 +216,10 @@ export function TuningPanel(props: { streamId: string }) {
         </SegmentedControlGroup>
       </SegmentedControl>
       <Select
-        value={gradients[waterfall.gradient_index].name}
+        value={gradients[waterfall.gradientIndex].name}
         onChange={(value) => {
           if (!value) return;
-          setWaterfall(
-            "gradient_index",
+          wfController().setGradientIndex(
             gradients.findIndex((item) => item.name === value),
           );
         }}
@@ -232,9 +241,9 @@ export function TuningPanel(props: { streamId: string }) {
         value={pan.rxant}
         onChange={(value) => {
           if (!value) return;
-          sendCommand(`display pan s ${streamId()} rxant=${value}`).then(() =>
-            setPan("rxant", value),
-          );
+          if (value !== pan.rxant) {
+            panController()?.setRxAntenna(value);
+          }
         }}
         options={pan.ant_list}
         itemComponent={(props) => (
@@ -250,7 +259,7 @@ export function TuningPanel(props: { streamId: string }) {
         value={pan.band}
         onChange={(value) => {
           if (!value || value === pan.band) return;
-          sendCommand(`display pan s ${streamId()} band=${value}`);
+          panController()?.setBand(value);
           // setPan("band", value);
         }}
         options={BANDS.map((b) => b.id)}
@@ -277,7 +286,7 @@ export function TuningPanel(props: { streamId: string }) {
         onFocusOut={() => {
           const value = rawFrequency();
           if (value !== pan.center) {
-            sendCommand(`display pan s ${streamId()} center=${value}`);
+            panController()?.setCenterFrequency(value * 1_000_000);
           }
         }}
         onRawValueChange={setRawFrequency}
@@ -298,9 +307,7 @@ export function TuningPanel(props: { streamId: string }) {
         onFocusOut={() => {
           const value = rawBandwidth();
           if (value !== pan.bandwidth) {
-            sendCommand(`display pan s ${streamId()} bandwidth=${value}`).then(
-              () => setPan("bandwidth", value),
-            );
+            panController()?.setBandwidth(value * 1_000_000);
           }
         }}
         onChange={(value) => console.log("bandwidth changed:", value)}
@@ -319,7 +326,7 @@ export function TuningPanel(props: { streamId: string }) {
         class="flex items-center space-x-2"
         checked={pan.band_zoom}
         onChange={(isChecked) => {
-          sendCommand(`display pan s ${streamId()} band_zoom=${isChecked}`);
+          panController()?.setBandZoom(isChecked);
         }}
       >
         <SwitchControl>
@@ -331,7 +338,7 @@ export function TuningPanel(props: { streamId: string }) {
         class="flex items-center space-x-2"
         checked={pan.segment_zoom}
         onChange={(isChecked) => {
-          sendCommand(`display pan s ${streamId()} segment_zoom=${isChecked}`);
+          panController()?.setSegmentZoom(isChecked);
         }}
       >
         <SwitchControl>
@@ -341,11 +348,9 @@ export function TuningPanel(props: { streamId: string }) {
       </Switch>
       <Switch
         class="flex items-center space-x-2"
-        checked={waterfall.auto_black}
+        checked={waterfall.autoBlackLevelEnabled}
         onChange={(isChecked) => {
-          sendCommand(
-            `display pan s ${pan.waterfall} auto_black=${isChecked ? 1 : 0}`,
-          ).then(() => setWaterfall("auto_black", isChecked));
+          wfController()?.setAutoBlackLevelEnabled(isChecked);
         }}
       >
         <SwitchControl>
@@ -357,9 +362,7 @@ export function TuningPanel(props: { streamId: string }) {
         class="flex items-center space-x-2"
         checked={pan.weighted_average}
         onChange={(isChecked) => {
-          sendCommand(
-            `display pan s ${streamId()} weighted_average=${isChecked ? 1 : 0}`,
-          ).then(() => setPan("weighted_average", isChecked));
+          panController()?.setWeightedAverage(isChecked);
         }}
       >
         <SwitchControl>

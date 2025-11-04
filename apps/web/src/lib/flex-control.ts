@@ -35,8 +35,9 @@ function createWebSocketTransportFactory(
 ): FlexWireTransportFactory {
   return {
     async connect(radio, handlers, connectOptions) {
-      const params =
-        connectOptions as WebSocketControlConnectionParams | undefined;
+      const params = connectOptions as
+        | WebSocketControlConnectionParams
+        | undefined;
       const socket = options.makeSocket(radio);
       socket.binaryType = "arraybuffer";
 
@@ -48,7 +49,7 @@ function createWebSocketTransportFactory(
         if (closed) return;
         const error =
           event instanceof ErrorEvent
-            ? event.error ?? new Error(event.message)
+            ? (event.error ?? new Error(event.message))
             : new Error("WebSocket error");
         handlers.onError?.(error);
       };
@@ -102,7 +103,10 @@ function createWebSocketTransportFactory(
             .then((buffer) => {
               if (closed) return;
               params?.onBinaryMessage?.(
-                new MessageEvent("message", { data: buffer, origin: event.origin }),
+                new MessageEvent("message", {
+                  data: buffer,
+                  origin: event.origin,
+                }),
               );
             })
             .catch((error) => handlers.onError?.(error));
@@ -181,7 +185,10 @@ function createWebSocketTransportFactory(
 
 function waitForOpen(socket: WebSocket): Promise<void> {
   if (socket.readyState === WebSocket.OPEN) return Promise.resolve();
-  if (socket.readyState === WebSocket.CLOSING || socket.readyState === WebSocket.CLOSED) {
+  if (
+    socket.readyState === WebSocket.CLOSING ||
+    socket.readyState === WebSocket.CLOSED
+  ) {
     return Promise.reject(new Error("WebSocket is not open"));
   }
   return new Promise<void>((resolve, reject) => {
@@ -193,7 +200,7 @@ function waitForOpen(socket: WebSocket): Promise<void> {
       cleanup();
       const error =
         event instanceof ErrorEvent
-          ? event.error ?? new Error(event.message)
+          ? (event.error ?? new Error(event.message))
           : new Error("WebSocket failed to open");
       reject(error);
     };

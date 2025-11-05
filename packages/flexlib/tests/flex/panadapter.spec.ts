@@ -30,8 +30,8 @@ describe("Panadapter controller", () => {
 
     const snapshot = session.getPanadapter("0x40000000");
     expect(snapshot).toBeDefined();
-    expect(snapshot?.bandwidthHz).toBeCloseTo(12_634, 6);
-    expect(snapshot?.centerFrequencyHz).toBeCloseTo(14_999_367);
+    expect(snapshot?.bandwidthMHz).toBeCloseTo(0.012634, 6);
+    expect(snapshot?.centerFrequencyMHz).toBeCloseTo(14.999367, 6);
 
     const controller = session.panadapter("0x40000000");
     expect(controller).toBeDefined();
@@ -49,34 +49,34 @@ describe("Panadapter controller", () => {
     expect(controller!.rfGainHigh).toBe(0);
     expect(controller!.rfGainStep).toBe(0);
 
-    await controller!.setCenterFrequency(14_100_000);
+    await controller!.setCenterFrequency(14.1);
     expect(channel.commands.at(-1)?.command).toBe(
       "display pan set 0x40000000 center=14.100000",
     );
-    expect(controller!.centerFrequencyHz).toBeCloseTo(14_100_000);
+    expect(controller!.centerFrequencyMHz).toBeCloseTo(14.1, 6);
 
-    await controller!.setBandwidth(5_000_000);
+    await controller!.setBandwidth(5);
     expect(channel.commands.at(-1)?.command).toBe(
       "display pan set 0x40000000 bandwidth=5.000000",
     );
-    expect(controller!.bandwidthHz).toBeCloseTo(5_000_000);
+    expect(controller!.bandwidthMHz).toBeCloseTo(5, 6);
 
-    await controller!.setBandwidth(2_000);
+    await controller!.setBandwidth(0.002);
     expect(channel.commands.at(-1)?.command).toBe(
       "display pan set 0x40000000 bandwidth=0.002000",
     );
-    expect(controller!.bandwidthHz).toBeCloseTo(2_000, 6);
+    expect(controller!.bandwidthMHz).toBeCloseTo(0.002, 6);
 
     const commandCountBeforeAutoCenter = channel.commands.length;
     await controller!.setAutoCenter(true);
     expect(channel.commands.length).toBe(commandCountBeforeAutoCenter);
     expect(controller!.autoCenterEnabled).toBe(true);
 
-    await controller!.setBandwidth(7_000_000);
+    await controller!.setBandwidth(7);
     expect(channel.commands.at(-1)?.command).toBe(
       "display pan set 0x40000000 bandwidth=7.000000 autocenter=1",
     );
-    expect(controller!.bandwidthHz).toBeCloseTo(7_000_000);
+    expect(controller!.bandwidthMHz).toBeCloseTo(7, 6);
 
     await controller!.setMinDbm(-400);
     expect(channel.commands.at(-1)?.command).toBe(
@@ -142,7 +142,7 @@ describe("Panadapter controller", () => {
     expect(controller!.rfGainStep).toBe(5);
     expect(controller!.rfGainMarkers).toEqual([10, 20, 30]);
 
-    await controller!.clickTune(14_200_000);
+    await controller!.clickTune(14.2);
     expect(channel.commands.at(-1)?.command).toBe(
       "slice m 14.200000 pan=0x40000000",
     );
@@ -207,8 +207,8 @@ describe("Panadapter controller", () => {
 
     const controller = await creation;
     expect(controller.id).toBe("0x50000000");
-    expect(session.getPanadapter("0x50000000")?.bandwidthHz).toBeCloseTo(
-      2_000,
+    expect(session.getPanadapter("0x50000000")?.bandwidthMHz).toBeCloseTo(
+      0.002,
       6,
     );
   });

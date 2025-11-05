@@ -30,8 +30,8 @@ describe("Waterfall controller", () => {
 
     const snapshot = session.getWaterfall("0x50000000");
     expect(snapshot).toBeDefined();
-    expect(snapshot?.centerFrequencyHz).toBeCloseTo(14_100_000, 4);
-    expect(snapshot?.bandwidthHz).toBeCloseTo(2_700, 4);
+    expect(snapshot?.centerFrequencyMHz).toBeCloseTo(14.1, 6);
+    expect(snapshot?.bandwidthMHz).toBeCloseTo(0.0027, 6);
     expect(snapshot?.lineDurationMs).toBe(100);
 
     const controller = session.waterfall("0x50000000");
@@ -121,17 +121,17 @@ describe("Waterfall controller", () => {
     );
     expect(controller!.weightedAverage).toBe(false);
 
-    await controller!.setCenterFrequency(14_200_000);
+    await controller!.setCenterFrequency(14.2);
     expect(channel.commands.at(-1)?.command).toBe(
       "display panafall set 0x50000000 center=14.200000",
     );
-    expect(controller!.centerFrequencyHz).toBeCloseTo(14_200_000, 4);
+    expect(controller!.centerFrequencyMHz).toBeCloseTo(14.2, 6);
 
-    await controller!.setBandwidth(4_500_000, { autoCenter: true });
+    await controller!.setBandwidth(4.5, { autoCenter: true });
     expect(channel.commands.at(-1)?.command).toBe(
       "display panafall set 0x50000000 bandwidth=4.500000 autocenter=1",
     );
-    expect(controller!.bandwidthHz).toBeCloseTo(4_500_000, 4);
+    expect(controller!.bandwidthMHz).toBeCloseTo(4.5, 6);
 
     await controller!.setBand("20m");
     expect(channel.commands.at(-1)?.command).toBe(

@@ -2,7 +2,7 @@ import type { FlexStatusMessage } from "./protocol.js";
 
 export interface SliceSnapshot {
   readonly id: string;
-  readonly frequencyHz: number;
+  readonly frequencyMHz: number;
   readonly mode: string;
   readonly sampleRateHz: number;
   readonly indexLetter: string;
@@ -75,8 +75,8 @@ export interface SliceSnapshot {
   readonly fmPreDeEmphasisEnabled: boolean;
   readonly squelchEnabled: boolean;
   readonly squelchLevel: number;
-  readonly txOffsetFrequencyHz: number;
-  readonly fmRepeaterOffsetHz: number;
+  readonly txOffsetFrequencyMHz: number;
+  readonly fmRepeaterOffsetMHz: number;
   readonly repeaterOffsetDirection: string;
   readonly diversityEnabled: boolean;
   readonly diversityChild: boolean;
@@ -95,11 +95,11 @@ export interface SliceSnapshot {
 export interface PanadapterSnapshot {
   readonly id: string;
   readonly streamId: string;
-  readonly centerFrequencyHz: number;
-  readonly bandwidthHz: number;
+  readonly centerFrequencyMHz: number;
+  readonly bandwidthMHz: number;
   readonly autoCenterEnabled: boolean;
-  readonly minBandwidthHz: number;
-  readonly maxBandwidthHz: number;
+  readonly minBandwidthMHz: number;
+  readonly maxBandwidthMHz: number;
   readonly lowDbm: number;
   readonly highDbm: number;
   readonly rxAntenna: string;
@@ -143,8 +143,8 @@ export interface WaterfallSnapshot {
   readonly id: string;
   readonly streamId: string;
   readonly panadapterStream: string;
-  readonly centerFrequencyHz: number;
-  readonly bandwidthHz: number;
+  readonly centerFrequencyMHz: number;
+  readonly bandwidthMHz: number;
   readonly lowDbm: number;
   readonly highDbm: number;
   readonly fps: number;
@@ -719,7 +719,7 @@ function createSliceSnapshot(
       }
     : {
         id,
-        frequencyHz: 0,
+        frequencyMHz: 0,
         mode: "",
         sampleRateHz: 0,
         indexLetter: "",
@@ -792,8 +792,8 @@ function createSliceSnapshot(
         fmPreDeEmphasisEnabled: false,
         squelchEnabled: false,
         squelchLevel: 0,
-        txOffsetFrequencyHz: 0,
-        fmRepeaterOffsetHz: 0,
+        txOffsetFrequencyMHz: 0,
+        fmRepeaterOffsetMHz: 0,
         repeaterOffsetDirection: "",
         diversityEnabled: false,
         diversityChild: false,
@@ -815,7 +815,7 @@ function createSliceSnapshot(
       case "freq":
       case "RF_frequency": {
         const parsed = parseMegahertz(value);
-        if (parsed !== undefined) next.frequencyHz = parsed;
+        if (parsed !== undefined) next.frequencyMHz = parsed;
         else logParseError("slice", key, value);
         break;
       }
@@ -1194,13 +1194,13 @@ function createSliceSnapshot(
       }
       case "tx_offset_freq": {
         const parsed = parseMegahertz(value);
-        if (parsed !== undefined) next.txOffsetFrequencyHz = parsed;
+        if (parsed !== undefined) next.txOffsetFrequencyMHz = parsed;
         else logParseError("slice", key, value);
         break;
       }
       case "fm_repeater_offset_freq": {
         const parsed = parseMegahertz(value);
-        if (parsed !== undefined) next.fmRepeaterOffsetHz = parsed;
+        if (parsed !== undefined) next.fmRepeaterOffsetMHz = parsed;
         else logParseError("slice", key, value);
         break;
       }
@@ -1275,11 +1275,17 @@ function createSliceSnapshot(
 
   const snapshot: SliceSnapshot = Object.freeze({
     ...next,
-    tuneStepListHz: freezeArray(next.tuneStepListHz),
-    availableRxAntennas: freezeArray(next.availableRxAntennas),
-    availableTxAntennas: freezeArray(next.availableTxAntennas),
-    modeList: freezeArray(next.modeList),
-    meterIds: freezeArray(next.meterIds),
+    tuneStepListHz: freezeArray(next.tuneStepListHz, previous?.tuneStepListHz),
+    availableRxAntennas: freezeArray(
+      next.availableRxAntennas,
+      previous?.availableRxAntennas,
+    ),
+    availableTxAntennas: freezeArray(
+      next.availableTxAntennas,
+      previous?.availableTxAntennas,
+    ),
+    modeList: freezeArray(next.modeList, previous?.modeList),
+    meterIds: freezeArray(next.meterIds, previous?.meterIds),
     raw: Object.freeze(raw),
   });
   return snapshot;
@@ -1305,11 +1311,11 @@ function createPanadapterSnapshot(
     : {
         id,
         streamId: id,
-        centerFrequencyHz: 0,
-        bandwidthHz: 0,
+        centerFrequencyMHz: 0,
+        bandwidthMHz: 0,
         autoCenterEnabled: false,
-        minBandwidthHz: 0,
-        maxBandwidthHz: 0,
+        minBandwidthMHz: 0,
+        maxBandwidthMHz: 0,
         lowDbm: 0,
         highDbm: 0,
         rxAntenna: "",
@@ -1358,13 +1364,13 @@ function createPanadapterSnapshot(
         break;
       case "center": {
         const parsed = parseMegahertz(value);
-        if (parsed !== undefined) next.centerFrequencyHz = parsed;
+        if (parsed !== undefined) next.centerFrequencyMHz = parsed;
         else logParseError("panadapter", key, value);
         break;
       }
       case "bandwidth": {
         const parsed = parseMegahertz(value);
-        if (parsed !== undefined) next.bandwidthHz = parsed;
+        if (parsed !== undefined) next.bandwidthMHz = parsed;
         else logParseError("panadapter", key, value);
         break;
       }
@@ -1374,13 +1380,13 @@ function createPanadapterSnapshot(
         break;
       case "min_bw": {
         const parsed = parseMegahertz(value);
-        if (parsed !== undefined) next.minBandwidthHz = parsed;
+        if (parsed !== undefined) next.minBandwidthMHz = parsed;
         else logParseError("panadapter", key, value);
         break;
       }
       case "max_bw": {
         const parsed = parseMegahertz(value);
-        if (parsed !== undefined) next.maxBandwidthHz = parsed;
+        if (parsed !== undefined) next.maxBandwidthMHz = parsed;
         else logParseError("panadapter", key, value);
         break;
       }
@@ -1562,9 +1568,9 @@ function createPanadapterSnapshot(
 
   const snapshot: PanadapterSnapshot = Object.freeze({
     ...next,
-    rxAntennas: freezeArray(next.rxAntennas),
-    rfGainMarkers: freezeArray(next.rfGainMarkers),
-    attachedSlices: freezeArray(next.attachedSlices),
+    rxAntennas: freezeArray(next.rxAntennas, previous?.rxAntennas),
+    rfGainMarkers: freezeArray(next.rfGainMarkers, previous?.rfGainMarkers),
+    attachedSlices: freezeArray(next.attachedSlices, previous?.attachedSlices),
     raw: Object.freeze(raw),
   });
   return snapshot;
@@ -1586,8 +1592,8 @@ function createWaterfallSnapshot(
         id,
         streamId: attributes["stream_id"] ?? attributes["stream"] ?? id,
         panadapterStream: attributes["pan"] ?? attributes["panadapter"] ?? "",
-        centerFrequencyHz: 0,
-        bandwidthHz: 0,
+        centerFrequencyMHz: 0,
+        bandwidthMHz: 0,
         lowDbm: 0,
         highDbm: 0,
         fps: 0,
@@ -1631,13 +1637,13 @@ function createWaterfallSnapshot(
         break;
       case "center": {
         const parsed = parseMegahertz(value);
-        if (parsed !== undefined) next.centerFrequencyHz = parsed;
+        if (parsed !== undefined) next.centerFrequencyMHz = parsed;
         else logParseError("waterfall", key, value);
         break;
       }
       case "bandwidth": {
         const parsed = parseMegahertz(value);
-        if (parsed !== undefined) next.bandwidthHz = parsed;
+        if (parsed !== undefined) next.bandwidthMHz = parsed;
         else logParseError("waterfall", key, value);
         break;
       }
@@ -1786,7 +1792,7 @@ function createWaterfallSnapshot(
 
   const snapshot: WaterfallSnapshot = Object.freeze({
     ...next,
-    rfGainMarkers: freezeArray(next.rfGainMarkers),
+    rfGainMarkers: freezeArray(next.rfGainMarkers, previous?.rfGainMarkers),
     raw: Object.freeze(raw),
   });
   return snapshot;
@@ -1957,7 +1963,7 @@ function createRadioProperties(
 function parseMegahertz(value: string | undefined): number | undefined {
   const mhz = parseFloatSafe(value);
   if (mhz === undefined) return undefined;
-  return mhz * 1_000_000;
+  return mhz;
 }
 
 function parseFloatSafe(value: string | undefined): number | undefined {
@@ -2003,8 +2009,30 @@ function parseIntegerList(value: string | undefined): number[] | undefined {
   return result;
 }
 
-function freezeArray<T>(input: readonly T[]): readonly T[] {
-  return Object.freeze(Array.from(input));
+function freezeArray<T>(
+  input: readonly T[],
+  previous?: readonly T[],
+): readonly T[] {
+  if (previous && arraysShallowEqual(previous, input)) {
+    return previous;
+  }
+  if (!Object.isFrozen(input)) {
+    Object.freeze(input as T[]);
+  }
+  return input;
+}
+
+function arraysShallowEqual<T>(
+  previous: readonly T[] | undefined,
+  next: readonly T[],
+): boolean {
+  if (!previous) return false;
+  if (previous === next) return true;
+  if (previous.length !== next.length) return false;
+  for (let index = 0; index < previous.length; index += 1) {
+    if (previous[index] !== next[index]) return false;
+  }
+  return true;
 }
 
 function isTruthy(value: string | undefined): boolean {

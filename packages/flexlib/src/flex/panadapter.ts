@@ -16,8 +16,8 @@ export interface PanadapterControllerEvents extends Record<string, unknown> {
 }
 
 export interface PanadapterUpdateRequest {
-  centerFrequencyHz?: number;
-  bandwidthHz?: number;
+  centerFrequencyMHz?: number;
+  bandwidthMHz?: number;
   autoCenterEnabled?: boolean;
   lowDbm?: number;
   highDbm?: number;
@@ -61,11 +61,11 @@ export interface PanadapterController {
   readonly id: string;
   readonly state: PanadapterSnapshot;
   readonly streamId: string;
-  readonly centerFrequencyHz: number;
-  readonly bandwidthHz: number;
+  readonly centerFrequencyMHz: number;
+  readonly bandwidthMHz: number;
   readonly autoCenterEnabled: boolean;
-  readonly minBandwidthHz: number;
-  readonly maxBandwidthHz: number;
+  readonly minBandwidthMHz: number;
+  readonly maxBandwidthMHz: number;
   readonly lowDbm: number;
   readonly highDbm: number;
   readonly fps: number;
@@ -118,8 +118,8 @@ export interface PanadapterController {
     event: TKey,
     listener: (payload: PanadapterControllerEvents[TKey]) => void,
   ): Subscription;
-  setCenterFrequency(frequencyHz: number): Promise<PanadapterSnapshot>;
-  setBandwidth(bandwidthHz: number): Promise<PanadapterSnapshot>;
+  setCenterFrequency(frequencyMHz: number): Promise<PanadapterSnapshot>;
+  setBandwidth(bandwidthMHz: number): Promise<PanadapterSnapshot>;
   setAutoCenter(enabled: boolean): Promise<PanadapterSnapshot>;
   setMinDbm(value: number): Promise<PanadapterSnapshot>;
   setMaxDbm(value: number): Promise<PanadapterSnapshot>;
@@ -155,7 +155,7 @@ export interface PanadapterController {
   setLoggerDisplayPort(port: number): Promise<PanadapterSnapshot>;
   setLoggerDisplayRadioNumber(radio: number): Promise<PanadapterSnapshot>;
   refreshRfGainInfo(): Promise<PanadapterSnapshot>;
-  clickTune(frequencyHz: number): Promise<void>;
+  clickTune(frequencyMHz: number): Promise<void>;
   update(request: PanadapterUpdateRequest): Promise<PanadapterSnapshot>;
   close(): Promise<void>;
 }
@@ -190,24 +190,24 @@ export class PanadapterControllerImpl implements PanadapterController {
     return this.current().streamId;
   }
 
-  get centerFrequencyHz(): number {
-    return this.current().centerFrequencyHz;
+  get centerFrequencyMHz(): number {
+    return this.current().centerFrequencyMHz;
   }
 
-  get bandwidthHz(): number {
-    return this.current().bandwidthHz;
+  get bandwidthMHz(): number {
+    return this.current().bandwidthMHz;
   }
 
   get autoCenterEnabled(): boolean {
     return this.current().autoCenterEnabled;
   }
 
-  get minBandwidthHz(): number {
-    return this.current().minBandwidthHz;
+  get minBandwidthMHz(): number {
+    return this.current().minBandwidthMHz;
   }
 
-  get maxBandwidthHz(): number {
-    return this.current().maxBandwidthHz;
+  get maxBandwidthMHz(): number {
+    return this.current().maxBandwidthMHz;
   }
 
   get lowDbm(): number {
@@ -361,14 +361,14 @@ export class PanadapterControllerImpl implements PanadapterController {
     return this.events.on(event, listener);
   }
 
-  async setCenterFrequency(frequencyHz: number): Promise<PanadapterSnapshot> {
-    await this.sendSet({ center: formatMegahertz(frequencyHz) });
+  async setCenterFrequency(frequencyMHz: number): Promise<PanadapterSnapshot> {
+    await this.sendSet({ center: formatMegahertz(frequencyMHz) });
     return this.snapshot();
   }
 
-  async setBandwidth(bandwidthHz: number): Promise<PanadapterSnapshot> {
+  async setBandwidth(bandwidthMHz: number): Promise<PanadapterSnapshot> {
     const snapshot = this.current();
-    const target = this.clampBandwidth(bandwidthHz, snapshot);
+    const target = this.clampBandwidth(bandwidthMHz, snapshot);
     const extras: string[] = [];
     if (snapshot.autoCenterEnabled) extras.push("autocenter=1");
     await this.sendSet({ bandwidth: formatMegahertz(target) }, extras);
@@ -549,9 +549,9 @@ export class PanadapterControllerImpl implements PanadapterController {
     return this.snapshot();
   }
 
-  async clickTune(frequencyHz: number): Promise<void> {
+  async clickTune(frequencyMHz: number): Promise<void> {
     const stream = this.requireStreamHandle();
-    const command = `slice m ${formatMegahertz(frequencyHz)} pan=${stream}`;
+    const command = `slice m ${formatMegahertz(frequencyMHz)} pan=${stream}`;
     await this.session.command(command);
   }
 
@@ -582,10 +582,10 @@ export class PanadapterControllerImpl implements PanadapterController {
     request: PanadapterUpdateRequest,
   ): Record<string, string> {
     const entries = Object.create(null) as Record<string, string>;
-    if (request.centerFrequencyHz !== undefined)
-      entries.center = formatMegahertz(request.centerFrequencyHz);
-    if (request.bandwidthHz !== undefined) {
-      const target = this.clampBandwidth(request.bandwidthHz);
+    if (request.centerFrequencyMHz !== undefined)
+      entries.center = formatMegahertz(request.centerFrequencyMHz);
+    if (request.bandwidthMHz !== undefined) {
+      const target = this.clampBandwidth(request.bandwidthMHz);
       entries.bandwidth = formatMegahertz(target);
     }
     if (request.lowDbm !== undefined) {
@@ -671,14 +671,14 @@ export class PanadapterControllerImpl implements PanadapterController {
   }
 
   private clampBandwidth(
-    bandwidthHz: number,
+    bandwidthMHz: number,
     snapshot: PanadapterSnapshot = this.current(),
   ): number {
     const min =
-      snapshot.minBandwidthHz > 0 ? snapshot.minBandwidthHz : undefined;
+      snapshot.minBandwidthMHz > 0 ? snapshot.minBandwidthMHz : undefined;
     const max =
-      snapshot.maxBandwidthHz > 0 ? snapshot.maxBandwidthHz : undefined;
-    return this.clampNumber(bandwidthHz, min, max);
+      snapshot.maxBandwidthMHz > 0 ? snapshot.maxBandwidthMHz : undefined;
+    return this.clampNumber(bandwidthMHz, min, max);
   }
 
   private clampNumber(value: number, min?: number, max?: number): number {
@@ -696,9 +696,8 @@ export class PanadapterControllerImpl implements PanadapterController {
     return Math.round(value).toString(10);
   }
 }
-function formatMegahertz(frequencyHz: number): string {
-  const mhz = frequencyHz / 1_000_000;
-  return mhz.toFixed(6);
+function formatMegahertz(frequencyMHz: number): string {
+  return frequencyMHz.toFixed(6);
 }
 
 function formatDbm(value: number): string {

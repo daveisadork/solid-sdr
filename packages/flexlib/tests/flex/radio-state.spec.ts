@@ -20,8 +20,8 @@ describe("createRadioStateStore", () => {
     store.apply(makeStatus(PAN_STATUS));
     let pan = store.getPanadapter("0x40000000");
     expect(pan).toBeDefined();
-    expect(pan?.centerFrequencyHz).toBeCloseTo(14_100_000);
-    expect(pan?.bandwidthHz).toBeCloseTo(200_000);
+    expect(pan?.centerFrequencyMHz).toBeCloseTo(14.1, 6);
+    expect(pan?.bandwidthMHz).toBeCloseTo(0.2, 6);
     expect(pan?.band).toBe("20");
     expect(pan?.clientHandle).toBe(977_344_129);
     expect(pan?.isBandZoomOn).toBe(false);
@@ -41,7 +41,7 @@ describe("createRadioStateStore", () => {
     store.apply(makeStatus(SLICE_STATUS));
     const slice = store.getSlice("0");
     expect(slice).toBeDefined();
-    expect(slice?.frequencyHz).toBeCloseTo(15_000_000);
+    expect(slice?.frequencyMHz).toBeCloseTo(15, 6);
     expect(slice?.sampleRateHz).toBe(24_000);
     expect(slice?.indexLetter).toBe("A");
     expect(slice?.mode).toBe("USB");
@@ -52,7 +52,7 @@ describe("createRadioStateStore", () => {
     expect(slice?.tuneStepListHz).toEqual([
       1, 10, 50, 100, 500, 1000, 2000, 3000,
     ]);
-    expect(slice?.txOffsetFrequencyHz).toBeCloseTo(0);
+    expect(slice?.txOffsetFrequencyMHz).toBeCloseTo(0);
     expect(slice?.postDemodLowHz).toBe(300);
     expect(slice?.postDemodHighHz).toBe(3_300);
     expect(slice?.postDemodBypass).toBe(false);
@@ -138,8 +138,8 @@ describe("createRadioStateStore", () => {
     const waterfall = store.getWaterfall("0x42000000");
     expect(waterfall).toBeDefined();
     expect(waterfall?.panadapterStream).toBe("0x40000000");
-    expect(waterfall?.centerFrequencyHz).toBeCloseTo(14_100_000);
-    expect(waterfall?.bandwidthHz).toBeCloseTo(200_000);
+    expect(waterfall?.centerFrequencyMHz).toBeCloseTo(14.1, 6);
+    expect(waterfall?.bandwidthMHz).toBeCloseTo(0.2, 6);
     expect(waterfall?.isBandZoomOn).toBe(false);
     expect(waterfall?.isSegmentZoomOn).toBe(false);
     expect(waterfall?.lineDurationMs).toBe(100);

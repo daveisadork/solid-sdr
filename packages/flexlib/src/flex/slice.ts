@@ -16,7 +16,7 @@ export interface SliceControllerEvents extends Record<string, unknown> {
 }
 
 export interface SliceUpdateRequest {
-  frequencyHz?: number;
+  frequencyMHz?: number;
   mode?: string;
   isActive?: boolean;
   isLocked?: boolean;
@@ -77,8 +77,8 @@ export interface SliceUpdateRequest {
   fmPreDeEmphasisEnabled?: boolean;
   squelchEnabled?: boolean;
   squelchLevel?: number;
-  txOffsetFrequencyHz?: number;
-  fmRepeaterOffsetFrequencyHz?: number;
+  txOffsetFrequencyMHz?: number;
+  fmRepeaterOffsetFrequencyMHz?: number;
   repeaterOffsetDirection?: SliceRepeaterOffsetDirection;
   diversityEnabled?: boolean;
   diversityChild?: boolean;
@@ -89,9 +89,9 @@ export interface SliceController {
   readonly id: string;
   readonly state: SliceSnapshot;
   /**
-   * Slice center frequency in Hz (FlexLib documents this value in MHz).
+   * Slice center frequency in MHz (matches radio status reports).
    */
-  readonly frequencyHz: number;
+  readonly frequencyMHz: number;
   /**
    * Demodulation mode for the slice, e.g. "USB", "DIGU", "LSB", "DIGL", "CW", "DSB", "AM", "SAM", "FM".
    */
@@ -284,13 +284,13 @@ export interface SliceController {
    */
   readonly squelchLevel: number;
   /**
-   * Transmit offset frequency in Hz.
+   * Transmit offset frequency in MHz.
    */
-  readonly txOffsetFrequencyHz: number;
+  readonly txOffsetFrequencyMHz: number;
   /**
-   * FM repeater offset frequency used for wide splits in Hz.
+   * FM repeater offset frequency used for wide splits in MHz.
    */
-  readonly fmRepeaterOffsetHz: number;
+  readonly fmRepeaterOffsetMHz: number;
   /**
    * Direction that the transmit offset is applied in.
    */
@@ -316,7 +316,7 @@ export interface SliceController {
     event: TKey,
     listener: (payload: SliceControllerEvents[TKey]) => void,
   ): Subscription;
-  tune(frequencyHz: number): Promise<SliceSnapshot>;
+  tune(frequencyMHz: number): Promise<SliceSnapshot>;
   nudge(deltaHz: number): Promise<SliceSnapshot>;
   cwAutoTune(options?: { intermittent?: boolean }): Promise<void>;
   /**
@@ -489,13 +489,13 @@ export interface SliceController {
    */
   setSquelchLevel(level: number): Promise<SliceSnapshot>;
   /**
-   * Sets the transmit offset frequency for the slice in Hz.
+   * Sets the transmit offset frequency for the slice in MHz.
    */
-  setTxOffsetFrequency(offsetHz: number): Promise<SliceSnapshot>;
+  setTxOffsetFrequency(offsetMHz: number): Promise<SliceSnapshot>;
   /**
-   * Sets the FM repeater offset frequency for wide splits in Hz.
+   * Sets the FM repeater offset frequency for wide splits in MHz.
    */
-  setFmRepeaterOffsetFrequency(offsetHz: number): Promise<SliceSnapshot>;
+  setFmRepeaterOffsetFrequency(offsetMHz: number): Promise<SliceSnapshot>;
   /**
    * Sets the direction that the transmit offset is applied in.
    */
@@ -547,8 +547,8 @@ export class SliceControllerImpl implements SliceController {
     return this.current();
   }
 
-  get frequencyHz(): number {
-    return this.current().frequencyHz;
+  get frequencyMHz(): number {
+    return this.current().frequencyMHz;
   }
 
   get mode(): string {
@@ -835,12 +835,12 @@ export class SliceControllerImpl implements SliceController {
     return this.current().squelchLevel;
   }
 
-  get txOffsetFrequencyHz(): number {
-    return this.current().txOffsetFrequencyHz;
+  get txOffsetFrequencyMHz(): number {
+    return this.current().txOffsetFrequencyMHz;
   }
 
-  get fmRepeaterOffsetHz(): number {
-    return this.current().fmRepeaterOffsetHz;
+  get fmRepeaterOffsetMHz(): number {
+    return this.current().fmRepeaterOffsetMHz;
   }
 
   get repeaterOffsetDirection(): string {
@@ -874,15 +874,16 @@ export class SliceControllerImpl implements SliceController {
     return this.events.on(event, listener);
   }
 
-  async tune(frequencyHz: number): Promise<SliceSnapshot> {
+  async tune(frequencyMHz: number): Promise<SliceSnapshot> {
     await this.session.command(
-      `slice tune ${this.id} ${formatMegahertz(frequencyHz)}`,
+      `slice tune ${this.id} ${formatMegahertz(frequencyMHz)}`,
     );
     return this.snapshot();
   }
 
   async nudge(deltaHz: number): Promise<SliceSnapshot> {
-    const nextFrequency = this.current().frequencyHz + deltaHz;
+    const nextFrequency =
+      this.current().frequencyMHz + deltaHz / 1_000_000;
     return this.tune(nextFrequency);
   }
 
@@ -1216,13 +1217,17 @@ export class SliceControllerImpl implements SliceController {
     return this.snapshot();
   }
 
-  async setTxOffsetFrequency(offsetHz: number): Promise<SliceSnapshot> {
-    await this.sendSet({ tx_offset_freq: formatMegahertz(offsetHz) });
+  async setTxOffsetFrequency(offsetMHz: number): Promise<SliceSnapshot> {
+    await this.sendSet({ tx_offset_freq: formatMegahertz(offsetMHz) });
     return this.snapshot();
   }
 
-  async setFmRepeaterOffsetFrequency(offsetHz: number): Promise<SliceSnapshot> {
-    await this.sendSet({ fm_repeater_offset_freq: formatMegahertz(offsetHz) });
+  async setFmRepeaterOffsetFrequency(
+    offsetMHz: number,
+  ): Promise<SliceSnapshot> {
+    await this.sendSet({
+      fm_repeater_offset_freq: formatMegahertz(offsetMHz),
+    });
     return this.snapshot();
   }
 
@@ -1249,7 +1254,7 @@ export class SliceControllerImpl implements SliceController {
   }
 
   async update(request: SliceUpdateRequest): Promise<SliceSnapshot> {
-    const { frequencyHz, isLocked, ...setRequest } = request;
+    const { frequencyMHz, isLocked, ...setRequest } = request;
     const entries = this.buildSetEntries(setRequest);
     if (Object.keys(entries).length > 0) {
       await this.sendSet(entries);
@@ -1257,8 +1262,8 @@ export class SliceControllerImpl implements SliceController {
     if (isLocked !== undefined) {
       await this.setLocked(isLocked);
     }
-    if (frequencyHz !== undefined) {
-      await this.tune(frequencyHz);
+    if (frequencyMHz !== undefined) {
+      await this.tune(frequencyMHz);
     }
     return this.snapshot();
   }
@@ -1277,7 +1282,7 @@ export class SliceControllerImpl implements SliceController {
   }
 
   private buildSetEntries(
-    request: Omit<SliceUpdateRequest, "frequencyHz" | "isLocked">,
+    request: Omit<SliceUpdateRequest, "frequencyMHz" | "isLocked">,
   ): Record<string, string> {
     const entries = Object.create(null) as Record<string, string>;
     if (request.mode !== undefined) entries.mode = request.mode;
@@ -1397,11 +1402,11 @@ export class SliceControllerImpl implements SliceController {
       entries.squelch = this.toFlag(request.squelchEnabled);
     if (request.squelchLevel !== undefined)
       entries.squelch_level = this.toIntString(request.squelchLevel);
-    if (request.txOffsetFrequencyHz !== undefined)
-      entries.tx_offset_freq = formatMegahertz(request.txOffsetFrequencyHz);
-    if (request.fmRepeaterOffsetFrequencyHz !== undefined)
+    if (request.txOffsetFrequencyMHz !== undefined)
+      entries.tx_offset_freq = formatMegahertz(request.txOffsetFrequencyMHz);
+    if (request.fmRepeaterOffsetFrequencyMHz !== undefined)
       entries.fm_repeater_offset_freq = formatMegahertz(
-        request.fmRepeaterOffsetFrequencyHz,
+        request.fmRepeaterOffsetFrequencyMHz,
       );
     if (request.repeaterOffsetDirection !== undefined)
       entries.repeater_offset_dir = request.repeaterOffsetDirection;
@@ -1429,7 +1434,6 @@ export class SliceControllerImpl implements SliceController {
     return value;
   }
 }
-function formatMegahertz(frequencyHz: number): string {
-  const mhz = frequencyHz / 1_000_000;
-  return mhz.toFixed(6);
+function formatMegahertz(frequencyMHz: number): string {
+  return frequencyMHz.toFixed(6);
 }

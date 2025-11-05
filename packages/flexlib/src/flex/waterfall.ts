@@ -16,8 +16,8 @@ export interface WaterfallControllerEvents extends Record<string, unknown> {
 }
 
 export interface WaterfallUpdateRequest {
-  centerFrequencyHz?: number;
-  bandwidthHz?: number;
+  centerFrequencyMHz?: number;
+  bandwidthMHz?: number;
   lowDbm?: number;
   highDbm?: number;
   fps?: number;
@@ -50,8 +50,8 @@ export interface WaterfallController {
   readonly state: WaterfallSnapshot;
   readonly streamId: string;
   readonly panadapterStream: string;
-  readonly centerFrequencyHz: number;
-  readonly bandwidthHz: number;
+  readonly centerFrequencyMHz: number;
+  readonly bandwidthMHz: number;
   readonly lowDbm: number;
   readonly highDbm: number;
   readonly fps: number;
@@ -81,9 +81,9 @@ export interface WaterfallController {
     event: TKey,
     listener: (payload: WaterfallControllerEvents[TKey]) => void,
   ): Subscription;
-  setCenterFrequency(frequencyHz: number): Promise<WaterfallSnapshot>;
+  setCenterFrequency(frequencyMHz: number): Promise<WaterfallSnapshot>;
   setBandwidth(
-    bandwidthHz: number,
+    bandwidthMHz: number,
     options?: { autoCenter?: boolean },
   ): Promise<WaterfallSnapshot>;
   setMinDbm(value: number): Promise<WaterfallSnapshot>;
@@ -145,12 +145,12 @@ export class WaterfallControllerImpl implements WaterfallController {
     return this.current().panadapterStream;
   }
 
-  get centerFrequencyHz(): number {
-    return this.current().centerFrequencyHz;
+  get centerFrequencyMHz(): number {
+    return this.current().centerFrequencyMHz;
   }
 
-  get bandwidthHz(): number {
-    return this.current().bandwidthHz;
+  get bandwidthMHz(): number {
+    return this.current().bandwidthMHz;
   }
 
   get lowDbm(): number {
@@ -261,19 +261,19 @@ export class WaterfallControllerImpl implements WaterfallController {
   }
 
   async setCenterFrequency(
-    frequencyHz: number,
+    frequencyMHz: number,
   ): Promise<WaterfallSnapshot> {
-    await this.sendSet({ center: formatMegahertz(frequencyHz) });
+    await this.sendSet({ center: formatMegahertz(frequencyMHz) });
     return this.snapshot();
   }
 
   async setBandwidth(
-    bandwidthHz: number,
+    bandwidthMHz: number,
     options?: { autoCenter?: boolean },
   ): Promise<WaterfallSnapshot> {
     const extras: string[] = [];
     if (options?.autoCenter) extras.push("autocenter=1");
-    await this.sendSet({ bandwidth: formatMegahertz(bandwidthHz) }, extras);
+    await this.sendSet({ bandwidth: formatMegahertz(bandwidthMHz) }, extras);
     return this.snapshot();
   }
 
@@ -419,10 +419,10 @@ export class WaterfallControllerImpl implements WaterfallController {
     request: WaterfallUpdateRequest,
   ): Record<string, string> {
     const entries = Object.create(null) as Record<string, string>;
-    if (request.centerFrequencyHz !== undefined)
-      entries.center = formatMegahertz(request.centerFrequencyHz);
-    if (request.bandwidthHz !== undefined)
-      entries.bandwidth = formatMegahertz(request.bandwidthHz);
+    if (request.centerFrequencyMHz !== undefined)
+      entries.center = formatMegahertz(request.centerFrequencyMHz);
+    if (request.bandwidthMHz !== undefined)
+      entries.bandwidth = formatMegahertz(request.bandwidthMHz);
     if (request.lowDbm !== undefined)
       entries.min_dbm = formatDbm(request.lowDbm);
     if (request.highDbm !== undefined)
@@ -488,9 +488,8 @@ export class WaterfallControllerImpl implements WaterfallController {
   }
 }
 
-function formatMegahertz(frequencyHz: number): string {
-  const mhz = frequencyHz / 1_000_000;
-  return mhz.toFixed(6);
+function formatMegahertz(frequencyMHz: number): string {
+  return frequencyMHz.toFixed(6);
 }
 
 function formatDbm(value: number): string {

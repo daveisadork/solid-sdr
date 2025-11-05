@@ -46,7 +46,7 @@ describe("FlexClient", () => {
     expect(slice?.modeList).toEqual([]);
     expect(changes.length).toBe(1);
 
-    await slice?.tune(14_075_000);
+    await slice?.tune(14.075);
     expect(channel.commands.at(-1)?.command).toBe("slice tune 0 14.075000");
 
     await slice?.setMode("DIGU");
@@ -177,7 +177,7 @@ describe("FlexClient", () => {
       audioGain: 55,
       agcThreshold: 65,
       loopAEnabled: true,
-      txOffsetFrequencyHz: 1_500,
+      txOffsetFrequencyMHz: 0.0015,
     });
     expect(channel.commands.at(-1)?.command).toBe(
       "slice set 0 audio_level=55 agc_threshold=65 loopa=1 tx_offset_freq=0.001500",
@@ -185,7 +185,7 @@ describe("FlexClient", () => {
     expect(slice?.audioGain).toBe(55);
     expect(slice?.agcThreshold).toBe(65);
     expect(slice?.loopAEnabled).toBe(true);
-    expect(slice?.txOffsetFrequencyHz).toBeCloseTo(1_500);
+    expect(slice?.txOffsetFrequencyMHz).toBeCloseTo(0.0015);
 
     channel.emit(makeStatus("S2|slice 0 in_use=0"));
     expect(session.getSlice("0")).toBeUndefined();

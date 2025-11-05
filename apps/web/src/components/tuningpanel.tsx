@@ -59,17 +59,17 @@ export function TuningPanel(props: { streamId: string }) {
   const { session, state, setState } = useFlexRadio();
   const [pan] = createStore(state.status.display.pan[streamId()]);
   const panController = () => session()?.panadapter(streamId());
-  const waterfallId = () => pan.waterfall;
+  const waterfallId = () => pan.waterfallStreamId;
   const wfController = () => session()?.waterfall(waterfallId());
   const [waterfall] = createStore(
     state.status.display.waterfall[waterfallId()],
   );
   const [gradients] = createStore(state.palette.gradients);
   const [rawFrequency, setRawFrequency] = createSignal(
-    panController().centerFrequencyHz / 1_000_000,
+    panController().centerFrequencyMHz,
   );
   const [rawBandwidth, setRawBandwidth] = createSignal(
-    panController().bandwidthHz / 1_000_000,
+    panController().bandwidthMHz,
   );
   const [rawAverage, setRawAverage] = createSignal(panController().average);
   const [rawFps, setRawFps] = createSignal(pan.fps);
@@ -238,14 +238,14 @@ export function TuningPanel(props: { streamId: string }) {
         <SelectContent />
       </Select>
       <Select
-        value={pan.rxant}
+        value={pan.rxAntenna}
         onChange={(value) => {
           if (!value) return;
-          if (value !== pan.rxant) {
+          if (value !== pan.rxAntenna) {
             panController()?.setRxAntenna(value);
           }
         }}
-        options={pan.ant_list}
+        options={pan.rxAntennas}
         itemComponent={(props) => (
           <SelectItem item={props.item}>{props.item.rawValue}</SelectItem>
         )}
@@ -280,13 +280,13 @@ export function TuningPanel(props: { streamId: string }) {
       </Select>
       <NumberField
         class="flex w-36 flex-col gap-2 select-none"
-        rawValue={pan.center}
-        step={pan.bandwidth / 10}
-        largeStep={pan.bandwidth}
+        rawValue={pan.centerFrequencyMHz}
+        step={pan.bandwidthMHz / 10}
+        largeStep={pan.bandwidthMHz}
         onFocusOut={() => {
           const value = rawFrequency();
-          if (value !== pan.center) {
-            panController()?.setCenterFrequency(value * 1_000_000);
+          if (value !== pan.centerFrequencyMHz) {
+            panController()?.setCenterFrequency(value);
           }
         }}
         onRawValueChange={setRawFrequency}
@@ -299,15 +299,15 @@ export function TuningPanel(props: { streamId: string }) {
       </NumberField>
       <NumberField
         class="flex w-36 flex-col gap-2 select-none"
-        rawValue={pan.bandwidth}
-        step={pan.bandwidth / 2}
-        largeStep={pan.bandwidth}
-        minValue={pan.min_bw}
-        maxValue={pan.max_bw}
+        rawValue={pan.bandwidthMHz}
+        step={pan.bandwidthMHz / 2}
+        largeStep={pan.bandwidthMHz}
+        minValue={pan.minBandwidthMHz}
+        maxValue={pan.maxBandwidthMHz}
         onFocusOut={() => {
           const value = rawBandwidth();
-          if (value !== pan.bandwidth) {
-            panController()?.setBandwidth(value * 1_000_000);
+          if (value !== pan.bandwidthMHz) {
+            panController()?.setBandwidth(value);
           }
         }}
         onChange={(value) => console.log("bandwidth changed:", value)}
@@ -324,7 +324,7 @@ export function TuningPanel(props: { streamId: string }) {
       </NumberField>
       <Switch
         class="flex items-center space-x-2"
-        checked={pan.band_zoom}
+        checked={pan.isBandZoomOn}
         onChange={(isChecked) => {
           panController()?.setBandZoom(isChecked);
         }}
@@ -336,7 +336,7 @@ export function TuningPanel(props: { streamId: string }) {
       </Switch>
       <Switch
         class="flex items-center space-x-2"
-        checked={pan.segment_zoom}
+        checked={pan.isSegmentZoomOn}
         onChange={(isChecked) => {
           panController()?.setSegmentZoom(isChecked);
         }}
@@ -360,7 +360,7 @@ export function TuningPanel(props: { streamId: string }) {
       </Switch>
       <Switch
         class="flex items-center space-x-2"
-        checked={pan.weighted_average}
+        checked={pan.weightedAverage}
         onChange={(isChecked) => {
           panController()?.setWeightedAverage(isChecked);
         }}

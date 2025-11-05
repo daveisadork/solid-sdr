@@ -154,15 +154,17 @@ const LevelMeter = (props: { sliceIndex?: string | number }) => {
   );
 };
 
-export function DetachedSlice(props: { sliceIndex: number | string }) {
+export function DetachedSlice(props: { sliceIndex: string }) {
   const sliceIndex = () => props.sliceIndex;
   const { sendCommand, session, state, setState } = useFlexRadio();
   const [slice, setSlice] = createStore(state.status.slice[sliceIndex()]);
   const streamId = () => slice.pan;
+  const controller = () => session()?.slice(sliceIndex());
   const [pan] = createStore(state.status.display.pan[streamId()]);
 
   const makeActive = async () => {
     if (slice.active) return;
+    await controller().setActive(true);
     await sendCommand(`slice s ${props.sliceIndex} active=1`);
     const ownedSlices = Object.keys(state.status.slice).filter(
       (key) =>
@@ -181,15 +183,15 @@ export function DetachedSlice(props: { sliceIndex: number | string }) {
       onClick={() => {
         session()
           ?.panadapter(streamId())
-          ?.setCenterFrequency(slice.RF_frequency * 1e6);
+          ?.setCenterFrequency(slice.RF_frequency);
         makeActive();
       }}
     >
-      <Show when={slice.RF_frequency < pan.center}>
+      <Show when={slice.RF_frequency < pan.centerFrequencyMHz}>
         <BaselineChevronLeft />
       </Show>
       <span>{slice.index_letter}</span>
-      <Show when={slice.RF_frequency > pan.center}>
+      <Show when={slice.RF_frequency > pan.centerFrequencyMHz}>
         <BaselineChevronRight />
       </Show>
     </Button>
@@ -211,7 +213,7 @@ export function DetachedSlices(props: { streamId: number | string }) {
               slice.pan === props.streamId &&
               slice.in_use &&
               slice.detached &&
-              slice.RF_frequency < pan.center
+              slice.RF_frequency < pan.centerFrequencyMHz
             );
           })}
         >
@@ -227,7 +229,7 @@ export function DetachedSlices(props: { streamId: number | string }) {
               slice.pan === props.streamId &&
               slice.in_use &&
               slice.detached &&
-              slice.RF_frequency > pan.center
+              slice.RF_frequency > pan.centerFrequencyMHz
             );
           })}
         >
@@ -238,10 +240,11 @@ export function DetachedSlices(props: { streamId: number | string }) {
   );
 }
 
-export function Slice(props: { sliceIndex: number | string }) {
+export function Slice(props: { sliceIndex: string }) {
   const sliceIndex = () => props.sliceIndex;
-  const { state, sendCommand, setState } = useFlexRadio();
+  const { session, state, sendCommand, setState } = useFlexRadio();
   const [slice, setSlice] = createStore(state.status.slice[sliceIndex()]);
+  const sliceController = () => session()?.slice(sliceIndex());
   const streamId = () => slice.pan;
   const [pan] = createStore(state.status.display.pan[streamId()]);
   const [offset, setOffset] = createSignal(0);
@@ -281,10 +284,10 @@ export function Slice(props: { sliceIndex: number | string }) {
   createPointerListeners({
     async onMove(event) {
       if (!dragState.dragging) return;
-      const newX = Math.max(0, Math.min(event.x, pan.x_pixels - 1));
+      const newX = Math.max(0, Math.min(event.x, pan.width - 1));
       const newOffset = dragState.originX - newX;
 
-      const mhzPerPx = pan.bandwidth / pan.x_pixels;
+      const mhzPerPx = pan.bandwidthMHz / pan.width;
       // Round frequency to the nearest step
       const step = slice.step / 1e6; // Convert Hz to MHz
       const freqUnrounded = dragState.originFreq - newOffset * mhzPerPx;
@@ -314,10 +317,10 @@ export function Slice(props: { sliceIndex: number | string }) {
   });
 
   createEffect((center) => {
-    if (pan.center !== center) {
+    if (pan.centerFrequencyMHz !== center) {
       setDragState("dragging", false);
     }
-    return pan.center;
+    return pan.centerFrequencyMHz;
   });
 
   createEffect(() => {
@@ -329,13 +332,13 @@ export function Slice(props: { sliceIndex: number | string }) {
   createEffect(() => {
     const { width } = windowSize;
     if (!width) return;
-    const leftFreq = pan.center - pan.bandwidth / 2;
+    const leftFreq = pan.centerFrequencyMHz - pan.bandwidthMHz / 2;
     const offsetMhz = slice.RF_frequency - leftFreq;
-    const offsetPixels = (offsetMhz / pan.bandwidth) * width;
+    const offsetPixels = (offsetMhz / pan.bandwidthMHz) * width;
     const filterWidthMhz = (slice.filter_hi - slice.filter_lo) / 1e6; // Convert Hz to MHz
     batch(() => {
-      setFilterWidth((filterWidthMhz / pan.bandwidth) * width);
-      setFilterOffset((slice.filter_lo / 1e6 / pan.bandwidth) * width);
+      setFilterWidth((filterWidthMhz / pan.bandwidthMHz) * width);
+      setFilterOffset((slice.filter_lo / 1e6 / pan.bandwidthMHz) * width);
       setFilterText(`${(slice.filter_hi - slice.filter_lo) / 1e3}K`);
       // panadapter display is off by 2 pixels, so adjust
       setOffset(offsetPixels - 2);
@@ -366,7 +369,9 @@ export function Slice(props: { sliceIndex: number | string }) {
   };
 
   const makeActive = async () => {
+    console.log("makeActive", sliceIndex(), sliceController());
     if (slice.active) return;
+    // await sliceController()?.setActive(true);
     await sendCommand(`slice s ${props.sliceIndex} active=1`);
     const ownedSlices = Object.keys(state.status.slice).filter(
       (key) =>

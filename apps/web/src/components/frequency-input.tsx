@@ -100,24 +100,27 @@ export const FrequencyInput: Component<FrequencyInputProps> = (props) => {
   const formattedValue = () => formatDigits(digitString());
   const digitsValue = () => Number.parseInt(digitString(), 10) || 0;
 
-const updateDigits = (
-  nextDigits: string,
-  caretDigit?: number,
-  input?: HTMLInputElement,
-) => {
-  const normalized = sanitizeDigits(nextDigits);
-  setDigitString(normalized);
-  if (caretDigit === undefined || !input) {
-    return;
-  }
-  const limitedCaret = Math.max(0, Math.min(caretDigit, normalized.length));
-  const caretIndex = digitIndexToCaretPosition(formatDigits(normalized), limitedCaret);
-  queueMicrotask(() => input.setSelectionRange(caretIndex, caretIndex));
-};
+  const updateDigits = (
+    nextDigits: string,
+    caretDigit?: number,
+    input?: HTMLInputElement,
+  ) => {
+    const normalized = sanitizeDigits(nextDigits);
+    setDigitString(normalized);
+    if (caretDigit === undefined || !input) {
+      return;
+    }
+    const limitedCaret = Math.max(0, Math.min(caretDigit, normalized.length));
+    const caretIndex = digitIndexToCaretPosition(
+      formatDigits(normalized),
+      limitedCaret,
+    );
+    queueMicrotask(() => input.setSelectionRange(caretIndex, caretIndex));
+  };
 
-const getSelection = (input: HTMLInputElement) => {
-  const value = input.value;
-  const start = input.selectionStart ?? value.length;
+  const getSelection = (input: HTMLInputElement) => {
+    const value = input.value;
+    const start = input.selectionStart ?? value.length;
     const end = input.selectionEnd ?? start;
     return {
       start: displayIndexToDigitIndex(value, start),
@@ -348,6 +351,7 @@ const getSelection = (input: HTMLInputElement) => {
   const handleBlur: JSX.EventHandler<HTMLInputElement, FocusEvent> = async (
     event,
   ) => {
+    const { currentTarget } = event;
     setEditing(false);
     if (cancelCommit) {
       cancelCommit = false;
@@ -355,7 +359,7 @@ const getSelection = (input: HTMLInputElement) => {
       return;
     }
     await commitDigits();
-    event.currentTarget.setSelectionRange(0, 0);
+    currentTarget.setSelectionRange(0, 0);
   };
 
   const valueHzEffect = () => {

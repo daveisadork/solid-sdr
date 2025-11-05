@@ -46,9 +46,10 @@ export function Panadapter(props: { streamId: string }) {
     if (!width) return [];
     const currentPan = pan();
     if (!currentPan) return [];
+    const { centerFrequencyMHz, bandwidthMHz } = currentPan;
     return buildFrequencyGrid({
-      center: currentPan.center,
-      bandwidth: currentPan.bandwidth,
+      centerFrequencyMHz,
+      bandwidthMHz,
       width,
       minPixelSpacing: 72,
     });
@@ -72,12 +73,12 @@ export function Panadapter(props: { streamId: string }) {
   createEffect(() => {
     const { gradients } = state.palette;
     const { gradientIndex: gradient_index } =
-      state.status.display.waterfall[pan().waterfall];
+      state.status.display.waterfall[pan().waterfallStreamId];
     const { colors } = gradients[gradient_index];
     const colorMin = 0;
     const colorMax = 1;
     const stepSize = (colorMax - colorMin) / colors.length;
-    const offscreen = new OffscreenCanvas(1, pan().y_pixels);
+    const offscreen = new OffscreenCanvas(1, pan().height);
     const ctx = offscreen.getContext("2d");
     if (!ctx) return;
     const gradient = ctx.createLinearGradient(
@@ -112,13 +113,13 @@ export function Panadapter(props: { streamId: string }) {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     const { gradients } = state.palette;
-    const waterfall = state.status.display.waterfall[pan().waterfall];
+    const waterfall = state.status.display.waterfall[pan().waterfallStreamId];
     if (!waterfall) return;
-    const { gradientIndex: gradient_index } = waterfall;
-    const { colors } = gradients[gradient_index];
+    const { gradientIndex } = waterfall;
+    const { colors } = gradients[gradientIndex];
     const stepSize = 1 / colors.length;
 
-    const gradient = ctx.createLinearGradient(0, pan().y_pixels, 0, 0);
+    const gradient = ctx.createLinearGradient(0, pan().height, 0, 0);
     colors.forEach((color, index) => {
       gradient.addColorStop(index * stepSize, color);
     });
@@ -126,7 +127,7 @@ export function Panadapter(props: { streamId: string }) {
   });
 
   createEffect(() => {
-    console.log("Panadapter", streamId(), pan().x_pixels, pan().y_pixels);
+    console.log("Panadapter", streamId(), pan().width, pan().height);
   });
 
   const resizeCallback = debounce(async (width: number, height: number) => {
@@ -349,8 +350,8 @@ export function Panadapter(props: { streamId: string }) {
       <div class="pointer-events-none absolute inset-y-0 right-0 w-10 bg-background/50">
         <div class="relative h-full px-1.5 flex items-center">
           <LinearScale
-            min={pan().min_dbm}
-            max={pan().max_dbm}
+            min={pan().lowDbm}
+            max={pan().highDbm}
             class="h-full"
             tickClass="pr-0.5"
             labelClass="text-[10px] font-semibold scale-text-shadow"

@@ -316,7 +316,7 @@ export interface SliceController {
     event: TKey,
     listener: (payload: SliceControllerEvents[TKey]) => void,
   ): Subscription;
-  tune(frequencyMHz: number): Promise<SliceSnapshot>;
+  setFrequency(frequencyMHz: number): Promise<SliceSnapshot>;
   nudge(deltaHz: number): Promise<SliceSnapshot>;
   cwAutoTune(options?: { intermittent?: boolean }): Promise<void>;
   /**
@@ -874,17 +874,21 @@ export class SliceControllerImpl implements SliceController {
     return this.events.on(event, listener);
   }
 
-  async tune(frequencyMHz: number): Promise<SliceSnapshot> {
+  async setFrequency(frequencyMHz: number): Promise<SliceSnapshot> {
+    const formattedFrequency = formatMegahertz(frequencyMHz);
     await this.session.command(
-      `slice tune ${this.id} ${formatMegahertz(frequencyMHz)}`,
+      `slice tune ${this.id} ${formattedFrequency}`,
     );
+    this.session.patchSlice(this.id, {
+      freq: formattedFrequency,
+    });
     return this.snapshot();
   }
 
   async nudge(deltaHz: number): Promise<SliceSnapshot> {
     const nextFrequency =
       this.current().frequencyMHz + deltaHz / 1_000_000;
-    return this.tune(nextFrequency);
+    return this.setFrequency(nextFrequency);
   }
 
   async cwAutoTune(options?: { intermittent?: boolean }): Promise<void> {
@@ -1263,7 +1267,7 @@ export class SliceControllerImpl implements SliceController {
       await this.setLocked(isLocked);
     }
     if (frequencyMHz !== undefined) {
-      await this.tune(frequencyMHz);
+      await this.setFrequency(frequencyMHz);
     }
     return this.snapshot();
   }

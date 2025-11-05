@@ -46,8 +46,10 @@ describe("FlexClient", () => {
     expect(slice?.modeList).toEqual([]);
     expect(changes.length).toBe(1);
 
-    await slice?.tune(14.075);
+    await slice?.setFrequency(14.075);
     expect(channel.commands.at(-1)?.command).toBe("slice tune 0 14.075000");
+    expect(slice?.frequencyMHz).toBeCloseTo(14.075);
+    expect(changes.length).toBe(2);
 
     await slice?.setMode("DIGU");
     expect(channel.commands.at(-1)?.command).toBe("slice set 0 mode=DIGU");

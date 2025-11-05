@@ -21,6 +21,7 @@ import {
   createVitaDiscoveryAdapter,
   FlexCommandRejectedError,
   type FlexRadioSession,
+  type SliceSnapshot,
   type PanadapterSnapshot,
   type RadioStateChange,
   type FlexWireMessage,
@@ -130,74 +131,6 @@ const scalingMap = {
   [MeterUnit.degC]: 64.0,
   [MeterUnit.degF]: 64.0,
 } as Record<MeterUnit, number>;
-
-export interface Panadapter {
-  client_handle: string; // "0x6EB67FCB"
-  wnb: boolean;
-  wnb_level: number;
-  wnb_updating: boolean;
-  band_zoom: boolean;
-  segment_zoom: boolean;
-  x_pixels: number;
-  y_pixels: number;
-  center: number;
-  bandwidth: number;
-  min_dbm: number;
-  max_dbm: number;
-  fps: number;
-  average: number;
-  weighted_average: boolean;
-  rfgain: number;
-  rf_gain_low: number;
-  rf_gain_high: number;
-  rf_gain_step: number;
-  rf_gain_markers: number[];
-  noise_floor: number;
-  noise_floor_enabled: boolean;
-  rxant: string;
-  wide: boolean;
-  loopa: boolean;
-  loopb: boolean;
-  band: string;
-  daxiq_channel: number;
-  daxiq_rate: number;
-  waterfall: string;
-  min_bw: number;
-  max_bw: number;
-  auto_center: boolean;
-  xvtr: string;
-  pre: string;
-  ant_list: string[];
-  attached_slices: string[];
-  logger_display_enabled: boolean;
-  logger_display_address: string;
-  logger_display_port: number;
-  logger_display_radio: number;
-}
-
-export interface Waterfall {
-  clientHandle: string; // "0x6F77DF23"
-  width: number;
-  height: number;
-  center: number; // "14.100000"
-  bandwidth: number; // 0.200000
-  isBandZoomOn: boolean;
-  isSegmentZoomOn: boolean;
-  lineDurationMs: number;
-  rfGain: number; // 8
-  rxAntenna: string; // "ANT1"
-  wideEnabled: boolean;
-  loopAEnabled: boolean;
-  loopBEnabled: boolean;
-  band: string; // "20"
-  daxIqChannel: number; // 0
-  panadapterStream: string; // "0x40000000"
-  colorGain: number; // 30
-  autoBlackLevelEnabled: boolean;
-  blackLevel: number; // 0
-  gradientIndex: number; // "1"
-  xvtr: string; // ""
-}
 
 export interface Gradient {
   name: string;
@@ -338,8 +271,8 @@ export interface StatusState {
   };
   slice: Record<number | string, Slice>;
   display: {
-    pan: Record<string, Panadapter>;
-    waterfall: Record<string, Waterfall>;
+    pan: Record<string, PanadapterSnapshot>;
+    waterfall: Record<string, WaterfallSnapshot>;
   };
   interlock: {
     band: Record<string, IterlockBand>;
@@ -365,6 +298,12 @@ export interface AppState {
   palette: PaletteSettings;
   connectModal: ConnectModalState;
   status: StatusState;
+  runtime: RuntimeState;
+}
+
+interface RuntimeState {
+  panSettledCenterMHz: Record<string, number | undefined>;
+  panPendingCenterMHz: Record<string, number | undefined>;
 }
 
 export const initialState = () =>
@@ -457,6 +396,10 @@ export const initialState = () =>
       radios: {},
       open: true,
       status: ConnectionState.disconnected,
+    },
+    runtime: {
+      panSettledCenterMHz: {},
+      panPendingCenterMHz: {},
     },
     status: {
       meters: {},
@@ -670,61 +613,164 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     },
     { defaultCommandTimeoutMs: 10_000 },
   );
-
-  const hzToMHz = (hz: number): number =>
-    Number.isFinite(hz) ? Number((hz / 1_000_000).toFixed(6)) : 0;
-
   const formatClientHandle = (handle: number): string => {
     if (!handle) return "0x00000000";
     return `0x${handle.toString(16).toUpperCase().padStart(8, "0")}`;
   };
 
+  const applySliceSnapshot = (snapshot: SliceSnapshot) => {
+    const attributes = snapshot.raw;
+    const applyUpdate = (partial: Partial<Slice>) => {
+      const slice = partial as Record<string, unknown>;
+
+      slice.sample_rate = snapshot.sampleRateHz;
+      slice.RF_frequency = snapshot.frequencyMHz;
+      slice.client_handle = formatClientHandle(snapshot.clientHandle);
+      slice.index_letter = snapshot.indexLetter;
+      slice.mode = snapshot.mode || (slice.mode as string | undefined) || "";
+      slice.pan =
+        snapshot.panadapterStream ??
+        attributes["pan"] ??
+        (slice.pan as string | undefined) ??
+        "";
+      slice.rxant =
+        snapshot.rxAntenna || (slice.rxant as string | undefined) || "";
+      slice.txant =
+        snapshot.txAntenna || (slice.txant as string | undefined) || "";
+      slice.loopa = snapshot.loopAEnabled;
+      slice.loopb = snapshot.loopBEnabled;
+      slice.qsk = snapshot.isQskEnabled;
+      slice.dax = snapshot.daxChannel;
+      slice.dax_iq_channel = snapshot.daxIqChannel;
+      slice.dax_clients = snapshot.daxClientCount;
+      slice.lock = snapshot.isLocked;
+      slice.tx = snapshot.isTransmitEnabled;
+      slice.active = snapshot.isActive;
+      slice.audio_level = snapshot.audioGain;
+      slice.audio_pan = snapshot.audioPan;
+      slice.audio_mute = snapshot.isMuted;
+      slice.record = snapshot.recordingEnabled;
+      slice.play =
+        attributes["play"] ??
+        (snapshot.playbackAvailable
+          ? snapshot.playbackEnabled
+            ? "1"
+            : "0"
+          : "disabled");
+      slice.record_time = snapshot.recordTimeSeconds;
+      slice.anf = snapshot.anfEnabled;
+      slice.anf_level = snapshot.anfLevel;
+      slice.nr = snapshot.nrEnabled;
+      slice.nr_level = snapshot.nrLevel;
+      slice.nr2 = snapshot.nrlEnabled;
+      slice.nb = snapshot.nbEnabled;
+      slice.nb_level = snapshot.nbLevel;
+      slice.wnb = snapshot.wnbEnabled;
+      slice.wnb_level = snapshot.wnbLevel;
+      slice.apf = snapshot.apfEnabled;
+      slice.apf_level = snapshot.apfLevel;
+      slice.squelch = snapshot.squelchEnabled;
+      slice.squelch_level = snapshot.squelchLevel;
+      slice.diversity = snapshot.diversityEnabled;
+      slice.diversity_parent =
+        attributes["diversity_parent"] !== undefined
+          ? attributes["diversity_parent"] === "1"
+          : Boolean(snapshot.diversityParent);
+      slice.diversity_child =
+        attributes["diversity_child"] !== undefined
+          ? attributes["diversity_child"] === "1"
+          : snapshot.diversityChild;
+      slice.diversity_index = snapshot.diversityIndex;
+      slice.ant_list = Array.from(snapshot.availableRxAntennas);
+      slice.tx_ant_list = Array.from(snapshot.availableTxAntennas);
+      slice.mode_list = Array.from(snapshot.modeList);
+      slice.fm_tone_mode = snapshot.fmToneMode;
+      const toneValue = attributes["fm_tone_value"] ?? snapshot.fmToneValue;
+      const parsedTone =
+        typeof toneValue === "string" ? Number.parseFloat(toneValue) : NaN;
+      slice.fm_tone_value = Number.isFinite(parsedTone)
+        ? parsedTone
+        : ((slice.fm_tone_value as number | undefined) ?? 0);
+      slice.fm_repeater_offset_freq = snapshot.fmRepeaterOffsetMHz;
+      slice.tx_offset_freq = snapshot.txOffsetFrequencyMHz;
+      slice.repeater_offset_dir =
+        attributes["repeater_offset_dir"] ?? snapshot.repeaterOffsetDirection;
+      slice.fm_tone_burst = snapshot.fmToneBurstEnabled;
+      slice.fm_deviation = snapshot.fmDeviation;
+      slice.dfm_pre_de_emphasis = snapshot.fmPreDeEmphasisEnabled;
+      slice.post_demod_low = snapshot.postDemodLowHz;
+      slice.post_demod_high = snapshot.postDemodHighHz;
+      slice.post_demod_bypass = snapshot.postDemodBypass;
+      slice.rtty_mark = snapshot.rttyMarkHz;
+      slice.rtty_shift = snapshot.rttyShiftHz;
+      slice.digl_offset = snapshot.diglOffsetHz;
+      slice.digu_offset = snapshot.diguOffsetHz;
+      slice.agc_mode = snapshot.agcMode;
+      slice.agc_threshold = snapshot.agcThreshold;
+      slice.agc_off_level = snapshot.agcOffLevel;
+      slice.step = snapshot.tuneStepHz;
+      slice.step_list = Array.from(snapshot.tuneStepListHz);
+      slice.rit_on = snapshot.ritEnabled;
+      slice.rit_freq = snapshot.ritOffsetHz;
+      slice.xit_on = snapshot.xitEnabled;
+      slice.xit_freq = snapshot.xitOffsetHz;
+      slice.rfgain = snapshot.rfGain;
+      slice.sample_rate = snapshot.sampleRateHz;
+      slice.filter_lo = snapshot.filterLowHz;
+      slice.filter_hi = snapshot.filterHighHz;
+      slice.in_use =
+        attributes["in_use"] !== undefined
+          ? attributes["in_use"] === "1"
+          : true;
+      slice.detached =
+        attributes["detached"] !== undefined
+          ? attributes["detached"] === "1"
+          : ((slice.detached as boolean | undefined) ?? false);
+      slice.squelch_triggered_weight =
+        attributes["squelch_triggered_weight"] !== undefined
+          ? Number(attributes["squelch_triggered_weight"])
+          : ((slice.squelch_triggered_weight as number | undefined) ?? 0);
+      slice.squelch_avg_factor =
+        attributes["squelch_avg_factor"] !== undefined
+          ? Number(attributes["squelch_avg_factor"])
+          : ((slice.squelch_avg_factor as number | undefined) ?? 0);
+      slice.squelch_hang_delay_ms =
+        attributes["squelch_hang_delay_ms"] !== undefined
+          ? Number(attributes["squelch_hang_delay_ms"])
+          : ((slice.squelch_hang_delay_ms as number | undefined) ?? 0);
+      slice.rx_error_mHz =
+        attributes["rx_error_mHz"] !== undefined
+          ? Number(attributes["rx_error_mHz"])
+          : ((slice.rx_error_mHz as number | undefined) ?? 0);
+    };
+
+    const existing = state.status.slice[snapshot.id];
+    if (existing) {
+      setState("status", "slice", snapshot.id, produce(applyUpdate));
+    } else {
+      const next = {} as Partial<Slice>;
+      applyUpdate(next);
+      setState("status", "slice", snapshot.id, next as Slice);
+    }
+  };
+
   const applyPanadapterSnapshot = (snapshot: PanadapterSnapshot) => {
     const key = snapshot.streamId || snapshot.id;
-    const panState: Panadapter = {
-      client_handle: formatClientHandle(snapshot.clientHandle),
-      wnb: snapshot.wnbEnabled,
-      wnb_level: snapshot.wnbLevel,
-      wnb_updating: snapshot.wnbUpdating,
-      band_zoom: snapshot.isBandZoomOn,
-      segment_zoom: snapshot.isSegmentZoomOn,
-      x_pixels: snapshot.width,
-      y_pixels: snapshot.height,
-      center: hzToMHz(snapshot.centerFrequencyHz),
-      bandwidth: hzToMHz(snapshot.bandwidthHz),
-      min_dbm: snapshot.lowDbm,
-      max_dbm: snapshot.highDbm,
-      fps: snapshot.fps,
-      average: snapshot.average,
-      weighted_average: snapshot.weightedAverage,
-      rfgain: snapshot.rfGain,
-      rf_gain_low: snapshot.rfGainLow,
-      rf_gain_high: snapshot.rfGainHigh,
-      rf_gain_step: snapshot.rfGainStep,
-      rf_gain_markers: Array.from(snapshot.rfGainMarkers),
-      noise_floor: snapshot.noiseFloorPosition,
-      noise_floor_enabled: snapshot.noiseFloorPositionEnabled,
-      rxant: snapshot.rxAntenna,
-      wide: snapshot.wideEnabled,
-      loopa: snapshot.loopAEnabled,
-      loopb: snapshot.loopBEnabled,
-      band: snapshot.band,
-      daxiq_channel: snapshot.daxIqChannel,
-      daxiq_rate: snapshot.daxIqRate,
-      waterfall: snapshot.waterfallStreamId,
-      min_bw: hzToMHz(snapshot.minBandwidthHz),
-      max_bw: hzToMHz(snapshot.maxBandwidthHz),
-      auto_center: snapshot.autoCenterEnabled,
-      xvtr: snapshot.xvtr,
-      pre: snapshot.preampSetting,
-      ant_list: Array.from(snapshot.rxAntennas),
-      attached_slices: Array.from(snapshot.attachedSlices),
-      logger_display_enabled: snapshot.loggerDisplayEnabled,
-      logger_display_address: snapshot.loggerDisplayAddress,
-      logger_display_port: snapshot.loggerDisplayPort,
-      logger_display_radio: snapshot.loggerDisplayRadioNum,
-    };
-    setState("status", "display", "pan", key, panState);
+    // Keep the displayed center frequency pinned to the last settled value until
+    // the data streams confirm the new frequency.
+    const pendingCenterMHz = snapshot.centerFrequencyMHz;
+    const centerFrequencyMHz =
+      state.runtime.panSettledCenterMHz[key] ?? pendingCenterMHz;
+
+    if (state.runtime.panSettledCenterMHz[key] === undefined) {
+      setState("runtime", "panSettledCenterMHz", key, pendingCenterMHz);
+    }
+    setState("runtime", "panPendingCenterMHz", key, pendingCenterMHz);
+
+    setState("status", "display", "pan", key, {
+      ...snapshot,
+      centerFrequencyMHz,
+    });
   };
 
   const handlePanadapterChange = (change: RadioStateChange) => {
@@ -741,46 +787,20 @@ export const FlexRadioProvider: ParentComponent = (props) => {
           delete pan[key];
         }),
       );
+      setState("runtime", "panSettledCenterMHz", key, undefined);
+      setState("runtime", "panPendingCenterMHz", key, undefined);
       if (state.selectedPanadapter === key) {
         setState("selectedPanadapter", null);
       }
     }
   };
 
-  const applyWaterfallSnapshot = (snapshot: WaterfallSnapshot) => {
-    const key = snapshot.streamId || snapshot.id;
-    const waterfallState: Waterfall = {
-      clientHandle: formatClientHandle(snapshot.clientHandle),
-      width: snapshot.width,
-      height: snapshot.height,
-      center: hzToMHz(snapshot.centerFrequencyHz),
-      bandwidth: hzToMHz(snapshot.bandwidthHz),
-      isBandZoomOn: snapshot.isBandZoomOn,
-      isSegmentZoomOn: snapshot.isSegmentZoomOn,
-      lineDurationMs: snapshot.lineDurationMs ?? 0,
-      rfGain: snapshot.rfGain,
-      rxAntenna: snapshot.rxAntenna,
-      wideEnabled: snapshot.wideEnabled,
-      loopAEnabled: snapshot.loopAEnabled,
-      loopBEnabled: snapshot.loopBEnabled,
-      band: snapshot.band,
-      daxIqChannel: snapshot.daxIqChannel,
-      panadapterStream: snapshot.panadapterStream,
-      colorGain: snapshot.colorGain,
-      autoBlackLevelEnabled: snapshot.autoBlackLevelEnabled,
-      blackLevel: snapshot.blackLevel,
-      gradientIndex: snapshot.gradientIndex,
-      xvtr: snapshot.xvtr,
-    };
-    setState("status", "display", "waterfall", key, waterfallState);
-  };
-
   const handleWaterfallChange = (change: RadioStateChange) => {
     if (change.entity !== "waterfall") return;
+    const key = change.previous?.streamId ?? change.id;
     if (change.snapshot) {
-      applyWaterfallSnapshot(change.snapshot);
+      setState("status", "display", "waterfall", key, change.snapshot);
     } else {
-      const key = change.previous?.streamId ?? change.id;
       setState(
         "status",
         "display",
@@ -792,8 +812,28 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     }
   };
 
+  const handleSliceChange = (change: RadioStateChange) => {
+    if (change.entity !== "slice") return;
+    if (change.snapshot) {
+      applySliceSnapshot(change.snapshot);
+    } else {
+      const key = change.id ?? change.previous?.id;
+      if (!key) return;
+      setState(
+        "status",
+        "slice",
+        produce((slices) => {
+          delete slices[key];
+        }),
+      );
+    }
+  };
+
   const handleStateChange = (change: RadioStateChange) => {
     switch (change.entity) {
+      case "slice":
+        handleSliceChange(change);
+        break;
       case "panadapter":
         handlePanadapterChange(change);
         break;
@@ -984,128 +1024,6 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     );
   }
 
-  function updateSlice([index, ...split]: string[]) {
-    const applyUpdate = (slice: Partial<Slice>) => {
-      split.forEach((item) => {
-        const [key, value] = item.split("=");
-        switch (key) {
-          case "in_use":
-          case "rit_on":
-          case "xit_on":
-          case "wide":
-          case "loopa":
-          case "loopb":
-          case "active":
-          case "tx":
-          case "anf":
-          case "nr":
-          case "nr2":
-          case "nb":
-          case "wnb":
-          case "apf":
-          case "squelch":
-          case "diversity":
-          case "post_demod_bypass":
-          case "fm_tone_burst":
-          case "qsk":
-          case "dfm_pre_de_emphasis":
-          case "audio_mute":
-          case "lock":
-          case "record":
-          case "detached":
-          case "diversity_parent":
-          case "diversity_child":
-            slice[key] = value === "1";
-            break;
-          case "sample_rate":
-          case "RF_frequency":
-          case "rit_freq":
-          case "xit_freq":
-          case "filter_lo":
-          case "filter_hi":
-          case "step":
-          case "agc_threshold":
-          case "agc_off_level":
-          case "audio_level":
-          case "audio_pan":
-          case "rfgain":
-          case "fm_tone_value":
-          case "fm_repeater_offset_freq":
-          case "tx_offset_freq":
-          case "fm_deviation":
-          case "post_demod_low":
-          case "post_demod_high":
-          case "rtty_mark":
-          case "rtty_shift":
-          case "digl_offset":
-          case "digu_offset":
-          case "record_time":
-          case "dax":
-          case "dax_iq_channel":
-          case "dax_clients":
-          case "diversity_index":
-          case "anf_level":
-          case "nr_level":
-          case "nb_level":
-          case "apf_level":
-          case "squelch_level":
-          case "squelch_triggered_weight":
-          case "squelch_avg_factor":
-          case "squelch_hang_delay_ms":
-          case "rx_error_mHz":
-          case "wnb_level":
-            slice[key] = Number(value);
-            break;
-          case "client_handle":
-          case "index_letter":
-          case "rxant":
-          case "mode":
-          case "pan":
-          case "txant":
-          case "repeater_offset_dir":
-          case "fm_tone_mode":
-          case "play":
-          case "agc_mode":
-            slice[key] = value;
-            break;
-          case "mode_list":
-          case "ant_list":
-          case "tx_ant_list":
-            // Split the comma-separated values into an array
-            slice[key] = value.split(",");
-            break;
-          case "step_list":
-            slice[key] = value.split(",").map(Number);
-            break;
-          case "":
-            // Ignore empty keys (can happen with trailing #)
-            break;
-          default:
-          // console.log(split);
-          // console.warn(`Unknown key in slice update: ${key}`);
-        }
-      });
-    };
-    if (index in state.status.slice) {
-      if (split.includes("removed")) {
-        setState(
-          "status",
-          "slice",
-          produce((slices) => {
-            delete slices[index];
-          }),
-        );
-      } else {
-        setState("status", "slice", index, produce(applyUpdate));
-      }
-      // If the slice already exists, we apply the update to the existing slice
-    } else {
-      const newSlice = {} as Partial<Slice>;
-      applyUpdate(newSlice);
-      setState("status", "slice", index, newSlice);
-    }
-  }
-
   // function updateWaterfall(stream: string, split: string[]) {
   //   const applyUpdate = (waterfall: Partial<Waterfall>) => {
   //     split.forEach((item) => {
@@ -1266,7 +1184,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     if (!state.clientHandle) {
       return;
     }
-    const clientHandle = `0x${state.clientHandle}`;
+    const clientHandle = parseInt(state.clientHandle, 16);
     const selectedPanadapter = state.selectedPanadapter;
     const panadapter = selectedPanadapter
       ? state.status.display.pan[selectedPanadapter]
@@ -1279,7 +1197,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     const firstOwnPan =
       Object.keys(state.status.display.pan).filter(
         (streamId) =>
-          state.status.display.pan[streamId]?.client_handle === clientHandle,
+          state.status.display.pan[streamId]?.clientHandle === clientHandle,
       )[0] || null;
     console.log("Setting first owned panadapter:", firstOwnPan);
     setState("selectedPanadapter", firstOwnPan ?? null);
@@ -1403,7 +1321,9 @@ export const FlexRadioProvider: ParentComponent = (props) => {
             return;
           // return updateDisplay(message);
           case "slice":
-            return updateSlice(rest);
+            console.log("Slice state update:", message);
+            // Slice state updates are provided via flexlib change events.
+            return;
           case "stream":
             console.log(payload);
             return updateStream(rest);
@@ -1556,6 +1476,14 @@ export const FlexRadioProvider: ParentComponent = (props) => {
           messageSubscription,
           disconnectedSubscription,
         ];
+        const initial = newSession.snapshot();
+        batch(() => {
+          initial.slices.forEach((slice) => applySliceSnapshot(slice));
+          initial.panadapters.forEach((pan) => applyPanadapterSnapshot(pan));
+          initial.waterfalls.forEach((waterfall) =>
+            applyWaterfallSnapshot(waterfall),
+          );
+        });
         if (pendingHandleLine) {
           const line = pendingHandleLine;
           pendingHandleLine = null;

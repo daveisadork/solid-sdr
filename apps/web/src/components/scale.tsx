@@ -49,22 +49,27 @@ export type FrequencyGridTick = {
 };
 
 export function buildFrequencyGrid(params: {
-  center: number;
-  bandwidth: number;
+  centerFrequencyMHz: number;
+  bandwidthMHz: number;
   width: number;
   minPixelSpacing?: number;
 }): FrequencyGridTick[] {
-  const { center, bandwidth, width, minPixelSpacing = 72 } = params;
-  if (!width || width <= 0 || !Number.isFinite(bandwidth)) return [];
+  const {
+    centerFrequencyMHz,
+    bandwidthMHz,
+    width,
+    minPixelSpacing = 72,
+  } = params;
+  if (!width || width <= 0 || !Number.isFinite(bandwidthMHz)) return [];
 
-  const start = center - bandwidth * 2;
-  const end = center + bandwidth * 2;
-  const mhzPerPx = bandwidth / width;
+  const start = centerFrequencyMHz - bandwidthMHz * 2;
+  const end = centerFrequencyMHz + bandwidthMHz * 2;
+  const mhzPerPx = bandwidthMHz / width;
   const minSpacing = minPixelSpacing * mhzPerPx;
   const stepSize =
     stepSizes.find((s) => s >= minSpacing) || stepSizes[stepSizes.length - 1];
   const precision = stepPrecision[stepSize as keyof typeof stepPrecision] || 1;
-  const actualStart = center - bandwidth / 2;
+  const actualStart = centerFrequencyMHz - bandwidthMHz / 2;
   const ticks: FrequencyGridTick[] = [];
 
   for (let freq = Math.floor(start); freq <= end; freq += stepSize) {
@@ -112,10 +117,11 @@ export const Scale = <T extends ValidComponent = "button">(
 
   createEffect(() => {
     if (!size.width) return;
-    const { center, bandwidth } = state.status.display.pan[local.streamId];
+    const { centerFrequencyMHz, bandwidthMHz } =
+      state.status.display.pan[local.streamId];
     const ticks = buildFrequencyGrid({
-      center,
-      bandwidth,
+      centerFrequencyMHz,
+      bandwidthMHz,
       width: size.width,
     });
     setGridFreqs(ticks);

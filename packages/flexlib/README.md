@@ -29,7 +29,7 @@ session.on("reply", (reply) => {
 
 const slice = session.slice("0");
 if (slice) {
-  await slice.tune(14_074_000);
+  await slice.setFrequency(14.074);
   await slice.setMode("DIGU");
   await slice.setFilter(-300, 2800);
   await slice.setAgcMode("fast");

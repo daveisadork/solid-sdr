@@ -308,7 +308,12 @@ export const TabToSignal: Component<
     const slice = state.status.slice[sliceId];
     if (!slice) return;
 
-    const { x_pixels: totalBins, y_pixels: maxY, bandwidth, center } = p;
+    const {
+      width: totalBins,
+      height: maxY,
+      bandwidthMHz: bandwidth,
+      centerFrequencyMHz: center,
+    } = p;
     const leftEdgeMHz = center - bandwidth / 2;
     const rightEdgeMHz = center + bandwidth / 2;
 
@@ -465,7 +470,12 @@ export const TabToSignal: Component<
           const p = pan();
           if (!p) return null;
           const x =
-            rfMHzToBin(t.dialMHz, p.center, p.bandwidth, p.x_pixels) + 0.5;
+            rfMHzToBin(
+              t.dialMHz,
+              p.centerFrequencyMHz,
+              p.bandwidthMHz,
+              p.width,
+            ) + 0.5;
           return (
             <div
               class="absolute inset-y-0 w-px bg-amber-500"

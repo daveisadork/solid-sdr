@@ -8,7 +8,6 @@ import {
 } from "solid-js";
 import { Portal } from "solid-js/web";
 import useFlexRadio, { PacketEvent } from "~/context/flexradio";
-import { createKeyedSubstore } from "~/lib/keyed-substore";
 import { LinearScale } from "./linear-scale";
 
 const LINE_DURATION_OFFSET_MS = 40;
@@ -23,19 +22,8 @@ function lineDurationToMs(value: number) {
 export function Waterfall(props: { streamId: string }) {
   const streamId = () => props.streamId;
   const { events, session, state, setState } = useFlexRadio();
-  const [waterfall, setWaterfall] = createKeyedSubstore(
-    () => state.status.display.waterfall,
-    streamId,
-    setState,
-    ["status", "display", "waterfall"],
-  );
-
-  const [pan, setPan] = createKeyedSubstore(
-    () => state.status.display.pan,
-    () => waterfall().panadapterStream,
-    setState,
-    ["status", "display", "pan"],
-  );
+  const waterfall = () => state.status.display.waterfall[streamId()];
+  const pan = () => state.status.display.pan[waterfall().panadapterStream];
 
   const [canvasWidth, setCanvasWidth] = createSignal(1);
   const [widthMultiplier, setWidthMultiplier] = createSignal(1.0);
@@ -72,6 +60,7 @@ export function Waterfall(props: { streamId: string }) {
   const [fps, setFps] = createSignal(0);
 
   createEffect(() => {
+    // translate the configured color gain into a colorMax value
     const { colorMin } = state.palette;
     const range = 1 - colorMin;
     const gain = Math.pow(10, waterfall().colorGain / 50);
@@ -147,20 +136,13 @@ export function Waterfall(props: { streamId: string }) {
 
   createEffect(() => {
     setWidthMultiplier(
-      (binBandwidth() * wrapperSize.width) / (pan().bandwidth * 1_000_000),
+      (binBandwidth() * wrapperSize.width) / (pan().bandwidthMHz * 1_000_000),
     );
   });
 
   createEffect(() => {
     setLineDurationMs(lineDurationToMs(waterfall().lineDurationMs));
   });
-
-  // createEffect(() => {
-  //   // setWaterfall("center", lastCalculatedCenter() / 1_000_000);
-  //   session()
-  //     ?.panadapter(waterfall().panadapter)
-  //     ?.setCenterFrequency(lastCalculatedCenter());
-  // });
 
   const totalSeconds = createMemo(() => {
     const { height } = canvasSize;
@@ -345,6 +327,21 @@ export function Waterfall(props: { streamId: string }) {
 
         setBinBandwidth(binBandwidth);
         setLastCalculatedCenter(calculatedCenter);
+        const panStreamId = waterfall().panadapterStream;
+        if (panStreamId && state.status.display.pan[panStreamId]) {
+          // Data packets reflect the new tuning; mark the panadapter center as settled.
+          const centerMHz = Number((calculatedCenter / 1_000_000).toFixed(6));
+          setState(
+            "status",
+            "display",
+            "pan",
+            panStreamId,
+            "centerFrequencyMHz",
+            centerMHz,
+          );
+          setState("runtime", "panSettledCenterMHz", panStreamId, centerMHz);
+          setState("runtime", "panPendingCenterMHz", panStreamId, centerMHz);
+        }
         expFrame = Math.max(frame + 1, expFrame);
       }
     };

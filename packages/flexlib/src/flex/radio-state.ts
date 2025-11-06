@@ -393,6 +393,7 @@ export function createRadioStateStore(): RadioStateStore {
         case "display": {
           switch (message.identifier) {
             case "pan":
+              return [handlePanadapter(message, message.positional[0])];
             case "waterfall":
               return [handleDisplay(message, message.positional[0])];
           }

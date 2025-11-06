@@ -349,6 +349,9 @@ export interface RadioStateStore {
   getWaterfall(id: string): WaterfallSnapshot | undefined;
   getMeter(id: string): MeterSnapshot | undefined;
   getRadio(): RadioProperties | undefined;
+  patchRadio(
+    attributes: Record<string, string>,
+  ): RadioStateChange | undefined;
   patchSlice(
     id: string,
     attributes: Record<string, string>,
@@ -432,6 +435,9 @@ export function createRadioStateStore(): RadioStateStore {
     getRadio() {
       return radio;
     },
+    patchRadio(attributes) {
+      return patchRadio(attributes);
+    },
     patchSlice(id, attributes) {
       return patchSlice(id, attributes);
     },
@@ -491,6 +497,27 @@ export function createRadioStateStore(): RadioStateStore {
     return {
       entity: "slice",
       id,
+      previous,
+      snapshot,
+      diff,
+      rawDiff,
+    };
+  }
+
+  function patchRadio(
+    attributes: Record<string, string>,
+  ): RadioStateChange | undefined {
+    if (Object.keys(attributes).length === 0) return undefined;
+    const previous = radio ?? createDefaultRadioProperties();
+    const { snapshot, diff, rawDiff } = createRadioProperties(attributes, radio);
+    const diffKeys = Object.keys(diff as Record<string, unknown>);
+    if (diffKeys.length === 0) {
+      radio = snapshot;
+      return undefined;
+    }
+    radio = snapshot;
+    return {
+      entity: "radio",
       previous,
       snapshot,
       diff,

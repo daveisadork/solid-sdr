@@ -189,8 +189,12 @@ class FlexRadioSessionImpl implements FlexRadioSession {
     private readonly control: FlexControlChannel,
     private readonly options: InternalSessionOptions,
   ) {
-    this.radioController = new RadioControllerImpl(() =>
-      this.store.getRadio(),
+    this.radioController = new RadioControllerImpl(
+      {
+        command: (command, options) => this.command(command, options),
+        patchRadio: (attributes) => this.patchRadio(attributes),
+      },
+      () => this.store.getRadio(),
     );
     this.messageSub = control.onMessage((message) =>
       this.handleWireMessage(message),
@@ -235,6 +239,11 @@ class FlexRadioSessionImpl implements FlexRadioSession {
 
   getMeters(): readonly MeterSnapshot[] {
     return this.store.snapshot().meters;
+  }
+
+  private patchRadio(attributes: Record<string, string>): void {
+    const change = this.store.patchRadio(attributes);
+    if (change) this.handleStateChange(change);
   }
 
   getRadio(): RadioProperties | undefined {

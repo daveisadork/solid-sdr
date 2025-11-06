@@ -271,6 +271,96 @@ describe("FlexClient", () => {
     expect(radio.muteLocalAudioWhenRemote).toBe(true);
     expect(radio.maxInternalPaPower).toBe(100);
     expect(radio.externalPaAllowed).toBe(true);
+
+    await radio.setNickname("New Nick!");
+    expect(channel.commands.at(-1)?.command).toBe("radio name New Nick");
+    expect(session.getRadio()?.nickname).toBe("New Nick");
+
+    await radio.setCallsign("kf0smy");
+    expect(channel.commands.at(-1)?.command).toBe("radio callsign KF0SMY");
+    expect(session.getRadio()?.callsign).toBe("KF0SMY");
+
+    await radio.setFullDuplexEnabled(false);
+    expect(channel.commands.at(-1)?.command).toBe(
+      "radio set full_duplex_enabled=0",
+    );
+    expect(radio.fullDuplexEnabled).toBe(false);
+
+    await radio.setEnforcePrivateIpConnections(false);
+    expect(channel.commands.at(-1)?.command).toBe(
+      "radio set enforce_private_ip_connections=0",
+    );
+    expect(radio.enforcePrivateIpConnections).toBe(false);
+
+    await radio.setLowLatencyDigitalModes(true);
+    expect(channel.commands.at(-1)?.command).toBe(
+      "radio set low_latency_digital_modes=1",
+    );
+    expect(radio.lowLatencyDigitalModes).toBe(true);
+
+    await radio.setMfEnabled(false);
+    expect(channel.commands.at(-1)?.command).toBe("radio set mf_enable=0");
+    expect(radio.mfEnabled).toBe(false);
+
+    await radio.setProfileAutoSave(false);
+    expect(channel.commands.at(-1)?.command).toBe("profile autosave off");
+    expect(radio.profileAutoSave).toBe(false);
+
+    await radio.setLineoutGain(105);
+    expect(channel.commands.at(-1)?.command).toBe("mixer lineout gain 100");
+    expect(radio.lineoutGain).toBe(100);
+
+    await radio.setLineoutMute(true);
+    expect(channel.commands.at(-1)?.command).toBe("mixer lineout mute 1");
+    expect(radio.lineoutMute).toBe(true);
+
+    await radio.setHeadphoneGain(12.4);
+    expect(channel.commands.at(-1)?.command).toBe("mixer headphone gain 12");
+    expect(radio.headphoneGain).toBe(12);
+
+    await radio.setHeadphoneMute(true);
+    expect(channel.commands.at(-1)?.command).toBe("mixer headphone mute 1");
+    expect(radio.headphoneMute).toBe(true);
+
+    await radio.setBacklightLevel(45);
+    expect(channel.commands.at(-1)?.command).toBe("radio backlight 45");
+    expect(radio.backlightLevel).toBe(45);
+
+    await radio.setRemoteOnEnabled(false);
+    expect(channel.commands.at(-1)?.command).toBe(
+      "radio set remote_on_enabled=0",
+    );
+    expect(radio.remoteOnEnabled).toBe(false);
+
+    await radio.setTnfEnabled(false);
+    expect(channel.commands.at(-1)?.command).toBe("radio set tnf_enabled=0");
+    expect(radio.tnfEnabled).toBe(false);
+
+    await radio.setBinauralRx(true);
+    expect(channel.commands.at(-1)?.command).toBe("radio set binaural_rx=1");
+    expect(radio.binauralRx).toBe(true);
+
+    await radio.setMuteLocalAudioWhenRemote(false);
+    expect(channel.commands.at(-1)?.command).toBe(
+      "radio set mute_local_audio_when_remote=0",
+    );
+    expect(radio.muteLocalAudioWhenRemote).toBe(false);
+
+    await radio.setRttyMarkDefaultHz(1925.4);
+    expect(channel.commands.at(-1)?.command).toBe(
+      "radio set rtty_mark_default=1925",
+    );
+    expect(radio.rttyMarkDefaultHz).toBe(1925);
+
+    await radio.setFrequencyErrorPpb(-2.6);
+    expect(channel.commands.at(-1)?.command).toBe("radio set freq_error_ppb=-3");
+    expect(radio.frequencyErrorPpb).toBe(-3);
+
+    await radio.setCalibrationFrequencyMhz(15.1234567);
+    expect(channel.commands.at(-1)?.command).toBe(
+      "radio set cal_freq=15.123457",
+    );
+    expect(radio.calibrationFrequencyMhz).toBeCloseTo(15.123457, 6);
   });
 
   it("issues gps install and uninstall commands", async () => {

@@ -23,7 +23,8 @@ export function Waterfall(props: { streamId: string }) {
   const streamId = () => props.streamId;
   const { events, session, state, setState } = useFlexRadio();
   const waterfall = () => state.status.display.waterfall[streamId()];
-  const pan = () => state.status.display.pan[waterfall().panadapterStream];
+  const pan = () =>
+    state.status.display.pan[waterfall().panadapterStreamId];
 
   const [canvasWidth, setCanvasWidth] = createSignal(1);
   const [widthMultiplier, setWidthMultiplier] = createSignal(1.0);
@@ -327,7 +328,7 @@ export function Waterfall(props: { streamId: string }) {
 
         setBinBandwidth(binBandwidth);
         setLastCalculatedCenter(calculatedCenter);
-        const panStreamId = waterfall().panadapterStream;
+        const panStreamId = waterfall().panadapterStreamId;
         if (panStreamId && state.status.display.pan[panStreamId]) {
           // Data packets reflect the new tuning; mark the panadapter center as settled.
           const centerMHz = Number((calculatedCenter / 1_000_000).toFixed(6));

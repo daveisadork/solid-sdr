@@ -158,21 +158,21 @@ export function DetachedSlice(props: { sliceIndex: string }) {
   const sliceIndex = () => props.sliceIndex;
   const { sendCommand, session, state, setState } = useFlexRadio();
   const [slice, setSlice] = createStore(state.status.slice[sliceIndex()]);
-  const streamId = () => slice.pan;
+  const streamId = () => slice.panadapterStreamId;
   const controller = () => session()?.slice(sliceIndex());
   const [pan] = createStore(state.status.display.pan[streamId()]);
 
   const makeActive = async () => {
-    if (slice.active) return;
+    if (slice.isActive) return;
     await controller().setActive(true);
     await sendCommand(`slice s ${props.sliceIndex} active=1`);
     const ownedSlices = Object.keys(state.status.slice).filter(
       (key) =>
-        state.status.slice[key].pan === streamId() &&
-        state.status.slice[key].in_use,
+        state.status.slice[key].panadapterStreamId === streamId() &&
+        state.status.slice[key].isInUse,
     );
-    setState("status", "slice", ownedSlices, "active", false);
-    setSlice("active", !slice.active);
+    setState("status", "slice", ownedSlices, "isActive", false);
+    setSlice("isActive", !slice.isActive);
   };
 
   return (
@@ -183,15 +183,15 @@ export function DetachedSlice(props: { sliceIndex: string }) {
       onClick={() => {
         session()
           ?.panadapter(streamId())
-          ?.setCenterFrequency(slice.RF_frequency);
+          ?.setCenterFrequency(slice.frequencyMHz);
         makeActive();
       }}
     >
-      <Show when={slice.RF_frequency < pan.centerFrequencyMHz}>
+      <Show when={slice.frequencyMHz < pan.centerFrequencyMHz}>
         <BaselineChevronLeft />
       </Show>
-      <span>{slice.index_letter}</span>
-      <Show when={slice.RF_frequency > pan.centerFrequencyMHz}>
+      <span>{slice.indexLetter}</span>
+      <Show when={slice.frequencyMHz > pan.centerFrequencyMHz}>
         <BaselineChevronRight />
       </Show>
     </Button>
@@ -210,10 +210,10 @@ export function DetachedSlices(props: { streamId: number | string }) {
           each={Object.keys(state.status.slice).filter((sliceIndex) => {
             const slice = state.status.slice[sliceIndex];
             return (
-              slice.pan === props.streamId &&
-              slice.in_use &&
-              slice.detached &&
-              slice.RF_frequency < pan.centerFrequencyMHz
+              slice.panadapterStreamId === props.streamId &&
+              slice.isInUse &&
+              slice.isDetached &&
+              slice.frequencyMHz < pan.centerFrequencyMHz
             );
           })}
         >
@@ -226,10 +226,10 @@ export function DetachedSlices(props: { streamId: number | string }) {
           each={Object.keys(state.status.slice).filter((sliceIndex) => {
             const slice = state.status.slice[sliceIndex];
             return (
-              slice.pan === props.streamId &&
-              slice.in_use &&
-              slice.detached &&
-              slice.RF_frequency > pan.centerFrequencyMHz
+              slice.panadapterStreamId === props.streamId &&
+              slice.isInUse &&
+              slice.isDetached &&
+              slice.frequencyMHz > pan.centerFrequencyMHz
             );
           })}
         >
@@ -245,7 +245,7 @@ export function Slice(props: { sliceIndex: string }) {
   const { session, state, sendCommand, setState } = useFlexRadio();
   const [slice, setSlice] = createStore(state.status.slice[sliceIndex()]);
   const sliceController = () => session()?.slice(sliceIndex());
-  const streamId = () => slice.pan;
+  const streamId = () => slice.panadapterStreamId;
   const [pan] = createStore(state.status.display.pan[streamId()]);
   const [offset, setOffset] = createSignal(0);
   const [ref, setRef] = createSignal<HTMLDivElement>();
@@ -268,10 +268,10 @@ export function Slice(props: { sliceIndex: string }) {
   const flagBounds = createElementBounds(flag);
 
   createEffect(() => {
-    if (slice.diversity_parent) {
+    if (slice.diversityParent) {
       return setFlagSide("left");
     }
-    if (slice.diversity_child) {
+    if (slice.diversityChild) {
       return setFlagSide("right");
     }
     if (flagBounds.left! < 0) {
@@ -289,24 +289,16 @@ export function Slice(props: { sliceIndex: string }) {
 
       const mhzPerPx = pan.bandwidthMHz / pan.width;
       // Round frequency to the nearest step
-      const step = slice.step / 1e6; // Convert Hz to MHz
+      const step = slice.tuneStepHz / 1e6; // Convert Hz to MHz
       const freqUnrounded = dragState.originFreq - newOffset * mhzPerPx;
       const freqSteps = Math.round(freqUnrounded / step);
       const freq = freqSteps * step;
 
-      if (freq === slice.RF_frequency) {
+      if (freq === slice.frequencyMHz) {
         return;
       }
 
-      await sendCommand(`slice t ${props.sliceIndex} ${freq}`);
-      const groupedSlices = Object.keys(state.status.slice).filter(
-        (key) =>
-          state.status.slice[key].pan === streamId() &&
-          state.status.slice[key].in_use &&
-          state.status.slice[key].diversity_index === slice.diversity_index,
-      );
-
-      setState("status", "slice", groupedSlices, "RF_frequency", freq);
+      await sliceController()?.setFrequency(freq);
     },
     onUp() {
       setDragState("dragging", false);
@@ -333,13 +325,13 @@ export function Slice(props: { sliceIndex: string }) {
     const { width } = windowSize;
     if (!width) return;
     const leftFreq = pan.centerFrequencyMHz - pan.bandwidthMHz / 2;
-    const offsetMhz = slice.RF_frequency - leftFreq;
+    const offsetMhz = slice.frequencyMHz - leftFreq;
     const offsetPixels = (offsetMhz / pan.bandwidthMHz) * width;
-    const filterWidthMhz = (slice.filter_hi - slice.filter_lo) / 1e6; // Convert Hz to MHz
+    const filterWidthMhz = (slice.filterHighHz - slice.filterLowHz) / 1e6; // Convert Hz to MHz
     batch(() => {
       setFilterWidth((filterWidthMhz / pan.bandwidthMHz) * width);
-      setFilterOffset((slice.filter_lo / 1e6 / pan.bandwidthMHz) * width);
-      setFilterText(`${(slice.filter_hi - slice.filter_lo) / 1e3}K`);
+      setFilterOffset((slice.filterLowHz / 1e6 / pan.bandwidthMHz) * width);
+      setFilterText(`${(slice.filterHighHz - slice.filterLowHz) / 1e3}K`);
       // panadapter display is off by 2 pixels, so adjust
       setOffset(offsetPixels - 2);
     });
@@ -350,19 +342,11 @@ export function Slice(props: { sliceIndex: string }) {
       return;
     }
     const freqMhz = hz / 1e6;
-    if (Math.abs(freqMhz - slice.RF_frequency) < 1e-9) {
+    if (Math.abs(freqMhz - slice.frequencyMHz) < 1e-9) {
       return;
     }
     try {
-      await sendCommand(`slice t ${props.sliceIndex} ${freqMhz.toFixed(6)}`);
-      const groupedSlices = Object.keys(state.status.slice).filter(
-        (key) =>
-          state.status.slice[key].pan === streamId() &&
-          state.status.slice[key].in_use &&
-          state.status.slice[key].diversity_index === slice.diversity_index,
-      );
-
-      setState("status", "slice", groupedSlices, "RF_frequency", freqMhz);
+      await sliceController()?.setFrequency(freqMhz);
     } catch {
       // Ignore errors; the UI will reflect the previous baseline frequency.
     }
@@ -370,33 +354,33 @@ export function Slice(props: { sliceIndex: string }) {
 
   const makeActive = async () => {
     console.log("makeActive", sliceIndex(), sliceController());
-    if (slice.active) return;
-    // await sliceController()?.setActive(true);
-    await sendCommand(`slice s ${props.sliceIndex} active=1`);
-    const ownedSlices = Object.keys(state.status.slice).filter(
-      (key) =>
-        state.status.slice[key].pan === streamId() &&
-        state.status.slice[key].in_use,
-    );
-    setState("status", "slice", ownedSlices, "active", false);
-    setSlice("active", !slice.active);
+    if (slice.isActive) return;
+    sliceController()?.setActive(true);
+    // await sendCommand(`slice s ${props.sliceIndex} active=1`);
+    // const ownedSlices = Object.keys(state.status.slice).filter(
+    //   (key) =>
+    //     state.status.slice[key].panadapterStreamId === streamId() &&
+    //     state.status.slice[key].isInUse,
+    // );
+    // setState("status", "slice", ownedSlices, "isActive", false);
+    // setSlice("isActive", !slice.isActive);
   };
 
   createEffect(() => {
     const detached =
       sentinelBounds.left! < 0 || sentinelBounds.right! > wrapperSize.width!;
-    if (detached === slice.detached) return;
-    setSlice("detached", detached);
+    if (detached === slice.isDetached) return;
+    setSlice("isDetached", detached);
   });
 
   return (
     <>
-      <Show when={!slice.detached}>
+      <Show when={!slice.isDetached}>
         <div
           class="absolute h-full left-[var(--slice-offset)] translate-x-[var(--drag-offset)] cursor-ew-resize"
           classList={{
-            "z-0": !slice.active,
-            "z-10": slice.active,
+            "z-0": !slice.isActive,
+            "z-10": slice.isActive,
           }}
           style={{
             "--slice-offset": `${offset()}px`,
@@ -405,7 +389,7 @@ export function Slice(props: { sliceIndex: string }) {
             setDragState({
               dragging: true,
               originX: event.clientX,
-              originFreq: slice.RF_frequency,
+              originFreq: slice.frequencyMHz,
               offset: 0,
             });
             makeActive();
@@ -417,7 +401,7 @@ export function Slice(props: { sliceIndex: string }) {
             class="absolute h-full translate-x-[var(--filter-offset)] w-[var(--filter-width)] "
             classList={{
               "backdrop-brightness-125 backdrop-contrast-75":
-                !slice.diversity_child,
+                !slice.diversityChild,
             }}
             style={{
               "--filter-width": `${filterWidth()}px`,
@@ -427,24 +411,24 @@ export function Slice(props: { sliceIndex: string }) {
           <div
             class="absolute h-full max-w-px w-px flex flex-col items-center m-auto top-0 -translate-x-1/2 transform-3d"
             classList={{
-              "bg-yellow-300": slice.active,
-              "bg-red-500": !slice.active,
+              "bg-yellow-300": slice.isActive,
+              "bg-red-500": !slice.isActive,
             }}
           >
-            <Show when={slice.active}>
+            <Show when={slice.isActive}>
               <Triangle
                 class="relative top-0"
                 classList={{
-                  "bg-red-500": slice.diversity_child,
-                  "bg-yellow-300": !slice.diversity_child,
+                  "bg-red-500": slice.diversityChild,
+                  "bg-yellow-300": !slice.diversityChild,
                 }}
               />
-              <Show when={slice.diversity}>
+              <Show when={slice.diversityEnabled}>
                 <Triangle
                   class="relative -translate-y-1/2"
                   classList={{
-                    "bg-red-500 -translate-z-1": slice.diversity_parent,
-                    "bg-yellow-300 translate-z-1": slice.diversity_child,
+                    "bg-red-500 -translate-z-1": slice.diversityParent,
+                    "bg-yellow-300 translate-z-1": slice.diversityChild,
                   }}
                 />
               </Show>
@@ -465,24 +449,24 @@ export function Slice(props: { sliceIndex: string }) {
               <div
                 class="border border-gray-500 rounded-md flex flex-col p-2 pointer-events-auto text-sm font-mono bg-background drop-shadow-black"
                 classList={{
-                  "drop-shadow-lg": slice.active,
-                  "drop-shadow-md": !slice.active,
+                  "drop-shadow-lg": slice.isActive,
+                  "drop-shadow-md": !slice.isActive,
                 }}
               >
                 <div
                   class="absolute top-0 left-0 right-0 bottom-0 pointer-events-none rounded-md"
                   classList={{
                     "backdrop-brightness-75 backdrop-grayscale-25":
-                      !slice.active,
+                      !slice.isActive,
                   }}
                 />
                 <div class="flex justify-between items-center space-x-2">
                   <Select
-                    value={slice.rxant}
-                    options={slice.ant_list}
+                    value={slice.rxAntenna}
+                    options={slice.availableRxAntennas}
                     onChange={(v) => {
-                      if (!v || v === slice.rxant) return;
-                      sendCommand(`slice s ${props.sliceIndex} rxant=${v}`);
+                      if (!v || v === slice.rxAntenna) return;
+                      sliceController().setRxAntenna(v);
                     }}
                     itemComponent={(props) => (
                       <SelectItem item={props.item}>
@@ -501,11 +485,11 @@ export function Slice(props: { sliceIndex: string }) {
                     <SelectContent />
                   </Select>
                   <Select
-                    value={slice.txant}
-                    options={slice.tx_ant_list}
+                    value={slice.txAntenna}
+                    options={slice.availableTxAntennas}
                     onChange={(v) => {
-                      if (!v) return;
-                      sendCommand(`slice s ${props.sliceIndex} txant=${v}`);
+                      if (!v || v === slice.txAntenna) return;
+                      sliceController().setTxAntenna(v);
                     }}
                     itemComponent={(props) => (
                       <SelectItem item={props.item}>
@@ -527,21 +511,19 @@ export function Slice(props: { sliceIndex: string }) {
                   <ToggleButton.Root
                     class="text-center font-bold pl-1 pr-1 rounded-sm"
                     classList={{
-                      "bg-red-500": slice.tx,
-                      "opacity-50": !slice.tx,
+                      "bg-red-500": slice.isTransmitEnabled,
+                      "opacity-50": !slice.isTransmitEnabled,
                     }}
-                    pressed={slice.tx}
+                    pressed={slice.isTransmitEnabled}
                     onChange={(pressed) => {
-                      sendCommand(
-                        `slice s ${props.sliceIndex} tx=${pressed ? 1 : 0}`,
-                      ).then(() => setSlice("tx", pressed));
+                      sliceController().enableTransmit(pressed);
                     }}
                   >
                     TX
                   </ToggleButton.Root>
                   <span class="text-center font-bold bg-blue-500 pl-1 pr-1 rounded-sm">
                     <Popover>
-                      <PopoverTrigger>{slice.index_letter}</PopoverTrigger>
+                      <PopoverTrigger>{slice.indexLetter}</PopoverTrigger>
                       <PopoverContent class="flex flex-col overflow-hidden w-96 max-h-[var(--kb-popper-content-available-height)]">
                         <pre class="size-full overflow-auto text-sm">
                           {JSON.stringify(slice, null, 2)}
@@ -550,13 +532,13 @@ export function Slice(props: { sliceIndex: string }) {
                     </Popover>
                   </span>
                 </div>
-                <Show when={!slice.diversity_child}>
+                <Show when={!slice.diversityChild}>
                   <div class="flex justify-between items-center space-x-2">
                     <span>{slice.mode}</span>
                     <FrequencyInput
                       class="text-right bg-transparent text-lg font-mono"
                       size={14}
-                      valueHz={Math.round(slice.RF_frequency * 1e6)}
+                      valueHz={Math.round(slice.frequencyMHz * 1e6)}
                       onCommit={tuneSlice}
                     />
                   </div>
@@ -569,14 +551,11 @@ export function Slice(props: { sliceIndex: string }) {
                     <PopoverTrigger
                       onContextMenu={(e) => {
                         e.preventDefault();
-                        const audio_mute = !slice.audio_mute;
-                        sendCommand(
-                          `slice s ${props.sliceIndex} audio_mute=${audio_mute ? 1 : 0}`,
-                        ).then(() => setSlice("audio_mute", audio_mute));
+                        sliceController().setMute(!slice.isMuted);
                       }}
                     >
                       <Show
-                        when={slice.audio_mute}
+                        when={slice.isMuted}
                         fallback={<BaselineVolumeUp />}
                       >
                         <BaselineVolumeOff />
@@ -591,11 +570,9 @@ export function Slice(props: { sliceIndex: string }) {
                     >
                       <Switch
                         class="flex items-center space-x-2 justify-between"
-                        checked={slice.audio_mute}
+                        checked={slice.isMuted}
                         onChange={(isChecked) => {
-                          sendCommand(
-                            `slice s ${props.sliceIndex} audio_mute=${isChecked ? 1 : 0}`,
-                          ).then(() => setSlice("audio_mute", isChecked));
+                          sliceController().setMute(isChecked);
                         }}
                       >
                         <SwitchLabel>Audio Mute</SwitchLabel>
@@ -606,12 +583,9 @@ export function Slice(props: { sliceIndex: string }) {
                       <Slider
                         minValue={0}
                         maxValue={100}
-                        value={[slice.audio_level]}
+                        value={[slice.audioGain]}
                         onChange={([value]) => {
-                          sendCommand(
-                            `slice s ${props.sliceIndex} audio_level=${value}`,
-                          );
-                          setSlice("audio_level", value);
+                          sliceController().setAudioGain(value);
                         }}
                         getValueLabel={(params) => `${params.values[0]}%`}
                         class="space-y-3"
@@ -628,12 +602,9 @@ export function Slice(props: { sliceIndex: string }) {
                       <Slider
                         minValue={0}
                         maxValue={100}
-                        value={[slice.audio_pan]}
+                        value={[slice.audioPan]}
                         onChange={([value]) => {
-                          sendCommand(
-                            `slice s ${props.sliceIndex} audio_pan=${value}`,
-                          );
-                          setSlice("audio_pan", value);
+                          sliceController().setAudioPan(value);
                         }}
                         getValueLabel={(params) => {
                           const value = params.values[0] - 50;
@@ -650,12 +621,12 @@ export function Slice(props: { sliceIndex: string }) {
                           <SliderFill
                             style={{
                               right:
-                                slice.audio_pan > 50
-                                  ? `${100 - slice.audio_pan}%`
+                                slice.audioPan > 50
+                                  ? `${100 - slice.audioPan}%`
                                   : "50%",
                               left:
-                                slice.audio_pan <= 50
-                                  ? `${slice.audio_pan}%`
+                                slice.audioPan <= 50
+                                  ? `${slice.audioPan}%`
                                   : "50%",
                             }}
                           />
@@ -663,11 +634,9 @@ export function Slice(props: { sliceIndex: string }) {
                         </SliderTrack>
                       </Slider>
                       <SegmentedControl
-                        value={slice.agc_mode}
+                        value={slice.agcMode}
                         onChange={(value) => {
-                          sendCommand(
-                            `slice s ${props.sliceIndex} agc_mode=${value}`,
-                          ).then(() => setSlice("agc_mode", value));
+                          sliceController().setAgcMode(value);
                         }}
                       >
                         <SegmentedControlLabel>AGC Mode</SegmentedControlLabel>
@@ -694,15 +663,12 @@ export function Slice(props: { sliceIndex: string }) {
                         </SegmentedControlGroup>
                       </SegmentedControl>
                       <Slider
-                        disabled={slice.agc_mode === "off"}
+                        disabled={slice.agcMode === "off"}
                         minValue={0}
                         maxValue={100}
-                        value={[slice.agc_threshold]}
-                        onChange={([value]) => {
-                          sendCommand(
-                            `slice s ${props.sliceIndex} agc_threshold=${value}`,
-                          );
-                          setSlice("agc_threshold", value);
+                        value={[slice.agcThreshold]}
+                        onChange={([threshold]) => {
+                          sliceController().setAgcSettings({ threshold });
                         }}
                         getValueLabel={(params) => `${params.values[0]}%`}
                         class="space-y-3"
@@ -719,12 +685,10 @@ export function Slice(props: { sliceIndex: string }) {
 
                       <Switch
                         class="flex items-center space-x-2 justify-between"
-                        checked={slice.diversity}
-                        disabled={slice.diversity_child}
+                        checked={slice.diversityEnabled}
+                        disabled={slice.diversityChild}
                         onChange={(isChecked) => {
-                          sendCommand(
-                            `slice s ${props.sliceIndex} diversity=${isChecked ? 1 : 0}`,
-                          );
+                          sliceController().setDiversityEnabled(isChecked);
                         }}
                       >
                         <SwitchLabel>Diversity Reception</SwitchLabel>
@@ -744,15 +708,12 @@ export function Slice(props: { sliceIndex: string }) {
                       }}
                     >
                       <Slider
-                        disabled={!slice.wnb}
+                        disabled={!slice.wnbEnabled}
                         minValue={0}
                         maxValue={100}
-                        value={[slice.wnb_level]}
+                        value={[slice.wnbLevel]}
                         onChange={([value]) => {
-                          sendCommand(
-                            `slice s ${props.sliceIndex} wnb_level=${value}`,
-                          );
-                          setSlice("wnb_level", value);
+                          sliceController().setWnbLevel(value);
                         }}
                         getValueLabel={(params) => `${params.values[0]}%`}
                         class="space-y-2"
@@ -764,11 +725,9 @@ export function Slice(props: { sliceIndex: string }) {
                         <div class="flex w-full items-center justify-between">
                           <Switch
                             class="h-auto flex items-center origin-left scale-75"
-                            checked={slice.wnb}
+                            checked={slice.wnbEnabled}
                             onChange={(isChecked) => {
-                              sendCommand(
-                                `slice s ${props.sliceIndex} wnb=${isChecked ? 1 : 0}`,
-                              ).then(() => setSlice("wnb", isChecked));
+                              sliceController().setWnbEnabled(isChecked);
                             }}
                           >
                             <SwitchControl>
@@ -782,15 +741,12 @@ export function Slice(props: { sliceIndex: string }) {
                         </div>
                       </Slider>
                       <Slider
-                        disabled={!slice.nb}
+                        disabled={!slice.nbEnabled}
                         minValue={0}
                         maxValue={100}
-                        value={[slice.nb_level]}
+                        value={[slice.nbLevel]}
                         onChange={([value]) => {
-                          sendCommand(
-                            `slice s ${props.sliceIndex} nb_level=${value}`,
-                          );
-                          setSlice("nb_level", value);
+                          sliceController().setNbLevel(value);
                         }}
                         getValueLabel={(params) => `${params.values[0]}%`}
                         class="space-y-2"
@@ -802,11 +758,9 @@ export function Slice(props: { sliceIndex: string }) {
                         <div class="flex w-full items-center space-x-2 justify-between">
                           <Switch
                             class="h-auto flex items-center origin-left scale-75"
-                            checked={slice.nb}
+                            checked={slice.nbEnabled}
                             onChange={(isChecked) => {
-                              sendCommand(
-                                `slice s ${props.sliceIndex} nb=${isChecked ? 1 : 0}`,
-                              ).then(() => setSlice("nb", isChecked));
+                              sliceController().setNbEnabled(isChecked);
                             }}
                           >
                             <SwitchControl>
@@ -820,15 +774,12 @@ export function Slice(props: { sliceIndex: string }) {
                         </div>
                       </Slider>
                       <Slider
-                        disabled={!slice.nr}
+                        disabled={!slice.nrEnabled}
                         minValue={0}
                         maxValue={100}
-                        value={[slice.nr_level]}
+                        value={[slice.nrLevel]}
                         onChange={([value]) => {
-                          sendCommand(
-                            `slice s ${props.sliceIndex} nr_level=${value}`,
-                          );
-                          setSlice("nr_level", value);
+                          sliceController().setNrLevel(value);
                         }}
                         getValueLabel={(params) => `${params.values[0]}%`}
                         class="space-y-2"
@@ -840,11 +791,9 @@ export function Slice(props: { sliceIndex: string }) {
                         <div class="flex w-full items-center space-x-2 justify-between">
                           <Switch
                             class="h-auto flex items-center origin-left scale-75"
-                            checked={slice.nr}
+                            checked={slice.nrEnabled}
                             onChange={(isChecked) => {
-                              sendCommand(
-                                `slice s ${props.sliceIndex} nr=${isChecked ? 1 : 0}`,
-                              ).then(() => setSlice("nr", isChecked));
+                              sliceController().setNrEnabled(isChecked);
                             }}
                           >
                             <SwitchControl>
@@ -858,15 +807,12 @@ export function Slice(props: { sliceIndex: string }) {
                         </div>
                       </Slider>
                       <Slider
-                        disabled={!slice.anf}
+                        disabled={!slice.anfEnabled}
                         minValue={0}
                         maxValue={100}
-                        value={[slice.anf_level]}
+                        value={[slice.anfLevel]}
                         onChange={([value]) => {
-                          sendCommand(
-                            `slice s ${props.sliceIndex} anf_level=${value}`,
-                          );
-                          setSlice("anf_level", value);
+                          sliceController().setAnfLevel(value);
                         }}
                         getValueLabel={(params) => `${params.values[0]}%`}
                         class="space-y-2"
@@ -878,11 +824,9 @@ export function Slice(props: { sliceIndex: string }) {
                         <div class="flex w-full items-center space-x-2 justify-between">
                           <Switch
                             class="h-auto flex items-center origin-left scale-75"
-                            checked={slice.anf}
+                            checked={slice.anfEnabled}
                             onChange={(isChecked) => {
-                              sendCommand(
-                                `slice s ${props.sliceIndex} anf=${isChecked ? 1 : 0}`,
-                              ).then(() => setSlice("anf", isChecked));
+                              sliceController().setAnfEnabled(isChecked);
                             }}
                           >
                             <SwitchControl>
@@ -898,7 +842,7 @@ export function Slice(props: { sliceIndex: string }) {
                     </PopoverContent>
                   </Popover>
                   <Popover>
-                    <PopoverTrigger disabled={slice.diversity_child}>
+                    <PopoverTrigger disabled={slice.diversityChild}>
                       {slice.mode}
                     </PopoverTrigger>
                     <PopoverContent
@@ -912,13 +856,11 @@ export function Slice(props: { sliceIndex: string }) {
                         value={slice.mode}
                         onChange={(mode) => {
                           if (!mode || mode === slice.mode) return;
-                          sendCommand(
-                            `slice s ${props.sliceIndex} mode=${mode}`,
-                          ).then(() => setSlice("mode", mode));
+                          sliceController().setMode(mode);
                         }}
                         class="grid grid-cols-4"
                       >
-                        <For each={slice.mode_list}>
+                        <For each={slice.modeList}>
                           {(mode) => (
                             <ToggleGroupItem
                               variant="outline"
@@ -933,10 +875,10 @@ export function Slice(props: { sliceIndex: string }) {
                       </ToggleGroup>
                     </PopoverContent>
                   </Popover>
-                  <StatusToggle active={slice.rit_on || slice.xit_on}>
+                  <StatusToggle active={slice.ritEnabled || slice.xitEnabled}>
                     RIT
                   </StatusToggle>
-                  <StatusToggle active={!!slice.dax}>DAX</StatusToggle>
+                  <StatusToggle active={!!slice.daxChannel}>DAX</StatusToggle>
                 </div>
               </div>
             </div>

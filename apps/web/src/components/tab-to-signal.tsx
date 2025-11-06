@@ -1,4 +1,5 @@
 import {
+  batch,
   Component,
   ComponentProps,
   createEffect,
@@ -159,7 +160,7 @@ export const TabToSignal: Component<
     return (
       Object.keys(state.status.slice).find((key) => {
         const s = state.status.slice[key];
-        return s.pan === sid && s.active;
+        return s.pan === sid && s.isActive;
       }) ?? null
     );
   });
@@ -167,7 +168,7 @@ export const TabToSignal: Component<
   const currentFreq = createMemo(() => {
     const id = activeSlice();
     if (!id) return null;
-    return state.status.slice[id]?.RF_frequency ?? null; // MHz
+    return state.status.slice[id]?.frequencyMHz ?? null; // MHz
   });
 
   const tuneToFrequency = async (freqMHz: number) => {
@@ -177,7 +178,10 @@ export const TabToSignal: Component<
     const stepMHz = stepHz / 1e6;
     const rounded = +(Math.round(freqMHz / stepMHz) * stepMHz).toFixed(6);
     await sendCommand(`slice t ${id} ${rounded}`);
-    setState("status", "slice", id, "RF_frequency", Number(rounded));
+    batch(() => {
+      setState("status", "slice", id, "RF_frequency", Number(rounded));
+      setState("status", "slice", id, "frequencyMHz", Number(rounded));
+    });
   };
 
   const tuneToNextStop = () => {

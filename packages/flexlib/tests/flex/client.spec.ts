@@ -42,7 +42,7 @@ describe("FlexClient", () => {
     expect(slice?.availableTxAntennas).toEqual([]);
     expect(slice?.owner).toBe("");
     expect(slice?.clientHandle).toBe(0);
-    expect(slice?.diversityParent).toBeUndefined();
+    expect(slice?.diversityParent).toBe(false);
     expect(slice?.modeList).toEqual([]);
     expect(changes.length).toBe(1);
 

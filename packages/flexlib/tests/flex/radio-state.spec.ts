@@ -45,7 +45,7 @@ describe("createRadioStateStore", () => {
     expect(slice?.sampleRateHz).toBe(24_000);
     expect(slice?.indexLetter).toBe("A");
     expect(slice?.mode).toBe("USB");
-    expect(slice?.panadapterStream).toBe("0x40000000");
+    expect(slice?.panadapterStreamId).toBe("0x40000000");
     expect(slice?.daxChannel).toBe(1);
     expect(slice?.daxIqChannel).toBe(0);
     expect(slice?.daxClientCount).toBe(0);
@@ -60,7 +60,7 @@ describe("createRadioStateStore", () => {
     expect(slice?.isLocked).toBe(false);
     expect(slice?.isQskEnabled).toBe(false);
     expect(slice?.isWide).toBe(true);
-    expect(slice?.diversityParent).toBeUndefined();
+    expect(slice?.diversityParent).toBe(false);
     expect(slice?.availableRxAntennas).toEqual([
       "ANT1",
       "ANT2",
@@ -137,7 +137,7 @@ describe("createRadioStateStore", () => {
     store.apply(makeStatus(WATERFALL_STATUS));
     const waterfall = store.getWaterfall("0x42000000");
     expect(waterfall).toBeDefined();
-    expect(waterfall?.panadapterStream).toBe("0x40000000");
+    expect(waterfall?.panadapterStreamId).toBe("0x40000000");
     expect(waterfall?.centerFrequencyMHz).toBeCloseTo(14.1, 6);
     expect(waterfall?.bandwidthMHz).toBeCloseTo(0.2, 6);
     expect(waterfall?.isBandZoomOn).toBe(false);

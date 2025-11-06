@@ -148,17 +148,109 @@ export interface IterlockBand {
   tx3_enabled: boolean; // "0"
 }
 
+// slice.sample_rate = snapshot.sampleRateHz;
+// slice.RF_frequency = snapshot.frequencyMHz;
+// slice.client_handle = formatClientHandle(snapshot.clientHandle);
+// slice.index_letter = snapshot.indexLetter;
+// slice.mode = snapshot.mode || (slice.mode as string | undefined) || "";
+// slice.pan =
+//   snapshot.panadapterStreamId ??
+//   (slice.pan as string | undefined) ??
+//   "";
+// slice.rxant =
+//   snapshot.rxAntenna || (slice.rxant as string | undefined) || "";
+// slice.txant =
+//   snapshot.txAntenna || (slice.txant as string | undefined) || "";
+// slice.loopa = snapshot.loopAEnabled;
+// slice.loopb = snapshot.loopBEnabled;
+// slice.qsk = snapshot.isQskEnabled;
+// slice.dax = snapshot.daxChannel;
+// slice.dax_iq_channel = snapshot.daxIqChannel;
+// slice.dax_clients = snapshot.daxClientCount;
+// slice.lock = snapshot.isLocked;
+// slice.tx = snapshot.isTransmitEnabled;
+// slice.active = snapshot.isActive;
+// slice.audio_level = snapshot.audioGain;
+// slice.audio_pan = snapshot.audioPan;
+// slice.audio_mute = snapshot.isMuted;
+// slice.record = snapshot.recordingEnabled;
+// slice.play = snapshot.playbackAvailable
+//   ? snapshot.playbackEnabled
+//     ? "1"
+//     : "0"
+//   : "disabled";
+// slice.record_time = snapshot.recordTimeSeconds;
+// slice.anf = snapshot.anfEnabled;
+// slice.anf_level = snapshot.anfLevel;
+// slice.nr = snapshot.nrEnabled;
+// slice.nr_level = snapshot.nrLevel;
+// slice.nr2 = snapshot.nrlEnabled;
+// slice.nb = snapshot.nbEnabled;
+// slice.nb_level = snapshot.nbLevel;
+// slice.wnb = snapshot.wnbEnabled;
+// slice.wnb_level = snapshot.wnbLevel;
+// slice.apf = snapshot.apfEnabled;
+// slice.apf_level = snapshot.apfLevel;
+// slice.squelch = snapshot.squelchEnabled;
+// slice.squelch_level = snapshot.squelchLevel;
+// slice.squelch_triggered_weight = snapshot.squelchTriggeredWeight;
+// slice.squelch_avg_factor = snapshot.squelchAverageFactor;
+// slice.squelch_hang_delay_ms = snapshot.squelchHangDelayMs;
+// slice.diversity = snapshot.diversityEnabled;
+// slice.diversity_parent = Boolean(snapshot.diversityParent);
+// slice.diversity_child = snapshot.diversityChild;
+// slice.diversity_index = snapshot.diversityIndex;
+// slice.ant_list = Array.from(snapshot.availableRxAntennas);
+// slice.tx_ant_list = Array.from(snapshot.availableTxAntennas);
+// slice.mode_list = Array.from(snapshot.modeList);
+// slice.fm_tone_mode = snapshot.fmToneMode;
+// const parsedTone = Number.parseFloat(snapshot.fmToneValue);
+// slice.fm_tone_value = Number.isFinite(parsedTone)
+//   ? parsedTone
+//   : ((slice.fm_tone_value as number | undefined) ?? 0);
+// slice.fm_repeater_offset_freq = snapshot.fmRepeaterOffsetMHz;
+// slice.tx_offset_freq = snapshot.txOffsetFrequencyMHz;
+// slice.repeater_offset_dir =
+//   snapshot.repeaterOffsetDirection ||
+//   (slice.repeater_offset_dir as string | undefined) ||
+//   "";
+// slice.fm_tone_burst = snapshot.fmToneBurstEnabled;
+// slice.fm_deviation = snapshot.fmDeviation;
+// slice.dfm_pre_de_emphasis = snapshot.fmPreDeEmphasisEnabled;
+// slice.post_demod_low = snapshot.postDemodLowHz;
+// slice.post_demod_high = snapshot.postDemodHighHz;
+// slice.post_demod_bypass = snapshot.postDemodBypass;
+// slice.rtty_mark = snapshot.rttyMarkHz;
+// slice.rtty_shift = snapshot.rttyShiftHz;
+// slice.digl_offset = snapshot.diglOffsetHz;
+// slice.digu_offset = snapshot.diguOffsetHz;
+// slice.agc_mode = snapshot.agcMode;
+// slice.agc_threshold = snapshot.agcThreshold;
+// slice.agc_off_level = snapshot.agcOffLevel;
+// slice.step = snapshot.tuneStepHz;
+// slice.step_list = Array.from(snapshot.tuneStepListHz);
+// slice.rit_on = snapshot.ritEnabled;
+// slice.rit_freq = snapshot.ritOffsetHz;
+// slice.xit_on = snapshot.xitEnabled;
+// slice.xit_freq = snapshot.xitOffsetHz;
+// slice.rfgain = snapshot.rfGain;
+// slice.filter_lo = snapshot.filterLowHz;
+// slice.filter_hi = snapshot.filterHighHz;
+// slice.in_use = snapshot.isInUse;
+// slice.detached = snapshot.isDetached;
+// slice.rx_error_mHz = snapshot.rxErrorMilliHz;
+
 export interface Slice {
-  in_use: boolean; // "1"
-  sample_rate: number; // "24000",
-  RF_frequency: number; // "14.099200",
-  client_handle: string; // "0x2BD18D52",
-  index_letter: string; // "A",
-  rit_on: boolean; // "0",
-  rit_freq: number; // "0",
-  xit_on: boolean; // "0",
-  xit_freq: number; // "0",
-  rxant: string; // "ANT1",
+  isInUse: boolean; // "1"
+  sampleRateHz: number; // "24000",
+  frequencyMHz: number; // "14.099200",
+  clientHandle: string; // "0x2BD18D52",
+  indexLetter: string; // "A",
+  ritEnabled: boolean; // "0",
+  ritOffsetHz: number; // "0",
+  xitEnabled: boolean; // "0",
+  xitOffsetHz: number; // "0",
+  rxAntenna: string; // "ANT1",
   mode: string; // "AM",
   wide: boolean; // "0";
   filter_lo: number; // "-3000";
@@ -176,12 +268,12 @@ export interface Slice {
   dax: number; // "1";
   dax_iq_channel: number; // "0";
   dax_clients: number; // "0";
-  lock: boolean; // "0";
-  tx: boolean; // "1";
-  active: boolean; // "1";
-  audio_level: number; //"100";
-  audio_pan: number; // "50";
-  audio_mute: boolean; // "0";
+  isLocked: boolean; // "0";
+  isTransmitEnabled: boolean; // "1";
+  isActive: boolean; // "1";
+  audioGain: number; //"100";
+  audioPan: number; // "50";
+  isMuted: boolean; // "0";
   record: boolean; // "0";
   play: string; // "disabled";
   record_time: number; // "0.0";
@@ -205,6 +297,10 @@ export interface Slice {
   diversity_parent: boolean; // "0";
   diversity_child: boolean; // "0";
   diversity_index: number; //  "1342177293";
+  diversityEnabled: boolean;
+  diversityParent: boolean;
+  diversityChild: boolean;
+  diversityIndex: number;
   ant_list: string[]; // "ANT1,ANT2,RX_A,RX_B,XVTA,XVTB";
   mode_list: string[]; // "LSB,USB,AM,CW,DIGL,DIGU,SAM,FM,NFM,DFM,RTTY";
   fm_tone_mode: string; // "OFF";
@@ -225,7 +321,7 @@ export interface Slice {
   rfgain: number; // "8";
   tx_ant_list: string[]; // "ANT1,ANT2,XVTA,XVTB";
   rx_error_mHz: number; //"-10.681152";
-  detached: boolean; // "0";
+  isDetached: boolean; // "0";
 }
 
 export interface Stream {
@@ -269,7 +365,7 @@ export interface StatusState {
     rx: Record<string, unknown>;
     rxsc: Record<string, unknown>;
   };
-  slice: Record<number | string, Slice>;
+  slice: Record<string, SliceSnapshot>;
   display: {
     pan: Record<string, PanadapterSnapshot>;
     waterfall: Record<string, WaterfallSnapshot>;
@@ -619,44 +715,62 @@ export const FlexRadioProvider: ParentComponent = (props) => {
   };
 
   const applySliceSnapshot = (snapshot: SliceSnapshot) => {
-    const attributes = snapshot.raw;
     const applyUpdate = (partial: Partial<Slice>) => {
       const slice = partial as Record<string, unknown>;
 
+      const clientHandle = formatClientHandle(snapshot.clientHandle);
+      slice.sampleRateHz = snapshot.sampleRateHz;
       slice.sample_rate = snapshot.sampleRateHz;
+      slice.frequencyMHz = snapshot.frequencyMHz;
       slice.RF_frequency = snapshot.frequencyMHz;
-      slice.client_handle = formatClientHandle(snapshot.clientHandle);
+      slice.clientHandle = clientHandle;
+      slice.client_handle = clientHandle;
+      slice.indexLetter = snapshot.indexLetter;
       slice.index_letter = snapshot.indexLetter;
       slice.mode = snapshot.mode || (slice.mode as string | undefined) || "";
-      slice.pan =
-        snapshot.panadapterStream ??
-        attributes["pan"] ??
-        (slice.pan as string | undefined) ??
+      const panStreamId =
+        snapshot.panadapterStreamId ?? (slice.pan as string | undefined) ?? "";
+      slice.pan = panStreamId;
+      slice.panadapterStreamId = panStreamId;
+      const rxAntenna =
+        snapshot.rxAntenna ||
+        (slice.rxAntenna as string | undefined) ||
+        (slice.rxant as string | undefined) ||
         "";
-      slice.rxant =
-        snapshot.rxAntenna || (slice.rxant as string | undefined) || "";
-      slice.txant =
-        snapshot.txAntenna || (slice.txant as string | undefined) || "";
+      slice.rxAntenna = rxAntenna;
+      slice.rxant = rxAntenna;
+      const txAntenna =
+        snapshot.txAntenna ||
+        (slice.txAntenna as string | undefined) ||
+        (slice.txant as string | undefined) ||
+        "";
+      slice.txAntenna = txAntenna;
+      slice.txant = txAntenna;
       slice.loopa = snapshot.loopAEnabled;
       slice.loopb = snapshot.loopBEnabled;
       slice.qsk = snapshot.isQskEnabled;
       slice.dax = snapshot.daxChannel;
       slice.dax_iq_channel = snapshot.daxIqChannel;
       slice.dax_clients = snapshot.daxClientCount;
+      slice.isLocked = snapshot.isLocked;
       slice.lock = snapshot.isLocked;
+      slice.isTransmitEnabled = snapshot.isTransmitEnabled;
       slice.tx = snapshot.isTransmitEnabled;
+      slice.isActive = snapshot.isActive;
       slice.active = snapshot.isActive;
+      slice.audioGain = snapshot.audioGain;
       slice.audio_level = snapshot.audioGain;
+      slice.audioPan = snapshot.audioPan;
       slice.audio_pan = snapshot.audioPan;
+      slice.isMuted = snapshot.isMuted;
       slice.audio_mute = snapshot.isMuted;
+      slice.recordingEnabled = snapshot.recordingEnabled;
       slice.record = snapshot.recordingEnabled;
-      slice.play =
-        attributes["play"] ??
-        (snapshot.playbackAvailable
-          ? snapshot.playbackEnabled
-            ? "1"
-            : "0"
-          : "disabled");
+      slice.play = snapshot.playbackAvailable
+        ? snapshot.playbackEnabled
+          ? "1"
+          : "0"
+        : "disabled";
       slice.record_time = snapshot.recordTimeSeconds;
       slice.anf = snapshot.anfEnabled;
       slice.anf_level = snapshot.anfLevel;
@@ -670,78 +784,95 @@ export const FlexRadioProvider: ParentComponent = (props) => {
       slice.apf = snapshot.apfEnabled;
       slice.apf_level = snapshot.apfLevel;
       slice.squelch = snapshot.squelchEnabled;
+      slice.squelchEnabled = snapshot.squelchEnabled;
       slice.squelch_level = snapshot.squelchLevel;
+      slice.squelchLevel = snapshot.squelchLevel;
+      slice.squelch_triggered_weight = snapshot.squelchTriggeredWeight;
+      slice.squelchTriggeredWeight = snapshot.squelchTriggeredWeight;
+      slice.squelch_avg_factor = snapshot.squelchAverageFactor;
+      slice.squelchAverageFactor = snapshot.squelchAverageFactor;
+      slice.squelch_hang_delay_ms = snapshot.squelchHangDelayMs;
+      slice.squelchHangDelayMs = snapshot.squelchHangDelayMs;
       slice.diversity = snapshot.diversityEnabled;
-      slice.diversity_parent =
-        attributes["diversity_parent"] !== undefined
-          ? attributes["diversity_parent"] === "1"
-          : Boolean(snapshot.diversityParent);
-      slice.diversity_child =
-        attributes["diversity_child"] !== undefined
-          ? attributes["diversity_child"] === "1"
-          : snapshot.diversityChild;
+      slice.diversityEnabled = snapshot.diversityEnabled;
+      slice.diversity_parent = snapshot.diversityParent;
+      slice.diversityParent = snapshot.diversityParent;
+      slice.diversity_child = snapshot.diversityChild;
+      slice.diversityChild = snapshot.diversityChild;
       slice.diversity_index = snapshot.diversityIndex;
+      slice.diversityIndex = snapshot.diversityIndex;
       slice.ant_list = Array.from(snapshot.availableRxAntennas);
+      slice.availableRxAntennas = Array.from(snapshot.availableRxAntennas);
       slice.tx_ant_list = Array.from(snapshot.availableTxAntennas);
+      slice.availableTxAntennas = Array.from(snapshot.availableTxAntennas);
       slice.mode_list = Array.from(snapshot.modeList);
+      slice.modeList = Array.from(snapshot.modeList);
       slice.fm_tone_mode = snapshot.fmToneMode;
-      const toneValue = attributes["fm_tone_value"] ?? snapshot.fmToneValue;
-      const parsedTone =
-        typeof toneValue === "string" ? Number.parseFloat(toneValue) : NaN;
+      const parsedTone = Number.parseFloat(snapshot.fmToneValue);
       slice.fm_tone_value = Number.isFinite(parsedTone)
         ? parsedTone
         : ((slice.fm_tone_value as number | undefined) ?? 0);
+      slice.fmToneMode = snapshot.fmToneMode;
+      slice.fmToneValue = snapshot.fmToneValue;
       slice.fm_repeater_offset_freq = snapshot.fmRepeaterOffsetMHz;
+      slice.fmRepeaterOffsetMHz = snapshot.fmRepeaterOffsetMHz;
       slice.tx_offset_freq = snapshot.txOffsetFrequencyMHz;
+      slice.txOffsetFrequencyMHz = snapshot.txOffsetFrequencyMHz;
       slice.repeater_offset_dir =
-        attributes["repeater_offset_dir"] ?? snapshot.repeaterOffsetDirection;
+        snapshot.repeaterOffsetDirection ||
+        (slice.repeater_offset_dir as string | undefined) ||
+        "";
+      slice.repeaterOffsetDirection = snapshot.repeaterOffsetDirection;
       slice.fm_tone_burst = snapshot.fmToneBurstEnabled;
+      slice.fmToneBurstEnabled = snapshot.fmToneBurstEnabled;
       slice.fm_deviation = snapshot.fmDeviation;
+      slice.fmDeviation = snapshot.fmDeviation;
       slice.dfm_pre_de_emphasis = snapshot.fmPreDeEmphasisEnabled;
+      slice.fmPreDeEmphasisEnabled = snapshot.fmPreDeEmphasisEnabled;
       slice.post_demod_low = snapshot.postDemodLowHz;
+      slice.postDemodLowHz = snapshot.postDemodLowHz;
       slice.post_demod_high = snapshot.postDemodHighHz;
+      slice.postDemodHighHz = snapshot.postDemodHighHz;
       slice.post_demod_bypass = snapshot.postDemodBypass;
+      slice.postDemodBypass = snapshot.postDemodBypass;
       slice.rtty_mark = snapshot.rttyMarkHz;
+      slice.rttyMarkHz = snapshot.rttyMarkHz;
       slice.rtty_shift = snapshot.rttyShiftHz;
+      slice.rttyShiftHz = snapshot.rttyShiftHz;
       slice.digl_offset = snapshot.diglOffsetHz;
+      slice.diglOffsetHz = snapshot.diglOffsetHz;
       slice.digu_offset = snapshot.diguOffsetHz;
+      slice.diguOffsetHz = snapshot.diguOffsetHz;
       slice.agc_mode = snapshot.agcMode;
+      slice.agcMode = snapshot.agcMode;
       slice.agc_threshold = snapshot.agcThreshold;
+      slice.agcThreshold = snapshot.agcThreshold;
       slice.agc_off_level = snapshot.agcOffLevel;
+      slice.agcOffLevel = snapshot.agcOffLevel;
       slice.step = snapshot.tuneStepHz;
+      slice.tuneStepHz = snapshot.tuneStepHz;
       slice.step_list = Array.from(snapshot.tuneStepListHz);
+      slice.tuneStepListHz = Array.from(snapshot.tuneStepListHz);
+      slice.ritEnabled = snapshot.ritEnabled;
       slice.rit_on = snapshot.ritEnabled;
+      slice.ritOffsetHz = snapshot.ritOffsetHz;
       slice.rit_freq = snapshot.ritOffsetHz;
+      slice.xitEnabled = snapshot.xitEnabled;
       slice.xit_on = snapshot.xitEnabled;
+      slice.xitOffsetHz = snapshot.xitOffsetHz;
       slice.xit_freq = snapshot.xitOffsetHz;
+      slice.rfGain = snapshot.rfGain;
       slice.rfgain = snapshot.rfGain;
-      slice.sample_rate = snapshot.sampleRateHz;
+      slice.filterLowHz = snapshot.filterLowHz;
       slice.filter_lo = snapshot.filterLowHz;
+      slice.filterHighHz = snapshot.filterHighHz;
       slice.filter_hi = snapshot.filterHighHz;
-      slice.in_use =
-        attributes["in_use"] !== undefined
-          ? attributes["in_use"] === "1"
-          : true;
-      slice.detached =
-        attributes["detached"] !== undefined
-          ? attributes["detached"] === "1"
-          : ((slice.detached as boolean | undefined) ?? false);
-      slice.squelch_triggered_weight =
-        attributes["squelch_triggered_weight"] !== undefined
-          ? Number(attributes["squelch_triggered_weight"])
-          : ((slice.squelch_triggered_weight as number | undefined) ?? 0);
-      slice.squelch_avg_factor =
-        attributes["squelch_avg_factor"] !== undefined
-          ? Number(attributes["squelch_avg_factor"])
-          : ((slice.squelch_avg_factor as number | undefined) ?? 0);
-      slice.squelch_hang_delay_ms =
-        attributes["squelch_hang_delay_ms"] !== undefined
-          ? Number(attributes["squelch_hang_delay_ms"])
-          : ((slice.squelch_hang_delay_ms as number | undefined) ?? 0);
-      slice.rx_error_mHz =
-        attributes["rx_error_mHz"] !== undefined
-          ? Number(attributes["rx_error_mHz"])
-          : ((slice.rx_error_mHz as number | undefined) ?? 0);
+      slice.isInUse = snapshot.isInUse;
+      slice.in_use = snapshot.isInUse;
+      slice.isDetached = snapshot.isDetached;
+      slice.detached = snapshot.isDetached;
+      slice.rxErrorMilliHz = snapshot.rxErrorMilliHz;
+      slice.rx_error_mHz = snapshot.rxErrorMilliHz;
     };
 
     const existing = state.status.slice[snapshot.id];
@@ -815,7 +946,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
   const handleSliceChange = (change: RadioStateChange) => {
     if (change.entity !== "slice") return;
     if (change.snapshot) {
-      applySliceSnapshot(change.snapshot);
+      setState("status", "slice", change.snapshot.id, change.snapshot);
     } else {
       const key = change.id ?? change.previous?.id;
       if (!key) return;

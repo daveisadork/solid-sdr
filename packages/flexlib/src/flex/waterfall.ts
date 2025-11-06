@@ -49,6 +49,8 @@ export interface WaterfallController {
   readonly id: string;
   readonly state: WaterfallSnapshot;
   readonly streamId: string;
+  readonly panadapterStreamId: string;
+  /** @deprecated Use panadapterStreamId instead. */
   readonly panadapterStream: string;
   readonly centerFrequencyMHz: number;
   readonly bandwidthMHz: number;
@@ -142,7 +144,11 @@ export class WaterfallControllerImpl implements WaterfallController {
   }
 
   get panadapterStream(): string {
-    return this.current().panadapterStream;
+    return this.current().panadapterStreamId;
+  }
+
+  get panadapterStreamId(): string {
+    return this.current().panadapterStreamId;
   }
 
   get centerFrequencyMHz(): number {

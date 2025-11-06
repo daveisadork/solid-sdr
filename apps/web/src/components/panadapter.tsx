@@ -31,7 +31,7 @@ export function Panadapter(props: { streamId: string }) {
   const [wrapper, setWrapper] = createSignal<HTMLDivElement>();
   const wrapperSize = createElementSize(wrapper);
   const [updating, setUpdating] = createSignal(false);
-  const [slices, setSlices] = createSignal([] as (number | string)[]);
+  const [slices, setSlices] = createSignal([] as string[]);
   const [palette, setPalette] = createSignal(new Uint8ClampedArray(0x400));
   const [paletteCss, setPaletteCss] = createSignal<string[]>([]);
   const [offscreenCanvasRef, setOffscreenCanvasRef] =
@@ -59,8 +59,8 @@ export function Panadapter(props: { streamId: string }) {
     setSlices(
       Object.keys(state.status.slice).filter(
         (key) =>
-          state.status.slice[key].pan === streamId() &&
-          state.status.slice[key].in_use,
+          state.status.slice[key].panadapterStreamId === streamId() &&
+          state.status.slice[key].isInUse,
       ),
     );
   });

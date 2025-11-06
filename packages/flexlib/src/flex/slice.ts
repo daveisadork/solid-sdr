@@ -137,7 +137,7 @@ export interface SliceController {
   /**
    * Stream ID of the panadapter associated with this slice.
    */
-  readonly panadapterStream?: string;
+  readonly panadapterStreamId?: string;
   /**
    * DAX channel assigned to the slice (0–8).
    */
@@ -296,9 +296,9 @@ export interface SliceController {
    */
   readonly repeaterOffsetDirection: string;
   /**
-   * Identifier of the diversity partner slice when this slice participates in diversity reception.
+   * Whether the slice is treated as the diversity parent during diversity reception.
    */
-  readonly diversityParent?: string;
+  readonly diversityParent: boolean;
   /**
    * Whether simple diversity reception is enabled for the slice (FLEX-6700/FLEX-6700R only).
    */
@@ -612,7 +612,11 @@ export class SliceControllerImpl implements SliceController {
   }
 
   get panadapterStream(): string | undefined {
-    return this.current().panadapterStream;
+    return this.current().panadapterStreamId;
+  }
+
+  get panadapterStreamId(): string | undefined {
+    return this.current().panadapterStreamId;
   }
 
   get daxChannel(): number {
@@ -855,7 +859,7 @@ export class SliceControllerImpl implements SliceController {
     return this.current().diversityChild;
   }
 
-  get diversityParent(): string | undefined {
+  get diversityParent(): boolean {
     return this.current().diversityParent;
   }
 

@@ -6,13 +6,14 @@ export interface SliceSnapshot {
   readonly mode: string;
   readonly sampleRateHz: number;
   readonly indexLetter: string;
+  readonly isInUse: boolean;
   readonly isActive: boolean;
   readonly isTransmitEnabled: boolean;
   readonly isWide: boolean;
   readonly isQskEnabled: boolean;
   readonly rxAntenna: string;
   readonly txAntenna: string;
-  readonly panadapterStream?: string;
+  readonly panadapterStreamId?: string;
   readonly daxChannel: number;
   readonly daxIqChannel: number;
   readonly daxClientCount: number;
@@ -75,13 +76,17 @@ export interface SliceSnapshot {
   readonly fmPreDeEmphasisEnabled: boolean;
   readonly squelchEnabled: boolean;
   readonly squelchLevel: number;
+  readonly squelchTriggeredWeight: number;
+  readonly squelchAverageFactor: number;
+  readonly squelchHangDelayMs: number;
   readonly txOffsetFrequencyMHz: number;
   readonly fmRepeaterOffsetMHz: number;
   readonly repeaterOffsetDirection: string;
   readonly diversityEnabled: boolean;
   readonly diversityChild: boolean;
-  readonly diversityParent?: string;
+  readonly diversityParent: boolean;
   readonly diversityIndex: number;
+  readonly isDetached: boolean;
   readonly availableRxAntennas: readonly string[];
   readonly availableTxAntennas: readonly string[];
   readonly modeList: readonly string[];
@@ -142,7 +147,7 @@ export interface PanadapterSnapshot {
 export interface WaterfallSnapshot {
   readonly id: string;
   readonly streamId: string;
-  readonly panadapterStream: string;
+  readonly panadapterStreamId: string;
   readonly centerFrequencyMHz: number;
   readonly bandwidthMHz: number;
   readonly lowDbm: number;
@@ -405,7 +410,7 @@ export function createRadioStateStore(): RadioStateStore {
       updatePanadapterSliceMembership(
         id,
         undefined,
-        previous?.panadapterStream,
+        previous?.panadapterStreamId,
       );
       return {
         entity: "slice",
@@ -420,8 +425,8 @@ export function createRadioStateStore(): RadioStateStore {
     slices.set(id, snapshot);
     updatePanadapterSliceMembership(
       id,
-      snapshot.panadapterStream,
-      previous?.panadapterStream,
+      snapshot.panadapterStreamId,
+      previous?.panadapterStreamId,
     );
     return {
       entity: "slice",
@@ -602,10 +607,10 @@ export function createRadioStateStore(): RadioStateStore {
 
   function detachSlicesFromPanadapter(panId: string): void {
     for (const slice of slices.values()) {
-      if (slice.panadapterStream === panId) {
+      if (slice.panadapterStreamId === panId) {
         const updated = Object.freeze({
           ...slice,
-          panadapterStream: undefined,
+          panadapterStreamId: undefined,
         });
         slices.set(slice.id, updated);
       }
@@ -628,8 +633,8 @@ export function createRadioStateStore(): RadioStateStore {
     slices.set(id, snapshot);
     updatePanadapterSliceMembership(
       id,
-      snapshot.panadapterStream,
-      previous?.panadapterStream,
+      snapshot.panadapterStreamId,
+      previous?.panadapterStreamId,
     );
     return {
       entity: "slice",
@@ -723,13 +728,14 @@ function createSliceSnapshot(
         mode: "",
         sampleRateHz: 0,
         indexLetter: "",
+        isInUse: true,
         isActive: false,
         isTransmitEnabled: false,
         isWide: false,
         isQskEnabled: false,
         rxAntenna: "",
         txAntenna: "",
-        panadapterStream: undefined,
+        panadapterStreamId: undefined,
         daxChannel: -1,
         daxIqChannel: -1,
         daxClientCount: 0,
@@ -792,13 +798,17 @@ function createSliceSnapshot(
         fmPreDeEmphasisEnabled: false,
         squelchEnabled: false,
         squelchLevel: 0,
+        squelchTriggeredWeight: 0,
+        squelchAverageFactor: 0,
+        squelchHangDelayMs: 0,
         txOffsetFrequencyMHz: 0,
         fmRepeaterOffsetMHz: 0,
         repeaterOffsetDirection: "",
         diversityEnabled: false,
         diversityChild: false,
-        diversityParent: undefined,
+        diversityParent: false,
         diversityIndex: 0,
+        isDetached: false,
         availableRxAntennas: [],
         availableTxAntennas: [],
         modeList: [],
@@ -813,6 +823,7 @@ function createSliceSnapshot(
     raw[key] = value;
     switch (key) {
       case "freq":
+      case "rf_frequency":
       case "RF_frequency": {
         const parsed = parseMegahertz(value);
         if (parsed !== undefined) next.frequencyMHz = parsed;
@@ -834,6 +845,9 @@ function createSliceSnapshot(
       case "active":
         next.isActive = isTruthy(value);
         break;
+      case "in_use":
+        next.isInUse = isTruthy(value);
+        break;
       case "tx":
         next.isTransmitEnabled = isTruthy(value);
         break;
@@ -851,7 +865,7 @@ function createSliceSnapshot(
         break;
       case "pan":
       case "panadapter":
-        next.panadapterStream = value || undefined;
+        next.panadapterStreamId = value || undefined;
         break;
       case "dax": {
         const parsed = parseInteger(value);
@@ -1192,6 +1206,24 @@ function createSliceSnapshot(
         else logParseError("slice", key, value);
         break;
       }
+      case "squelch_triggered_weight": {
+        const parsed = parseFloatSafe(value);
+        if (parsed !== undefined) next.squelchTriggeredWeight = parsed;
+        else logParseError("slice", key, value);
+        break;
+      }
+      case "squelch_avg_factor": {
+        const parsed = parseFloatSafe(value);
+        if (parsed !== undefined) next.squelchAverageFactor = parsed;
+        else logParseError("slice", key, value);
+        break;
+      }
+      case "squelch_hang_delay_ms": {
+        const parsed = parseFloatSafe(value);
+        if (parsed !== undefined) next.squelchHangDelayMs = parsed;
+        else logParseError("slice", key, value);
+        break;
+      }
       case "tx_offset_freq": {
         const parsed = parseMegahertz(value);
         if (parsed !== undefined) next.txOffsetFrequencyMHz = parsed;
@@ -1214,10 +1246,7 @@ function createSliceSnapshot(
         next.diversityChild = isTruthy(value);
         break;
       case "diversity_parent":
-        next.diversityParent =
-          value === undefined || value === "" || value === "0"
-            ? undefined
-            : value;
+        next.diversityParent = isTruthy(value);
         break;
       case "diversity_index": {
         const parsed = parseInteger(value);
@@ -1225,6 +1254,9 @@ function createSliceSnapshot(
         else logParseError("slice", key, value);
         break;
       }
+      case "detached":
+        next.isDetached = isTruthy(value);
+        break;
       case "ant_list": {
         const parsed = parseCsv(value);
         if (parsed) next.availableRxAntennas = parsed;
@@ -1265,7 +1297,6 @@ function createSliceSnapshot(
         break;
       }
       case "index":
-      case "in_use":
         break;
       default:
         logUnknownAttribute("slice", key, value);
@@ -1591,7 +1622,8 @@ function createWaterfallSnapshot(
     : {
         id,
         streamId: attributes["stream_id"] ?? attributes["stream"] ?? id,
-        panadapterStream: attributes["pan"] ?? attributes["panadapter"] ?? "",
+        panadapterStreamId:
+          attributes["pan"] ?? attributes["panadapter"] ?? "",
         centerFrequencyMHz: 0,
         bandwidthMHz: 0,
         lowDbm: 0,
@@ -1633,7 +1665,7 @@ function createWaterfallSnapshot(
         break;
       case "pan":
       case "panadapter":
-        next.panadapterStream = value ?? "";
+        next.panadapterStreamId = value ?? "";
         break;
       case "center": {
         const parsed = parseMegahertz(value);

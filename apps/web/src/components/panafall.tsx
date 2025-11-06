@@ -59,7 +59,7 @@ export function Panafall() {
     setModePreference(next);
   };
 
-  const { session, state, sendCommand, setState } = useFlexRadio();
+  const { session, state } = useFlexRadio();
   const [fs, setFullscreen] = createSignal(false);
   const fullscreen = createFullscreen(() => document.documentElement, fs);
   const [clickRef, setClickRef] = createSignal<HTMLElement>();
@@ -202,7 +202,7 @@ export function Panafall() {
       ? state.status.display.waterfall[waterfallStreamId]
       : null;
     setWaterfallStreamId(
-      waterfall?.panadapterStream === streamId ? waterfallStreamId : null,
+      waterfall?.panadapterStreamId === streamId ? waterfallStreamId : null,
     );
   });
 
@@ -261,7 +261,9 @@ export function Panafall() {
                   const activeSlice = Object.keys(state.status.slice).find(
                     (key) => {
                       const slice = state.status.slice[key];
-                      return slice.pan === streamId && slice.active;
+                      return (
+                        slice.panadapterStreamId === streamId && slice.isActive
+                      );
                     },
                   );
                   if (!activeSlice) return;
@@ -280,14 +282,6 @@ export function Panafall() {
                   const sliceController = session()?.slice(activeSlice);
                   if (!sliceController) return;
                   await sliceController.setFrequency(Number(freq));
-                  // await sendCommand(`slice t ${activeSlice} ${freq}`);
-                  // setState(
-                  //   "status",
-                  //   "slice",
-                  //   activeSlice,
-                  //   "RF_frequency",
-                  //   Number(freq),
-                  // );
                 }}
                 ref={setClickRef}
               />

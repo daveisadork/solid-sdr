@@ -10,6 +10,18 @@ const config = [
   ...turboConfig,
   ...tseslint.configs.recommended,
   solid.configs["flat/recommended"],
+  {
+    rules: {
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          varsIgnorePattern: "^_",
+          argsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+        },
+      ],
+    },
+  },
 ];
 
 export default config;

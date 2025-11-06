@@ -236,32 +236,48 @@ export interface RadioProperties {
   readonly raw: Readonly<Record<string, string>>;
 }
 
+type Mutable<T> = {
+  -readonly [P in keyof T]: T[P] extends ReadonlyArray<infer U>
+    ? U[]
+    : T[P] extends Readonly<Record<string, infer V>>
+      ? Record<string, V>
+      : T[P];
+};
+
+type MutableProps<T> = {
+  -readonly [P in keyof T]: T[P];
+};
+
+export type SnapshotDiff<TSnapshot> = Readonly<
+  MutableProps<Partial<Omit<TSnapshot, "raw">>>
+>;
+
+interface SnapshotUpdate<TSnapshot> {
+  readonly snapshot: TSnapshot;
+  readonly diff: SnapshotDiff<TSnapshot>;
+  readonly rawDiff: Readonly<Record<string, string>>;
+}
+
+type ChangeMetadata<TSnapshot> = {
+  readonly snapshot?: TSnapshot;
+  readonly previous?: TSnapshot;
+  readonly diff?: SnapshotDiff<TSnapshot>;
+  readonly rawDiff?: Readonly<Record<string, string>>;
+};
+
+type RequiredSnapshotChange<TSnapshot> = {
+  readonly snapshot: TSnapshot;
+  readonly previous?: TSnapshot;
+  readonly diff: SnapshotDiff<TSnapshot>;
+  readonly rawDiff: Readonly<Record<string, string>>;
+};
+
 export type RadioStateChange =
-  | {
-      entity: "slice";
-      id: string;
-      snapshot?: SliceSnapshot;
-      previous?: SliceSnapshot;
-    }
-  | {
-      entity: "panadapter";
-      id: string;
-      snapshot?: PanadapterSnapshot;
-      previous?: PanadapterSnapshot;
-    }
-  | {
-      entity: "waterfall";
-      id: string;
-      snapshot?: WaterfallSnapshot;
-      previous?: WaterfallSnapshot;
-    }
-  | {
-      entity: "meter";
-      id: string;
-      snapshot?: MeterSnapshot;
-      previous?: MeterSnapshot;
-    }
-  | { entity: "radio"; snapshot: RadioProperties; previous?: RadioProperties }
+  | ({ entity: "slice"; id: string } & ChangeMetadata<SliceSnapshot>)
+  | ({ entity: "panadapter"; id: string } & ChangeMetadata<PanadapterSnapshot>)
+  | ({ entity: "waterfall"; id: string } & ChangeMetadata<WaterfallSnapshot>)
+  | ({ entity: "meter"; id: string } & ChangeMetadata<MeterSnapshot>)
+  | ({ entity: "radio" } & RequiredSnapshotChange<RadioProperties>)
   | {
       entity: "unknown";
       source: string;
@@ -279,14 +295,6 @@ export type WaterfallStateChange = Extract<
   { entity: "waterfall" }
 >;
 export type MeterStateChange = Extract<RadioStateChange, { entity: "meter" }>;
-
-type Mutable<T> = {
-  -readonly [P in keyof T]: T[P] extends ReadonlyArray<infer U>
-    ? U[]
-    : T[P] extends Readonly<Record<string, infer V>>
-      ? Record<string, V>
-      : T[P];
-};
 
 export interface RadioStateSnapshot {
   readonly slices: readonly SliceSnapshot[];
@@ -417,11 +425,16 @@ export function createRadioStateStore(): RadioStateStore {
         id,
         previous,
         snapshot: undefined,
+        rawDiff: freezeAttributes(message.attributes),
       };
     }
 
     const previous = slices.get(id);
-    const snapshot = createSliceSnapshot(id, message.attributes, previous);
+    const { snapshot, diff, rawDiff } = createSliceSnapshot(
+      id,
+      message.attributes,
+      previous,
+    );
     slices.set(id, snapshot);
     updatePanadapterSliceMembership(
       id,
@@ -433,6 +446,8 @@ export function createRadioStateStore(): RadioStateStore {
       id,
       previous,
       snapshot,
+      diff,
+      rawDiff,
     };
   }
 
@@ -464,17 +479,24 @@ export function createRadioStateStore(): RadioStateStore {
         id,
         previous,
         snapshot: undefined,
+        rawDiff: freezeAttributes(message.attributes),
       };
     }
 
     const previous = panadapters.get(id);
-    const snapshot = createPanadapterSnapshot(id, message.attributes, previous);
+    const { snapshot, diff, rawDiff } = createPanadapterSnapshot(
+      id,
+      message.attributes,
+      previous,
+    );
     panadapters.set(id, snapshot);
     return {
       entity: "panadapter",
       id,
       previous,
       snapshot,
+      diff,
+      rawDiff,
     };
   }
 
@@ -506,19 +528,26 @@ export function createRadioStateStore(): RadioStateStore {
           id,
           previous,
           snapshot: undefined,
+          rawDiff: freezeAttributes(message.attributes),
         };
       }
       const previous = waterfalls.get(id);
       const attributes = streamHint
         ? { stream_id: streamHint, ...message.attributes }
         : message.attributes;
-      const waterfall = createWaterfallSnapshot(id, attributes, previous);
-      waterfalls.set(id, waterfall);
+      const { snapshot, diff, rawDiff } = createWaterfallSnapshot(
+        id,
+        attributes,
+        previous,
+      );
+      waterfalls.set(id, snapshot);
       return {
         entity: "waterfall",
         id,
         previous,
-        snapshot: waterfall,
+        snapshot,
+        diff,
+        rawDiff,
       };
     }
 
@@ -552,28 +581,40 @@ export function createRadioStateStore(): RadioStateStore {
         id,
         previous,
         snapshot: undefined,
+        rawDiff: freezeAttributes(message.attributes),
       };
     }
 
     const previous = meters.get(id);
-    const snapshot = createMeterSnapshot(id, message.attributes, previous);
+    const { snapshot, diff, rawDiff } = createMeterSnapshot(
+      id,
+      message.attributes,
+      previous,
+    );
     meters.set(id, snapshot);
     return {
       entity: "meter",
       id,
       previous,
       snapshot,
+      diff,
+      rawDiff,
     };
   }
 
   function handleRadio(message: FlexStatusMessage): RadioStateChange {
-    const snapshot = createRadioProperties(message.attributes, radio);
     const previous = radio;
+    const { snapshot, diff, rawDiff } = createRadioProperties(
+      message.attributes,
+      radio,
+    );
     radio = snapshot;
     return {
       entity: "radio",
       snapshot,
       previous,
+      diff,
+      rawDiff,
     };
   }
 
@@ -625,7 +666,7 @@ export function createRadioStateStore(): RadioStateStore {
     const baseAttributes: Record<string, string> = previous
       ? {}
       : { index: id };
-    const snapshot = createSliceSnapshot(
+    const { snapshot, diff, rawDiff } = createSliceSnapshot(
       id,
       { ...baseAttributes, ...attributes },
       previous,
@@ -641,6 +682,8 @@ export function createRadioStateStore(): RadioStateStore {
       id,
       previous,
       snapshot,
+      diff,
+      rawDiff,
     };
   }
 
@@ -650,7 +693,7 @@ export function createRadioStateStore(): RadioStateStore {
   ): PanadapterStateChange | undefined {
     const previous = panadapters.get(id);
     const stream = attributes["stream_id"] ?? previous?.streamId ?? id;
-    const snapshot = createPanadapterSnapshot(
+    const { snapshot, diff, rawDiff } = createPanadapterSnapshot(
       id,
       { stream_id: stream, ...attributes },
       previous,
@@ -661,6 +704,8 @@ export function createRadioStateStore(): RadioStateStore {
       id,
       previous,
       snapshot,
+      diff,
+      rawDiff,
     };
   }
 
@@ -670,7 +715,7 @@ export function createRadioStateStore(): RadioStateStore {
   ): WaterfallStateChange | undefined {
     const previous = waterfalls.get(id);
     const stream = attributes["stream_id"] ?? previous?.streamId ?? id;
-    const snapshot = createWaterfallSnapshot(
+    const { snapshot, diff, rawDiff } = createWaterfallSnapshot(
       id,
       { stream_id: stream, ...attributes },
       previous,
@@ -681,6 +726,8 @@ export function createRadioStateStore(): RadioStateStore {
       id,
       previous,
       snapshot,
+      diff,
+      rawDiff,
     };
   }
 }
@@ -710,362 +757,256 @@ function createSliceSnapshot(
   id: string,
   attributes: Record<string, string>,
   previous?: SliceSnapshot,
-): SliceSnapshot {
-  const raw: Record<string, string> = previous ? { ...previous.raw } : {};
-  const next: Mutable<SliceSnapshot> = previous
-    ? {
-        ...previous,
-        tuneStepListHz: Array.from(previous.tuneStepListHz),
-        meterIds: Array.from(previous.meterIds),
-        availableRxAntennas: Array.from(previous.availableRxAntennas),
-        availableTxAntennas: Array.from(previous.availableTxAntennas),
-        modeList: Array.from(previous.modeList),
-        raw,
-      }
-    : {
-        id,
-        frequencyMHz: 0,
-        mode: "",
-        sampleRateHz: 0,
-        indexLetter: "",
-        isInUse: true,
-        isActive: false,
-        isTransmitEnabled: false,
-        isWide: false,
-        isQskEnabled: false,
-        rxAntenna: "",
-        txAntenna: "",
-        panadapterStreamId: undefined,
-        daxChannel: -1,
-        daxIqChannel: -1,
-        daxClientCount: 0,
-        isLocked: false,
-        rfGain: 0,
-        filterLowHz: 0,
-        filterHighHz: 0,
-        rttyMarkHz: 0,
-        rttyShiftHz: 0,
-        diglOffsetHz: 0,
-        diguOffsetHz: 0,
-        audioPan: 0,
-        audioGain: 0,
-        isMuted: false,
-        anfEnabled: false,
-        anfLevel: 0,
-        apfEnabled: false,
-        apfLevel: 0,
-        wnbEnabled: false,
-        wnbLevel: 0,
-        nbEnabled: false,
-        nbLevel: 0,
-        nrEnabled: false,
-        nrLevel: 0,
-        nrlEnabled: false,
-        nrlLevel: 0,
-        anflEnabled: false,
-        anflLevel: 0,
-        nrsEnabled: false,
-        nrsLevel: 0,
-        rnnEnabled: false,
-        anftEnabled: false,
-        nrfEnabled: false,
-        nrfLevel: 0,
-        escEnabled: false,
-        escGain: 1,
-        escPhaseShift: 0,
-        agcMode: "",
-        agcThreshold: 0,
-        agcOffLevel: 0,
-        loopAEnabled: false,
-        loopBEnabled: false,
-        ritEnabled: false,
-        ritOffsetHz: 0,
-        xitEnabled: false,
-        xitOffsetHz: 0,
-        tuneStepHz: 0,
-        tuneStepListHz: [],
-        postDemodLowHz: 0,
-        postDemodHighHz: 0,
-        postDemodBypass: false,
-        recordingEnabled: false,
-        playbackAvailable: false,
-        playbackEnabled: false,
-        recordTimeSeconds: 0,
-        fmToneMode: "",
-        fmToneValue: "",
-        fmDeviation: 0,
-        fmToneBurstEnabled: false,
-        fmPreDeEmphasisEnabled: false,
-        squelchEnabled: false,
-        squelchLevel: 0,
-        squelchTriggeredWeight: 0,
-        squelchAverageFactor: 0,
-        squelchHangDelayMs: 0,
-        txOffsetFrequencyMHz: 0,
-        fmRepeaterOffsetMHz: 0,
-        repeaterOffsetDirection: "",
-        diversityEnabled: false,
-        diversityChild: false,
-        diversityParent: false,
-        diversityIndex: 0,
-        isDetached: false,
-        availableRxAntennas: [],
-        availableTxAntennas: [],
-        modeList: [],
-        rxErrorMilliHz: 0,
-        meterIds: [],
-        owner: "",
-        clientHandle: 0,
-        raw,
-      };
+): SnapshotUpdate<SliceSnapshot> {
+  const rawDiff = freezeAttributes(attributes);
+  const partial: Mutable<Partial<SliceSnapshot>> = {};
 
   for (const [key, value] of Object.entries(attributes)) {
-    raw[key] = value;
     switch (key) {
       case "freq":
       case "rf_frequency":
       case "RF_frequency": {
         const parsed = parseMegahertz(value);
-        if (parsed !== undefined) next.frequencyMHz = parsed;
+        if (parsed !== undefined) partial.frequencyMHz = parsed;
         else logParseError("slice", key, value);
         break;
       }
       case "mode":
-        next.mode = value;
+        partial.mode = value;
         break;
       case "sample_rate": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.sampleRateHz = parsed;
+        if (parsed !== undefined) partial.sampleRateHz = parsed;
         else logParseError("slice", key, value);
         break;
       }
       case "index_letter":
-        next.indexLetter = value;
+        partial.indexLetter = value;
         break;
       case "active":
-        next.isActive = isTruthy(value);
+        partial.isActive = isTruthy(value);
         break;
       case "in_use":
-        next.isInUse = isTruthy(value);
+        partial.isInUse = isTruthy(value);
         break;
       case "tx":
-        next.isTransmitEnabled = isTruthy(value);
+        partial.isTransmitEnabled = isTruthy(value);
         break;
       case "wide":
-        next.isWide = isTruthy(value);
+        partial.isWide = isTruthy(value);
         break;
       case "qsk":
-        next.isQskEnabled = isTruthy(value);
+        partial.isQskEnabled = isTruthy(value);
         break;
       case "rxant":
-        next.rxAntenna = value;
+        partial.rxAntenna = value;
         break;
       case "txant":
-        next.txAntenna = value;
+        partial.txAntenna = value;
         break;
       case "pan":
       case "panadapter":
-        next.panadapterStreamId = value || undefined;
+        partial.panadapterStreamId = value || undefined;
         break;
       case "dax": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.daxChannel = parsed;
+        if (parsed !== undefined) partial.daxChannel = parsed;
         else logParseError("slice", key, value);
         break;
       }
       case "dax_iq_channel": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.daxIqChannel = parsed;
+        if (parsed !== undefined) partial.daxIqChannel = parsed;
         else logParseError("slice", key, value);
         break;
       }
       case "dax_clients": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.daxClientCount = parsed;
+        if (parsed !== undefined) partial.daxClientCount = parsed;
         else logParseError("slice", key, value);
         break;
       }
       case "rfgain": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.rfGain = parsed;
+        if (parsed !== undefined) partial.rfGain = parsed;
         else logParseError("slice", key, value);
         break;
       }
       case "filter_lo": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.filterLowHz = parsed;
+        if (parsed !== undefined) partial.filterLowHz = parsed;
         else logParseError("slice", key, value);
         break;
       }
       case "filter_hi": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.filterHighHz = parsed;
+        if (parsed !== undefined) partial.filterHighHz = parsed;
         else logParseError("slice", key, value);
         break;
       }
       case "rtty_mark": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.rttyMarkHz = parsed;
+        if (parsed !== undefined) partial.rttyMarkHz = parsed;
         else logParseError("slice", key, value);
         break;
       }
       case "rtty_shift": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.rttyShiftHz = parsed;
+        if (parsed !== undefined) partial.rttyShiftHz = parsed;
         else logParseError("slice", key, value);
         break;
       }
       case "digl_offset": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.diglOffsetHz = parsed;
+        if (parsed !== undefined) partial.diglOffsetHz = parsed;
         else logParseError("slice", key, value);
         break;
       }
       case "digu_offset": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.diguOffsetHz = parsed;
+        if (parsed !== undefined) partial.diguOffsetHz = parsed;
         else logParseError("slice", key, value);
         break;
       }
       case "audio_pan": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.audioPan = parsed;
+        if (parsed !== undefined) partial.audioPan = parsed;
         else logParseError("slice", key, value);
         break;
       }
       case "audio_level": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.audioGain = parsed;
+        if (parsed !== undefined) partial.audioGain = parsed;
         else logParseError("slice", key, value);
         break;
       }
       case "audio_mute":
-        next.isMuted = isTruthy(value);
+        partial.isMuted = isTruthy(value);
         break;
       case "lock":
-        next.isLocked = isTruthy(value);
+        partial.isLocked = isTruthy(value);
         break;
       case "anf":
-        next.anfEnabled = isTruthy(value);
+        partial.anfEnabled = isTruthy(value);
         break;
       case "anf_level": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.anfLevel = parsed;
+        if (parsed !== undefined) partial.anfLevel = parsed;
         else logParseError("slice", key, value);
         break;
       }
       case "apf":
-        next.apfEnabled = isTruthy(value);
+        partial.apfEnabled = isTruthy(value);
         break;
       case "apf_level": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.apfLevel = parsed;
+        if (parsed !== undefined) partial.apfLevel = parsed;
         else logParseError("slice", key, value);
         break;
       }
       case "wnb":
-        next.wnbEnabled = isTruthy(value);
+        partial.wnbEnabled = isTruthy(value);
         break;
       case "wnb_level": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.wnbLevel = parsed;
+        if (parsed !== undefined) partial.wnbLevel = parsed;
         else logParseError("slice", key, value);
         break;
       }
       case "nb":
-        next.nbEnabled = isTruthy(value);
+        partial.nbEnabled = isTruthy(value);
         break;
       case "nb_level": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.nbLevel = parsed;
+        if (parsed !== undefined) partial.nbLevel = parsed;
         else logParseError("slice", key, value);
         break;
       }
       case "nr":
-        next.nrEnabled = isTruthy(value);
+        partial.nrEnabled = isTruthy(value);
         break;
       case "nr_level": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.nrLevel = parsed;
+        if (parsed !== undefined) partial.nrLevel = parsed;
         else logParseError("slice", key, value);
         break;
       }
       case "lms_nr":
       case "nrl":
-        next.nrlEnabled = isTruthy(value);
+        partial.nrlEnabled = isTruthy(value);
         break;
       case "lms_nr_level": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.nrlLevel = parsed;
+        if (parsed !== undefined) partial.nrlLevel = parsed;
         else logParseError("slice", key, value);
         break;
       }
       case "nrl_level": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.nrlLevel = parsed;
+        if (parsed !== undefined) partial.nrlLevel = parsed;
         else logParseError("slice", key, value);
         break;
       }
       case "lms_anf":
       case "anfl":
-        next.anflEnabled = isTruthy(value);
+        partial.anflEnabled = isTruthy(value);
         break;
       case "lms_anf_level": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.anflLevel = parsed;
+        if (parsed !== undefined) partial.anflLevel = parsed;
         else logParseError("slice", key, value);
         break;
       }
       case "anfl_level": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.anflLevel = parsed;
+        if (parsed !== undefined) partial.anflLevel = parsed;
         else logParseError("slice", key, value);
         break;
       }
       case "speex_nr":
       case "nrs":
-        next.nrsEnabled = isTruthy(value);
+        partial.nrsEnabled = isTruthy(value);
         break;
       case "speex_nr_level": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.nrsLevel = parsed;
+        if (parsed !== undefined) partial.nrsLevel = parsed;
         else logParseError("slice", key, value);
         break;
       }
       case "nrs_level": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.nrsLevel = parsed;
+        if (parsed !== undefined) partial.nrsLevel = parsed;
         else logParseError("slice", key, value);
         break;
       }
       case "rnnoise":
       case "rnn":
-        next.rnnEnabled = isTruthy(value);
+        partial.rnnEnabled = isTruthy(value);
         break;
       case "anft":
-        next.anftEnabled = isTruthy(value);
+        partial.anftEnabled = isTruthy(value);
         break;
       case "nrf":
-        next.nrfEnabled = isTruthy(value);
+        partial.nrfEnabled = isTruthy(value);
         break;
       case "nrf_level": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.nrfLevel = parsed;
+        if (parsed !== undefined) partial.nrfLevel = parsed;
         else logParseError("slice", key, value);
         break;
       }
       case "esc":
-        next.escEnabled = isTruthy(value);
+        partial.escEnabled = isTruthy(value);
         break;
       case "esc_gain": {
         const parsed = parseFloatSafe(value);
-        if (parsed !== undefined) next.escGain = parsed;
+        if (parsed !== undefined) partial.escGain = parsed;
         else logParseError("slice", key, value);
         break;
       }
       case "esc_phase_shift": {
         const parsed = parseFloatSafe(value);
-        if (parsed !== undefined) next.escPhaseShift = parsed;
+        if (parsed !== undefined) partial.escPhaseShift = parsed;
         else logParseError("slice", key, value);
         break;
       }
@@ -1088,211 +1029,226 @@ function createSliceSnapshot(
         // Advanced DSP parameters exposed on 4.x radios; tracked via raw map only.
         break;
       case "agc_mode":
-        next.agcMode = value;
+        partial.agcMode = value;
         break;
       case "agc_threshold": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.agcThreshold = parsed;
+        if (parsed !== undefined) partial.agcThreshold = parsed;
         else logParseError("slice", key, value);
         break;
       }
       case "agc_off_level": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.agcOffLevel = parsed;
+        if (parsed !== undefined) partial.agcOffLevel = parsed;
         else logParseError("slice", key, value);
         break;
       }
       case "loopa":
-        next.loopAEnabled = isTruthy(value);
+        partial.loopAEnabled = isTruthy(value);
         break;
       case "loopb":
-        next.loopBEnabled = isTruthy(value);
+        partial.loopBEnabled = isTruthy(value);
         break;
       case "rit_on":
-        next.ritEnabled = isTruthy(value);
+        partial.ritEnabled = isTruthy(value);
         break;
       case "rit_freq": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.ritOffsetHz = parsed;
+        if (parsed !== undefined) partial.ritOffsetHz = parsed;
         else logParseError("slice", key, value);
         break;
       }
       case "xit_on":
-        next.xitEnabled = isTruthy(value);
+        partial.xitEnabled = isTruthy(value);
         break;
       case "xit_freq": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.xitOffsetHz = parsed;
+        if (parsed !== undefined) partial.xitOffsetHz = parsed;
         else logParseError("slice", key, value);
         break;
       }
       case "step": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.tuneStepHz = parsed;
+        if (parsed !== undefined) partial.tuneStepHz = parsed;
         else logParseError("slice", key, value);
         break;
       }
       case "step_list": {
         const parsed = parseIntegerList(value);
-        if (parsed) next.tuneStepListHz = parsed;
-        else logParseError("slice", key, value);
+        if (!parsed) {
+          logParseError("slice", key, value);
+        } else if (!arraysShallowEqual(previous?.tuneStepListHz, parsed)) {
+          partial.tuneStepListHz = Object.freeze(parsed);
+        }
         break;
       }
       case "post_demod_low": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.postDemodLowHz = parsed;
+        if (parsed !== undefined) partial.postDemodLowHz = parsed;
         else logParseError("slice", key, value);
         break;
       }
       case "post_demod_high": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.postDemodHighHz = parsed;
+        if (parsed !== undefined) partial.postDemodHighHz = parsed;
         else logParseError("slice", key, value);
         break;
       }
       case "post_demod_bypass":
-        next.postDemodBypass = isTruthy(value);
+        partial.postDemodBypass = isTruthy(value);
         break;
       case "record":
-        next.recordingEnabled = isTruthy(value);
+        partial.recordingEnabled = isTruthy(value);
         break;
       case "play": {
         const normalized = value?.trim().toLowerCase();
         if (!value || normalized === "disabled") {
-          next.playbackAvailable = false;
-          next.playbackEnabled = false;
+          partial.playbackAvailable = false;
+          partial.playbackEnabled = false;
           break;
         }
         const parsed = parseInteger(value);
         if (parsed !== undefined) {
-          next.playbackAvailable = true;
-          next.playbackEnabled = parsed === 1;
+          partial.playbackAvailable = true;
+          partial.playbackEnabled = parsed === 1;
         } else {
-          next.playbackAvailable = true;
-          next.playbackEnabled = isTruthy(value);
+          partial.playbackAvailable = true;
+          partial.playbackEnabled = isTruthy(value);
         }
         break;
       }
       case "record_time": {
         const parsed = parseFloatSafe(value);
-        if (parsed !== undefined) next.recordTimeSeconds = parsed;
+        if (parsed !== undefined) partial.recordTimeSeconds = parsed;
         else logParseError("slice", key, value);
         break;
       }
       case "fm_tone_mode":
-        next.fmToneMode = value;
+        partial.fmToneMode = value;
         break;
       case "fm_tone_value":
-        next.fmToneValue = value;
+        partial.fmToneValue = value;
         break;
       case "fm_deviation": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.fmDeviation = parsed;
+        if (parsed !== undefined) partial.fmDeviation = parsed;
         else logParseError("slice", key, value);
         break;
       }
       case "fm_tone_burst":
-        next.fmToneBurstEnabled = isTruthy(value);
+        partial.fmToneBurstEnabled = isTruthy(value);
         break;
       case "dfm_pre_de_emphasis":
-        next.fmPreDeEmphasisEnabled = isTruthy(value);
+        partial.fmPreDeEmphasisEnabled = isTruthy(value);
         break;
       case "squelch":
-        next.squelchEnabled = isTruthy(value);
+        partial.squelchEnabled = isTruthy(value);
         break;
       case "squelch_level": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.squelchLevel = parsed;
+        if (parsed !== undefined) partial.squelchLevel = parsed;
         else logParseError("slice", key, value);
         break;
       }
       case "squelch_triggered_weight": {
         const parsed = parseFloatSafe(value);
-        if (parsed !== undefined) next.squelchTriggeredWeight = parsed;
+        if (parsed !== undefined) partial.squelchTriggeredWeight = parsed;
         else logParseError("slice", key, value);
         break;
       }
       case "squelch_avg_factor": {
         const parsed = parseFloatSafe(value);
-        if (parsed !== undefined) next.squelchAverageFactor = parsed;
+        if (parsed !== undefined) partial.squelchAverageFactor = parsed;
         else logParseError("slice", key, value);
         break;
       }
       case "squelch_hang_delay_ms": {
         const parsed = parseFloatSafe(value);
-        if (parsed !== undefined) next.squelchHangDelayMs = parsed;
+        if (parsed !== undefined) partial.squelchHangDelayMs = parsed;
         else logParseError("slice", key, value);
         break;
       }
       case "tx_offset_freq": {
         const parsed = parseMegahertz(value);
-        if (parsed !== undefined) next.txOffsetFrequencyMHz = parsed;
+        if (parsed !== undefined) partial.txOffsetFrequencyMHz = parsed;
         else logParseError("slice", key, value);
         break;
       }
       case "fm_repeater_offset_freq": {
         const parsed = parseMegahertz(value);
-        if (parsed !== undefined) next.fmRepeaterOffsetMHz = parsed;
+        if (parsed !== undefined) partial.fmRepeaterOffsetMHz = parsed;
         else logParseError("slice", key, value);
         break;
       }
       case "repeater_offset_dir":
-        next.repeaterOffsetDirection = value;
+        partial.repeaterOffsetDirection = value;
         break;
       case "diversity":
-        next.diversityEnabled = isTruthy(value);
+        partial.diversityEnabled = isTruthy(value);
         break;
       case "diversity_child":
-        next.diversityChild = isTruthy(value);
+        partial.diversityChild = isTruthy(value);
         break;
       case "diversity_parent":
-        next.diversityParent = isTruthy(value);
+        partial.diversityParent = isTruthy(value);
         break;
       case "diversity_index": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.diversityIndex = parsed;
+        if (parsed !== undefined) partial.diversityIndex = parsed;
         else logParseError("slice", key, value);
         break;
       }
       case "detached":
-        next.isDetached = isTruthy(value);
+        partial.isDetached = isTruthy(value);
         break;
       case "ant_list": {
         const parsed = parseCsv(value);
-        if (parsed) next.availableRxAntennas = parsed;
-        else logParseError("slice", key, value);
+        if (!parsed) {
+          logParseError("slice", key, value);
+        } else if (!arraysShallowEqual(previous?.availableRxAntennas, parsed)) {
+          partial.availableRxAntennas = Object.freeze(parsed);
+        }
         break;
       }
       case "tx_ant_list": {
         const parsed = parseCsv(value);
-        if (parsed) next.availableTxAntennas = parsed;
-        else logParseError("slice", key, value);
+        if (!parsed) {
+          logParseError("slice", key, value);
+        } else if (!arraysShallowEqual(previous?.availableTxAntennas, parsed)) {
+          partial.availableTxAntennas = Object.freeze(parsed);
+        }
         break;
       }
       case "mode_list": {
         const parsed = parseCsv(value);
-        if (parsed) next.modeList = parsed;
-        else logParseError("slice", key, value);
+        if (!parsed) {
+          logParseError("slice", key, value);
+        } else if (!arraysShallowEqual(previous?.modeList, parsed)) {
+          partial.modeList = Object.freeze(parsed);
+        }
         break;
       }
       case "rx_error_mHz": {
         const parsed = parseFloatSafe(value);
-        if (parsed !== undefined) next.rxErrorMilliHz = parsed;
+        if (parsed !== undefined) partial.rxErrorMilliHz = parsed;
         else logParseError("slice", key, value);
         break;
       }
       case "meter_list": {
         const parsed = parseCsv(value);
-        if (parsed) next.meterIds = parsed;
-        else logParseError("slice", key, value);
+        if (!parsed) {
+          logParseError("slice", key, value);
+        } else if (!arraysShallowEqual(previous?.meterIds, parsed)) {
+          partial.meterIds = Object.freeze(parsed);
+        }
         break;
       }
       case "owner":
-        next.owner = value;
+        partial.owner = value;
         break;
       case "client_handle": {
         const parsed = parseIntegerMaybeHex(value);
-        if (parsed !== undefined) next.clientHandle = parsed;
+        if (parsed !== undefined) partial.clientHandle = parsed;
         else logParseError("slice", key, value);
         break;
       }
@@ -1304,291 +1260,234 @@ function createSliceSnapshot(
     }
   }
 
-  const snapshot: SliceSnapshot = Object.freeze({
-    ...next,
-    tuneStepListHz: freezeArray(next.tuneStepListHz, previous?.tuneStepListHz),
-    availableRxAntennas: freezeArray(
-      next.availableRxAntennas,
-      previous?.availableRxAntennas,
-    ),
-    availableTxAntennas: freezeArray(
-      next.availableTxAntennas,
-      previous?.availableTxAntennas,
-    ),
-    modeList: freezeArray(next.modeList, previous?.modeList),
-    meterIds: freezeArray(next.meterIds, previous?.meterIds),
-    raw: Object.freeze(raw),
-  });
-  return snapshot;
+  const snapshot = Object.freeze({
+    ...(previous ?? { id }),
+    ...partial,
+    raw: Object.freeze({
+      ...previous?.raw,
+      ...attributes,
+    }),
+  }) as SliceSnapshot;
+  return {
+    snapshot,
+    diff: Object.freeze(partial),
+    rawDiff,
+  };
 }
 
 function createPanadapterSnapshot(
   id: string,
   attributes: Record<string, string>,
   previous?: PanadapterSnapshot,
-): PanadapterSnapshot {
-  const raw: Record<string, string> = previous ? { ...previous.raw } : {};
-  const next: Mutable<PanadapterSnapshot> = previous
-    ? {
-        ...previous,
-        rxAntennas: Array.from(previous.rxAntennas ?? []),
-        rfGainMarkers: Array.from(previous.rfGainMarkers ?? []),
-        attachedSlices: Array.from(previous.attachedSlices ?? []),
-        clientHandle: previous.clientHandle,
-        xvtr: previous.xvtr,
-        preampSetting: previous.preampSetting,
-        raw,
-      }
-    : {
-        id,
-        streamId: id,
-        centerFrequencyMHz: 0,
-        bandwidthMHz: 0,
-        autoCenterEnabled: false,
-        minBandwidthMHz: 0,
-        maxBandwidthMHz: 0,
-        lowDbm: 0,
-        highDbm: 0,
-        rxAntenna: "",
-        daxIqChannel: -1,
-        daxIqRate: 0,
-        rfGain: 0,
-        rfGainLow: 0,
-        rfGainHigh: 0,
-        rfGainStep: 0,
-        rfGainMarkers: [],
-        isBandZoomOn: false,
-        isSegmentZoomOn: false,
-        wnbEnabled: false,
-        wnbLevel: 0,
-        wnbUpdating: false,
-        noiseFloorPosition: 0,
-        noiseFloorPositionEnabled: false,
-        width: 0,
-        height: 0,
-        fps: 0,
-        average: 0,
-        weightedAverage: false,
-        wideEnabled: false,
-        loopAEnabled: false,
-        loopBEnabled: false,
-        band: "",
-        rxAntennas: [],
-        loggerDisplayEnabled: false,
-        loggerDisplayAddress: "",
-        loggerDisplayPort: 0,
-        loggerDisplayRadioNum: 0,
-        waterfallStreamId: "",
-        attachedSlices: [],
-        clientHandle: 0,
-        xvtr: "",
-        preampSetting: "",
-        raw,
-      };
+): SnapshotUpdate<PanadapterSnapshot> {
+  const rawDiff = freezeAttributes(attributes);
+  const partial: Mutable<Partial<PanadapterSnapshot>> = {};
 
   for (const [key, value] of Object.entries(attributes)) {
-    raw[key] = value;
     switch (key) {
       case "stream_id":
       case "stream":
-        next.streamId = value || next.streamId;
+        partial.streamId = value || partial.streamId;
         break;
       case "center": {
         const parsed = parseMegahertz(value);
-        if (parsed !== undefined) next.centerFrequencyMHz = parsed;
+        if (parsed !== undefined) partial.centerFrequencyMHz = parsed;
         else logParseError("panadapter", key, value);
         break;
       }
       case "bandwidth": {
         const parsed = parseMegahertz(value);
-        if (parsed !== undefined) next.bandwidthMHz = parsed;
+        if (parsed !== undefined) partial.bandwidthMHz = parsed;
         else logParseError("panadapter", key, value);
         break;
       }
       case "auto_center":
       case "autocenter":
-        next.autoCenterEnabled = isTruthy(value);
+        partial.autoCenterEnabled = isTruthy(value);
         break;
       case "min_bw": {
         const parsed = parseMegahertz(value);
-        if (parsed !== undefined) next.minBandwidthMHz = parsed;
+        if (parsed !== undefined) partial.minBandwidthMHz = parsed;
         else logParseError("panadapter", key, value);
         break;
       }
       case "max_bw": {
         const parsed = parseMegahertz(value);
-        if (parsed !== undefined) next.maxBandwidthMHz = parsed;
+        if (parsed !== undefined) partial.maxBandwidthMHz = parsed;
         else logParseError("panadapter", key, value);
         break;
       }
       case "min_dbm": {
         const parsed = parseFloatSafe(value);
-        if (parsed !== undefined) next.lowDbm = parsed;
+        if (parsed !== undefined) partial.lowDbm = parsed;
         else logParseError("panadapter", key, value);
         break;
       }
       case "max_dbm": {
         const parsed = parseFloatSafe(value);
-        if (parsed !== undefined) next.highDbm = parsed;
+        if (parsed !== undefined) partial.highDbm = parsed;
         else logParseError("panadapter", key, value);
         break;
       }
       case "band":
-        next.band = value;
+        partial.band = value;
         break;
       case "rxant":
-        next.rxAntenna = value;
+        partial.rxAntenna = value;
         break;
       case "client_handle": {
         const parsed = parseIntegerMaybeHex(value);
-        if (parsed !== undefined) next.clientHandle = parsed;
+        if (parsed !== undefined) partial.clientHandle = parsed;
         else logParseError("panadapter", key, value);
         break;
       }
       case "xvtr":
-        next.xvtr = value;
+        partial.xvtr = value;
         break;
       case "pre":
-        next.preampSetting = value;
+        partial.preampSetting = value;
         break;
       case "daxiq_channel": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.daxIqChannel = parsed;
+        if (parsed !== undefined) partial.daxIqChannel = parsed;
         else logParseError("panadapter", key, value);
         break;
       }
       case "daxiq_rate": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.daxIqRate = parsed;
+        if (parsed !== undefined) partial.daxIqRate = parsed;
         else logParseError("panadapter", key, value);
         break;
       }
       case "rfgain": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.rfGain = parsed;
+        if (parsed !== undefined) partial.rfGain = parsed;
         else logParseError("panadapter", key, value);
         break;
       }
       case "rf_gain_low": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.rfGainLow = parsed;
+        if (parsed !== undefined) partial.rfGainLow = parsed;
         else logParseError("panadapter", key, value);
         break;
       }
       case "rf_gain_high": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.rfGainHigh = parsed;
+        if (parsed !== undefined) partial.rfGainHigh = parsed;
         else logParseError("panadapter", key, value);
         break;
       }
       case "rf_gain_step": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.rfGainStep = parsed;
+        if (parsed !== undefined) partial.rfGainStep = parsed;
         else logParseError("panadapter", key, value);
         break;
       }
-      case "rf_gain_markers":
-        if (value === "") {
-          next.rfGainMarkers = [];
-          break;
-        } else {
-          const parsed = parseIntegerList(value);
-          if (parsed !== undefined) next.rfGainMarkers = parsed;
-          else logParseError("panadapter", key, value);
+      case "rf_gain_markers": {
+        const parsed = value === "" ? [] : parseIntegerList(value);
+        if (parsed === undefined) {
+          logParseError("waterfall", key, value);
+        } else if (!arraysShallowEqual(previous?.rfGainMarkers, parsed)) {
+          // Only update if the markers have changed.
+          partial.rfGainMarkers = Object.freeze(parsed);
         }
         break;
+      }
       case "band_zoom":
-        next.isBandZoomOn = isTruthy(value);
+        partial.isBandZoomOn = isTruthy(value);
         break;
       case "segment_zoom":
-        next.isSegmentZoomOn = isTruthy(value);
+        partial.isSegmentZoomOn = isTruthy(value);
         break;
       case "wnb":
-        next.wnbEnabled = isTruthy(value);
+        partial.wnbEnabled = isTruthy(value);
         break;
       case "wnb_level": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.wnbLevel = parsed;
+        if (parsed !== undefined) partial.wnbLevel = parsed;
         else logParseError("panadapter", key, value);
         break;
       }
       case "wnb_updating":
-        next.wnbUpdating = isTruthy(value);
+        partial.wnbUpdating = isTruthy(value);
         break;
       case "pan_position":
       case "noise_floor_position": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.noiseFloorPosition = parsed;
+        if (parsed !== undefined) partial.noiseFloorPosition = parsed;
         else logParseError("panadapter", key, value);
         break;
       }
       case "pan_position_enable":
       case "noise_floor_position_enable":
-        next.noiseFloorPositionEnabled = isTruthy(value);
+        partial.noiseFloorPositionEnabled = isTruthy(value);
         break;
       case "xpixels":
       case "x_pixels": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.width = parsed;
+        if (parsed !== undefined) partial.width = parsed;
         else logParseError("panadapter", key, value);
         break;
       }
       case "ypixels":
       case "y_pixels": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.height = parsed;
+        if (parsed !== undefined) partial.height = parsed;
         else logParseError("panadapter", key, value);
         break;
       }
       case "fps": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.fps = parsed;
+        if (parsed !== undefined) partial.fps = parsed;
         else logParseError("panadapter", key, value);
         break;
       }
       case "average": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.average = parsed;
+        if (parsed !== undefined) partial.average = parsed;
         else logParseError("panadapter", key, value);
         break;
       }
       case "weighted_average":
-        next.weightedAverage = isTruthy(value);
+        partial.weightedAverage = isTruthy(value);
         break;
       case "wide":
-        next.wideEnabled = isTruthy(value);
+        partial.wideEnabled = isTruthy(value);
         break;
       case "loopa":
-        next.loopAEnabled = isTruthy(value);
+        partial.loopAEnabled = isTruthy(value);
         break;
       case "loopb":
-        next.loopBEnabled = isTruthy(value);
+        partial.loopBEnabled = isTruthy(value);
         break;
       case "n1mm_spectrum_enable":
-        next.loggerDisplayEnabled = isTruthy(value);
+        partial.loggerDisplayEnabled = isTruthy(value);
         break;
       case "n1mm_address":
-        next.loggerDisplayAddress = value;
+        partial.loggerDisplayAddress = value;
         break;
       case "n1mm_port": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.loggerDisplayPort = parsed;
+        if (parsed !== undefined) partial.loggerDisplayPort = parsed;
         else logParseError("panadapter", key, value);
         break;
       }
       case "n1mm_radio": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.loggerDisplayRadioNum = parsed;
+        if (parsed !== undefined) partial.loggerDisplayRadioNum = parsed;
         else logParseError("panadapter", key, value);
         break;
       }
       case "waterfall":
-        next.waterfallStreamId = value;
+        partial.waterfallStreamId = value;
         break;
       case "ant_list": {
         const parsed = parseCsv(value);
-        if (parsed) next.rxAntennas = parsed;
-        else logParseError("panadapter", key, value);
+        if (parsed === undefined) {
+          logParseError("panadapter", key, value);
+        } else if (!arraysShallowEqual(previous?.rxAntennas, parsed)) {
+          partial.rxAntennas = Object.freeze(parsed);
+        }
         break;
       }
       default:
@@ -1597,222 +1496,195 @@ function createPanadapterSnapshot(
     }
   }
 
-  const snapshot: PanadapterSnapshot = Object.freeze({
-    ...next,
-    rxAntennas: freezeArray(next.rxAntennas, previous?.rxAntennas),
-    rfGainMarkers: freezeArray(next.rfGainMarkers, previous?.rfGainMarkers),
-    attachedSlices: freezeArray(next.attachedSlices, previous?.attachedSlices),
-    raw: Object.freeze(raw),
-  });
-  return snapshot;
+  const snapshot = Object.freeze({
+    ...(previous ?? {
+      id,
+      autoCenterEnabled: false,
+      attachedSlices: Object.freeze([]),
+      rfGainMarkers: Object.freeze([]),
+      rfGainLow: 0,
+      rfGainHigh: 0,
+      rfGainStep: 0,
+    }),
+    ...partial,
+    raw: Object.freeze({
+      ...previous?.raw,
+      ...attributes,
+    }),
+  }) as PanadapterSnapshot;
+
+  return {
+    snapshot,
+    diff: Object.freeze(partial),
+    rawDiff,
+  };
 }
 
 function createWaterfallSnapshot(
   id: string,
   attributes: Record<string, string>,
   previous?: WaterfallSnapshot,
-): WaterfallSnapshot {
-  const raw: Record<string, string> = previous ? { ...previous.raw } : {};
-  const next: Mutable<WaterfallSnapshot> = previous
-    ? {
-        ...previous,
-        rfGainMarkers: Array.from(previous.rfGainMarkers ?? []),
-        raw,
-      }
-    : {
-        id,
-        streamId: attributes["stream_id"] ?? attributes["stream"] ?? id,
-        panadapterStreamId:
-          attributes["pan"] ?? attributes["panadapter"] ?? "",
-        centerFrequencyMHz: 0,
-        bandwidthMHz: 0,
-        lowDbm: 0,
-        highDbm: 0,
-        fps: 0,
-        average: 0,
-        weightedAverage: false,
-        rxAntenna: "",
-        rfGain: 0,
-        rfGainLow: 0,
-        rfGainHigh: 0,
-        rfGainStep: 0,
-        rfGainMarkers: [],
-        daxIqChannel: -1,
-        isBandZoomOn: false,
-        isSegmentZoomOn: false,
-        loopAEnabled: false,
-        loopBEnabled: false,
-        wideEnabled: false,
-        band: "",
-        width: 0,
-        height: 0,
-        lineDurationMs: undefined,
-        blackLevel: 0,
-        colorGain: 0,
-        autoBlackLevelEnabled: false,
-        gradientIndex: 0,
-        clientHandle: 0,
-        xvtr: "",
-        raw,
-      };
+): SnapshotUpdate<WaterfallSnapshot> {
+  const rawDiff = freezeAttributes(attributes);
+  const partial: MutableProps<Partial<WaterfallSnapshot>> = {};
 
   for (const [key, value] of Object.entries(attributes)) {
-    raw[key] = value;
     switch (key) {
       case "stream_id":
       case "stream":
-        next.streamId = value || next.streamId;
+        partial.streamId = value || partial.streamId;
         break;
       case "pan":
       case "panadapter":
-        next.panadapterStreamId = value ?? "";
+        partial.panadapterStreamId = value ?? "";
         break;
       case "center": {
         const parsed = parseMegahertz(value);
-        if (parsed !== undefined) next.centerFrequencyMHz = parsed;
+        if (parsed !== undefined) partial.centerFrequencyMHz = parsed;
         else logParseError("waterfall", key, value);
         break;
       }
       case "bandwidth": {
         const parsed = parseMegahertz(value);
-        if (parsed !== undefined) next.bandwidthMHz = parsed;
+        if (parsed !== undefined) partial.bandwidthMHz = parsed;
         else logParseError("waterfall", key, value);
         break;
       }
       case "min_dbm": {
         const parsed = parseFloatSafe(value);
-        if (parsed !== undefined) next.lowDbm = parsed;
+        if (parsed !== undefined) partial.lowDbm = parsed;
         else logParseError("waterfall", key, value);
         break;
       }
       case "max_dbm": {
         const parsed = parseFloatSafe(value);
-        if (parsed !== undefined) next.highDbm = parsed;
+        if (parsed !== undefined) partial.highDbm = parsed;
         else logParseError("waterfall", key, value);
         break;
       }
       case "fps": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.fps = parsed;
+        if (parsed !== undefined) partial.fps = parsed;
         else logParseError("waterfall", key, value);
         break;
       }
       case "average": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.average = parsed;
+        if (parsed !== undefined) partial.average = parsed;
         else logParseError("waterfall", key, value);
         break;
       }
       case "weighted_average":
-        next.weightedAverage = isTruthy(value);
+        partial.weightedAverage = isTruthy(value);
         break;
       case "band_zoom":
-        next.isBandZoomOn = isTruthy(value);
+        partial.isBandZoomOn = isTruthy(value);
         break;
       case "segment_zoom":
-        next.isSegmentZoomOn = isTruthy(value);
+        partial.isSegmentZoomOn = isTruthy(value);
         break;
       case "rxant":
-        next.rxAntenna = value;
+        partial.rxAntenna = value;
         break;
       case "rfgain": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.rfGain = parsed;
+        if (parsed !== undefined) partial.rfGain = parsed;
         else logParseError("waterfall", key, value);
         break;
       }
       case "rf_gain_low": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.rfGainLow = parsed;
+        if (parsed !== undefined) partial.rfGainLow = parsed;
         else logParseError("waterfall", key, value);
         break;
       }
       case "rf_gain_high": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.rfGainHigh = parsed;
+        if (parsed !== undefined) partial.rfGainHigh = parsed;
         else logParseError("waterfall", key, value);
         break;
       }
       case "rf_gain_step": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.rfGainStep = parsed;
+        if (parsed !== undefined) partial.rfGainStep = parsed;
         else logParseError("waterfall", key, value);
         break;
       }
-      case "rf_gain_markers":
-        if (value === "") {
-          next.rfGainMarkers = [];
-        } else {
-          const parsed = parseIntegerList(value);
-          if (parsed !== undefined) next.rfGainMarkers = parsed;
-          else logParseError("waterfall", key, value);
+      case "rf_gain_markers": {
+        const parsed = value === "" ? [] : parseIntegerList(value);
+        if (parsed === undefined) {
+          logParseError("waterfall", key, value);
+        } else if (!arraysShallowEqual(previous?.rfGainMarkers, parsed)) {
+          // Only update if the markers have changed.
+          partial.rfGainMarkers = Object.freeze(parsed);
         }
         break;
+      }
       case "daxiq_channel": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.daxIqChannel = parsed;
+        if (parsed !== undefined) partial.daxIqChannel = parsed;
         else logParseError("waterfall", key, value);
         break;
       }
       case "loopa":
-        next.loopAEnabled = isTruthy(value);
+        partial.loopAEnabled = isTruthy(value);
         break;
       case "loopb":
-        next.loopBEnabled = isTruthy(value);
+        partial.loopBEnabled = isTruthy(value);
         break;
       case "wide":
-        next.wideEnabled = isTruthy(value);
+        partial.wideEnabled = isTruthy(value);
         break;
       case "band":
-        next.band = value;
+        partial.band = value;
         break;
       case "client_handle": {
         const parsed = parseIntegerMaybeHex(value);
-        if (parsed !== undefined) next.clientHandle = parsed;
+        if (parsed !== undefined) partial.clientHandle = parsed;
         else logParseError("waterfall", key, value);
         break;
       }
       case "xvtr":
-        next.xvtr = value;
+        partial.xvtr = value;
         break;
       case "xpixels":
       case "x_pixels": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.width = parsed;
+        if (parsed !== undefined) partial.width = parsed;
         else logParseError("waterfall", key, value);
         break;
       }
       case "ypixels":
       case "y_pixels": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.height = parsed;
+        if (parsed !== undefined) partial.height = parsed;
         else logParseError("waterfall", key, value);
         break;
       }
       case "line_duration": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.lineDurationMs = parsed;
+        if (parsed !== undefined) partial.lineDurationMs = parsed;
         else logParseError("waterfall", key, value);
         break;
       }
       case "black_level": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.blackLevel = parsed;
+        if (parsed !== undefined) partial.blackLevel = parsed;
         else logParseError("waterfall", key, value);
         break;
       }
       case "color_gain": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.colorGain = parsed;
+        if (parsed !== undefined) partial.colorGain = parsed;
         else logParseError("waterfall", key, value);
         break;
       }
       case "auto_black":
-        next.autoBlackLevelEnabled = isTruthy(value);
+        partial.autoBlackLevelEnabled = isTruthy(value);
         break;
       case "gradient_index": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.gradientIndex = parsed;
+        if (parsed !== undefined) partial.gradientIndex = parsed;
         else logParseError("waterfall", key, value);
         break;
       }
@@ -1822,71 +1694,64 @@ function createWaterfallSnapshot(
     }
   }
 
-  const snapshot: WaterfallSnapshot = Object.freeze({
-    ...next,
-    rfGainMarkers: freezeArray(next.rfGainMarkers, previous?.rfGainMarkers),
-    raw: Object.freeze(raw),
-  });
-  return snapshot;
+  const snapshot = Object.freeze({
+    ...(previous ?? { id, rfGainMarkers: Object.freeze([]) }),
+    ...partial,
+    raw: Object.freeze({
+      ...previous?.raw,
+      ...attributes,
+    }),
+  }) as WaterfallSnapshot;
+  return {
+    snapshot,
+    diff: Object.freeze(partial),
+    rawDiff,
+  };
 }
 
 function createMeterSnapshot(
   id: string,
   attributes: Record<string, string>,
   previous?: MeterSnapshot,
-): MeterSnapshot {
-  const raw: Record<string, string> = previous ? { ...previous.raw } : {};
-  const next: Mutable<MeterSnapshot> = previous
-    ? { ...previous, raw }
-    : {
-        id,
-        source: "unknown",
-        sourceIndex: 0,
-        name: "",
-        description: "",
-        units: "none",
-        low: 0,
-        high: 0,
-        fps: 0,
-        raw,
-      };
+): SnapshotUpdate<MeterSnapshot> {
+  const rawDiff = freezeAttributes(attributes);
+  const partial: Mutable<Partial<MeterSnapshot>> = {};
 
   for (const [key, value] of Object.entries(attributes)) {
-    raw[key] = value;
     switch (key) {
       case "src":
-        next.source = value;
+        partial.source = value;
         break;
       case "num": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.sourceIndex = parsed;
+        if (parsed !== undefined) partial.sourceIndex = parsed;
         else logParseError("meter", key, value);
         break;
       }
       case "nam":
-        next.name = value || next.name || id;
+        partial.name = value || partial.name || id;
         break;
       case "desc":
-        next.description = value;
+        partial.description = value;
         break;
       case "unit":
-        next.units = parseMeterUnits(value, next.units);
+        partial.units = parseMeterUnits(value, partial.units);
         break;
       case "low": {
         const parsed = parseFloatSafe(value);
-        if (parsed !== undefined) next.low = parsed;
+        if (parsed !== undefined) partial.low = parsed;
         else logParseError("meter", key, value);
         break;
       }
       case "hi": {
         const parsed = parseFloatSafe(value);
-        if (parsed !== undefined) next.high = parsed;
+        if (parsed !== undefined) partial.high = parsed;
         else logParseError("meter", key, value);
         break;
       }
       case "fps": {
         const parsed = parseFloatSafe(value);
-        if (parsed !== undefined) next.fps = parsed;
+        if (parsed !== undefined) partial.fps = parsed;
         else logParseError("meter", key, value);
         break;
       }
@@ -1896,11 +1761,19 @@ function createMeterSnapshot(
     }
   }
 
-  const snapshot: MeterSnapshot = Object.freeze({
-    ...next,
-    raw: Object.freeze(raw),
-  });
-  return snapshot;
+  const snapshot = Object.freeze({
+    ...(previous ?? { id }),
+    ...partial,
+    raw: Object.freeze({
+      ...previous?.raw,
+      ...attributes,
+    }),
+  }) as MeterSnapshot;
+  return {
+    snapshot,
+    diff: Object.freeze(partial),
+    rawDiff,
+  };
 }
 
 function parseMeterUnits(
@@ -1919,65 +1792,52 @@ function parseMeterUnits(
 function createRadioProperties(
   attributes: Record<string, string>,
   previous?: RadioProperties,
-): RadioProperties {
-  const raw: Record<string, string> = previous ? { ...previous.raw } : {};
-  const next: Mutable<RadioProperties> = previous
-    ? { ...previous, raw }
-    : {
-        nickname: "",
-        callsign: "",
-        firmware: "",
-        availableSlices: 0,
-        availablePanadapters: 0,
-        availableDaxIq: 0,
-        availableDaxAudio: 0,
-        gpsLock: false,
-        raw,
-      };
+): SnapshotUpdate<RadioProperties> {
+  const rawDiff = freezeAttributes(attributes);
+  const partial: Mutable<Partial<RadioProperties>> = {};
 
   for (const [key, value] of Object.entries(attributes)) {
-    raw[key] = value;
     switch (key) {
       case "nickname":
-        next.nickname = value;
+        partial.nickname = value;
         break;
       case "callsign":
-        next.callsign = value;
+        partial.callsign = value;
         break;
       case "version":
       case "firmware":
-        next.firmware = value;
+        partial.firmware = value;
         break;
       case "available_slices":
       case "slices": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.availableSlices = parsed;
+        if (parsed !== undefined) partial.availableSlices = parsed;
         else logParseError("radio", key, value);
         break;
       }
       case "available_panadapters":
       case "panadapters": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.availablePanadapters = parsed;
+        if (parsed !== undefined) partial.availablePanadapters = parsed;
         else logParseError("radio", key, value);
         break;
       }
       case "available_daxiq":
       case "daxiq_available": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.availableDaxIq = parsed;
+        if (parsed !== undefined) partial.availableDaxIq = parsed;
         else logParseError("radio", key, value);
         break;
       }
       case "available_dax":
       case "dax_available": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) next.availableDaxAudio = parsed;
+        if (parsed !== undefined) partial.availableDaxAudio = parsed;
         else logParseError("radio", key, value);
         break;
       }
       case "gps_lock":
-        next.gpsLock = isTruthy(value);
+        partial.gpsLock = isTruthy(value);
         break;
       default:
         logUnknownAttribute("radio", key, value);
@@ -1985,11 +1845,19 @@ function createRadioProperties(
     }
   }
 
-  const snapshot: RadioProperties = Object.freeze({
-    ...next,
-    raw: Object.freeze(raw),
-  });
-  return snapshot;
+  const snapshot = Object.freeze({
+    ...(previous ?? {}),
+    ...partial,
+    raw: Object.freeze({
+      ...previous?.raw,
+      ...attributes,
+    }),
+  }) as RadioProperties;
+  return {
+    snapshot,
+    diff: Object.freeze(partial),
+    rawDiff,
+  };
 }
 
 function parseMegahertz(value: string | undefined): number | undefined {
@@ -2052,6 +1920,17 @@ function freezeArray<T>(
     Object.freeze(input as T[]);
   }
   return input;
+}
+
+const EMPTY_ATTRIBUTES: Readonly<Record<string, string>> = Object.freeze({});
+
+function freezeAttributes(
+  attributes: Record<string, string>,
+): Readonly<Record<string, string>> {
+  if (Object.keys(attributes).length === 0) {
+    return EMPTY_ATTRIBUTES;
+  }
+  return Object.freeze({ ...attributes });
 }
 
 function arraysShallowEqual<T>(

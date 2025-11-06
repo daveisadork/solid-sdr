@@ -258,30 +258,19 @@ export function Panafall() {
                   setDragState("originX", 0);
                   const streamId = panStreamId();
                   if (!streamId) return;
-                  const activeSlice = Object.keys(state.status.slice).find(
-                    (key) => {
-                      const slice = state.status.slice[key];
-                      return (
-                        slice.panadapterStreamId === streamId && slice.isActive
-                      );
-                    },
-                  );
-                  if (!activeSlice) return;
-                  const { bandwidthMHz: bandwidth, width: x_pixels } =
+                  const { bandwidthMHz, width } =
                     state.status.display.pan[streamId];
                   const rect = e.currentTarget.getBoundingClientRect();
                   const x = Math.max(
                     0,
-                    Math.min(e.clientX - rect.left, x_pixels - 1),
+                    Math.min(e.clientX - rect.left, width - 1),
                   );
-                  const mhzPerPx = bandwidth / x_pixels;
+                  const mhzPerPx = bandwidthMHz / width;
                   const freq = (
                     state.status.display.pan[streamId].centerFrequencyMHz +
-                    (x - x_pixels / 2) * mhzPerPx
+                    (x - width / 2) * mhzPerPx
                   ).toFixed(3);
-                  const sliceController = session()?.slice(activeSlice);
-                  if (!sliceController) return;
-                  await sliceController.setFrequency(Number(freq));
+                  panController()?.clickTune(Number(freq));
                 }}
                 ref={setClickRef}
               />

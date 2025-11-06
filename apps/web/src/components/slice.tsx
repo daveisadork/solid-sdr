@@ -55,6 +55,7 @@ import {
 } from "./ui/segmented-control";
 import { cn } from "~/lib/utils";
 import { FrequencyInput } from "./frequency-input";
+import { PanadapterController } from "@repo/flexlib";
 
 const StatusToggle: Component<ComponentProps<"span"> & { active?: boolean }> = (
   props,
@@ -156,24 +157,9 @@ const LevelMeter = (props: { sliceIndex?: string | number }) => {
 
 export function DetachedSlice(props: { sliceIndex: string }) {
   const sliceIndex = () => props.sliceIndex;
-  const { sendCommand, session, state, setState } = useFlexRadio();
-  const [slice, setSlice] = createStore(state.status.slice[sliceIndex()]);
-  const streamId = () => slice.panadapterStreamId;
-  const controller = () => session()?.slice(sliceIndex());
-  const [pan] = createStore(state.status.display.pan[streamId()]);
-
-  const makeActive = async () => {
-    if (slice.isActive) return;
-    await controller().setActive(true);
-    await sendCommand(`slice s ${props.sliceIndex} active=1`);
-    const ownedSlices = Object.keys(state.status.slice).filter(
-      (key) =>
-        state.status.slice[key].panadapterStreamId === streamId() &&
-        state.status.slice[key].isInUse,
-    );
-    setState("status", "slice", ownedSlices, "isActive", false);
-    setSlice("isActive", !slice.isActive);
-  };
+  const { session, state } = useFlexRadio();
+  const slice = () => state.status.slice[props.sliceIndex];
+  const pan = () => state.status.display.pan[slice()?.panadapterStreamId];
 
   return (
     <Button
@@ -182,26 +168,25 @@ export function DetachedSlice(props: { sliceIndex: string }) {
       class="font-black text-md font-mono z-10 pointer-events-auto text-shadow-md text-shadow-black"
       onClick={() => {
         session()
-          ?.panadapter(streamId())
-          ?.setCenterFrequency(slice.frequencyMHz);
-        makeActive();
+          ?.panadapter(slice().panadapterStreamId)
+          ?.setCenterFrequency(slice().frequencyMHz);
+        session()?.slice(sliceIndex())?.setActive(true);
       }}
     >
-      <Show when={slice.frequencyMHz < pan.centerFrequencyMHz}>
+      <Show when={slice().frequencyMHz < pan().centerFrequencyMHz}>
         <BaselineChevronLeft />
       </Show>
-      <span>{slice.indexLetter}</span>
-      <Show when={slice.frequencyMHz > pan.centerFrequencyMHz}>
+      <span>{slice().indexLetter}</span>
+      <Show when={slice().frequencyMHz > pan().centerFrequencyMHz}>
         <BaselineChevronRight />
       </Show>
     </Button>
   );
 }
 
-export function DetachedSlices(props: { streamId: number | string }) {
+export function DetachedSlices(props: { streamId: string }) {
   const { state } = useFlexRadio();
-  const streamId = () => props.streamId;
-  const [pan] = createStore(state.status.display.pan[streamId()]);
+  const pan = () => state.status.display.pan[props.streamId];
 
   return (
     <div class="flex absolute top-10 left-0 bottom-0 right-0 pointer-events-none">
@@ -213,7 +198,7 @@ export function DetachedSlices(props: { streamId: number | string }) {
               slice.panadapterStreamId === props.streamId &&
               slice.isInUse &&
               slice.isDetached &&
-              slice.frequencyMHz < pan.centerFrequencyMHz
+              slice.frequencyMHz < pan().centerFrequencyMHz
             );
           })}
         >
@@ -229,7 +214,7 @@ export function DetachedSlices(props: { streamId: number | string }) {
               slice.panadapterStreamId === props.streamId &&
               slice.isInUse &&
               slice.isDetached &&
-              slice.frequencyMHz > pan.centerFrequencyMHz
+              slice.frequencyMHz > pan().centerFrequencyMHz
             );
           })}
         >
@@ -242,7 +227,7 @@ export function DetachedSlices(props: { streamId: number | string }) {
 
 export function Slice(props: { sliceIndex: string }) {
   const sliceIndex = () => props.sliceIndex;
-  const { session, state, sendCommand, setState } = useFlexRadio();
+  const { session, state } = useFlexRadio();
   const [slice, setSlice] = createStore(state.status.slice[sliceIndex()]);
   const sliceController = () => session()?.slice(sliceIndex());
   const streamId = () => slice.panadapterStreamId;
@@ -353,17 +338,8 @@ export function Slice(props: { sliceIndex: string }) {
   };
 
   const makeActive = async () => {
-    console.log("makeActive", sliceIndex(), sliceController());
     if (slice.isActive) return;
     sliceController()?.setActive(true);
-    // await sendCommand(`slice s ${props.sliceIndex} active=1`);
-    // const ownedSlices = Object.keys(state.status.slice).filter(
-    //   (key) =>
-    //     state.status.slice[key].panadapterStreamId === streamId() &&
-    //     state.status.slice[key].isInUse,
-    // );
-    // setState("status", "slice", ownedSlices, "isActive", false);
-    // setSlice("isActive", !slice.isActive);
   };
 
   createEffect(() => {

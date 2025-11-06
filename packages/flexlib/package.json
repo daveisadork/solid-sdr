@@ -46,9 +46,6 @@
   "sideEffects": false,
   "scripts": {
     "build": "tsdown",
-    "dev": "tsdown --watch src",
-    "dev:web": "tsdown --watch src",
-    "dev:server": "tsdown --watch src",
     "test": "vitest",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",

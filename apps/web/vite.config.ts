@@ -9,6 +9,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "~": path.resolve(__dirname, "src"),
+      "@repo/flexlib": path.resolve(__dirname, "../../packages/flexlib/src"),
     },
   },
   server: {

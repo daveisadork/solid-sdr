@@ -10,6 +10,7 @@ import {
   FlexStateUnavailableError,
 } from "./errors.js";
 import { parseRfGainInfo } from "./rf-gain.js";
+import type { RfGainInfo } from "./rf-gain.js";
 
 export interface WaterfallControllerEvents extends Record<string, unknown> {
   readonly change: WaterfallStateChange;
@@ -43,6 +44,7 @@ export interface WaterfallSessionApi {
   ): Promise<FlexCommandResponse>;
   getWaterfall(id: string): WaterfallSnapshot | undefined;
   patchWaterfall(id: string, attributes: Record<string, string>): void;
+  applyWaterfallRfGainInfo(id: string, info: RfGainInfo): void;
 }
 
 export interface WaterfallController {
@@ -390,14 +392,7 @@ export class WaterfallControllerImpl implements WaterfallController {
         `Unable to parse RF gain info reply: ${response.message}`,
       );
     }
-    const attributes: Record<string, string> = {
-      rf_gain_low: this.toIntString(info.low),
-      rf_gain_high: this.toIntString(info.high),
-      rf_gain_step: this.toIntString(info.step),
-      rf_gain_markers:
-        info.markers.length > 0 ? info.markers.join(",") : "",
-    };
-    this.session.patchWaterfall(this.id, attributes);
+    this.session.applyWaterfallRfGainInfo(this.id, info);
     return this.snapshot();
   }
 

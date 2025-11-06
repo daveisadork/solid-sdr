@@ -12,6 +12,7 @@ import type {
   FlexReplyMessage,
   FlexNoticeMessage,
 } from "./protocol.js";
+import type { RfGainInfo } from "./rf-gain.js";
 import {
   createRadioStateStore,
   type RadioStateStore,
@@ -322,6 +323,16 @@ class FlexRadioSessionImpl implements FlexRadioSession {
 
   patchWaterfall(id: string, attributes: Record<string, string>): void {
     const change = this.store.patchWaterfall(id, attributes);
+    if (change) this.handleStateChange(change);
+  }
+
+  applyPanadapterRfGainInfo(id: string, info: RfGainInfo): void {
+    const change = this.store.applyPanadapterRfGainInfo(id, info);
+    if (change) this.handleStateChange(change);
+  }
+
+  applyWaterfallRfGainInfo(id: string, info: RfGainInfo): void {
+    const change = this.store.applyWaterfallRfGainInfo(id, info);
     if (change) this.handleStateChange(change);
   }
 

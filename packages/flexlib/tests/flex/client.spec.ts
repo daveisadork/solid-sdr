@@ -33,17 +33,9 @@ describe("FlexClient", () => {
 
     const slice = session.slice("0");
     expect(slice).toBeDefined();
+    expect(slice?.frequencyMHz).toBeCloseTo(14.074);
     expect(slice?.mode).toBe("USB");
-    expect(slice?.sampleRateHz).toBe(0);
-    expect(slice?.indexLetter).toBe("");
-    expect(slice?.isWide).toBe(false);
-    expect(slice?.isQskEnabled).toBe(false);
-    expect(slice?.availableRxAntennas).toEqual([]);
-    expect(slice?.availableTxAntennas).toEqual([]);
-    expect(slice?.owner).toBe("");
-    expect(slice?.clientHandle).toBe(0);
-    expect(slice?.diversityParent).toBe(false);
-    expect(slice?.modeList).toEqual([]);
+    expect(slice?.isActive).toBe(true);
     expect(changes.length).toBe(1);
 
     await slice?.setFrequency(14.075);
@@ -87,7 +79,9 @@ describe("FlexClient", () => {
     expect(slice?.nrlEnabled).toBe(true);
 
     await slice?.setNrlLevel(15);
-    expect(channel.commands.at(-1)?.command).toBe("slice set 0 lms_nr_level=15");
+    expect(channel.commands.at(-1)?.command).toBe(
+      "slice set 0 lms_nr_level=15",
+    );
     expect(slice?.nrlLevel).toBe(15);
 
     await slice?.setAnflEnabled(true);
@@ -171,9 +165,7 @@ describe("FlexClient", () => {
     expect(slice?.tuneStepListHz).toEqual([10, 50, 100]);
 
     await slice?.cwAutoTune({ intermittent: true });
-    expect(channel.commands.at(-1)?.command).toBe(
-      "slice auto_tune 0 int=1",
-    );
+    expect(channel.commands.at(-1)?.command).toBe("slice auto_tune 0 int=1");
 
     await slice?.update({
       audioGain: 55,

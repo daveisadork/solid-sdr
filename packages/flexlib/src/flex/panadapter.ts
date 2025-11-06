@@ -10,6 +10,7 @@ import {
   FlexStateUnavailableError,
 } from "./errors.js";
 import { parseRfGainInfo } from "./rf-gain.js";
+import type { RfGainInfo } from "./rf-gain.js";
 
 export interface PanadapterControllerEvents extends Record<string, unknown> {
   readonly change: PanadapterStateChange;
@@ -55,6 +56,7 @@ export interface PanadapterSessionApi {
   ): Promise<FlexCommandResponse>;
   getPanadapter(id: string): PanadapterSnapshot | undefined;
   patchPanadapter(id: string, attributes: Record<string, string>): void;
+  applyPanadapterRfGainInfo(id: string, info: RfGainInfo): void;
 }
 
 export interface PanadapterController {
@@ -539,13 +541,7 @@ export class PanadapterControllerImpl implements PanadapterController {
         `Unable to parse RF gain info reply: ${response.message}`,
       );
     }
-    const attributes: Record<string, string> = {
-      rf_gain_low: this.toIntString(info.low),
-      rf_gain_high: this.toIntString(info.high),
-      rf_gain_step: this.toIntString(info.step),
-      rf_gain_markers: info.markers.length > 0 ? info.markers.join(",") : "",
-    };
-    this.session.patchPanadapter(this.id, attributes);
+    this.session.applyPanadapterRfGainInfo(this.id, info);
     return this.snapshot();
   }
 

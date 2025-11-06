@@ -1,4 +1,5 @@
 import type { FlexStatusMessage } from "./protocol.js";
+import type { RfGainInfo } from "./rf-gain.js";
 
 export interface SliceSnapshot {
   readonly id: string;
@@ -324,6 +325,14 @@ export interface RadioStateStore {
     id: string,
     attributes: Record<string, string>,
   ): WaterfallStateChange | undefined;
+  applyPanadapterRfGainInfo(
+    id: string,
+    info: RfGainInfo,
+  ): PanadapterStateChange | undefined;
+  applyWaterfallRfGainInfo(
+    id: string,
+    info: RfGainInfo,
+  ): WaterfallStateChange | undefined;
 }
 
 export function createRadioStateStore(): RadioStateStore {
@@ -399,6 +408,12 @@ export function createRadioStateStore(): RadioStateStore {
     },
     patchWaterfall(id, attributes) {
       return patchWaterfall(id, attributes);
+    },
+    applyPanadapterRfGainInfo(id, info) {
+      return applyPanadapterRfGainInfo(id, info);
+    },
+    applyWaterfallRfGainInfo(id, info) {
+      return applyWaterfallRfGainInfo(id, info);
     },
   };
 
@@ -729,6 +744,34 @@ export function createRadioStateStore(): RadioStateStore {
       diff,
       rawDiff,
     };
+  }
+
+  function applyPanadapterRfGainInfo(
+    id: string,
+    info: RfGainInfo,
+  ): PanadapterStateChange | undefined {
+    if (!panadapters.has(id)) return undefined;
+    const attributes: Record<string, string> = {
+      rf_gain_low: info.low.toString(10),
+      rf_gain_high: info.high.toString(10),
+      rf_gain_step: info.step.toString(10),
+      rf_gain_markers: info.markers.join(","),
+    };
+    return patchPanadapter(id, attributes);
+  }
+
+  function applyWaterfallRfGainInfo(
+    id: string,
+    info: RfGainInfo,
+  ): WaterfallStateChange | undefined {
+    if (!waterfalls.has(id)) return undefined;
+    const attributes: Record<string, string> = {
+      rf_gain_low: info.low.toString(10),
+      rf_gain_high: info.high.toString(10),
+      rf_gain_step: info.step.toString(10),
+      rf_gain_markers: info.markers.join(","),
+    };
+    return patchWaterfall(id, attributes);
   }
 }
 

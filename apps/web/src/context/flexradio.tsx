@@ -23,6 +23,7 @@ import {
   type FlexRadioSession,
   type SliceSnapshot,
   type PanadapterSnapshot,
+  type MeterSnapshot,
   type RadioStateChange,
   type FlexWireMessage,
   type Subscription,
@@ -31,6 +32,7 @@ import {
   VitaPacketKind,
   VitaParsedPacket,
   VitaPacketMetadata,
+  scaleMeterRawValue,
 } from "@repo/flexlib";
 import type { DiscoverySession, FlexRadioDescriptor } from "@repo/flexlib";
 import { createWebSocketFlexControlFactory } from "~/lib/flex-control";
@@ -81,30 +83,9 @@ export enum ConnectionStage {
   Done = 3,
 }
 
-export enum MeterUnit {
-  dB = "dB",
-  dBm = "dBm", // dBm power, referenced generally to the radio input connector, as described in VITA-49 7.1.5.9. (Two's complement, radix between bits 6/7)
-  dBFS = "dBFS", // power, referenced to full scale VITA-49 7.1.5.9. (Two's complement, radix between bits 6/7)
-  Volts = "Volts", // voltage in two's complement volts with ten bits to the right of the radix point and six to the left
-  Amps = "Amps", // amps in two's complement amps with ten bits to the right of the radix point and six to the left
-  SWR = "SWR",
-  degC = "degC",
-  degF = "degF",
-  RPM = "RPM",
-}
-
-export interface Meter {
-  src: string; // "RAD
-  num: number; // 0
-  nam: string; // "Power"
-  low: number; // 0
-  hi: number; // 100
-  desc: string; // "Power"
-  unit: MeterUnit; // "dBm"
-  fps: number; // 10
-  scale: number; // 1.0
+export type Meter = Omit<MutableProps<MeterSnapshot>, "raw"> & {
   value?: number;
-}
+};
 
 export interface GPS {
   lat?: number;
@@ -120,17 +101,6 @@ export interface GPS {
   track?: number;
   gnss_powered_ant?: boolean;
 }
-
-const scalingMap = {
-  [MeterUnit.dB]: 128.0,
-  [MeterUnit.dBm]: 128.0,
-  [MeterUnit.dBFS]: 128.0,
-  [MeterUnit.SWR]: 128.0,
-  [MeterUnit.Volts]: 256.0,
-  [MeterUnit.Amps]: 256.0,
-  [MeterUnit.degC]: 64.0,
-  [MeterUnit.degF]: 64.0,
-} as Record<MeterUnit, number>;
 
 export interface Gradient {
   name: string;
@@ -191,7 +161,7 @@ export interface ConnectModalState {
 }
 
 export interface StatusState {
-  meters: Record<number | string, Meter>;
+  meters: Record<string, Meter>;
   gps: GPS;
   eq: {
     rx: Record<string, unknown>;
@@ -603,6 +573,22 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     }
   };
 
+  const handleMeterChange = (change: RadioStateChange) => {
+    if (change.entity !== "meter") return;
+    const key = change.id ?? change.previous?.id;
+    if (change.diff) {
+      setState("status", "meters", key, change.diff);
+    } else {
+      setState(
+        "status",
+        "meters",
+        produce((meters) => {
+          delete meters[key];
+        }),
+      );
+    }
+  };
+
   const handleSliceChange = (change: RadioStateChange) => {
     if (change.entity !== "slice") return;
     const key = change.id ?? change.previous?.id;
@@ -630,6 +616,9 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         break;
       case "waterfall":
         handleWaterfallChange(change);
+        break;
+      case "meter":
+        handleMeterChange(change);
         break;
       default:
         break;
@@ -750,71 +739,6 @@ export const FlexRadioProvider: ParentComponent = (props) => {
   window.sendCommand = sendCommand; // Expose for debugging
 
   // window.state = state; // Expose for debugging
-  function updateMeters(message: string) {
-    const [key, ...rest] = message.split(" ") || [];
-    if (key !== "meter") {
-      console.warn("Received non-meter message:", message);
-      return;
-    }
-    if (rest.length === 0) {
-      console.warn("Received empty meter update:", message);
-      return;
-    }
-    if (message.endsWith("removed")) {
-      const meterId = parseInt(rest[0], 10);
-      setState(
-        "status",
-        "meters",
-        produce((newMeters) => {
-          delete newMeters[meterId];
-        }),
-      );
-      return;
-    }
-    setState(
-      "status",
-      "meters",
-      produce((newMeters) => {
-        rest
-          .join(" ")
-          .split("#")
-          .filter((part) => part.length)
-          .forEach((item) => {
-            const [meterIdRaw, ...meterDataRaw] = item.split(".");
-            const meterId = parseInt(meterIdRaw, 10);
-            const meterData = meterDataRaw.join(".");
-            const [key, rawValue] = meterData.split("=");
-            if (!newMeters[meterId]) {
-              newMeters[meterId] = {} as Meter;
-            }
-            switch (key) {
-              case "desc":
-              case "src":
-              case "nam":
-                newMeters[meterId][key] = rawValue;
-                break;
-              case "num":
-                newMeters[meterId].num = parseInt(rawValue, 10);
-                break;
-              case "fps":
-              case "value":
-              case "low":
-              case "hi":
-                newMeters[meterId][key] = parseFloat(rawValue);
-                break;
-              case "unit":
-                const unit = rawValue as MeterUnit;
-                newMeters[meterId].unit = unit;
-                newMeters[meterId].scale = scalingMap[unit] || 1.0;
-                break;
-              default:
-                console.warn(`Unknown key in meter update: ${key}`);
-            }
-          });
-      }),
-    );
-  }
-
   function updateGPS(rest: string[]) {
     const split = rest.join(" ").split("#");
 
@@ -1023,16 +947,12 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         switch (key) {
           case "gps":
             return updateGPS(rest);
-          case "meter":
-            return updateMeters(message);
           case "stream":
             console.log(payload);
             return updateStream(rest);
+          case "meter":
           case "display":
-            console.log("Display update:", message);
-            return;
           case "slice":
-            console.log("Slice update:", message);
             return;
         }
 
@@ -1111,7 +1031,10 @@ export const FlexRadioProvider: ParentComponent = (props) => {
           for (let i = 0; i < count; i++) {
             const id = meterPacket.ids[i];
             if (id in meters) {
-              meters[id].value = meterPacket.values[i] / meters[id].scale;
+              meters[id].value = scaleMeterRawValue(
+                meters[id].units,
+                meterPacket.values[i],
+              );
             }
           }
         }),
@@ -1222,6 +1145,9 @@ export const FlexRadioProvider: ParentComponent = (props) => {
           initial.waterfalls.forEach((waterfall) =>
             setState("status", "display", "waterfall", waterfall.id, waterfall),
           );
+          initial.meters.forEach((meter) => {
+            setState("status", "meters", meter.id, meter);
+          });
         });
         if (pendingHandleLine) {
           const line = pendingHandleLine;

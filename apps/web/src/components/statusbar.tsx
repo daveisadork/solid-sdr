@@ -15,8 +15,8 @@ export function StatusBar() {
   createEffect(() => {
     if (state.status.meters[voltageId()!]) return;
     for (const meterId in meters) {
-      const { nam, value } = meters[meterId];
-      if (nam === "+13.8A" && value !== undefined) {
+      const { name, value } = meters[meterId];
+      if (name === "+13.8A" && value !== undefined) {
         setVoltageId(meterId);
         return;
       }
@@ -27,8 +27,8 @@ export function StatusBar() {
   createEffect(() => {
     if (state.status.meters[tempId()!]) return;
     for (const meterId in meters) {
-      const { nam, value } = meters[meterId];
-      if (nam === "PATEMP" && value !== undefined) {
+      const { name, value } = meters[meterId];
+      if (name === "PATEMP" && value !== undefined) {
         setTempId(meterId);
         return;
       }
@@ -52,9 +52,9 @@ export function StatusBar() {
         </Show>
         <Show when={tempId()} keyed>
           {(id) => {
-            const { value, unit } = meters[id];
+            const { value, units } = meters[id];
             return (
-              <span>{`${value?.toPrecision(3)}${unit?.replace("deg", "°")}`}</span>
+              <span>{`${value?.toPrecision(3)}${units?.replace("deg", "°")}`}</span>
             );
           }}
         </Show>

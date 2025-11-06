@@ -55,7 +55,6 @@ import {
 } from "./ui/segmented-control";
 import { cn } from "~/lib/utils";
 import { FrequencyInput } from "./frequency-input";
-import { PanadapterController } from "@repo/flexlib";
 
 const StatusToggle: Component<ComponentProps<"span"> & { active?: boolean }> = (
   props,
@@ -87,21 +86,21 @@ const Triangle: Component<ComponentProps<"div">> = (props) => {
   );
 };
 
-const LevelMeter = (props: { sliceIndex?: string | number }) => {
+const LevelMeter = (props: { sliceIndex?: string }) => {
   const { state } = useFlexRadio();
-  const [meterId, setMeterId] = createSignal<string | number>();
+  const [meterId, setMeterId] = createSignal<string>();
 
   createEffect(() => {
-    const sliceIndex = props.sliceIndex;
+    const sliceIndex = Number(props.sliceIndex);
     if (state.status.slice[meterId()!]) {
       return;
     }
     for (const meterId in state.status.meters) {
       const meter: Meter = state.status.meters[meterId];
       if (
-        meter.src === "SLC" &&
-        meter.num == sliceIndex &&
-        meter.nam === "LEVEL"
+        meter.source === "SLC" &&
+        meter.sourceIndex === sliceIndex &&
+        meter.name === "LEVEL"
       ) {
         setMeterId(meterId);
         return;

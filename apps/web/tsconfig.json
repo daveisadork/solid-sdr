@@ -15,7 +15,6 @@
     "baseUrl": ".",
     "paths": {
       "~/*": ["./src/*"],
-      "@repo/flexlib": ["../../packages/flexlib/src/index.ts"],
       "@repo/flexlib/*": ["../../packages/flexlib/src/*"]
     }
   }

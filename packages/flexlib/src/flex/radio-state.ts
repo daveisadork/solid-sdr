@@ -1805,7 +1805,7 @@ function createMeterSnapshot(
   }
 
   const snapshot = Object.freeze({
-    ...(previous ?? { id }),
+    ...(previous ?? {}),
     ...partial,
     raw: Object.freeze({
       ...previous?.raw,

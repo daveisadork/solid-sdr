@@ -9,7 +9,10 @@
     "dev:web": "vite",
     "dev:server": "vite build --watch",
     "build": "vite build",
-    "serve": "vite preview"
+    "serve": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
   },
   "license": "MIT",
   "packageManager": "pnpm@10.18.3",

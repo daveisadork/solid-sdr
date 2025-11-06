@@ -1119,6 +1119,36 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     });
   });
 
+  const teardownFlexSession = (options?: { resetState?: boolean }) => {
+    const { resetState = true } = options ?? {};
+    const rtcSession = sessionRTC();
+    if (rtcSession) {
+      try {
+        rtcSession.close();
+      } catch (error) {
+        console.error("Error closing RTC session", error);
+      }
+    }
+    if (pingTimer) {
+      clearInterval(pingTimer);
+      pingTimer = undefined;
+    }
+    const currentSession = flexSession();
+    setFlexSession(null);
+    pendingHandleLine = null;
+    for (const sub of flexSessionSubscriptions) sub.unsubscribe();
+    flexSessionSubscriptions = [];
+    if (currentSession) {
+      currentSession
+        .close()
+        .catch((error) => console.error("Error closing flex session", error));
+    }
+    if (resetState) {
+      setState(reconcile(initialState()));
+      serialToHost.clear();
+    }
+  };
+
   const connect = (addr: { host: string; port: number }) => {
     console.log("Connecting to", addr);
     setState("connectModal", "status", ConnectionState.connecting);
@@ -1231,6 +1261,10 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     })();
   };
 
+  onCleanup(() => {
+    teardownFlexSession({ resetState: false });
+  });
+
   createEffect(() => {
     const rtcSession = sessionRTC();
     if (!rtcSession) return;
@@ -1243,23 +1277,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
   });
 
   const disconnect = () => {
-    sessionRTC()?.close();
-    if (pingTimer) {
-      clearInterval(pingTimer);
-      pingTimer = undefined;
-    }
-    const currentSession = flexSession();
-    setFlexSession(null);
-    pendingHandleLine = null;
-    for (const sub of flexSessionSubscriptions) sub.unsubscribe();
-    flexSessionSubscriptions = [];
-    if (currentSession) {
-      currentSession
-        .close()
-        .catch((error) => console.error("Error closing flex session", error));
-    }
-    setState(reconcile(initialState()));
-    serialToHost.clear();
+    teardownFlexSession();
   };
 
   return (

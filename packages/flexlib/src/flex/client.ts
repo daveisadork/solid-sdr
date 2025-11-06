@@ -22,6 +22,7 @@ import {
   type PanadapterSnapshot,
   type WaterfallSnapshot,
   type MeterSnapshot,
+  type RadioProperties,
 } from "./radio-state.js";
 import {
   FlexClientClosedError,
@@ -38,6 +39,8 @@ import type { MeterController } from "./meter.js";
 import { MeterControllerImpl } from "./meter.js";
 import type { WaterfallController } from "./waterfall.js";
 import { WaterfallControllerImpl } from "./waterfall.js";
+import type { RadioController } from "./radio.js";
+import { RadioControllerImpl } from "./radio.js";
 
 export interface FlexClientOptions {
   defaultCommandTimeoutMs?: number;
@@ -92,6 +95,8 @@ export interface FlexRadioSession {
   getWaterfalls(): readonly WaterfallSnapshot[];
   getMeter(id: string): MeterSnapshot | undefined;
   getMeters(): readonly MeterSnapshot[];
+  getRadio(): RadioProperties | undefined;
+  radio(): RadioController;
   slice(id: string): SliceController | undefined;
   panadapter(id: string): PanadapterController | undefined;
   waterfall(id: string): WaterfallController | undefined;
@@ -103,6 +108,8 @@ export interface FlexRadioSession {
     command: string,
     options?: FlexCommandOptions,
   ): Promise<FlexCommandResponse>;
+  installGps(): Promise<void>;
+  uninstallGps(): Promise<void>;
   on<TKey extends FlexRadioEventKey>(
     event: TKey,
     listener: FlexRadioEventListener<TKey>,
@@ -173,6 +180,7 @@ class FlexRadioSessionImpl implements FlexRadioSession {
     WaterfallControllerImpl
   >();
   private readonly meterControllers = new Map<string, MeterControllerImpl>();
+  private readonly radioController: RadioController;
   private readonly messageSub: Subscription;
   private closed = false;
 
@@ -181,6 +189,9 @@ class FlexRadioSessionImpl implements FlexRadioSession {
     private readonly control: FlexControlChannel,
     private readonly options: InternalSessionOptions,
   ) {
+    this.radioController = new RadioControllerImpl(() =>
+      this.store.getRadio(),
+    );
     this.messageSub = control.onMessage((message) =>
       this.handleWireMessage(message),
     );
@@ -224,6 +235,14 @@ class FlexRadioSessionImpl implements FlexRadioSession {
 
   getMeters(): readonly MeterSnapshot[] {
     return this.store.snapshot().meters;
+  }
+
+  getRadio(): RadioProperties | undefined {
+    return this.store.getRadio();
+  }
+
+  radio(): RadioController {
+    return this.radioController;
   }
 
   slice(id: string): SliceController | undefined {
@@ -363,6 +382,14 @@ class FlexRadioSessionImpl implements FlexRadioSession {
       );
     }
     return response;
+  }
+
+  async installGps(): Promise<void> {
+    await this.command("radio gps install");
+  }
+
+  async uninstallGps(): Promise<void> {
+    await this.command("radio gps uninstall");
   }
 
   on<TKey extends FlexRadioEventKey>(

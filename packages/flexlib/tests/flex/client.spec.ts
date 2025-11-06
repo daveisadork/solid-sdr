@@ -217,4 +217,74 @@ describe("FlexClient", () => {
       },
     );
   });
+
+  it("provides radio snapshots and gps convenience getters", async () => {
+    const factory = new MockControlFactory();
+    const client = createFlexClient({ control: factory });
+    const session = await client.connect(descriptor);
+    const channel = factory.channel;
+    expect(channel).toBeDefined();
+    if (!channel) throw new Error("control channel not created");
+
+    const gpsStatus =
+      "S0|gps lat=38.433731667#lon=-90.454651667#grid=EM48sk#altitude=235 m#tracked=10#visible=31#speed=0 kts#freq_error=0 ppb#status=Fine Lock#time=21:16:12Z#track=0.0";
+    const radioStatus =
+      "S4E48881B|radio slices=4 panadapters=4 lineout_gain=49 lineout_mute=0 headphone_gain=50 headphone_mute=0 remote_on_enabled=0 pll_done=0 freq_error_ppb=0 cal_freq=15.000000 tnf_enabled=1 nickname=FLEX-8600 callsign=KF0SMY binaural_rx=0 full_duplex_enabled=1 band_persistence_enabled=1 rtty_mark_default=2125 enforce_private_ip_connections=1 backlight=50 mute_local_audio_when_remote=1 daxiq_capacity=16 daxiq_available=16 alpha=0 low_latency_digital_modes=0 mf_enable=1 auto_save=1 max_internal_pa_power=100 external_pa_allowed=1";
+
+    channel.emit(makeStatus(gpsStatus));
+    channel.emit(makeStatus(radioStatus));
+
+    const radioSnapshot = session.getRadio();
+    expect(radioSnapshot?.gpsLatitude).toBe("38.433731667");
+    expect(radioSnapshot?.gpsStatus).toBe("Fine Lock");
+    expect(radioSnapshot?.lineoutGain).toBe(49);
+    expect(radioSnapshot?.lineoutMute).toBe(false);
+    expect(radioSnapshot?.headphoneGain).toBe(50);
+    expect(radioSnapshot?.headphoneMute).toBe(false);
+    expect(radioSnapshot?.fullDuplexEnabled).toBe(true);
+    expect(radioSnapshot?.enforcePrivateIpConnections).toBe(true);
+    expect(radioSnapshot?.bandPersistenceEnabled).toBe(true);
+    expect(radioSnapshot?.tnfEnabled).toBe(true);
+    expect(radioSnapshot?.binauralRx).toBe(false);
+    expect(radioSnapshot?.maxInternalPaPower).toBe(100);
+    expect(radioSnapshot?.externalPaAllowed).toBe(true);
+    expect(radioSnapshot?.daxIqCapacity).toBe(16);
+    expect(radioSnapshot?.frequencyErrorPpb).toBe(0);
+
+    const radio = session.radio();
+    expect(radio.gpsLatitude).toBe("38.433731667");
+    expect(radio.gpsLongitude).toBe("-90.454651667");
+    expect(radio.gpsAltitude).toBe("235 m");
+    expect(radio.gpsSatellitesTracked).toBe("10");
+    expect(radio.gpsSatellitesVisible).toBe("31");
+    expect(radio.gpsStatus).toBe("Fine Lock");
+    expect(radio.gpsUtcTime).toBe("21:16:12Z");
+    expect(radio.gpsTrack).toBe("0.0");
+    expect(radio.lineoutGain).toBe(49);
+    expect(radio.lineoutMute).toBe(false);
+    expect(radio.headphoneGain).toBe(50);
+    expect(radio.headphoneMute).toBe(false);
+    expect(radio.fullDuplexEnabled).toBe(true);
+    expect(radio.enforcePrivateIpConnections).toBe(true);
+    expect(radio.bandPersistenceEnabled).toBe(true);
+    expect(radio.tnfEnabled).toBe(true);
+    expect(radio.muteLocalAudioWhenRemote).toBe(true);
+    expect(radio.maxInternalPaPower).toBe(100);
+    expect(radio.externalPaAllowed).toBe(true);
+  });
+
+  it("issues gps install and uninstall commands", async () => {
+    const factory = new MockControlFactory();
+    const client = createFlexClient({ control: factory });
+    const session = await client.connect(descriptor);
+    const channel = factory.channel;
+    expect(channel).toBeDefined();
+    if (!channel) throw new Error("control channel not created");
+
+    await session.installGps();
+    expect(channel.commands.at(-1)?.command).toBe("radio gps install");
+
+    await session.uninstallGps();
+    expect(channel.commands.at(-1)?.command).toBe("radio gps uninstall");
+  });
 });

@@ -284,6 +284,21 @@ function parseAttributes(
     return { attributes, identifier: meterId };
   }
 
+  if (source === "gps") {
+    if (segment) {
+      for (const piece of segment.split("#")) {
+        const chunk = piece.trim();
+        if (!chunk) continue;
+        const equals = chunk.indexOf("=");
+        if (equals === -1) continue;
+        const key = chunk.slice(0, equals);
+        const value = chunk.slice(equals + 1);
+        attributes[key] = value;
+      }
+    }
+    return { attributes, identifier };
+  }
+
   if (!segment) return { attributes, identifier };
 
   parseSpaceSeparatedAttributes(segment, attributes);

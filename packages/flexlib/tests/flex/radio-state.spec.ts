@@ -148,4 +148,40 @@ describe("createRadioStateStore", () => {
     expect(waterfall?.raw["x_pixels"]).toBe("50");
     expect(waterfall?.clientHandle).toBe(977_344_129);
   });
+
+  it("updates radio gps properties from gps status messages", () => {
+    const store = createRadioStateStore();
+    const gpsStatus =
+      "S0|gps lat=38.433865#lon=-90.454626667#grid=EM48sk#altitude=218 m#tracked=12#visible=26#speed=0 kts#freq_error=-1 ppb#status=Fine Lock#time=11:22:37Z#track=0.0";
+    const gnssStatus = "S0|gps gnss_powered_ant=false";
+    const installStatus = "S0|gps installed=1";
+
+    const [change] = store.apply(makeStatus(gpsStatus));
+    expect(change?.entity).toBe("radio");
+
+    let radio = store.getRadio();
+    expect(radio).toBeDefined();
+    expect(radio?.gpsLatitude).toBe("38.433865");
+    expect(radio?.gpsLongitude).toBe("-90.454626667");
+    expect(radio?.gpsGrid).toBe("EM48sk");
+    expect(radio?.gpsAltitude).toBe("218 m");
+    expect(radio?.gpsSatellitesTracked).toBe("12");
+    expect(radio?.gpsSatellitesVisible).toBe("26");
+    expect(radio?.gpsSpeed).toBe("0 kts");
+    expect(radio?.gpsFreqError).toBe("-1 ppb");
+    expect(radio?.gpsStatus).toBe("Fine Lock");
+    expect(radio?.gpsUtcTime).toBe("11:22:37Z");
+    expect(radio?.gpsTrack).toBe("0.0");
+    expect(radio?.raw["lat"]).toBe("38.433865");
+    expect(radio?.raw["freq_error"]).toBe("-1 ppb");
+
+    store.apply(makeStatus(gnssStatus));
+    radio = store.getRadio();
+    expect(radio?.gpsGnssPoweredAntenna).toBe(false);
+    expect(radio?.raw["gnss_powered_ant"]).toBe("false");
+
+    store.apply(makeStatus(installStatus));
+    radio = store.getRadio();
+    expect(radio?.gpsInstalled).toBe(true);
+  });
 });

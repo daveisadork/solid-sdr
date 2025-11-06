@@ -948,7 +948,6 @@ export const FlexRadioProvider: ParentComponent = (props) => {
           case "gps":
             return updateGPS(rest);
           case "stream":
-            console.log(payload);
             return updateStream(rest);
           case "meter":
           case "display":

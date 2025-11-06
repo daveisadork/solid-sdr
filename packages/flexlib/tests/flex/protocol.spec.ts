@@ -38,4 +38,27 @@ describe("parseFlexMessage", () => {
     expect(message.severity).toBe("warning");
     expect(message.metadata?.vswr).toBe("3.2");
   });
+
+  it("parses gps status with hash-delimited attributes", () => {
+    const now = Date.now();
+    const raw =
+      "S0|gps lat=38.433865#lon=-90.454626667#grid=EM48sk#altitude=218 m#tracked=12#visible=26#speed=0 kts#freq_error=-1 ppb#status=Fine Lock#time=11:22:37Z#track=0.0";
+    const message = parseFlexMessage(raw, now);
+    expect(message).toBeDefined();
+    if (!message || message.kind !== "status")
+      throw new Error("expected status");
+    expect(message.source).toBe("gps");
+    expect(message.timestamp).toBe(now);
+    expect(message.attributes["lat"]).toBe("38.433865");
+    expect(message.attributes["lon"]).toBe("-90.454626667");
+    expect(message.attributes["grid"]).toBe("EM48sk");
+    expect(message.attributes["altitude"]).toBe("218 m");
+    expect(message.attributes["tracked"]).toBe("12");
+    expect(message.attributes["visible"]).toBe("26");
+    expect(message.attributes["speed"]).toBe("0 kts");
+    expect(message.attributes["freq_error"]).toBe("-1 ppb");
+    expect(message.attributes["status"]).toBe("Fine Lock");
+    expect(message.attributes["time"]).toBe("11:22:37Z");
+    expect(message.attributes["track"]).toBe("0.0");
+  });
 });

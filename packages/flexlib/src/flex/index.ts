@@ -11,3 +11,4 @@ export * from "./meter.js";
 export * from "./waterfall.js";
 export * from "./discovery.js";
 export * from "./wire-control.js";
+export * from "./radio.js";

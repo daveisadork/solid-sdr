@@ -1,5 +1,4 @@
 import {
-  batch,
   Component,
   ComponentProps,
   createEffect,
@@ -144,15 +143,15 @@ export const TabToSignal: Component<
   ComponentProps<"div"> & { streamId: string }
 > = (props) => {
   const [local, others] = splitProps(props, ["class"]);
-  const { events, state, setState, sendCommand } = useFlexRadio();
+  const { events, state, session } = useFlexRadio();
 
   const frames = new Map<number, FrameBins>();
   const [targets, setTargets] = createSignal<Target[]>([]);
   let tracks: Track[] = []; // persistent across scans
 
-  const pan = createMemo(
-    () => state.status.display.pan[props.streamId] ?? null,
-  );
+  const pan = () => state.status.display.pan[props.streamId];
+
+  const panController = () => session()?.panadapter(props.streamId);
 
   const activeSlice = createMemo(() => {
     const sid = props.streamId;
@@ -160,7 +159,7 @@ export const TabToSignal: Component<
     return (
       Object.keys(state.status.slice).find((key) => {
         const s = state.status.slice[key];
-        return s.pan === sid && s.isActive;
+        return s.panadapterStreamId === sid && s.isActive;
       }) ?? null
     );
   });
@@ -172,16 +171,7 @@ export const TabToSignal: Component<
   });
 
   const tuneToFrequency = async (freqMHz: number) => {
-    const id = activeSlice();
-    if (!id) return;
-    const stepHz = state.status.slice[id].step ?? 100; // Hz
-    const stepMHz = stepHz / 1e6;
-    const rounded = +(Math.round(freqMHz / stepMHz) * stepMHz).toFixed(6);
-    await sendCommand(`slice t ${id} ${rounded}`);
-    batch(() => {
-      setState("status", "slice", id, "RF_frequency", Number(rounded));
-      setState("status", "slice", id, "frequencyMHz", Number(rounded));
-    });
+    await panController()?.clickTune(freqMHz);
   };
 
   const tuneToNextStop = () => {
@@ -345,8 +335,8 @@ export const TabToSignal: Component<
     const energies: number[] = [];
 
     while (dial <= rightEdgeMHz + 1e-12) {
-      const loHz = Math.min(slice.filter_lo, slice.filter_hi);
-      const hiHz = Math.max(slice.filter_lo, slice.filter_hi);
+      const loHz = Math.min(slice.filterLowHz, slice.filterHighHz);
+      const hiHz = Math.max(slice.filterLowHz, slice.filterHighHz);
 
       const L_MHz = dial + loHz / 1e6;
       const R_MHz = dial + hiHz / 1e6;
@@ -442,7 +432,6 @@ export const TabToSignal: Component<
       e.preventDefault();
       e.stopPropagation();
       // some browsers expose stopImmediatePropagation
-      // @ts-ignore
       if (e.stopImmediatePropagation) e.stopImmediatePropagation();
 
       if (e.shiftKey) {

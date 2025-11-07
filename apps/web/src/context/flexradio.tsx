@@ -20,14 +20,6 @@ import {
   createFlexClient,
   createVitaDiscoveryAdapter,
   FlexCommandRejectedError,
-  type FlexRadioSession,
-  type SliceSnapshot,
-  type PanadapterSnapshot,
-  type MeterSnapshot,
-  type RadioStateChange,
-  type FlexWireMessage,
-  type Subscription,
-  type WaterfallSnapshot,
   parseVitaPacket,
   VitaPacketKind,
   VitaParsedPacket,
@@ -35,9 +27,18 @@ import {
   scaleMeterRawValue,
 } from "@repo/flexlib";
 import type {
+  AudioStreamSnapshot,
   DiscoverySession,
   FlexRadioDescriptor,
+  FlexRadioSession,
+  FlexWireMessage,
+  MeterSnapshot,
+  PanadapterSnapshot,
   RadioProperties,
+  RadioStateChange,
+  SliceSnapshot,
+  Subscription,
+  WaterfallSnapshot,
 } from "@repo/flexlib";
 import { createWebSocketFlexControlFactory } from "~/lib/flex-control";
 import { useRtc } from "./rtc";
@@ -115,6 +116,7 @@ export type Radio = Omit<MutableProps<RadioProperties>, "raw">;
 export type Slice = Omit<MutableProps<SliceSnapshot>, "raw">;
 export type Panadapter = Omit<MutableProps<PanadapterSnapshot>, "raw">;
 export type Waterfall = Omit<MutableProps<WaterfallSnapshot>, "raw">;
+export type AudioStream = Omit<MutableProps<AudioStreamSnapshot>, "raw">;
 
 export interface Stream {
   client_handle: string; // "0x6EB67FCB"
@@ -174,7 +176,7 @@ export interface StatusState {
   //     DIGITAL: Record<string, unknown>;
   //   };
   // };
-  stream: Record<string, Stream>;
+  stream: Record<string, AudioStream>;
 }
 
 export interface AppState {
@@ -602,6 +604,23 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     }
   };
 
+  const handleStreamChange = (change: RadioStateChange) => {
+    if (change.entity !== "audioStream") return;
+    const key = change.id ?? change.previous?.id;
+    if (change.diff) {
+      setState("status", "stream", key, change.diff);
+    } else {
+      if (!key) return;
+      setState(
+        "status",
+        "stream",
+        produce((streams) => {
+          delete streams[key];
+        }),
+      );
+    }
+  };
+
   const handleStateChange = (change: RadioStateChange) => {
     switch (change.entity) {
       case "radio":
@@ -618,6 +637,9 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         break;
       case "meter":
         handleMeterChange(change);
+        break;
+      case "audioStream":
+        handleStreamChange(change);
         break;
       default:
         break;
@@ -737,41 +759,6 @@ export const FlexRadioProvider: ParentComponent = (props) => {
   window.state = state;
   window.sendCommand = sendCommand; // Expose for debugging
 
-  function updateStream([stream, ...split]: string[]) {
-    const applyUpdate = (streamData: Partial<Stream>) => {
-      split.forEach((item) => {
-        const [key, value] = item.split("=");
-        switch (key) {
-          case "client_handle":
-          case "ip":
-          case "compression":
-          case "type":
-            streamData[key] = value;
-            break;
-          default:
-            console.warn(`Unknown key in stream update: ${key}`);
-        }
-      });
-    };
-    if (stream in state.status.stream) {
-      if (split.includes("removed")) {
-        setState(
-          "status",
-          "stream",
-          produce((streams) => {
-            delete streams[stream];
-          }),
-        );
-      } else {
-        setState("status", "stream", stream, produce(applyUpdate));
-      }
-      // If the stream already exists, we apply the update to the existing stream
-    } else {
-      const newStream = {} as Partial<Stream>;
-      applyUpdate(newStream);
-      setState("status", "stream", stream, newStream);
-    }
-  }
   createEffect(() => {
     if (!state.clientHandle) {
       return;
@@ -854,9 +841,9 @@ export const FlexRadioProvider: ParentComponent = (props) => {
             sendCommand("keepalive enable"),
           ]);
           const { message: clientId } = await sendCommand("client gui");
-          await sendCommand(
-            "stream create type=remote_audio_rx compression=OPUS",
-          );
+          await flexSession()?.createRemoteAudioStream({
+            compression: "OPUS",
+          });
           setState("connectModal", "stage", ConnectionStage.Done);
           batch(() => {
             setState("clientHandle", handle);
@@ -910,7 +897,6 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         const [key, ...rest] = message.split(" ");
         switch (key) {
           case "stream":
-            return updateStream(rest);
           case "meter":
           case "display":
           case "slice":

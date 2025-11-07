@@ -181,6 +181,40 @@ export interface WaterfallSnapshot {
   readonly raw: Readonly<Record<string, string>>;
 }
 
+export type AudioStreamKind =
+  | "remote_audio_rx"
+  | "remote_audio_tx"
+  | "dax_rx"
+  | "dax_tx"
+  | "dax_mic"
+  | (string & {});
+
+export interface AudioStreamSnapshot {
+  readonly id: string;
+  readonly streamId: string;
+  readonly type: AudioStreamKind;
+  readonly compression?: string;
+  readonly clientHandle?: number;
+  readonly ip?: string;
+  readonly port?: number;
+  readonly daxChannel?: number;
+  readonly slice?: string;
+  readonly rxGain?: number;
+  readonly rxMuted?: boolean;
+  readonly txGain?: number;
+  readonly txMuted?: boolean;
+  readonly clients?: number;
+  readonly raw: Readonly<Record<string, string>>;
+}
+
+const AUDIO_STREAM_TYPES: ReadonlySet<AudioStreamKind> = new Set([
+  "remote_audio_rx",
+  "remote_audio_tx",
+  "dax_rx",
+  "dax_tx",
+  "dax_mic",
+]);
+
 export type KnownMeterUnits =
   | "none"
   | "Volts"
@@ -314,6 +348,10 @@ export type RadioStateChange =
   | ({ entity: "panadapter"; id: string } & ChangeMetadata<PanadapterSnapshot>)
   | ({ entity: "waterfall"; id: string } & ChangeMetadata<WaterfallSnapshot>)
   | ({ entity: "meter"; id: string } & ChangeMetadata<MeterSnapshot>)
+  | ({
+      entity: "audioStream";
+      id: string;
+    } & ChangeMetadata<AudioStreamSnapshot>)
   | ({ entity: "radio" } & RequiredSnapshotChange<RadioProperties>)
   | {
       entity: "unknown";
@@ -332,12 +370,17 @@ export type WaterfallStateChange = Extract<
   { entity: "waterfall" }
 >;
 export type MeterStateChange = Extract<RadioStateChange, { entity: "meter" }>;
+export type AudioStreamStateChange = Extract<
+  RadioStateChange,
+  { entity: "audioStream" }
+>;
 
 export interface RadioStateSnapshot {
   readonly slices: readonly SliceSnapshot[];
   readonly panadapters: readonly PanadapterSnapshot[];
   readonly waterfalls: readonly WaterfallSnapshot[];
   readonly meters: readonly MeterSnapshot[];
+  readonly audioStreams: readonly AudioStreamSnapshot[];
   readonly radio?: RadioProperties;
 }
 
@@ -348,10 +391,9 @@ export interface RadioStateStore {
   getPanadapter(id: string): PanadapterSnapshot | undefined;
   getWaterfall(id: string): WaterfallSnapshot | undefined;
   getMeter(id: string): MeterSnapshot | undefined;
+  getAudioStream(id: string): AudioStreamSnapshot | undefined;
   getRadio(): RadioProperties | undefined;
-  patchRadio(
-    attributes: Record<string, string>,
-  ): RadioStateChange | undefined;
+  patchRadio(attributes: Record<string, string>): RadioStateChange | undefined;
   patchSlice(
     id: string,
     attributes: Record<string, string>,
@@ -364,6 +406,10 @@ export interface RadioStateStore {
     id: string,
     attributes: Record<string, string>,
   ): WaterfallStateChange | undefined;
+  patchAudioStream(
+    id: string,
+    attributes: Record<string, string>,
+  ): AudioStreamStateChange | undefined;
   applyPanadapterRfGainInfo(
     id: string,
     info: RfGainInfo,
@@ -379,6 +425,7 @@ export function createRadioStateStore(): RadioStateStore {
   const panadapters = new Map<string, PanadapterSnapshot>();
   const waterfalls = new Map<string, WaterfallSnapshot>();
   const meters = new Map<string, MeterSnapshot>();
+  const audioStreams = new Map<string, AudioStreamSnapshot>();
   let radio: RadioProperties | undefined;
 
   return {
@@ -388,6 +435,8 @@ export function createRadioStateStore(): RadioStateStore {
           return [handleSlice(message)];
         case "pan":
           return [handlePanadapter(message)];
+        case "stream":
+          return [handleStream(message)];
         case "meter":
           return [handleMeter(message)];
         case "radio":
@@ -417,6 +466,7 @@ export function createRadioStateStore(): RadioStateStore {
         panadapters: Array.from(panadapters.values()),
         waterfalls: Array.from(waterfalls.values()),
         meters: Array.from(meters.values()),
+        audioStreams: Array.from(audioStreams.values()),
         radio,
       };
     },
@@ -432,6 +482,9 @@ export function createRadioStateStore(): RadioStateStore {
     getMeter(id) {
       return meters.get(id);
     },
+    getAudioStream(id) {
+      return audioStreams.get(id);
+    },
     getRadio() {
       return radio;
     },
@@ -446,6 +499,9 @@ export function createRadioStateStore(): RadioStateStore {
     },
     patchWaterfall(id, attributes) {
       return patchWaterfall(id, attributes);
+    },
+    patchAudioStream(id, attributes) {
+      return patchAudioStream(id, attributes);
     },
     applyPanadapterRfGainInfo(id, info) {
       return applyPanadapterRfGainInfo(id, info);
@@ -509,7 +565,10 @@ export function createRadioStateStore(): RadioStateStore {
   ): RadioStateChange | undefined {
     if (Object.keys(attributes).length === 0) return undefined;
     const previous = radio ?? createDefaultRadioProperties();
-    const { snapshot, diff, rawDiff } = createRadioProperties(attributes, radio);
+    const { snapshot, diff, rawDiff } = createRadioProperties(
+      attributes,
+      radio,
+    );
     const diffKeys = Object.keys(diff as Record<string, unknown>);
     if (diffKeys.length === 0) {
       radio = snapshot;
@@ -566,6 +625,73 @@ export function createRadioStateStore(): RadioStateStore {
     panadapters.set(id, snapshot);
     return {
       entity: "panadapter",
+      id,
+      previous,
+      snapshot,
+      diff,
+      rawDiff,
+    };
+  }
+
+  function handleStream(message: FlexStatusMessage): RadioStateChange {
+    const id = resolveIdentifier(
+      message,
+      message.attributes["stream_id"],
+      message.attributes["stream"],
+    );
+    if (!id) {
+      return {
+        entity: "unknown",
+        source: message.source,
+        attributes: message.attributes,
+      };
+    }
+
+    const existing = audioStreams.get(id);
+    const typeToken = message.attributes["type"] ?? existing?.type;
+    const normalizedType = typeToken?.toLowerCase() as
+      | AudioStreamKind
+      | undefined;
+
+    if (!normalizedType || !AUDIO_STREAM_TYPES.has(normalizedType)) {
+      return {
+        entity: "unknown",
+        source: message.source,
+        id,
+        attributes: message.attributes,
+      };
+    }
+
+    if (isMarkedDeleted(message.attributes)) {
+      const previous = audioStreams.get(id);
+      audioStreams.delete(id);
+      return {
+        entity: "audioStream",
+        id,
+        previous,
+        snapshot: undefined,
+        rawDiff: freezeAttributes(message.attributes),
+      };
+    }
+
+    const previous = audioStreams.get(id);
+    const attributePatch: Record<string, string> = {
+      ...message.attributes,
+    };
+    if (typeToken && attributePatch["type"] === undefined) {
+      attributePatch["type"] = typeToken;
+    }
+    if (attributePatch["stream_id"] === undefined && id) {
+      attributePatch["stream_id"] = id;
+    }
+    const { snapshot, diff, rawDiff } = createAudioStreamSnapshot(
+      id,
+      attributePatch,
+      previous,
+    );
+    audioStreams.set(id, snapshot);
+    return {
+      entity: "audioStream",
       id,
       previous,
       snapshot,
@@ -798,6 +924,35 @@ export function createRadioStateStore(): RadioStateStore {
     waterfalls.set(id, snapshot);
     return {
       entity: "waterfall",
+      id,
+      previous,
+      snapshot,
+      diff,
+      rawDiff,
+    };
+  }
+
+  function patchAudioStream(
+    id: string,
+    attributes: Record<string, string>,
+  ): AudioStreamStateChange | undefined {
+    const previous = audioStreams.get(id);
+    const typeToken = attributes["type"] ?? previous?.type;
+    const attributePatch: Record<string, string> =
+      typeToken && attributes["type"] === undefined
+        ? { ...attributes, type: typeToken }
+        : { ...attributes };
+    if (attributePatch["stream_id"] === undefined) {
+      attributePatch["stream_id"] = previous?.streamId ?? id;
+    }
+    const { snapshot, diff, rawDiff } = createAudioStreamSnapshot(
+      id,
+      attributePatch,
+      previous,
+    );
+    audioStreams.set(id, snapshot);
+    return {
+      entity: "audioStream",
       id,
       previous,
       snapshot,
@@ -1371,6 +1526,101 @@ function createSliceSnapshot(
       ...attributes,
     }),
   }) as SliceSnapshot;
+  return {
+    snapshot,
+    diff: Object.freeze(partial),
+    rawDiff,
+  };
+}
+
+function createAudioStreamSnapshot(
+  id: string,
+  attributes: Record<string, string>,
+  previous?: AudioStreamSnapshot,
+): SnapshotUpdate<AudioStreamSnapshot> {
+  const rawDiff = freezeAttributes(attributes);
+  const partial: Mutable<Partial<AudioStreamSnapshot>> = {};
+
+  for (const [key, value] of Object.entries(attributes)) {
+    switch (key) {
+      case "stream_id":
+      case "stream":
+        partial.streamId = value || partial.streamId;
+        break;
+      case "type":
+        partial.type = value.toLowerCase() as AudioStreamKind;
+        break;
+      case "compression":
+        partial.compression = value;
+        break;
+      case "client_handle": {
+        const parsed = parseIntegerMaybeHex(value);
+        if (parsed !== undefined) partial.clientHandle = parsed;
+        else logParseError("audio_stream", key, value);
+        break;
+      }
+      case "ip":
+        partial.ip = value;
+        break;
+      case "port": {
+        const parsed = parseInteger(value);
+        if (parsed !== undefined) partial.port = parsed;
+        else logParseError("audio_stream", key, value);
+        break;
+      }
+      case "dax_channel": {
+        const parsed = parseInteger(value);
+        if (parsed !== undefined) partial.daxChannel = parsed;
+        else logParseError("audio_stream", key, value);
+        break;
+      }
+      case "slice":
+        partial.slice = value;
+        break;
+      case "rx_gain": {
+        const parsed = parseInteger(value);
+        if (parsed !== undefined) partial.rxGain = parsed;
+        else logParseError("audio_stream", key, value);
+        break;
+      }
+      case "rx_mute":
+      case "rx_muted":
+        partial.rxMuted = isTruthy(value);
+        break;
+      case "tx_gain": {
+        const parsed = parseInteger(value);
+        if (parsed !== undefined) partial.txGain = parsed;
+        else logParseError("audio_stream", key, value);
+        break;
+      }
+      case "tx_mute":
+      case "tx_muted":
+        partial.txMuted = isTruthy(value);
+        break;
+      case "clients": {
+        const parsed = parseInteger(value);
+        if (parsed !== undefined) partial.clients = parsed;
+        else logParseError("audio_stream", key, value);
+        break;
+      }
+      default:
+        logUnknownAttribute("audio_stream", key, value);
+        break;
+    }
+  }
+
+  const snapshot = Object.freeze({
+    ...(previous ?? {
+      id,
+      streamId: id,
+    }),
+    ...partial,
+    raw: Object.freeze({
+      ...previous?.raw,
+      ...attributes,
+    }),
+  }) as AudioStreamSnapshot;
+
   return {
     snapshot,
     diff: Object.freeze(partial),

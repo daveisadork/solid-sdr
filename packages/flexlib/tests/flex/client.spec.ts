@@ -185,6 +185,111 @@ describe("FlexClient", () => {
     expect(session.getSlice("0")).toBeUndefined();
   });
 
+  it("creates remote audio stream controllers", async () => {
+    const factory = new MockControlFactory();
+    const client = createFlexClient({ control: factory });
+    const session = await client.connect(descriptor);
+    const channel = factory.channel;
+    if (!channel) throw new Error("control channel not created");
+
+    expect(session.getRemoteAudioStreams()).toHaveLength(0);
+
+    const creationPromise = session.createRemoteAudioStream({
+      compression: "opus",
+    });
+    expect(channel.commands.at(-1)?.command).toBe(
+      "stream create type=remote_audio_rx compression=OPUS",
+    );
+
+    channel.emit(
+      makeStatus(
+        "S1|stream 0x04000008 type=remote_audio_rx compression=OPUS client_handle=0x1234 ip=10.0.0.5",
+      ),
+    );
+
+    const stream = await creationPromise;
+    expect(stream.streamId).toBe("0x04000008");
+    expect(stream.compression).toBe("OPUS");
+    expect(stream.clientHandle).toBe(0x1234);
+    expect(stream.ip).toBe("10.0.0.5");
+    expect(stream.rxGain).toBe(0);
+    expect(stream.rxMuted).toBe(false);
+
+    expect(session.getAudioStreams()).toHaveLength(1);
+    expect(session.getRemoteAudioStreams()).toHaveLength(1);
+    expect(session.audioStream("0x04000008")).toBe(stream);
+    expect(session.remoteAudioStream("0x04000008")).toBe(stream);
+
+    channel.emit(
+      makeStatus("S1|stream 0x04000008 rx_gain=75 rx_mute=1 port=5000"),
+    );
+    expect(stream.rxGain).toBe(75);
+    expect(stream.rxMuted).toBe(true);
+    expect(stream.port).toBe(5000);
+
+    await stream.close();
+    expect(channel.commands.at(-1)?.command).toBe(
+      "stream remove 0x04000008",
+    );
+
+    channel.emit(makeStatus("S1|stream 0x04000008 removed=1"));
+    expect(session.getAudioStreams()).toHaveLength(0);
+    expect(session.getRemoteAudioStream("0x04000008")).toBeUndefined();
+    expect(session.remoteAudioStream("0x04000008")).toBeUndefined();
+    expect(session.audioStream("0x04000008")).toBeUndefined();
+  });
+
+  it("creates remote audio tx stream controllers", async () => {
+    const factory = new MockControlFactory();
+    const client = createFlexClient({ control: factory });
+    const session = await client.connect(descriptor);
+    const channel = factory.channel;
+    if (!channel) throw new Error("control channel not created");
+
+    const creationPromise = session.createRemoteAudioTxStream();
+    expect(channel.commands.at(-1)?.command).toBe(
+      "stream create type=remote_audio_tx",
+    );
+
+    channel.emit(
+      makeStatus(
+        "S1|stream 0x04000009 type=remote_audio_tx compression=OPUS client_handle=0x5678",
+      ),
+    );
+
+    const stream = await creationPromise;
+    expect(stream.type).toBe("remote_audio_tx");
+    expect(stream.clientHandle).toBe(0x5678);
+    expect(session.audioStream("0x04000009")).toBe(stream);
+  });
+
+  it("creates dax rx audio stream controllers", async () => {
+    const factory = new MockControlFactory();
+    const client = createFlexClient({ control: factory });
+    const session = await client.connect(descriptor);
+    const channel = factory.channel;
+    if (!channel) throw new Error("control channel not created");
+
+    const creationPromise = session.createDaxRxAudioStream({
+      daxChannel: 3,
+    });
+    expect(channel.commands.at(-1)?.command).toBe(
+      "stream create type=dax_rx dax_channel=3",
+    );
+
+    channel.emit(
+      makeStatus(
+        "S1|stream 0x02000002 type=dax_rx dax_channel=3 client_handle=0x9ABC",
+      ),
+    );
+
+    const stream = await creationPromise;
+    expect(stream.type).toBe("dax_rx");
+    expect(stream.daxChannel).toBe(3);
+    expect(stream.clientHandle).toBe(0x9abc);
+    expect(session.audioStream("0x02000002")).toBe(stream);
+  });
+
   it("surfaces command rejections", async () => {
     const factory = new MockControlFactory();
     const client = createFlexClient({ control: factory });

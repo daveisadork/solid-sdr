@@ -22,6 +22,9 @@ import {
   type PanadapterSnapshot,
   type WaterfallSnapshot,
   type MeterSnapshot,
+  type AudioStreamKind,
+  type AudioStreamSnapshot,
+  type AudioStreamStateChange,
   type RadioProperties,
 } from "./radio-state.js";
 import {
@@ -41,6 +44,11 @@ import type { WaterfallController } from "./waterfall.js";
 import { WaterfallControllerImpl } from "./waterfall.js";
 import type { RadioController } from "./radio.js";
 import { RadioControllerImpl } from "./radio.js";
+import type {
+  AudioStreamController,
+  RemoteAudioStreamController,
+} from "./audio-stream.js";
+import { AudioStreamControllerImpl } from "./audio-stream.js";
 
 export interface FlexClientOptions {
   defaultCommandTimeoutMs?: number;
@@ -95,15 +103,36 @@ export interface FlexRadioSession {
   getWaterfalls(): readonly WaterfallSnapshot[];
   getMeter(id: string): MeterSnapshot | undefined;
   getMeters(): readonly MeterSnapshot[];
+  getAudioStream(id: string): AudioStreamSnapshot | undefined;
+  getAudioStreams(): readonly AudioStreamSnapshot[];
+  getRemoteAudioStream(id: string): AudioStreamSnapshot | undefined;
+  getRemoteAudioStreams(): readonly AudioStreamSnapshot[];
   getRadio(): RadioProperties | undefined;
   radio(): RadioController;
   slice(id: string): SliceController | undefined;
   panadapter(id: string): PanadapterController | undefined;
   waterfall(id: string): WaterfallController | undefined;
   meter(id: string): MeterController | undefined;
+  audioStream(id: string): AudioStreamController | undefined;
+  remoteAudioStream(id: string): RemoteAudioStreamController | undefined;
   createPanadapter(
     options?: PanadapterCreateOptions,
   ): Promise<PanadapterController>;
+  createRemoteAudioStream(
+    options?: RemoteAudioStreamCreateOptions,
+  ): Promise<RemoteAudioStreamController>;
+  createRemoteAudioTxStream(
+    options?: RemoteAudioStreamCreateOptions,
+  ): Promise<AudioStreamController>;
+  createDaxRxAudioStream(
+    options: DaxRxAudioStreamCreateOptions,
+  ): Promise<AudioStreamController>;
+  createDaxTxAudioStream(
+    options?: AudioStreamCreateOptions,
+  ): Promise<AudioStreamController>;
+  createDaxMicAudioStream(
+    options?: AudioStreamCreateOptions,
+  ): Promise<AudioStreamController>;
   command(
     command: string,
     options?: FlexCommandOptions,
@@ -129,6 +158,25 @@ export interface PanadapterCreateOptions {
   readonly x?: number;
   readonly y?: number;
   readonly waitTimeoutMs?: number;
+}
+
+export type RemoteAudioCompression =
+  | "none"
+  | "NONE"
+  | "opus"
+  | "OPUS"
+  | (string & {});
+
+export interface AudioStreamCreateOptions {
+  readonly waitTimeoutMs?: number;
+}
+
+export interface RemoteAudioStreamCreateOptions extends AudioStreamCreateOptions {
+  readonly compression?: RemoteAudioCompression;
+}
+
+export interface DaxRxAudioStreamCreateOptions extends AudioStreamCreateOptions {
+  readonly daxChannel: number;
 }
 
 export function createFlexClient(
@@ -180,6 +228,10 @@ class FlexRadioSessionImpl implements FlexRadioSession {
     WaterfallControllerImpl
   >();
   private readonly meterControllers = new Map<string, MeterControllerImpl>();
+  private readonly audioControllers = new Map<
+    string,
+    AudioStreamControllerImpl
+  >();
   private readonly radioController: RadioController;
   private readonly messageSub: Subscription;
   private closed = false;
@@ -239,6 +291,25 @@ class FlexRadioSessionImpl implements FlexRadioSession {
 
   getMeters(): readonly MeterSnapshot[] {
     return this.store.snapshot().meters;
+  }
+
+  getAudioStream(id: string): AudioStreamSnapshot | undefined {
+    return this.store.getAudioStream(id);
+  }
+
+  getAudioStreams(): readonly AudioStreamSnapshot[] {
+    return this.store.snapshot().audioStreams;
+  }
+
+  getRemoteAudioStream(id: string): AudioStreamSnapshot | undefined {
+    const stream = this.getAudioStream(id);
+    return stream && stream.type === "remote_audio_rx" ? stream : undefined;
+  }
+
+  getRemoteAudioStreams(): readonly AudioStreamSnapshot[] {
+    return this.getAudioStreams().filter(
+      (stream) => stream.type === "remote_audio_rx",
+    );
   }
 
   private patchRadio(attributes: Record<string, string>): void {
@@ -302,6 +373,78 @@ class FlexRadioSessionImpl implements FlexRadioSession {
     return controller;
   }
 
+  audioStream(id: string): AudioStreamController | undefined {
+    if (this.closed) return undefined;
+    let controller = this.audioControllers.get(id);
+    if (!controller) {
+      const snapshot = this.store.getAudioStream(id);
+      if (!snapshot) return undefined;
+      controller = new AudioStreamControllerImpl(this, id);
+      this.audioControllers.set(id, controller);
+    }
+    return controller;
+  }
+
+  remoteAudioStream(
+    id: string,
+  ): RemoteAudioStreamController | undefined {
+    const snapshot = this.getRemoteAudioStream(id);
+    if (!snapshot) return undefined;
+    return this.audioStream(id);
+  }
+
+  private async createAudioStreamAndWait(
+    command: string,
+    kind: AudioStreamKind,
+    options?: AudioStreamCreateOptions & {
+      filter?: (snapshot: AudioStreamSnapshot) => boolean;
+      timeoutMessage?: string;
+    },
+  ): Promise<AudioStreamController> {
+    if (this.closed) throw new FlexClientClosedError();
+    const matches = (stream: AudioStreamSnapshot) =>
+      stream.type === kind && (!options?.filter || options.filter(stream));
+    const existing = new Set(
+      this.getAudioStreams()
+        .filter((stream) => matches(stream))
+        .map((stream) => stream.id),
+    );
+    await this.command(command);
+
+    const waitMs = options?.waitTimeoutMs ?? 5_000;
+    const immediate = this.getAudioStreams().find(
+      (stream) => matches(stream) && !existing.has(stream.id),
+    );
+    if (immediate) {
+      return this.audioStream(immediate.id)!;
+    }
+
+    const message =
+      options?.timeoutMessage ??
+      `Audio stream (${kind}) creation timed out`;
+
+    return await new Promise<AudioStreamController>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        subscription.unsubscribe();
+        reject(new FlexError(message));
+      }, waitMs);
+
+      const subscription = this.events.on("change", (change) => {
+        if (
+          change.entity !== "audioStream" ||
+          !change.snapshot ||
+          existing.has(change.id)
+        ) {
+          return;
+        }
+        if (!matches(change.snapshot)) return;
+        clearTimeout(timeout);
+        subscription.unsubscribe();
+        resolve(this.audioStream(change.id)!);
+      });
+    });
+  }
+
   async createPanadapter(
     options?: PanadapterCreateOptions,
   ): Promise<PanadapterController> {
@@ -339,6 +482,67 @@ class FlexRadioSessionImpl implements FlexRadioSession {
     });
   }
 
+  async createRemoteAudioStream(
+    options?: RemoteAudioStreamCreateOptions,
+  ): Promise<RemoteAudioStreamController> {
+    let command = "stream create type=remote_audio_rx";
+    const compression = options?.compression;
+    if (compression) {
+      command += ` compression=${compression.toUpperCase()}`;
+    }
+    return (await this.createAudioStreamAndWait(command, "remote_audio_rx", {
+      waitTimeoutMs: options?.waitTimeoutMs,
+      timeoutMessage: "Remote audio stream creation timed out",
+    })) as RemoteAudioStreamController;
+  }
+
+  async createRemoteAudioTxStream(
+    options?: RemoteAudioStreamCreateOptions,
+  ): Promise<AudioStreamController> {
+    let command = "stream create type=remote_audio_tx";
+    const compression = options?.compression;
+    if (compression) {
+      command += ` compression=${compression.toUpperCase()}`;
+    }
+    return this.createAudioStreamAndWait(command, "remote_audio_tx", {
+      waitTimeoutMs: options?.waitTimeoutMs,
+      timeoutMessage: "Remote audio TX stream creation timed out",
+    });
+  }
+
+  async createDaxRxAudioStream(
+    options: DaxRxAudioStreamCreateOptions,
+  ): Promise<AudioStreamController> {
+    const command = `stream create type=dax_rx dax_channel=${Math.round(options.daxChannel)}`;
+    return this.createAudioStreamAndWait(command, "dax_rx", {
+      waitTimeoutMs: options.waitTimeoutMs,
+      timeoutMessage: "DAX RX audio stream creation timed out",
+      filter: (stream) => stream.daxChannel === Math.round(options.daxChannel),
+    });
+  }
+
+  async createDaxTxAudioStream(
+    options: AudioStreamCreateOptions = {},
+  ): Promise<AudioStreamController> {
+    return this.createAudioStreamAndWait("stream create type=dax_tx", "dax_tx", {
+      waitTimeoutMs: options.waitTimeoutMs,
+      timeoutMessage: "DAX TX audio stream creation timed out",
+    });
+  }
+
+  async createDaxMicAudioStream(
+    options: AudioStreamCreateOptions = {},
+  ): Promise<AudioStreamController> {
+    return this.createAudioStreamAndWait(
+      "stream create type=dax_mic",
+      "dax_mic",
+      {
+        waitTimeoutMs: options.waitTimeoutMs,
+        timeoutMessage: "DAX MIC audio stream creation timed out",
+      },
+    );
+  }
+
   patchSlice(id: string, attributes: Record<string, string>): void {
     const change = this.store.patchSlice(id, attributes);
     if (change) this.handleStateChange(change);
@@ -351,6 +555,14 @@ class FlexRadioSessionImpl implements FlexRadioSession {
 
   patchWaterfall(id: string, attributes: Record<string, string>): void {
     const change = this.store.patchWaterfall(id, attributes);
+    if (change) this.handleStateChange(change);
+  }
+
+  patchAudioStream(
+    id: string,
+    attributes: Record<string, string>,
+  ): void {
+    const change = this.store.patchAudioStream(id, attributes);
     if (change) this.handleStateChange(change);
   }
 
@@ -433,6 +645,7 @@ class FlexRadioSessionImpl implements FlexRadioSession {
     this.panControllers.clear();
     this.waterfallControllers.clear();
     this.meterControllers.clear();
+    this.audioControllers.clear();
   }
 
   private handleWireMessage(message: FlexWireMessage): void {
@@ -458,6 +671,19 @@ class FlexRadioSessionImpl implements FlexRadioSession {
 
   private handleStateChange(change: RadioStateChange): void {
     this.events.emit("change", change);
+    if (change.entity === "audioStream") {
+      const controller = this.audioControllers.get(change.id);
+      if (controller) {
+        controller.onStateChange(change);
+        if (!change.snapshot) this.audioControllers.delete(change.id);
+      } else if (change.snapshot) {
+        this.audioControllers.set(
+          change.id,
+          new AudioStreamControllerImpl(this, change.id),
+        );
+      }
+      return;
+    }
     if (change.entity === "slice") {
       const controller = this.slices.get(change.id);
       if (controller) {

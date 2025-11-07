@@ -9,6 +9,7 @@ export * from "./slice.js";
 export * from "./panadapter.js";
 export * from "./meter.js";
 export * from "./waterfall.js";
+export * from "./audio-stream.js";
 export * from "./discovery.js";
 export * from "./wire-control.js";
 export * from "./radio.js";

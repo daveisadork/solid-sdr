@@ -1,0 +1,434 @@
+import type {
+  FlexCommandOptions,
+  FlexCommandResponse,
+} from "./adapters.js";
+import type { RadioProperties } from "./radio-state.js";
+
+interface RadioControllerSession {
+  command(
+    command: string,
+    options?: FlexCommandOptions,
+  ): Promise<FlexCommandResponse>;
+  patchRadio(attributes: Record<string, string>): void;
+}
+
+export interface RadioController {
+  snapshot(): RadioProperties | undefined;
+  get nickname(): string;
+  get callsign(): string;
+  get firmware(): string;
+  get gpsLock(): boolean;
+  get fullDuplexEnabled(): boolean;
+  get enforcePrivateIpConnections(): boolean;
+  get bandPersistenceEnabled(): boolean;
+  get lowLatencyDigitalModes(): boolean;
+  get mfEnabled(): boolean;
+  get profileAutoSave(): boolean;
+  get maxInternalPaPower(): number;
+  get externalPaAllowed(): boolean;
+  get lineoutGain(): number;
+  get lineoutMute(): boolean;
+  get headphoneGain(): number;
+  get headphoneMute(): boolean;
+  get backlightLevel(): number;
+  get remoteOnEnabled(): boolean;
+  get pllDone(): boolean;
+  get tnfEnabled(): boolean;
+  get binauralRx(): boolean;
+  get muteLocalAudioWhenRemote(): boolean;
+  get rttyMarkDefaultHz(): number;
+  get alpha(): number;
+  get calibrationFrequencyMhz(): number;
+  get frequencyErrorPpb(): number;
+  get daxIqCapacity(): number;
+  get gpsInstalled(): boolean;
+  get gpsLatitude(): number | undefined;
+  get gpsLongitude(): number | undefined;
+  get gpsGrid(): string | undefined;
+  get gpsAltitude(): string | undefined;
+  get gpsSatellitesTracked(): number | undefined;
+  get gpsSatellitesVisible(): number | undefined;
+  get gpsSpeed(): string | undefined;
+  get gpsFreqError(): string | undefined;
+  get gpsStatus(): string | undefined;
+  get gpsUtcTime(): string | undefined;
+  get gpsTrack(): number | undefined;
+  get gpsGnssPoweredAntenna(): boolean | undefined;
+  setNickname(nickname: string): Promise<void>;
+  setCallsign(callsign: string): Promise<void>;
+  setFullDuplexEnabled(enabled: boolean): Promise<void>;
+  setEnforcePrivateIpConnections(enabled: boolean): Promise<void>;
+  setLowLatencyDigitalModes(enabled: boolean): Promise<void>;
+  setMfEnabled(enabled: boolean): Promise<void>;
+  setProfileAutoSave(enabled: boolean): Promise<void>;
+  setLineoutGain(gain: number): Promise<void>;
+  setLineoutMute(muted: boolean): Promise<void>;
+  setHeadphoneGain(gain: number): Promise<void>;
+  setHeadphoneMute(muted: boolean): Promise<void>;
+  setBacklightLevel(level: number): Promise<void>;
+  setRemoteOnEnabled(enabled: boolean): Promise<void>;
+  setTnfEnabled(enabled: boolean): Promise<void>;
+  setBinauralRx(enabled: boolean): Promise<void>;
+  setMuteLocalAudioWhenRemote(enabled: boolean): Promise<void>;
+  setRttyMarkDefaultHz(value: number): Promise<void>;
+  setFrequencyErrorPpb(value: number): Promise<void>;
+  setCalibrationFrequencyMhz(value: number): Promise<void>;
+}
+
+export class RadioControllerImpl implements RadioController {
+  constructor(
+    private readonly session: RadioControllerSession,
+    private readonly getRadio: () => RadioProperties | undefined,
+  ) {}
+
+  snapshot(): RadioProperties | undefined {
+    return this.getRadio();
+  }
+
+  private current(): RadioProperties | undefined {
+    return this.getRadio();
+  }
+
+  get nickname(): string {
+    return this.current()?.nickname ?? "";
+  }
+
+  get callsign(): string {
+    return this.current()?.callsign ?? "";
+  }
+
+  get firmware(): string {
+    return this.current()?.firmware ?? "";
+  }
+
+  get gpsLock(): boolean {
+    return this.current()?.gpsLock ?? false;
+  }
+
+  get fullDuplexEnabled(): boolean {
+    return this.current()?.fullDuplexEnabled ?? false;
+  }
+
+  get enforcePrivateIpConnections(): boolean {
+    return this.current()?.enforcePrivateIpConnections ?? false;
+  }
+
+  get bandPersistenceEnabled(): boolean {
+    return this.current()?.bandPersistenceEnabled ?? false;
+  }
+
+  get lowLatencyDigitalModes(): boolean {
+    return this.current()?.lowLatencyDigitalModes ?? false;
+  }
+
+  get mfEnabled(): boolean {
+    return this.current()?.mfEnabled ?? false;
+  }
+
+  get profileAutoSave(): boolean {
+    return this.current()?.profileAutoSave ?? false;
+  }
+
+  get maxInternalPaPower(): number {
+    return this.current()?.maxInternalPaPower ?? 0;
+  }
+
+  get externalPaAllowed(): boolean {
+    return this.current()?.externalPaAllowed ?? false;
+  }
+
+  get lineoutGain(): number {
+    return this.current()?.lineoutGain ?? 0;
+  }
+
+  get lineoutMute(): boolean {
+    return this.current()?.lineoutMute ?? false;
+  }
+
+  get headphoneGain(): number {
+    return this.current()?.headphoneGain ?? 0;
+  }
+
+  get headphoneMute(): boolean {
+    return this.current()?.headphoneMute ?? false;
+  }
+
+  get backlightLevel(): number {
+    return this.current()?.backlightLevel ?? 0;
+  }
+
+  get remoteOnEnabled(): boolean {
+    return this.current()?.remoteOnEnabled ?? false;
+  }
+
+  get pllDone(): boolean {
+    return this.current()?.pllDone ?? false;
+  }
+
+  get tnfEnabled(): boolean {
+    return this.current()?.tnfEnabled ?? false;
+  }
+
+  get binauralRx(): boolean {
+    return this.current()?.binauralRx ?? false;
+  }
+
+  get muteLocalAudioWhenRemote(): boolean {
+    return this.current()?.muteLocalAudioWhenRemote ?? false;
+  }
+
+  get rttyMarkDefaultHz(): number {
+    return this.current()?.rttyMarkDefaultHz ?? 0;
+  }
+
+  get alpha(): number {
+    return this.current()?.alpha ?? 0;
+  }
+
+  get calibrationFrequencyMhz(): number {
+    return this.current()?.calibrationFrequencyMhz ?? 0;
+  }
+
+  get frequencyErrorPpb(): number {
+    return this.current()?.frequencyErrorPpb ?? 0;
+  }
+
+  get daxIqCapacity(): number {
+    return this.current()?.daxIqCapacity ?? 0;
+  }
+
+  get gpsInstalled(): boolean {
+    return this.current()?.gpsInstalled ?? false;
+  }
+
+  get gpsLatitude(): number | undefined {
+    return this.current()?.gpsLatitude;
+  }
+
+  get gpsLongitude(): number | undefined {
+    return this.current()?.gpsLongitude;
+  }
+
+  get gpsGrid(): string | undefined {
+    return this.current()?.gpsGrid;
+  }
+
+  get gpsAltitude(): string | undefined {
+    return this.current()?.gpsAltitude;
+  }
+
+  get gpsSatellitesTracked(): number | undefined {
+    return this.current()?.gpsSatellitesTracked;
+  }
+
+  get gpsSatellitesVisible(): number | undefined {
+    return this.current()?.gpsSatellitesVisible;
+  }
+
+  get gpsSpeed(): string | undefined {
+    return this.current()?.gpsSpeed;
+  }
+
+  get gpsFreqError(): string | undefined {
+    return this.current()?.gpsFreqError;
+  }
+
+  get gpsStatus(): string | undefined {
+    return this.current()?.gpsStatus;
+  }
+
+  get gpsUtcTime(): string | undefined {
+    return this.current()?.gpsUtcTime;
+  }
+
+  get gpsTrack(): number | undefined {
+    return this.current()?.gpsTrack;
+  }
+
+  get gpsGnssPoweredAntenna(): boolean | undefined {
+    return this.current()?.gpsGnssPoweredAntenna;
+  }
+
+  async setNickname(nickname: string): Promise<void> {
+    const sanitized = sanitizeNickname(nickname);
+    await this.session.command(`radio name ${sanitized}`);
+    this.session.patchRadio({ nickname: sanitized });
+  }
+
+  async setCallsign(callsign: string): Promise<void> {
+    const sanitized = sanitizeCallsign(callsign);
+    await this.session.command(`radio callsign ${sanitized}`);
+    this.session.patchRadio({ callsign: sanitized });
+  }
+
+  async setFullDuplexEnabled(enabled: boolean): Promise<void> {
+    await this.commandAndPatch(
+      `radio set full_duplex_enabled=${booleanToNumeric(enabled)}`,
+      { full_duplex_enabled: booleanToNumeric(enabled) },
+    );
+  }
+
+  async setEnforcePrivateIpConnections(enabled: boolean): Promise<void> {
+    await this.commandAndPatch(
+      `radio set enforce_private_ip_connections=${booleanToNumeric(enabled)}`,
+      { enforce_private_ip_connections: booleanToNumeric(enabled) },
+    );
+  }
+
+  async setLowLatencyDigitalModes(enabled: boolean): Promise<void> {
+    await this.commandAndPatch(
+      `radio set low_latency_digital_modes=${booleanToNumeric(enabled)}`,
+      { low_latency_digital_modes: booleanToNumeric(enabled) },
+    );
+  }
+
+  async setMfEnabled(enabled: boolean): Promise<void> {
+    await this.commandAndPatch(
+      `radio set mf_enable=${booleanToNumeric(enabled)}`,
+      { mf_enable: booleanToNumeric(enabled) },
+    );
+  }
+
+  async setProfileAutoSave(enabled: boolean): Promise<void> {
+    await this.commandAndPatch(
+      `profile autosave ${enabled ? "on" : "off"}`,
+      { auto_save: booleanToNumeric(enabled) },
+    );
+  }
+
+  async setLineoutGain(gain: number): Promise<void> {
+    const clamped = clampInteger(gain, 0, 100);
+    await this.commandAndPatch(`mixer lineout gain ${clamped}`, {
+      lineout_gain: clamped.toString(10),
+    });
+  }
+
+  async setLineoutMute(muted: boolean): Promise<void> {
+    const encoded = booleanToNumeric(muted);
+    await this.commandAndPatch(`mixer lineout mute ${encoded}`, {
+      lineout_mute: encoded,
+    });
+  }
+
+  async setHeadphoneGain(gain: number): Promise<void> {
+    const clamped = clampInteger(gain, 0, 100);
+    await this.commandAndPatch(`mixer headphone gain ${clamped}`, {
+      headphone_gain: clamped.toString(10),
+    });
+  }
+
+  async setHeadphoneMute(muted: boolean): Promise<void> {
+    const encoded = booleanToNumeric(muted);
+    await this.commandAndPatch(`mixer headphone mute ${encoded}`, {
+      headphone_mute: encoded,
+    });
+  }
+
+  async setBacklightLevel(level: number): Promise<void> {
+    const clamped = clampInteger(level, 0, 100);
+    await this.commandAndPatch(`radio backlight ${clamped}`, {
+      backlight: clamped.toString(10),
+    });
+  }
+
+  async setRemoteOnEnabled(enabled: boolean): Promise<void> {
+    const encoded = booleanToNumeric(enabled);
+    await this.commandAndPatch(
+      `radio set remote_on_enabled=${encoded}`,
+      { remote_on_enabled: encoded },
+    );
+  }
+
+  async setTnfEnabled(enabled: boolean): Promise<void> {
+    const encoded = booleanToNumeric(enabled);
+    await this.commandAndPatch(
+      `radio set tnf_enabled=${encoded}`,
+      { tnf_enabled: encoded },
+    );
+  }
+
+  async setBinauralRx(enabled: boolean): Promise<void> {
+    const encoded = booleanToNumeric(enabled);
+    await this.commandAndPatch(
+      `radio set binaural_rx=${encoded}`,
+      { binaural_rx: encoded },
+    );
+  }
+
+  async setMuteLocalAudioWhenRemote(enabled: boolean): Promise<void> {
+    const encoded = booleanToNumeric(enabled);
+    await this.commandAndPatch(
+      `radio set mute_local_audio_when_remote=${encoded}`,
+      { mute_local_audio_when_remote: encoded },
+    );
+  }
+
+  async setRttyMarkDefaultHz(value: number): Promise<void> {
+    const rounded = toInteger(value, "RTTY mark");
+    await this.commandAndPatch(
+      `radio set rtty_mark_default=${rounded}`,
+      { rtty_mark_default: rounded.toString(10) },
+    );
+  }
+
+  async setFrequencyErrorPpb(value: number): Promise<void> {
+    const rounded = toInteger(value, "frequency error");
+    await this.commandAndPatch(
+      `radio set freq_error_ppb=${rounded}`,
+      { freq_error_ppb: rounded.toString(10) },
+    );
+  }
+
+  async setCalibrationFrequencyMhz(value: number): Promise<void> {
+    const normalized = ensureFinite(value, "calibration frequency");
+    const formatted = normalized.toFixed(6);
+    await this.commandAndPatch(
+      `radio set cal_freq=${formatted}`,
+      { cal_freq: formatted },
+    );
+  }
+
+  private async commandAndPatch(
+    command: string,
+    attributes: Record<string, string>,
+  ): Promise<void> {
+    await this.session.command(command);
+    this.session.patchRadio(attributes);
+  }
+}
+
+function sanitizeNickname(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  return trimmed
+    .replace(/[^\w\s-]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function sanitizeCallsign(value: string): string {
+  return value
+    .toUpperCase()
+    .replace(/[^0-9A-Z]/g, "");
+}
+
+function booleanToNumeric(value: boolean): string {
+  return value ? "1" : "0";
+}
+
+function clampInteger(value: number, min: number, max: number): number {
+  const normalized = ensureFinite(value, "value");
+  const clamped = Math.min(max, Math.max(min, Math.round(normalized)));
+  return clamped;
+}
+
+function toInteger(value: number, label: string): number {
+  return Math.round(ensureFinite(value, label));
+}
+
+function ensureFinite(value: number, label: string): number {
+  if (!Number.isFinite(value)) {
+    throw new Error(`${label} must be a finite number`);
+  }
+  return value;
+}

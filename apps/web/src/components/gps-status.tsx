@@ -1,7 +1,6 @@
 import useFlexRadio from "~/context/flexradio";
 import { Flex } from "./ui/flex";
 import { Show } from "solid-js";
-import { createStore } from "solid-js/store";
 import { Separator } from "./ui/separator";
 import { cn } from "~/lib/utils";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "./ui/hover-card";
@@ -16,22 +15,21 @@ import BaselineGpsFixed from "~icons/ic/baseline-gps-fixed";
 
 export function GpsStatus(props: { class?: string }) {
   const { state } = useFlexRadio();
-  const [gps] = createStore(state.status.gps);
 
   return (
     <Flex class={cn("gap-4 cursor-default select-none", props.class)}>
-      <Show when={gps.grid}>
+      <Show when={state.status.radio.gpsGrid}>
         <HoverCard>
           <HoverCardTrigger as={"div"} class="flex items-center font-mono">
             <BaselineGpsFixed />
-            {gps.grid}
+            {state.status.radio.gpsGrid}
           </HoverCardTrigger>
           <HoverCardContent class="w-80 bg-background/50 backdrop-blur-lg">
             <div class="flex justify-between space-x-4">
               <div class="space-y-1">
                 <TextField
                   class="grid w-full max-w-sm items-center gap-1.5"
-                  value={gps.grid}
+                  value={state.status.radio.gpsGrid}
                   readOnly
                 >
                   <TextFieldLabel for="grid-square">Grid Square</TextFieldLabel>
@@ -39,7 +37,7 @@ export function GpsStatus(props: { class?: string }) {
                 </TextField>
                 <NumberField
                   class="grid w-full max-w-sm items-center gap-1.5"
-                  value={gps.lat}
+                  value={state.status.radio.gpsLatitude}
                   format={false}
                   step={0.000001}
                   readOnly
@@ -51,7 +49,7 @@ export function GpsStatus(props: { class?: string }) {
                 </NumberField>
                 <NumberField
                   class="grid w-full max-w-sm items-center gap-1.5"
-                  value={gps.lon}
+                  value={state.status.radio.gpsLongitude}
                   step={0.000001}
                   format={false}
                   readOnly
@@ -61,14 +59,13 @@ export function GpsStatus(props: { class?: string }) {
                     <NumberFieldInput />
                   </NumberFieldGroup>
                 </NumberField>
-                <pre class="text-xs">{JSON.stringify(gps, null, 2)}</pre>
               </div>
             </div>
           </HoverCardContent>
         </HoverCard>
         <Separator orientation="vertical" />
       </Show>
-      <pre>{gps.time}</pre>
+      <pre>{state.status.radio.gpsUtcTime}</pre>
     </Flex>
   );
 }

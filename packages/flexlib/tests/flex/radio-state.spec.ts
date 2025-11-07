@@ -161,17 +161,17 @@ describe("createRadioStateStore", () => {
 
     let radio = store.getRadio();
     expect(radio).toBeDefined();
-    expect(radio?.gpsLatitude).toBe("38.433865");
-    expect(radio?.gpsLongitude).toBe("-90.454626667");
+    expect(radio?.gpsLatitude).toBeCloseTo(38.433865, 6);
+    expect(radio?.gpsLongitude).toBeCloseTo(-90.454626667, 9);
     expect(radio?.gpsGrid).toBe("EM48sk");
     expect(radio?.gpsAltitude).toBe("218 m");
-    expect(radio?.gpsSatellitesTracked).toBe("12");
-    expect(radio?.gpsSatellitesVisible).toBe("26");
+    expect(radio?.gpsSatellitesTracked).toBe(12);
+    expect(radio?.gpsSatellitesVisible).toBe(26);
     expect(radio?.gpsSpeed).toBe("0 kts");
     expect(radio?.gpsFreqError).toBe("-1 ppb");
     expect(radio?.gpsStatus).toBe("Fine Lock");
     expect(radio?.gpsUtcTime).toBe("11:22:37Z");
-    expect(radio?.gpsTrack).toBe("0.0");
+    expect(radio?.gpsTrack).toBeCloseTo(0, 6);
     expect(radio?.raw["lat"]).toBe("38.433865");
     expect(radio?.raw["freq_error"]).toBe("-1 ppb");
 

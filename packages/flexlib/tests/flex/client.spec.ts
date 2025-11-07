@@ -235,7 +235,7 @@ describe("FlexClient", () => {
     channel.emit(makeStatus(radioStatus));
 
     const radioSnapshot = session.getRadio();
-    expect(radioSnapshot?.gpsLatitude).toBe("38.433731667");
+    expect(radioSnapshot?.gpsLatitude).toBeCloseTo(38.433731667, 9);
     expect(radioSnapshot?.gpsStatus).toBe("Fine Lock");
     expect(radioSnapshot?.lineoutGain).toBe(49);
     expect(radioSnapshot?.lineoutMute).toBe(false);
@@ -252,14 +252,14 @@ describe("FlexClient", () => {
     expect(radioSnapshot?.frequencyErrorPpb).toBe(0);
 
     const radio = session.radio();
-    expect(radio.gpsLatitude).toBe("38.433731667");
-    expect(radio.gpsLongitude).toBe("-90.454651667");
+    expect(radio.gpsLatitude).toBeCloseTo(38.433731667, 9);
+    expect(radio.gpsLongitude).toBeCloseTo(-90.454651667, 9);
     expect(radio.gpsAltitude).toBe("235 m");
-    expect(radio.gpsSatellitesTracked).toBe("10");
-    expect(radio.gpsSatellitesVisible).toBe("31");
+    expect(radio.gpsSatellitesTracked).toBe(10);
+    expect(radio.gpsSatellitesVisible).toBe(31);
     expect(radio.gpsStatus).toBe("Fine Lock");
     expect(radio.gpsUtcTime).toBe("21:16:12Z");
-    expect(radio.gpsTrack).toBe("0.0");
+    expect(radio.gpsTrack).toBeCloseTo(0, 6);
     expect(radio.lineoutGain).toBe(49);
     expect(radio.lineoutMute).toBe(false);
     expect(radio.headphoneGain).toBe(50);

@@ -34,7 +34,11 @@ import {
   VitaPacketMetadata,
   scaleMeterRawValue,
 } from "@repo/flexlib";
-import type { DiscoverySession, FlexRadioDescriptor } from "@repo/flexlib";
+import type {
+  DiscoverySession,
+  FlexRadioDescriptor,
+  RadioProperties,
+} from "@repo/flexlib";
 import { createWebSocketFlexControlFactory } from "~/lib/flex-control";
 import { useRtc } from "./rtc";
 
@@ -87,21 +91,6 @@ export type Meter = Omit<MutableProps<MeterSnapshot>, "raw"> & {
   value?: number;
 };
 
-export interface GPS {
-  lat?: number;
-  lon?: number;
-  grid?: string; // "EM48sk"
-  altitude?: string; // "0 m"
-  tracked?: number;
-  visible?: number;
-  speed?: string; // "0 kts"
-  freq_error?: string; // "0 ppb"
-  status?: string; // "Fine Lock"
-  time?: string; // "19:37:58Z"
-  track?: number;
-  gnss_powered_ant?: boolean;
-}
-
 export interface Gradient {
   name: string;
   clip?: string; // Optional, used for gradients that have a clipping color
@@ -122,6 +111,7 @@ type MutableProps<T> = {
   -readonly [P in keyof T]: T[P];
 };
 
+export type Radio = Omit<MutableProps<RadioProperties>, "raw">;
 export type Slice = Omit<MutableProps<SliceSnapshot>, "raw">;
 export type Panadapter = Omit<MutableProps<PanadapterSnapshot>, "raw">;
 export type Waterfall = Omit<MutableProps<WaterfallSnapshot>, "raw">;
@@ -162,7 +152,6 @@ export interface ConnectModalState {
 
 export interface StatusState {
   meters: Record<string, Meter>;
-  gps: GPS;
   eq: {
     rx: Record<string, unknown>;
     rxsc: Record<string, unknown>;
@@ -175,15 +164,16 @@ export interface StatusState {
   interlock: {
     band: Record<string, IterlockBand>;
   };
-  radio: {
-    oscillator: Record<string, unknown>;
-    static_net_params: Record<string, unknown>;
-    filter_sharpness: {
-      VOICE: Record<string, unknown>;
-      CW: Record<string, unknown>;
-      DIGITAL: Record<string, unknown>;
-    };
-  };
+  radio: Radio;
+  // radio: {
+  //   oscillator: Record<string, unknown>;
+  //   static_net_params: Record<string, unknown>;
+  //   filter_sharpness: {
+  //     VOICE: Record<string, unknown>;
+  //     CW: Record<string, unknown>;
+  //     DIGITAL: Record<string, unknown>;
+  //   };
+  // };
   stream: Record<string, Stream>;
 }
 
@@ -301,7 +291,6 @@ export const initialState = () =>
     },
     status: {
       meters: {},
-      gps: {},
       eq: {
         rx: {},
         rxsc: {},
@@ -315,39 +304,39 @@ export const initialState = () =>
         band: {},
       },
       radio: {
-        // slices: 4,
-        // panadapters: 4,
-        // lineout_gain: 60,
-        // lineout_mute: false,
-        // headphone_gain: 50,
-        // headphone_mute: false,
-        // remote_on_enabled: false,
-        // pll_done: 0,
-        // freq_error_ppb: 0,
-        // cal_freq: 15.0,
-        // tnf_enabled: true,
-        // nickname: "FLEX-8600",
-        // callsign: "KF0SMY",
-        // binaural_rx: false,
-        // full_duplex_enabled: false,
-        // band_persistence_enabled: true,
-        // rtty_mark_default: 2125,
-        // enforce_private_ip_connections: true,
-        // backlight: 50,
-        // mute_local_audio_when_remote: true,
-        // daxiq_capacity: 16,
-        // daxiq_available: 16,
-        // alpha: 0,
-        // low_latency_digital_modes: true,
-        // mf_enable: true,
-        // auto_save: true,
-        oscillator: {},
-        static_net_params: {},
-        filter_sharpness: {
-          VOICE: {},
-          CW: {},
-          DIGITAL: {},
-        },
+        // // slices: 4,
+        // // panadapters: 4,
+        // // lineout_gain: 60,
+        // // lineout_mute: false,
+        // // headphone_gain: 50,
+        // // headphone_mute: false,
+        // // remote_on_enabled: false,
+        // // pll_done: 0,
+        // // freq_error_ppb: 0,
+        // // cal_freq: 15.0,
+        // // tnf_enabled: true,
+        // // nickname: "FLEX-8600",
+        // // callsign: "KF0SMY",
+        // // binaural_rx: false,
+        // // full_duplex_enabled: false,
+        // // band_persistence_enabled: true,
+        // // rtty_mark_default: 2125,
+        // // enforce_private_ip_connections: true,
+        // // backlight: 50,
+        // // mute_local_audio_when_remote: true,
+        // // daxiq_capacity: 16,
+        // // daxiq_available: 16,
+        // // alpha: 0,
+        // // low_latency_digital_modes: true,
+        // // mf_enable: true,
+        // // auto_save: true,
+        // oscillator: {},
+        // static_net_params: {},
+        // filter_sharpness: {
+        //   VOICE: {},
+        //   CW: {},
+        //   DIGITAL: {},
+        // },
       },
       stream: {},
     },
@@ -606,8 +595,18 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     }
   };
 
+  const handleRadioChange = (change: RadioStateChange) => {
+    if (change.entity !== "radio") return;
+    if (change.diff) {
+      setState("status", "radio", change.diff);
+    }
+  };
+
   const handleStateChange = (change: RadioStateChange) => {
     switch (change.entity) {
+      case "radio":
+        handleRadioChange(change);
+        break;
       case "slice":
         handleSliceChange(change);
         break;
@@ -712,66 +711,31 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     );
   });
 
-  const sendCommand = (command: string) => {
+  const sendCommand = async (command: string) => {
     const currentSession = flexSession();
     if (!currentSession) {
-      return Promise.reject(new Error("Not connected to a Flex radio"));
+      throw new Error("Not connected to a Flex radio");
     }
-    return currentSession
-      .command(command)
-      .then((response) => ({
+    try {
+      const response = await currentSession.command(command);
+      return {
         response: response.code ?? (response.accepted ? 0 : 1),
         message: response.message ?? "",
         debugOutput: response.raw,
-      }))
-      .catch((error) => {
-        if (error instanceof FlexCommandRejectedError) {
-          showToast({
-            description: error.message,
-            variant: "error",
-          });
-        }
-        throw error;
-      });
+      };
+    } catch (error) {
+      if (error instanceof FlexCommandRejectedError) {
+        showToast({
+          description: error.message,
+          variant: "error",
+        });
+      }
+      throw error;
+    }
   };
 
   window.state = state;
   window.sendCommand = sendCommand; // Expose for debugging
-
-  // window.state = state; // Expose for debugging
-  function updateGPS(rest: string[]) {
-    const split = rest.join(" ").split("#");
-
-    const applyUpdate = (gps: Partial<GPS>) => {
-      split.forEach((item) => {
-        const [key, value] = item.split("=");
-        switch (key) {
-          case "lat":
-          case "lon":
-          case "tracked":
-          case "visible":
-          case "track":
-            gps[key] = Number(value);
-            break;
-          case "gnss_powered_ant":
-            gps[key] = value === "1";
-            break;
-          case "grid":
-          case "altitude":
-          case "speed":
-          case "freq_error":
-          case "status":
-          case "time":
-            gps[key] = value;
-            break;
-          default:
-            console.warn(`Unknown key in GPS update: ${key}`);
-        }
-      });
-      return gps;
-    };
-    setState("status", "gps", produce(applyUpdate));
-  }
 
   function updateStream([stream, ...split]: string[]) {
     const applyUpdate = (streamData: Partial<Stream>) => {
@@ -945,13 +909,13 @@ export const FlexRadioProvider: ParentComponent = (props) => {
 
         const [key, ...rest] = message.split(" ");
         switch (key) {
-          case "gps":
-            return updateGPS(rest);
           case "stream":
             return updateStream(rest);
           case "meter":
           case "display":
           case "slice":
+          case "radio":
+          case "gps":
             return;
         }
 
@@ -1103,7 +1067,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
 
         const newSession = await flexClient.connect(descriptor, {
           connectionParams: {
-            onControlLine: (line) => {
+            onControlLine: (line: string) => {
               handleControlLine(line).catch((error) =>
                 console.error("Control line handler error", error),
               );

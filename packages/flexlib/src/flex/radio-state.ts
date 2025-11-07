@@ -258,17 +258,17 @@ export interface RadioProperties {
   readonly frequencyErrorPpb: number;
   readonly daxIqCapacity: number;
   readonly gpsInstalled: boolean;
-  readonly gpsLatitude?: string;
-  readonly gpsLongitude?: string;
+  readonly gpsLatitude?: number;
+  readonly gpsLongitude?: number;
   readonly gpsGrid?: string;
   readonly gpsAltitude?: string;
-  readonly gpsSatellitesTracked?: string;
-  readonly gpsSatellitesVisible?: string;
+  readonly gpsSatellitesTracked?: number;
+  readonly gpsSatellitesVisible?: number;
   readonly gpsSpeed?: string;
   readonly gpsFreqError?: string;
   readonly gpsStatus?: string;
   readonly gpsUtcTime?: string;
-  readonly gpsTrack?: string;
+  readonly gpsTrack?: number;
   readonly gpsGnssPoweredAntenna?: boolean;
   readonly raw: Readonly<Record<string, string>>;
 }
@@ -2079,10 +2079,18 @@ function applyGpsStatusAttributes(
   for (const [key, value] of Object.entries(attributes)) {
     switch (key) {
       case "lat":
-        partial.gpsLatitude = value;
+        {
+          const parsed = parseFloatSafe(value);
+          if (parsed !== undefined) partial.gpsLatitude = parsed;
+          else logParseError("gps", key, value);
+        }
         break;
       case "lon":
-        partial.gpsLongitude = value;
+        {
+          const parsed = parseFloatSafe(value);
+          if (parsed !== undefined) partial.gpsLongitude = parsed;
+          else logParseError("gps", key, value);
+        }
         break;
       case "grid":
         partial.gpsGrid = value;
@@ -2092,11 +2100,19 @@ function applyGpsStatusAttributes(
         break;
       case "tracked":
       case "satellites_tracked":
-        partial.gpsSatellitesTracked = value;
+        {
+          const parsed = parseInteger(value);
+          if (parsed !== undefined) partial.gpsSatellitesTracked = parsed;
+          else logParseError("gps", key, value);
+        }
         break;
       case "visible":
       case "satellites_visible":
-        partial.gpsSatellitesVisible = value;
+        {
+          const parsed = parseInteger(value);
+          if (parsed !== undefined) partial.gpsSatellitesVisible = parsed;
+          else logParseError("gps", key, value);
+        }
         break;
       case "speed":
         partial.gpsSpeed = value;
@@ -2111,7 +2127,11 @@ function applyGpsStatusAttributes(
         partial.gpsUtcTime = value;
         break;
       case "track":
-        partial.gpsTrack = value;
+        {
+          const parsed = parseFloatSafe(value);
+          if (parsed !== undefined) partial.gpsTrack = parsed;
+          else logParseError("gps", key, value);
+        }
         break;
       default: {
         const handled = applyGpsSharedAttribute(partial, key, value, "gps", {

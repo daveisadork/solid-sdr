@@ -143,6 +143,6 @@ export class AudioStreamControllerImpl implements AudioStreamController {
   }
 }
 
-// Backwards compatibility aliases while the higher-level API transitions.
-export type RemoteAudioStreamController = AudioStreamController;
-export const RemoteAudioStreamControllerImpl = AudioStreamControllerImpl;
+// Convenience alias for remote audio RX stream controllers.
+export type RemoteAudioRxStreamController = AudioStreamController;
+export const RemoteAudioRxStreamControllerImpl = AudioStreamControllerImpl;

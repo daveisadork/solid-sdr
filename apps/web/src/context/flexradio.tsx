@@ -25,20 +25,18 @@ import {
   VitaParsedPacket,
   VitaPacketMetadata,
   scaleMeterRawValue,
-} from "@repo/flexlib";
-import type {
-  AudioStreamSnapshot,
-  DiscoverySession,
-  FlexRadioDescriptor,
-  FlexRadioSession,
-  FlexWireMessage,
-  MeterSnapshot,
-  PanadapterSnapshot,
-  RadioProperties,
-  RadioStateChange,
-  SliceSnapshot,
-  Subscription,
-  WaterfallSnapshot,
+  type AudioStreamSnapshot,
+  type DiscoverySession,
+  type FlexRadioDescriptor,
+  type FlexRadioSession,
+  type FlexWireMessage,
+  type MeterSnapshot,
+  type PanadapterSnapshot,
+  type RadioProperties,
+  type RadioStateChange,
+  type SliceSnapshot,
+  type Subscription,
+  type WaterfallSnapshot,
 } from "@repo/flexlib";
 import { createWebSocketFlexControlFactory } from "~/lib/flex-control";
 import { useRtc } from "./rtc";
@@ -841,7 +839,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
             sendCommand("keepalive enable"),
           ]);
           const { message: clientId } = await sendCommand("client gui");
-          await flexSession()?.createRemoteAudioStream({
+          await flexSession()?.createRemoteAudioRxStream({
             compression: "OPUS",
           });
           setState("connectModal", "stage", ConnectionStage.Done);

@@ -154,7 +154,7 @@ describe("createRadioStateStore", () => {
     const gpsStatus =
       "S0|gps lat=38.433865#lon=-90.454626667#grid=EM48sk#altitude=218 m#tracked=12#visible=26#speed=0 kts#freq_error=-1 ppb#status=Fine Lock#time=11:22:37Z#track=0.0";
     const gnssStatus = "S0|gps gnss_powered_ant=false";
-    const installStatus = "S0|gps installed=1";
+    const installStatus = "S0|gps gps=installed";
 
     const [change] = store.apply(makeStatus(gpsStatus));
     expect(change?.entity).toBe("radio");

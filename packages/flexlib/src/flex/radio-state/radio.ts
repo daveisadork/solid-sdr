@@ -146,40 +146,26 @@ function applyRadioSourceAttributes(
         partial.callsign = value;
         break;
       case "version":
-      case "firmware":
         partial.firmware = value;
         break;
-      case "available_slices":
       case "slices": {
         const parsed = parseInteger(value);
         if (parsed !== undefined) partial.availableSlices = parsed;
         else logParseError("radio", key, value);
         break;
       }
-      case "available_panadapters":
       case "panadapters": {
         const parsed = parseInteger(value);
         if (parsed !== undefined) partial.availablePanadapters = parsed;
         else logParseError("radio", key, value);
         break;
       }
-      case "available_daxiq":
       case "daxiq_available": {
         const parsed = parseInteger(value);
         if (parsed !== undefined) partial.availableDaxIq = parsed;
         else logParseError("radio", key, value);
         break;
       }
-      case "available_dax":
-      case "dax_available": {
-        const parsed = parseInteger(value);
-        if (parsed !== undefined) partial.availableDaxAudio = parsed;
-        else logParseError("radio", key, value);
-        break;
-      }
-      case "gps_lock":
-        partial.gpsLock = isTruthy(value);
-        break;
       case "full_duplex_enabled":
         partial.fullDuplexEnabled = isTruthy(value);
         break;
@@ -277,9 +263,7 @@ function applyRadioSourceAttributes(
         break;
       }
       default: {
-        const handled = applyGpsSharedAttribute(partial, key, value, "radio", {
-          allowInstalledKey: false,
-        });
+        const handled = applyGpsSharedAttribute(partial, key, value, "radio");
         if (!handled) logUnknownAttribute("radio", key, value);
         break;
       }
@@ -311,14 +295,12 @@ function applyGpsStatusAttributes(
       case "altitude":
         partial.gpsAltitude = value;
         break;
-      case "satellites_tracked":
       case "tracked": {
         const parsed = parseInteger(value);
         if (parsed !== undefined) partial.gpsSatellitesTracked = parsed;
         else logParseError("gps", key, value);
         break;
       }
-      case "satellites_visible":
       case "visible": {
         const parsed = parseInteger(value);
         if (parsed !== undefined) partial.gpsSatellitesVisible = parsed;
@@ -344,9 +326,7 @@ function applyGpsStatusAttributes(
         break;
       }
       default: {
-        const handled = applyGpsSharedAttribute(partial, key, value, "gps", {
-          allowInstalledKey: true,
-        });
+        const handled = applyGpsSharedAttribute(partial, key, value, "gps");
         if (!handled) logUnknownAttribute("gps", key, value);
         break;
       }
@@ -359,18 +339,9 @@ function applyGpsSharedAttribute(
   key: string,
   value: string,
   entity: string,
-  options?: { allowInstalledKey?: boolean },
 ): boolean {
   switch (key) {
-    case "gps":
-    case "gps_installed": {
-      const parsed = parseGpsInstalled(value);
-      if (parsed !== undefined) partial.gpsInstalled = parsed;
-      else logUnknownAttribute(entity, key, value);
-      return true;
-    }
-    case "installed": {
-      if (!options?.allowInstalledKey) return false;
+    case "gps": {
       const parsed = parseGpsInstalled(value);
       if (parsed !== undefined) partial.gpsInstalled = parsed;
       else logUnknownAttribute(entity, key, value);

@@ -72,7 +72,6 @@ export function createPanadapterSnapshot(
   for (const [key, value] of Object.entries(attributes)) {
     switch (key) {
       case "stream_id":
-      case "stream":
         partial.streamId = value || partial.streamId;
         break;
       case "center": {

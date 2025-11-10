@@ -31,14 +31,8 @@ export interface AudioStreamController {
   readonly compression?: string;
   readonly clientHandle?: number;
   readonly ip?: string;
-  readonly port?: number;
   readonly daxChannel?: number;
   readonly slice?: string;
-  readonly rxGain?: number;
-  readonly rxMuted?: boolean;
-  readonly txGain?: number;
-  readonly txMuted?: boolean;
-  readonly clients?: number;
   snapshot(): AudioStreamSnapshot;
   on<TKey extends keyof AudioStreamControllerEvents>(
     event: TKey,
@@ -90,36 +84,12 @@ export class AudioStreamControllerImpl implements AudioStreamController {
     return this.current().ip;
   }
 
-  get port(): number | undefined {
-    return this.current().port;
-  }
-
   get daxChannel(): number | undefined {
     return this.current().daxChannel;
   }
 
   get slice(): string | undefined {
     return this.current().slice;
-  }
-
-  get rxGain(): number | undefined {
-    return this.current().rxGain;
-  }
-
-  get rxMuted(): boolean | undefined {
-    return this.current().rxMuted;
-  }
-
-  get txGain(): number | undefined {
-    return this.current().txGain;
-  }
-
-  get txMuted(): boolean | undefined {
-    return this.current().txMuted;
-  }
-
-  get clients(): number | undefined {
-    return this.current().clients;
   }
 
   snapshot(): AudioStreamSnapshot {

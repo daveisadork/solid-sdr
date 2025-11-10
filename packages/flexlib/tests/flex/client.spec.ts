@@ -203,7 +203,7 @@ describe("FlexClient", () => {
 
     channel.emit(
       makeStatus(
-        "S1|stream 0x04000008 type=remote_audio_rx compression=OPUS client_handle=0x1234 ip=10.0.0.5 rx_gain=0 rx_mute=0",
+        "S1|stream 0x04000008 type=remote_audio_rx compression=OPUS client_handle=0x1234 ip=10.0.0.5",
       ),
     );
 
@@ -212,8 +212,6 @@ describe("FlexClient", () => {
     expect(stream.compression).toBe("OPUS");
     expect(stream.clientHandle).toBe(0x1234);
     expect(stream.ip).toBe("10.0.0.5");
-    expect(stream.rxGain).toBe(0);
-    expect(stream.rxMuted).toBe(false);
 
     expect(session.getAudioStreams()).toHaveLength(1);
     expect(session.getRemoteAudioRxStreams()).toHaveLength(1);
@@ -221,11 +219,10 @@ describe("FlexClient", () => {
     expect(session.remoteAudioRxStream("0x04000008")).toBe(stream);
 
     channel.emit(
-      makeStatus("S1|stream 0x04000008 rx_gain=75 rx_mute=1 port=5000"),
+      makeStatus("S1|stream 0x04000008 ip=10.0.0.6 slice=1"),
     );
-    expect(stream.rxGain).toBe(75);
-    expect(stream.rxMuted).toBe(true);
-    expect(stream.port).toBe(5000);
+    expect(stream.ip).toBe("10.0.0.6");
+    expect(stream.slice).toBe("1");
 
     await stream.close();
     expect(channel.commands.at(-1)?.command).toBe(

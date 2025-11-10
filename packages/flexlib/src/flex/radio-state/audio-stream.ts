@@ -1,7 +1,6 @@
 import type { Mutable, SnapshotUpdate } from "./common.js";
 import {
   freezeAttributes,
-  isTruthy,
   logParseError,
   logUnknownAttribute,
   parseInteger,
@@ -23,14 +22,8 @@ export interface AudioStreamSnapshot {
   readonly compression?: string;
   readonly clientHandle?: number;
   readonly ip?: string;
-  readonly port?: number;
   readonly daxChannel?: number;
   readonly slice?: string;
-  readonly rxGain?: number;
-  readonly rxMuted?: boolean;
-  readonly txGain?: number;
-  readonly txMuted?: boolean;
-  readonly clients?: number;
   readonly raw: Readonly<Record<string, string>>;
 }
 
@@ -53,7 +46,6 @@ export function createAudioStreamSnapshot(
   for (const [key, value] of Object.entries(attributes)) {
     switch (key) {
       case "stream_id":
-      case "stream":
         partial.streamId = value || partial.streamId;
         break;
       case "type":
@@ -71,12 +63,6 @@ export function createAudioStreamSnapshot(
       case "ip":
         partial.ip = value;
         break;
-      case "port": {
-        const parsed = parseInteger(value);
-        if (parsed !== undefined) partial.port = parsed;
-        else logParseError("audio_stream", key, value);
-        break;
-      }
       case "dax_channel": {
         const parsed = parseInteger(value);
         if (parsed !== undefined) partial.daxChannel = parsed;
@@ -86,32 +72,6 @@ export function createAudioStreamSnapshot(
       case "slice":
         partial.slice = value;
         break;
-      case "rx_gain": {
-        const parsed = parseInteger(value);
-        if (parsed !== undefined) partial.rxGain = parsed;
-        else logParseError("audio_stream", key, value);
-        break;
-      }
-      case "rx_mute":
-      case "rx_muted":
-        partial.rxMuted = isTruthy(value);
-        break;
-      case "tx_gain": {
-        const parsed = parseInteger(value);
-        if (parsed !== undefined) partial.txGain = parsed;
-        else logParseError("audio_stream", key, value);
-        break;
-      }
-      case "tx_mute":
-      case "tx_muted":
-        partial.txMuted = isTruthy(value);
-        break;
-      case "clients": {
-        const parsed = parseInteger(value);
-        if (parsed !== undefined) partial.clients = parsed;
-        else logParseError("audio_stream", key, value);
-        break;
-      }
       default:
         logUnknownAttribute("audio_stream", key, value);
         break;

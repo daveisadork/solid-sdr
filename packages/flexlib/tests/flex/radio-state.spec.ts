@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createRadioStateStore } from "../../src/flex/radio-state.js";
+import { lineSpeedToDurationMs } from "../../src/flex/waterfall-line-speed.js";
 import { makeStatus } from "../helpers.js";
 
 const SLICE_STATUS =
@@ -142,7 +143,8 @@ describe("createRadioStateStore", () => {
     expect(waterfall?.bandwidthMHz).toBeCloseTo(0.2, 6);
     expect(waterfall?.isBandZoomOn).toBe(false);
     expect(waterfall?.isSegmentZoomOn).toBe(false);
-    expect(waterfall?.lineDurationMs).toBe(100);
+    expect(waterfall?.lineSpeed).toBe(100);
+    expect(waterfall?.lineDurationMs).toBe(lineSpeedToDurationMs(100));
     expect(waterfall?.colorGain).toBe(50);
     expect(waterfall?.autoBlackLevelEnabled).toBe(true);
     expect(waterfall?.raw["x_pixels"]).toBe("50");

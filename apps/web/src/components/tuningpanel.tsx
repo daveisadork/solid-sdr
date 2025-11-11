@@ -1,6 +1,7 @@
 import useFlexRadio from "~/context/flexradio";
 import { createEffect, createSignal, For } from "solid-js";
 import { createStore } from "solid-js/store";
+import { lineSpeedToDurationMs } from "@repo/flexlib";
 import {
   NumberField,
   NumberFieldDecrementTrigger,
@@ -73,8 +74,8 @@ export function TuningPanel(props: { streamId: string }) {
   );
   const [rawAverage, setRawAverage] = createSignal(panController().average);
   const [rawFps, setRawFps] = createSignal(pan.fps);
-  const [rawLineDuration, setRawLineDuration] = createSignal(
-    wfController().lineDurationMs,
+  const [rawLineSpeed, setRawLineSpeed] = createSignal(
+    wfController().lineSpeed ?? 0,
   );
   const [rawColorGain, setRawColorGain] = createSignal(
     wfController().colorGain,
@@ -114,15 +115,13 @@ export function TuningPanel(props: { streamId: string }) {
   const updateLineDuration = debounce((value: number) => {
     console.log("Setting Line Duration to", value);
     const wf = wfController();
-    wf.setLineDuration(value).catch(() =>
-      setRawLineDuration(wf.lineDurationMs),
-    );
+    wf.setLineSpeed(value).catch(() => setRawLineSpeed(wf.lineSpeed ?? 0));
   }, 250);
 
   createEffect(() => {
     console.log("Line duration effect triggered");
-    const lineDuration = rawLineDuration();
-    if (lineDuration !== waterfall.lineDurationMs) {
+    const lineDuration = rawLineSpeed();
+    if (lineDuration !== waterfall.lineSpeed) {
       updateLineDuration(lineDuration);
     }
   });
@@ -162,7 +161,7 @@ export function TuningPanel(props: { streamId: string }) {
 
   createEffect(() => setRawAverage(pan.average));
   createEffect(() => setRawFps(pan.fps));
-  createEffect(() => setRawLineDuration(waterfall.lineDurationMs));
+  createEffect(() => setRawLineSpeed(waterfall.lineSpeed ?? 0));
   createEffect(() => setRawColorGain(waterfall.colorGain));
 
   return (
@@ -408,10 +407,10 @@ export function TuningPanel(props: { streamId: string }) {
       <Slider
         minValue={1}
         maxValue={100}
-        value={[rawLineDuration()]}
-        onChange={([value]) => setRawLineDuration(Math.round(value))}
+        value={[rawLineSpeed()]}
+        onChange={([value]) => setRawLineSpeed(Math.round(value))}
         getValueLabel={(params) =>
-          `${40 + Math.floor(Math.pow(100 - params.values[0], 3) / 200)} ms`
+          `${lineSpeedToDurationMs(params.values[0])} ms`
         }
         class="space-y-3"
       >

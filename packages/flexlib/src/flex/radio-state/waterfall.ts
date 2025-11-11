@@ -1,4 +1,5 @@
 import type { Mutable, SnapshotUpdate } from "./common.js";
+import { lineSpeedToDurationMs } from "../waterfall-line-speed.js";
 import {
   arraysShallowEqual,
   freezeArray,
@@ -39,6 +40,9 @@ export interface WaterfallSnapshot {
   readonly band: string;
   readonly width: number;
   readonly height: number;
+  /** Raw 0-100 line speed mirrored from the radio. */
+  readonly lineSpeed?: number;
+  /** Derived milliseconds value computed from lineSpeed. */
   readonly lineDurationMs?: number;
   readonly blackLevel: number;
   readonly colorGain: number;
@@ -191,8 +195,10 @@ export function createWaterfallSnapshot(
       }
       case "line_duration": {
         const parsed = parseInteger(value);
-        if (parsed !== undefined) partial.lineDurationMs = parsed;
-        else logParseError("waterfall", key, value);
+        if (parsed !== undefined) {
+          partial.lineSpeed = parsed;
+          partial.lineDurationMs = lineSpeedToDurationMs(parsed);
+        } else logParseError("waterfall", key, value);
         break;
       }
       case "black_level": {

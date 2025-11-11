@@ -15,6 +15,10 @@ import {
   formatInteger,
   formatMegahertz,
 } from "./controller-helpers.js";
+import {
+  clampLineSpeed,
+  lineSpeedToDurationMs,
+} from "./waterfall-line-speed.js";
 
 export interface WaterfallControllerEvents extends Record<string, unknown> {
   readonly change: WaterfallStateChange;
@@ -34,6 +38,9 @@ export interface WaterfallUpdateRequest {
   loopAEnabled?: boolean;
   loopBEnabled?: boolean;
   band?: string;
+  /** Raw 0-100 line speed value mirrored from the radio. */
+  lineSpeed?: number;
+  /** @deprecated Pass the raw 0-100 speed directly or use lineSpeed. */
   lineDurationMs?: number;
   blackLevel?: number;
   colorGain?: number;
@@ -78,6 +85,9 @@ export interface WaterfallController {
   readonly band: string;
   readonly width: number;
   readonly height: number;
+  /** Raw 0-100 line speed as reported by the radio. */
+  readonly lineSpeed: number | undefined;
+  /** Derived line duration in milliseconds computed from lineSpeed. */
   readonly lineDurationMs: number | undefined;
   readonly blackLevel: number;
   readonly colorGain: number;
@@ -106,7 +116,7 @@ export interface WaterfallController {
   setLoopAEnabled(enabled: boolean): Promise<void>;
   setLoopBEnabled(enabled: boolean): Promise<void>;
   setBand(band: string): Promise<void>;
-  setLineDuration(ms: number): Promise<void>;
+  setLineSpeed(value: number): Promise<void>;
   setBlackLevel(level: number): Promise<void>;
   setColorGain(value: number): Promise<void>;
   setAutoBlackLevelEnabled(enabled: boolean): Promise<void>;
@@ -234,8 +244,14 @@ export class WaterfallControllerImpl implements WaterfallController {
     return this.current().height;
   }
 
+  get lineSpeed(): number | undefined {
+    return this.current().lineSpeed;
+  }
+
   get lineDurationMs(): number | undefined {
-    return this.current().lineDurationMs;
+    const speed = this.current().lineSpeed;
+    if (speed === undefined) return undefined;
+    return lineSpeedToDurationMs(speed);
   }
 
   get blackLevel(): number {
@@ -333,8 +349,8 @@ export class WaterfallControllerImpl implements WaterfallController {
     await this.sendSet({ band });
   }
 
-  async setLineDuration(ms: number): Promise<void> {
-    await this.sendSet({ line_duration: formatInteger(ms) });
+  async setLineSpeed(value: number): Promise<void> {
+    await this.sendSet({ line_duration: formatInteger(clampLineSpeed(value)) });
   }
 
   async setBlackLevel(level: number): Promise<void> {
@@ -416,7 +432,9 @@ export class WaterfallControllerImpl implements WaterfallController {
     if (request.loopBEnabled !== undefined)
       entries.loopb = formatBooleanFlag(request.loopBEnabled);
     if (request.band !== undefined) entries.band = request.band;
-    if (request.lineDurationMs !== undefined)
+    if (request.lineSpeed !== undefined)
+      entries.line_duration = formatInteger(clampLineSpeed(request.lineSpeed));
+    else if (request.lineDurationMs !== undefined)
       entries.line_duration = formatInteger(request.lineDurationMs);
     if (request.blackLevel !== undefined)
       entries.black_level = formatInteger(request.blackLevel);

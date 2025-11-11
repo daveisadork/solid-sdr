@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { FlexRadioDescriptor } from "../../src/flex/adapters.js";
 import { createFlexClient } from "../../src/flex/client.js";
+import { lineSpeedToDurationMs } from "../../src/flex/waterfall-line-speed.js";
 import { MockControlFactory, makeStatus } from "../helpers.js";
 
 const descriptor: FlexRadioDescriptor = {
@@ -32,17 +33,19 @@ describe("Waterfall controller", () => {
     expect(snapshot).toBeDefined();
     expect(snapshot?.centerFrequencyMHz).toBeCloseTo(14.1, 6);
     expect(snapshot?.bandwidthMHz).toBeCloseTo(0.0027, 6);
-    expect(snapshot?.lineDurationMs).toBe(100);
+    expect(snapshot?.lineSpeed).toBe(100);
+    expect(snapshot?.lineDurationMs).toBe(lineSpeedToDurationMs(100));
 
     const controller = session.waterfall("0x50000000");
     expect(controller).toBeDefined();
     expect(controller!.rfGain).toBe(10);
 
-    await controller!.setLineDuration(150);
+    await controller!.setLineSpeed(55);
     expect(channel.commands.at(-1)?.command).toBe(
-      "display panafall set 0x50000000 line_duration=150",
+      "display panafall set 0x50000000 line_duration=55",
     );
-    expect(controller!.lineDurationMs).toBe(150);
+    expect(controller!.lineSpeed).toBe(55);
+    expect(controller!.lineDurationMs).toBe(lineSpeedToDurationMs(55));
 
     await controller!.setBlackLevel(1250);
     expect(channel.commands.at(-1)?.command).toBe(

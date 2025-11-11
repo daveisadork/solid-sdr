@@ -10,15 +10,6 @@ import { Portal } from "solid-js/web";
 import useFlexRadio, { PacketEvent } from "~/context/flexradio";
 import { LinearScale } from "./linear-scale";
 
-const LINE_DURATION_OFFSET_MS = 40;
-
-function lineDurationToMs(value: number) {
-  if (!Number.isFinite(value)) return 0;
-  const clamped = Math.min(Math.max(value, 0), 100);
-  const delta = 100 - clamped;
-  return LINE_DURATION_OFFSET_MS + Math.floor((delta * delta * delta) / 200);
-}
-
 export function Waterfall(props: { streamId: string }) {
   const streamId = () => props.streamId;
   const { events, session, state, setState } = useFlexRadio();
@@ -36,7 +27,7 @@ export function Waterfall(props: { streamId: string }) {
   const [autoBlackLevel, setAutoBlackLevel] = createSignal(0);
   const [black, setBlack] = createSignal("#000000");
   const [lineDurationMs, setLineDurationMs] = createSignal(
-    lineDurationToMs(waterfall().lineDurationMs),
+    waterfall().lineDurationMs ?? 0,
   );
 
   const waterfallController = () => session()?.waterfall(streamId());
@@ -142,7 +133,7 @@ export function Waterfall(props: { streamId: string }) {
   });
 
   createEffect(() => {
-    setLineDurationMs(lineDurationToMs(waterfall().lineDurationMs));
+    setLineDurationMs(waterfall().lineDurationMs ?? 0);
   });
 
   const totalSeconds = createMemo(() => {

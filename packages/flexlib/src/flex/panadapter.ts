@@ -11,6 +11,13 @@ import {
 } from "./errors.js";
 import { parseRfGainInfo } from "./rf-gain.js";
 import type { RfGainInfo } from "./rf-gain.js";
+import {
+  buildDisplaySetCommand,
+  formatBooleanFlag,
+  formatDbm,
+  formatInteger,
+  formatMegahertz,
+} from "./controller-helpers.js";
 
 export interface PanadapterControllerEvents extends Record<string, unknown> {
   readonly change: PanadapterStateChange;
@@ -120,45 +127,45 @@ export interface PanadapterController {
     event: TKey,
     listener: (payload: PanadapterControllerEvents[TKey]) => void,
   ): Subscription;
-  setCenterFrequency(frequencyMHz: number): Promise<PanadapterSnapshot>;
-  setBandwidth(bandwidthMHz: number): Promise<PanadapterSnapshot>;
-  setAutoCenter(enabled: boolean): Promise<PanadapterSnapshot>;
-  setMinDbm(value: number): Promise<PanadapterSnapshot>;
-  setMaxDbm(value: number): Promise<PanadapterSnapshot>;
+  setCenterFrequency(frequencyMHz: number): Promise<void>;
+  setBandwidth(bandwidthMHz: number): Promise<void>;
+  setAutoCenter(enabled: boolean): Promise<void>;
+  setMinDbm(value: number): Promise<void>;
+  setMaxDbm(value: number): Promise<void>;
   setDbmRange(range: {
     low: number;
     high: number;
-  }): Promise<PanadapterSnapshot>;
-  setFps(value: number): Promise<PanadapterSnapshot>;
-  setAverage(value: number): Promise<PanadapterSnapshot>;
-  setWeightedAverage(enabled: boolean): Promise<PanadapterSnapshot>;
-  setBandZoom(enabled: boolean): Promise<PanadapterSnapshot>;
-  setSegmentZoom(enabled: boolean): Promise<PanadapterSnapshot>;
+  }): Promise<void>;
+  setFps(value: number): Promise<void>;
+  setAverage(value: number): Promise<void>;
+  setWeightedAverage(enabled: boolean): Promise<void>;
+  setBandZoom(enabled: boolean): Promise<void>;
+  setSegmentZoom(enabled: boolean): Promise<void>;
   /**
    * Enables or disables the Wideband Noise Blanker (WNB) for the panadapter.
    */
-  setWnbEnabled(enabled: boolean): Promise<PanadapterSnapshot>;
+  setWnbEnabled(enabled: boolean): Promise<void>;
   /**
    * Sets the Wideband Noise Blanker (WNB) level from 0 to 100.
    */
-  setWnbLevel(level: number): Promise<PanadapterSnapshot>;
-  setNoiseFloorPosition(value: number): Promise<PanadapterSnapshot>;
-  setNoiseFloorPositionEnabled(enabled: boolean): Promise<PanadapterSnapshot>;
-  setRxAntenna(port: string): Promise<PanadapterSnapshot>;
-  setRfGain(value: number): Promise<PanadapterSnapshot>;
-  setDaxIqChannel(channel: number): Promise<PanadapterSnapshot>;
-  setLoopAEnabled(enabled: boolean): Promise<PanadapterSnapshot>;
-  setLoopBEnabled(enabled: boolean): Promise<PanadapterSnapshot>;
-  setWidth(width: number): Promise<PanadapterSnapshot>;
-  setHeight(height: number): Promise<PanadapterSnapshot>;
-  setBand(band: string): Promise<PanadapterSnapshot>;
-  setLoggerDisplayEnabled(enabled: boolean): Promise<PanadapterSnapshot>;
-  setLoggerDisplayAddress(address: string): Promise<PanadapterSnapshot>;
-  setLoggerDisplayPort(port: number): Promise<PanadapterSnapshot>;
-  setLoggerDisplayRadioNumber(radio: number): Promise<PanadapterSnapshot>;
-  refreshRfGainInfo(): Promise<PanadapterSnapshot>;
+  setWnbLevel(level: number): Promise<void>;
+  setNoiseFloorPosition(value: number): Promise<void>;
+  setNoiseFloorPositionEnabled(enabled: boolean): Promise<void>;
+  setRxAntenna(port: string): Promise<void>;
+  setRfGain(value: number): Promise<void>;
+  setDaxIqChannel(channel: number): Promise<void>;
+  setLoopAEnabled(enabled: boolean): Promise<void>;
+  setLoopBEnabled(enabled: boolean): Promise<void>;
+  setWidth(width: number): Promise<void>;
+  setHeight(height: number): Promise<void>;
+  setBand(band: string): Promise<void>;
+  setLoggerDisplayEnabled(enabled: boolean): Promise<void>;
+  setLoggerDisplayAddress(address: string): Promise<void>;
+  setLoggerDisplayPort(port: number): Promise<void>;
+  setLoggerDisplayRadioNumber(radio: number): Promise<void>;
+  refreshRfGainInfo(): Promise<void>;
   clickTune(frequencyMHz: number): Promise<void>;
-  update(request: PanadapterUpdateRequest): Promise<PanadapterSnapshot>;
+  update(request: PanadapterUpdateRequest): Promise<void>;
   close(): Promise<void>;
 }
 
@@ -363,171 +370,149 @@ export class PanadapterControllerImpl implements PanadapterController {
     return this.events.on(event, listener);
   }
 
-  async setCenterFrequency(frequencyMHz: number): Promise<PanadapterSnapshot> {
+  async setCenterFrequency(frequencyMHz: number): Promise<void> {
     await this.sendSet({ center: formatMegahertz(frequencyMHz) });
-    return this.snapshot();
   }
 
-  async setBandwidth(bandwidthMHz: number): Promise<PanadapterSnapshot> {
+  async setBandwidth(bandwidthMHz: number): Promise<void> {
     const snapshot = this.current();
     const target = this.clampBandwidth(bandwidthMHz, snapshot);
     const extras: string[] = [];
     if (snapshot.autoCenterEnabled) extras.push("autocenter=1");
     await this.sendSet({ bandwidth: formatMegahertz(target) }, extras);
-    return this.snapshot();
   }
 
-  setAutoCenter(enabled: boolean): Promise<PanadapterSnapshot> {
+  /**
+   * Mirrors FlexLib's behaviour: toggling auto-center is a local flag that only
+   * affects the next bandwidth command (which will append `autocenter=1`).
+   * There is no standalone wire command for this setting.
+   */
+  async setAutoCenter(enabled: boolean): Promise<void> {
     this.applyAutoCenter(enabled);
-    return Promise.resolve(this.snapshot());
   }
 
-  async setMinDbm(value: number): Promise<PanadapterSnapshot> {
+  async setMinDbm(value: number): Promise<void> {
     const clamped = this.clampNumber(value, -180, undefined);
     await this.sendSet({ min_dbm: formatDbm(clamped) });
-    return this.snapshot();
   }
 
-  async setMaxDbm(value: number): Promise<PanadapterSnapshot> {
+  async setMaxDbm(value: number): Promise<void> {
     const clamped = this.clampNumber(value, undefined, 20);
     await this.sendSet({ max_dbm: formatDbm(clamped) });
-    return this.snapshot();
   }
 
   async setDbmRange(range: {
     low: number;
     high: number;
-  }): Promise<PanadapterSnapshot> {
+  }): Promise<void> {
     const low = this.clampNumber(range.low, -180, undefined);
     const high = this.clampNumber(range.high, undefined, 20);
     await this.sendSet({
       min_dbm: formatDbm(low),
       max_dbm: formatDbm(high),
     });
-    return this.snapshot();
   }
 
-  async setFps(value: number): Promise<PanadapterSnapshot> {
-    await this.sendSet({ fps: this.toIntString(value) });
-    return this.snapshot();
+  async setFps(value: number): Promise<void> {
+    await this.sendSet({ fps: formatInteger(value) });
   }
 
-  async setAverage(value: number): Promise<PanadapterSnapshot> {
-    await this.sendSet({ average: this.toIntString(value) });
-    return this.snapshot();
+  async setAverage(value: number): Promise<void> {
+    await this.sendSet({ average: formatInteger(value) });
   }
 
-  async setWeightedAverage(enabled: boolean): Promise<PanadapterSnapshot> {
-    await this.sendSet({ weighted_average: this.toFlag(enabled) });
-    return this.snapshot();
+  async setWeightedAverage(enabled: boolean): Promise<void> {
+    await this.sendSet({ weighted_average: formatBooleanFlag(enabled) });
   }
 
-  async setBandZoom(enabled: boolean): Promise<PanadapterSnapshot> {
-    await this.sendSet({ band_zoom: this.toFlag(enabled) });
-    return this.snapshot();
+  async setBandZoom(enabled: boolean): Promise<void> {
+    await this.sendSet({ band_zoom: formatBooleanFlag(enabled) });
   }
 
-  async setSegmentZoom(enabled: boolean): Promise<PanadapterSnapshot> {
-    await this.sendSet({ segment_zoom: this.toFlag(enabled) });
-    return this.snapshot();
+  async setSegmentZoom(enabled: boolean): Promise<void> {
+    await this.sendSet({ segment_zoom: formatBooleanFlag(enabled) });
   }
 
-  async setWnbEnabled(enabled: boolean): Promise<PanadapterSnapshot> {
-    await this.sendSet({ wnb: this.toFlag(enabled) });
-    return this.snapshot();
+  async setWnbEnabled(enabled: boolean): Promise<void> {
+    await this.sendSet({ wnb: formatBooleanFlag(enabled) });
   }
 
-  async setWnbLevel(level: number): Promise<PanadapterSnapshot> {
+  async setWnbLevel(level: number): Promise<void> {
     const clamped = this.clampNumber(Math.round(level), 0, 100);
-    await this.sendSet({ wnb_level: this.toIntString(clamped) });
-    return this.snapshot();
+    await this.sendSet({ wnb_level: formatInteger(clamped) });
   }
 
   async setNoiseFloorPosition(
     value: number,
-  ): Promise<PanadapterSnapshot> {
+  ): Promise<void> {
     await this.sendSet({
-      pan_position: this.toIntString(Math.round(value)),
+      pan_position: formatInteger(Math.round(value)),
     });
-    return this.snapshot();
   }
 
   async setNoiseFloorPositionEnabled(
     enabled: boolean,
-  ): Promise<PanadapterSnapshot> {
-    await this.sendSet({ pan_position_enable: this.toFlag(enabled) });
-    return this.snapshot();
+  ): Promise<void> {
+    await this.sendSet({ pan_position_enable: formatBooleanFlag(enabled) });
   }
 
-  async setRxAntenna(port: string): Promise<PanadapterSnapshot> {
+  async setRxAntenna(port: string): Promise<void> {
     await this.sendSet({ rxant: port });
-    return this.snapshot();
   }
 
-  async setRfGain(value: number): Promise<PanadapterSnapshot> {
-    await this.sendSet({ rfgain: this.toIntString(value) });
-    return this.snapshot();
+  async setRfGain(value: number): Promise<void> {
+    await this.sendSet({ rfgain: formatInteger(value) });
   }
 
-  async setDaxIqChannel(channel: number): Promise<PanadapterSnapshot> {
-    await this.sendSet({ daxiq_channel: this.toIntString(channel) });
-    return this.snapshot();
+  async setDaxIqChannel(channel: number): Promise<void> {
+    await this.sendSet({ daxiq_channel: formatInteger(channel) });
   }
 
-  async setLoopAEnabled(enabled: boolean): Promise<PanadapterSnapshot> {
-    await this.sendSet({ loopa: this.toFlag(enabled) });
-    return this.snapshot();
+  async setLoopAEnabled(enabled: boolean): Promise<void> {
+    await this.sendSet({ loopa: formatBooleanFlag(enabled) });
   }
 
-  async setLoopBEnabled(enabled: boolean): Promise<PanadapterSnapshot> {
-    await this.sendSet({ loopb: this.toFlag(enabled) });
-    return this.snapshot();
+  async setLoopBEnabled(enabled: boolean): Promise<void> {
+    await this.sendSet({ loopb: formatBooleanFlag(enabled) });
   }
 
-  async setWidth(width: number): Promise<PanadapterSnapshot> {
+  async setWidth(width: number): Promise<void> {
     const entries: Record<string, string> = {
-      xpixels: this.toIntString(width),
+      xpixels: formatInteger(width),
     };
     await this.sendSet(entries);
-    return this.snapshot();
   }
 
-  async setHeight(height: number): Promise<PanadapterSnapshot> {
+  async setHeight(height: number): Promise<void> {
     const entries: Record<string, string> = {
-      ypixels: this.toIntString(height),
+      ypixels: formatInteger(height),
     };
     await this.sendSet(entries);
-    return this.snapshot();
   }
 
-  async setBand(band: string): Promise<PanadapterSnapshot> {
+  async setBand(band: string): Promise<void> {
     await this.sendSet({ band });
-    return this.snapshot();
   }
 
-  async setLoggerDisplayEnabled(enabled: boolean): Promise<PanadapterSnapshot> {
-    await this.sendSet({ n1mm_spectrum_enable: this.toFlag(enabled) });
-    return this.snapshot();
+  async setLoggerDisplayEnabled(enabled: boolean): Promise<void> {
+    await this.sendSet({ n1mm_spectrum_enable: formatBooleanFlag(enabled) });
   }
 
-  async setLoggerDisplayAddress(address: string): Promise<PanadapterSnapshot> {
+  async setLoggerDisplayAddress(address: string): Promise<void> {
     await this.sendSet({ n1mm_address: address });
-    return this.snapshot();
   }
 
-  async setLoggerDisplayPort(port: number): Promise<PanadapterSnapshot> {
-    await this.sendSet({ n1mm_port: this.toIntString(port) });
-    return this.snapshot();
+  async setLoggerDisplayPort(port: number): Promise<void> {
+    await this.sendSet({ n1mm_port: formatInteger(port) });
   }
 
   async setLoggerDisplayRadioNumber(
     radio: number,
-  ): Promise<PanadapterSnapshot> {
-    await this.sendSet({ n1mm_radio: this.toIntString(radio) });
-    return this.snapshot();
+  ): Promise<void> {
+    await this.sendSet({ n1mm_radio: formatInteger(radio) });
   }
 
-  async refreshRfGainInfo(): Promise<PanadapterSnapshot> {
+  async refreshRfGainInfo(): Promise<void> {
     const stream = this.requireStreamHandle();
     const response = await this.session.command(
       `display pan rfgain_info ${stream}`,
@@ -542,7 +527,6 @@ export class PanadapterControllerImpl implements PanadapterController {
       );
     }
     this.session.applyPanadapterRfGainInfo(this.id, info);
-    return this.snapshot();
   }
 
   async clickTune(frequencyMHz: number): Promise<void> {
@@ -551,7 +535,7 @@ export class PanadapterControllerImpl implements PanadapterController {
     await this.session.command(command);
   }
 
-  async update(request: PanadapterUpdateRequest): Promise<PanadapterSnapshot> {
+  async update(request: PanadapterUpdateRequest): Promise<void> {
     const entries = this.buildSetEntries(request);
     if (Object.keys(entries).length > 0) {
       await this.sendSet(entries);
@@ -559,7 +543,6 @@ export class PanadapterControllerImpl implements PanadapterController {
     if (request.autoCenterEnabled !== undefined) {
       this.applyAutoCenter(request.autoCenterEnabled);
     }
-    return this.snapshot();
   }
 
   async close(): Promise<void> {
@@ -592,47 +575,49 @@ export class PanadapterControllerImpl implements PanadapterController {
       const clamped = this.clampNumber(request.highDbm, undefined, 20);
       entries.max_dbm = formatDbm(clamped);
     }
-    if (request.fps !== undefined) entries.fps = this.toIntString(request.fps);
+    if (request.fps !== undefined) entries.fps = formatInteger(request.fps);
     if (request.average !== undefined)
-      entries.average = this.toIntString(request.average);
+      entries.average = formatInteger(request.average);
     if (request.weightedAverage !== undefined)
-      entries.weighted_average = this.toFlag(request.weightedAverage);
+      entries.weighted_average = formatBooleanFlag(request.weightedAverage);
     if (request.isBandZoomOn !== undefined)
-      entries.band_zoom = this.toFlag(request.isBandZoomOn);
+      entries.band_zoom = formatBooleanFlag(request.isBandZoomOn);
     if (request.isSegmentZoomOn !== undefined)
-      entries.segment_zoom = this.toFlag(request.isSegmentZoomOn);
+      entries.segment_zoom = formatBooleanFlag(request.isSegmentZoomOn);
     if (request.wnbEnabled !== undefined)
-      entries.wnb = this.toFlag(request.wnbEnabled);
+      entries.wnb = formatBooleanFlag(request.wnbEnabled);
     if (request.wnbLevel !== undefined) {
       const clamped = this.clampNumber(Math.round(request.wnbLevel), 0, 100);
-      entries.wnb_level = this.toIntString(clamped);
+      entries.wnb_level = formatInteger(clamped);
     }
     if (request.noiseFloorPosition !== undefined)
-      entries.pan_position = this.toIntString(
+      entries.pan_position = formatInteger(
         Math.round(request.noiseFloorPosition),
       );
     if (request.noiseFloorPositionEnabled !== undefined)
-      entries.pan_position_enable = this.toFlag(
+      entries.pan_position_enable = formatBooleanFlag(
         request.noiseFloorPositionEnabled,
       );
     if (request.rxAntenna !== undefined) entries.rxant = request.rxAntenna;
     if (request.rfGain !== undefined)
-      entries.rfgain = this.toIntString(request.rfGain);
+      entries.rfgain = formatInteger(request.rfGain);
     if (request.daxIqChannel !== undefined)
-      entries.daxiq_channel = this.toIntString(request.daxIqChannel);
+      entries.daxiq_channel = formatInteger(request.daxIqChannel);
     if (request.loopAEnabled !== undefined)
-      entries.loopa = this.toFlag(request.loopAEnabled);
+      entries.loopa = formatBooleanFlag(request.loopAEnabled);
     if (request.loopBEnabled !== undefined)
-      entries.loopb = this.toFlag(request.loopBEnabled);
+      entries.loopb = formatBooleanFlag(request.loopBEnabled);
     if (request.band !== undefined) entries.band = request.band;
     if (request.loggerDisplayEnabled !== undefined)
-      entries.n1mm_spectrum_enable = this.toFlag(request.loggerDisplayEnabled);
+      entries.n1mm_spectrum_enable = formatBooleanFlag(
+        request.loggerDisplayEnabled,
+      );
     if (request.loggerDisplayAddress !== undefined)
       entries.n1mm_address = request.loggerDisplayAddress;
     if (request.loggerDisplayPort !== undefined)
-      entries.n1mm_port = this.toIntString(request.loggerDisplayPort);
+      entries.n1mm_port = formatInteger(request.loggerDisplayPort);
     if (request.loggerDisplayRadioNum !== undefined)
-      entries.n1mm_radio = this.toIntString(request.loggerDisplayRadioNum);
+      entries.n1mm_radio = formatInteger(request.loggerDisplayRadioNum);
     return entries;
   }
 
@@ -641,10 +626,12 @@ export class PanadapterControllerImpl implements PanadapterController {
     extras: readonly string[] = [],
   ): Promise<void> {
     const stream = this.requireStreamHandle();
-    const parts = Object.entries(entries).map(
-      ([key, value]) => `${key}=${value}`,
+    const command = buildDisplaySetCommand(
+      "display pan set",
+      stream,
+      entries,
+      extras,
     );
-    const command = `display pan set ${stream} ${parts.join(" ")}${extras.length ? " " + extras.join(" ") : ""}`;
     await this.session.command(command);
     this.session.patchPanadapter(this.id, { stream_id: stream, ...entries });
   }
@@ -660,9 +647,13 @@ export class PanadapterControllerImpl implements PanadapterController {
     return this.streamHandle;
   }
 
+  /**
+   * See comment on setAutoCenter — we only patch local state so future
+   * bandwidth updates can include the `autocenter` flag.
+   */
   private applyAutoCenter(enabled: boolean): void {
     this.session.patchPanadapter(this.id, {
-      auto_center: this.toFlag(enabled),
+      auto_center: formatBooleanFlag(enabled),
     });
   }
 
@@ -684,18 +675,4 @@ export class PanadapterControllerImpl implements PanadapterController {
     return result;
   }
 
-  private toFlag(value: boolean): string {
-    return value ? "1" : "0";
-  }
-
-  private toIntString(value: number): string {
-    return Math.round(value).toString(10);
-  }
-}
-function formatMegahertz(frequencyMHz: number): string {
-  return frequencyMHz.toFixed(6);
-}
-
-function formatDbm(value: number): string {
-  return value.toFixed(6);
 }

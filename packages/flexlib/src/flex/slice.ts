@@ -316,205 +316,205 @@ export interface SliceController {
     event: TKey,
     listener: (payload: SliceControllerEvents[TKey]) => void,
   ): Subscription;
-  setFrequency(frequencyMHz: number): Promise<SliceSnapshot>;
-  nudge(deltaHz: number): Promise<SliceSnapshot>;
+  setFrequency(frequencyMHz: number): Promise<void>;
+  nudge(deltaHz: number): Promise<void>;
   cwAutoTune(options?: { intermittent?: boolean }): Promise<void>;
   /**
    * Sets the demodulation mode for the slice, e.g. "USB", "DIGU", "LSB", "DIGL", "CW", "DSB", "AM", "SAM", "FM".
    */
-  setMode(mode: string): Promise<SliceSnapshot>;
+  setMode(mode: string): Promise<void>;
   /**
    * Sets whether the slice is the active slice.
    */
-  setActive(active: boolean): Promise<SliceSnapshot>;
+  setActive(active: boolean): Promise<void>;
   /**
    * Locks or unlocks the slice so its frequency cannot be changed.
    */
-  setLocked(locked: boolean): Promise<SliceSnapshot>;
-  enableTransmit(enabled: boolean): Promise<SliceSnapshot>;
+  setLocked(locked: boolean): Promise<void>;
+  enableTransmit(enabled: boolean): Promise<void>;
   /**
    * Sets the receive antenna port for the slice (e.g. "ANT1", "ANT2", "RX_A", "RX_B", "XVTR").
    */
-  setRxAntenna(port: string): Promise<SliceSnapshot>;
+  setRxAntenna(port: string): Promise<void>;
   /**
    * Sets the transmit antenna for the slice as a string:
    * "ANT1", "ANT2", "XVTR"
    */
-  setTxAntenna(port: string | null): Promise<SliceSnapshot>;
+  setTxAntenna(port: string | null): Promise<void>;
   /**
    * Sets the DAX channel for the slice (0–8).
    */
-  assignDaxChannel(channel: number): Promise<SliceSnapshot>;
-  setRfGain(hundredthsDb: number): Promise<SliceSnapshot>;
+  assignDaxChannel(channel: number): Promise<void>;
+  setRfGain(hundredthsDb: number): Promise<void>;
   /**
    * Sets the slice receive filter low cut in Hz.
    */
-  setFilterLow(lowHz: number): Promise<SliceSnapshot>;
+  setFilterLow(lowHz: number): Promise<void>;
   /**
    * Sets the slice receive filter high cut in Hz.
    */
-  setFilterHigh(highHz: number): Promise<SliceSnapshot>;
+  setFilterHigh(highHz: number): Promise<void>;
   /**
    * Updates the slice receive filter bandwidth.
    */
-  setFilter(lowHz: number, highHz: number): Promise<SliceSnapshot>;
+  setFilter(lowHz: number, highHz: number): Promise<void>;
   /**
    * Sets the slice RTTY mark offset in Hz.
    */
-  setRttyMark(markHz: number): Promise<SliceSnapshot>;
+  setRttyMark(markHz: number): Promise<void>;
   /**
    * Sets the slice RTTY shift offset in Hz.
    */
-  setRttyShift(shiftHz: number): Promise<SliceSnapshot>;
+  setRttyShift(shiftHz: number): Promise<void>;
   /**
    * Sets the slice DIGL offset in Hz.
    */
-  setDigLOffset(offsetHz: number): Promise<SliceSnapshot>;
+  setDigLOffset(offsetHz: number): Promise<void>;
   /**
    * Sets the slice DIGU offset in Hz.
    */
-  setDigUOffset(offsetHz: number): Promise<SliceSnapshot>;
+  setDigUOffset(offsetHz: number): Promise<void>;
   /**
    * Sets the slice audio level from 0 to 100.
    */
-  setAudioGain(gain: number): Promise<SliceSnapshot>;
+  setAudioGain(gain: number): Promise<void>;
   /**
    * Sets the left-right audio pan from 0 to 100 (50 centers the audio).
    */
-  setAudioPan(pan: number): Promise<SliceSnapshot>;
+  setAudioPan(pan: number): Promise<void>;
   /**
    * Enables or disables slice audio mute.
    */
-  setMute(muted: boolean): Promise<SliceSnapshot>;
+  setMute(muted: boolean): Promise<void>;
   /**
    * Enables or disables the auto-notch filter (ANF).
    */
-  setAnfEnabled(enabled: boolean): Promise<SliceSnapshot>;
+  setAnfEnabled(enabled: boolean): Promise<void>;
   /**
    * Sets the auto-notch filter (ANF) level from 0 to 100.
    */
-  setAnfLevel(level: number): Promise<SliceSnapshot>;
+  setAnfLevel(level: number): Promise<void>;
   /**
    * Enables or disables the auto-peaking filter (APF).
    */
-  setApfEnabled(enabled: boolean): Promise<SliceSnapshot>;
+  setApfEnabled(enabled: boolean): Promise<void>;
   /**
    * Sets the auto-peaking filter (APF) level from 0 to 100.
    */
-  setApfLevel(level: number): Promise<SliceSnapshot>;
+  setApfLevel(level: number): Promise<void>;
   /**
    * Enables or disables the Wideband Noise Blanker (WNB).
    */
-  setWnbEnabled(enabled: boolean): Promise<SliceSnapshot>;
+  setWnbEnabled(enabled: boolean): Promise<void>;
   /**
    * Sets the Wideband Noise Blanker (WNB) level from 0 to 100.
    */
-  setWnbLevel(level: number): Promise<SliceSnapshot>;
-  setNrlEnabled(enabled: boolean): Promise<SliceSnapshot>;
-  setNrlLevel(level: number): Promise<SliceSnapshot>;
-  setAnflEnabled(enabled: boolean): Promise<SliceSnapshot>;
-  setAnflLevel(level: number): Promise<SliceSnapshot>;
-  setNrsEnabled(enabled: boolean): Promise<SliceSnapshot>;
-  setNrsLevel(level: number): Promise<SliceSnapshot>;
-  setRnnEnabled(enabled: boolean): Promise<SliceSnapshot>;
-  setAnftEnabled(enabled: boolean): Promise<SliceSnapshot>;
-  setNrfEnabled(enabled: boolean): Promise<SliceSnapshot>;
-  setNrfLevel(level: number): Promise<SliceSnapshot>;
-  setEscEnabled(enabled: boolean): Promise<SliceSnapshot>;
-  setEscGain(gain: number): Promise<SliceSnapshot>;
-  setEscPhaseShift(phase: number): Promise<SliceSnapshot>;
+  setWnbLevel(level: number): Promise<void>;
+  setNrlEnabled(enabled: boolean): Promise<void>;
+  setNrlLevel(level: number): Promise<void>;
+  setAnflEnabled(enabled: boolean): Promise<void>;
+  setAnflLevel(level: number): Promise<void>;
+  setNrsEnabled(enabled: boolean): Promise<void>;
+  setNrsLevel(level: number): Promise<void>;
+  setRnnEnabled(enabled: boolean): Promise<void>;
+  setAnftEnabled(enabled: boolean): Promise<void>;
+  setNrfEnabled(enabled: boolean): Promise<void>;
+  setNrfLevel(level: number): Promise<void>;
+  setEscEnabled(enabled: boolean): Promise<void>;
+  setEscGain(gain: number): Promise<void>;
+  setEscPhaseShift(phase: number): Promise<void>;
   /**
    * Enables or disables the Noise Blanker (NB).
    */
-  setNbEnabled(enabled: boolean): Promise<SliceSnapshot>;
+  setNbEnabled(enabled: boolean): Promise<void>;
   /**
    * Sets the Noise Blanker (NB) level from 0 to 100.
    */
-  setNbLevel(level: number): Promise<SliceSnapshot>;
+  setNbLevel(level: number): Promise<void>;
   /**
    * Enables or disables the Noise Reduction (NR).
    */
-  setNrEnabled(enabled: boolean): Promise<SliceSnapshot>;
+  setNrEnabled(enabled: boolean): Promise<void>;
   /**
    * Sets the Noise Reduction (NR) level from 0 to 100.
    */
-  setNrLevel(level: number): Promise<SliceSnapshot>;
+  setNrLevel(level: number): Promise<void>;
   /**
    * Sets the current AGC mode for the slice.
    */
-  setAgcMode(mode: SliceAgcMode): Promise<SliceSnapshot>;
+  setAgcMode(mode: SliceAgcMode): Promise<void>;
   setAgcSettings(settings: {
     threshold?: number;
     offLevel?: number;
-  }): Promise<SliceSnapshot>;
-  setLoopAEnabled(enabled: boolean): Promise<SliceSnapshot>;
-  setLoopBEnabled(enabled: boolean): Promise<SliceSnapshot>;
-  setRitEnabled(enabled: boolean): Promise<SliceSnapshot>;
-  setRitOffset(offsetHz: number): Promise<SliceSnapshot>;
-  setXitEnabled(enabled: boolean): Promise<SliceSnapshot>;
-  setXitOffset(offsetHz: number): Promise<SliceSnapshot>;
-  setTuneStep(stepHz: number): Promise<SliceSnapshot>;
-  setTuneStepList(stepsHz: readonly number[]): Promise<SliceSnapshot>;
+  }): Promise<void>;
+  setLoopAEnabled(enabled: boolean): Promise<void>;
+  setLoopBEnabled(enabled: boolean): Promise<void>;
+  setRitEnabled(enabled: boolean): Promise<void>;
+  setRitOffset(offsetHz: number): Promise<void>;
+  setXitEnabled(enabled: boolean): Promise<void>;
+  setXitOffset(offsetHz: number): Promise<void>;
+  setTuneStep(stepHz: number): Promise<void>;
+  setTuneStepList(stepsHz: readonly number[]): Promise<void>;
   /**
    * Enables or disables audio recording for the slice.
    */
-  setRecordingEnabled(enabled: boolean): Promise<SliceSnapshot>;
+  setRecordingEnabled(enabled: boolean): Promise<void>;
   /**
    * Enables or disables audio recording playback for the slice.
    */
-  setPlaybackEnabled(enabled: boolean): Promise<SliceSnapshot>;
-  setFmToneMode(mode: SliceToneMode): Promise<SliceSnapshot>;
+  setPlaybackEnabled(enabled: boolean): Promise<void>;
+  setFmToneMode(mode: SliceToneMode): Promise<void>;
   /**
    * Sets the FM tone value; in most cases this is the repeater tone.
    */
-  setFmToneValue(value: number | string): Promise<SliceSnapshot>;
+  setFmToneValue(value: number | string): Promise<void>;
   /**
    * Controls the FM deviation for the slice (and transmitter when applicable).
    */
-  setFmDeviation(deviation: number): Promise<SliceSnapshot>;
+  setFmDeviation(deviation: number): Promise<void>;
   /**
    * Enables or disables the FM 1750 Hz tone burst (PL tone).
    */
-  setFmToneBurstEnabled(enabled: boolean): Promise<SliceSnapshot>;
+  setFmToneBurstEnabled(enabled: boolean): Promise<void>;
   /**
    * Enables or disables FM de-emphasis on receive (and pre-emphasis on transmit when applicable).
    */
-  setFmPreDeEmphasisEnabled(enabled: boolean): Promise<SliceSnapshot>;
+  setFmPreDeEmphasisEnabled(enabled: boolean): Promise<void>;
   /**
    * Enables or disables the squelch algorithm for the slice.
    */
-  setSquelchEnabled(enabled: boolean): Promise<SliceSnapshot>;
+  setSquelchEnabled(enabled: boolean): Promise<void>;
   /**
    * Sets the squelch level for modes with squelch (0–100).
    */
-  setSquelchLevel(level: number): Promise<SliceSnapshot>;
+  setSquelchLevel(level: number): Promise<void>;
   /**
    * Sets the transmit offset frequency for the slice in MHz.
    */
-  setTxOffsetFrequency(offsetMHz: number): Promise<SliceSnapshot>;
+  setTxOffsetFrequency(offsetMHz: number): Promise<void>;
   /**
    * Sets the FM repeater offset frequency for wide splits in MHz.
    */
-  setFmRepeaterOffsetFrequency(offsetMHz: number): Promise<SliceSnapshot>;
+  setFmRepeaterOffsetFrequency(offsetMHz: number): Promise<void>;
   /**
    * Sets the direction that the transmit offset is applied in.
    */
   setRepeaterOffsetDirection(
     direction: SliceRepeaterOffsetDirection,
-  ): Promise<SliceSnapshot>;
+  ): Promise<void>;
   /**
    * Enables or disables simple diversity reception for the slice (FLEX-6700/FLEX-6700R only).
    */
-  setDiversityEnabled(enabled: boolean): Promise<SliceSnapshot>;
+  setDiversityEnabled(enabled: boolean): Promise<void>;
   /**
    * Marks the slice as the diversity child (FLEX-6700/FLEX-6700R only).
    */
-  setDiversityChildEnabled(enabled: boolean): Promise<SliceSnapshot>;
+  setDiversityChildEnabled(enabled: boolean): Promise<void>;
   /**
    * Sets the index of the paired diversity slice.
    */
-  setDiversityIndex(index: number): Promise<SliceSnapshot>;
-  update(request: SliceUpdateRequest): Promise<SliceSnapshot>;
+  setDiversityIndex(index: number): Promise<void>;
+  update(request: SliceUpdateRequest): Promise<void>;
 }
 
 export interface SliceSessionApi {
@@ -878,7 +878,7 @@ export class SliceControllerImpl implements SliceController {
     return this.events.on(event, listener);
   }
 
-  async setFrequency(frequencyMHz: number): Promise<SliceSnapshot> {
+  async setFrequency(frequencyMHz: number): Promise<void> {
     const formattedFrequency = formatMegahertz(frequencyMHz);
     await this.session.command(
       `slice tune ${this.id} ${formattedFrequency}`,
@@ -886,10 +886,9 @@ export class SliceControllerImpl implements SliceController {
     this.session.patchSlice(this.id, {
       freq: formattedFrequency,
     });
-    return this.snapshot();
   }
 
-  async nudge(deltaHz: number): Promise<SliceSnapshot> {
+  async nudge(deltaHz: number): Promise<void> {
     const nextFrequency =
       this.current().frequencyMHz + deltaHz / 1_000_000;
     return this.setFrequency(nextFrequency);
@@ -903,17 +902,15 @@ export class SliceControllerImpl implements SliceController {
     await this.session.command(parts.join(" "));
   }
 
-  async setMode(mode: string): Promise<SliceSnapshot> {
+  async setMode(mode: string): Promise<void> {
     await this.sendSet({ mode });
-    return this.snapshot();
   }
 
-  async setActive(active: boolean): Promise<SliceSnapshot> {
+  async setActive(active: boolean): Promise<void> {
     await this.sendSet({ active: this.toFlag(active) });
-    return this.snapshot();
   }
 
-  async setLocked(locked: boolean): Promise<SliceSnapshot> {
+  async setLocked(locked: boolean): Promise<void> {
     const command = locked
       ? `slice lock ${this.id}`
       : `slice unlock ${this.id}`;
@@ -921,211 +918,171 @@ export class SliceControllerImpl implements SliceController {
     this.session.patchSlice(this.id, {
       lock: this.toFlag(locked),
     });
-    return this.snapshot();
   }
 
-  async enableTransmit(enabled: boolean): Promise<SliceSnapshot> {
+  async enableTransmit(enabled: boolean): Promise<void> {
     await this.sendSet({ tx: this.toFlag(enabled) });
-    return this.snapshot();
   }
 
-  async setRxAntenna(port: string): Promise<SliceSnapshot> {
+  async setRxAntenna(port: string): Promise<void> {
     await this.sendSet({ rxant: port });
-    return this.snapshot();
   }
 
-  async setTxAntenna(port: string | null): Promise<SliceSnapshot> {
+  async setTxAntenna(port: string | null): Promise<void> {
     await this.sendSet({ txant: port ?? "" });
-    return this.snapshot();
   }
 
-  async assignDaxChannel(channel: number): Promise<SliceSnapshot> {
+  async assignDaxChannel(channel: number): Promise<void> {
     await this.sendSet({ dax: this.toIntString(channel) });
-    return this.snapshot();
   }
 
-  async setRfGain(hundredthsDb: number): Promise<SliceSnapshot> {
+  async setRfGain(hundredthsDb: number): Promise<void> {
     await this.sendSet({ rfgain: this.toIntString(hundredthsDb) });
-    return this.snapshot();
   }
 
-  async setFilterLow(lowHz: number): Promise<SliceSnapshot> {
+  async setFilterLow(lowHz: number): Promise<void> {
     await this.sendSet({ filter_lo: this.toIntString(lowHz) });
-    return this.snapshot();
   }
 
-  async setFilterHigh(highHz: number): Promise<SliceSnapshot> {
+  async setFilterHigh(highHz: number): Promise<void> {
     await this.sendSet({ filter_hi: this.toIntString(highHz) });
-    return this.snapshot();
   }
 
-  async setFilter(lowHz: number, highHz: number): Promise<SliceSnapshot> {
+  async setFilter(lowHz: number, highHz: number): Promise<void> {
     await this.sendSet({
       filter_lo: this.toIntString(lowHz),
       filter_hi: this.toIntString(highHz),
     });
-    return this.snapshot();
   }
 
-  async setRttyMark(markHz: number): Promise<SliceSnapshot> {
+  async setRttyMark(markHz: number): Promise<void> {
     await this.sendSet({ rtty_mark: this.toIntString(markHz) });
-    return this.snapshot();
   }
 
-  async setRttyShift(shiftHz: number): Promise<SliceSnapshot> {
+  async setRttyShift(shiftHz: number): Promise<void> {
     await this.sendSet({ rtty_shift: this.toIntString(shiftHz) });
-    return this.snapshot();
   }
 
-  async setDigLOffset(offsetHz: number): Promise<SliceSnapshot> {
+  async setDigLOffset(offsetHz: number): Promise<void> {
     await this.sendSet({ digl_offset: this.toIntString(offsetHz) });
-    return this.snapshot();
   }
 
-  async setDigUOffset(offsetHz: number): Promise<SliceSnapshot> {
+  async setDigUOffset(offsetHz: number): Promise<void> {
     await this.sendSet({ digu_offset: this.toIntString(offsetHz) });
-    return this.snapshot();
   }
 
-  async setAudioGain(gain: number): Promise<SliceSnapshot> {
+  async setAudioGain(gain: number): Promise<void> {
     await this.sendSet({ audio_level: this.toIntString(gain) });
-    return this.snapshot();
   }
 
-  async setAudioPan(pan: number): Promise<SliceSnapshot> {
+  async setAudioPan(pan: number): Promise<void> {
     await this.sendSet({ audio_pan: this.toIntString(pan) });
-    return this.snapshot();
   }
 
-  async setMute(muted: boolean): Promise<SliceSnapshot> {
+  async setMute(muted: boolean): Promise<void> {
     await this.sendSet({ audio_mute: this.toFlag(muted) });
-    return this.snapshot();
   }
 
-  async setAnfEnabled(enabled: boolean): Promise<SliceSnapshot> {
+  async setAnfEnabled(enabled: boolean): Promise<void> {
     await this.sendSet({ anf: this.toFlag(enabled) });
-    return this.snapshot();
   }
 
-  async setAnfLevel(level: number): Promise<SliceSnapshot> {
+  async setAnfLevel(level: number): Promise<void> {
     await this.sendSet({ anf_level: this.toIntString(level) });
-    return this.snapshot();
   }
 
-  async setApfEnabled(enabled: boolean): Promise<SliceSnapshot> {
+  async setApfEnabled(enabled: boolean): Promise<void> {
     await this.sendSet({ apf: this.toFlag(enabled) });
-    return this.snapshot();
   }
 
-  async setApfLevel(level: number): Promise<SliceSnapshot> {
+  async setApfLevel(level: number): Promise<void> {
     await this.sendSet({ apf_level: this.toIntString(level) });
-    return this.snapshot();
   }
 
-  async setWnbEnabled(enabled: boolean): Promise<SliceSnapshot> {
+  async setWnbEnabled(enabled: boolean): Promise<void> {
     await this.sendSet({ wnb: this.toFlag(enabled) });
-    return this.snapshot();
   }
 
-  async setWnbLevel(level: number): Promise<SliceSnapshot> {
+  async setWnbLevel(level: number): Promise<void> {
     await this.sendSet({ wnb_level: this.toIntString(level) });
-    return this.snapshot();
   }
 
-  async setNrlEnabled(enabled: boolean): Promise<SliceSnapshot> {
+  async setNrlEnabled(enabled: boolean): Promise<void> {
     await this.sendSet({ lms_nr: this.toFlag(enabled) });
-    return this.snapshot();
   }
 
-  async setNrlLevel(level: number): Promise<SliceSnapshot> {
+  async setNrlLevel(level: number): Promise<void> {
     await this.sendSet({ lms_nr_level: this.toIntString(level) });
-    return this.snapshot();
   }
 
-  async setAnflEnabled(enabled: boolean): Promise<SliceSnapshot> {
+  async setAnflEnabled(enabled: boolean): Promise<void> {
     await this.sendSet({ lms_anf: this.toFlag(enabled) });
-    return this.snapshot();
   }
 
-  async setAnflLevel(level: number): Promise<SliceSnapshot> {
+  async setAnflLevel(level: number): Promise<void> {
     await this.sendSet({ lms_anf_level: this.toIntString(level) });
-    return this.snapshot();
   }
 
-  async setNrsEnabled(enabled: boolean): Promise<SliceSnapshot> {
+  async setNrsEnabled(enabled: boolean): Promise<void> {
     await this.sendSet({ speex_nr: this.toFlag(enabled) });
-    return this.snapshot();
   }
 
-  async setNrsLevel(level: number): Promise<SliceSnapshot> {
+  async setNrsLevel(level: number): Promise<void> {
     await this.sendSet({ speex_nr_level: this.toIntString(level) });
-    return this.snapshot();
   }
 
-  async setRnnEnabled(enabled: boolean): Promise<SliceSnapshot> {
+  async setRnnEnabled(enabled: boolean): Promise<void> {
     await this.sendSet({ rnnoise: this.toFlag(enabled) });
-    return this.snapshot();
   }
 
-  async setAnftEnabled(enabled: boolean): Promise<SliceSnapshot> {
+  async setAnftEnabled(enabled: boolean): Promise<void> {
     await this.sendSet({ anft: this.toFlag(enabled) });
-    return this.snapshot();
   }
 
-  async setNrfEnabled(enabled: boolean): Promise<SliceSnapshot> {
+  async setNrfEnabled(enabled: boolean): Promise<void> {
     await this.sendSet({ nrf: this.toFlag(enabled) });
-    return this.snapshot();
   }
 
-  async setNrfLevel(level: number): Promise<SliceSnapshot> {
+  async setNrfLevel(level: number): Promise<void> {
     await this.sendSet({ nrf_level: this.toIntString(level) });
-    return this.snapshot();
   }
 
-  async setEscEnabled(enabled: boolean): Promise<SliceSnapshot> {
+  async setEscEnabled(enabled: boolean): Promise<void> {
     await this.sendSet({ esc: enabled ? "on" : "off" });
-    return this.snapshot();
   }
 
-  async setEscGain(gain: number): Promise<SliceSnapshot> {
+  async setEscGain(gain: number): Promise<void> {
     await this.sendSet({ esc_gain: String(gain) });
-    return this.snapshot();
   }
 
-  async setEscPhaseShift(phase: number): Promise<SliceSnapshot> {
+  async setEscPhaseShift(phase: number): Promise<void> {
     await this.sendSet({ esc_phase_shift: String(phase) });
-    return this.snapshot();
   }
 
-  async setNbEnabled(enabled: boolean): Promise<SliceSnapshot> {
+  async setNbEnabled(enabled: boolean): Promise<void> {
     await this.sendSet({ nb: this.toFlag(enabled) });
-    return this.snapshot();
   }
 
-  async setNbLevel(level: number): Promise<SliceSnapshot> {
+  async setNbLevel(level: number): Promise<void> {
     await this.sendSet({ nb_level: this.toIntString(level) });
-    return this.snapshot();
   }
 
-  async setNrEnabled(enabled: boolean): Promise<SliceSnapshot> {
+  async setNrEnabled(enabled: boolean): Promise<void> {
     await this.sendSet({ nr: this.toFlag(enabled) });
-    return this.snapshot();
   }
 
-  async setNrLevel(level: number): Promise<SliceSnapshot> {
+  async setNrLevel(level: number): Promise<void> {
     await this.sendSet({ nr_level: this.toIntString(level) });
-    return this.snapshot();
   }
 
-  async setAgcMode(mode: SliceAgcMode): Promise<SliceSnapshot> {
+  async setAgcMode(mode: SliceAgcMode): Promise<void> {
     await this.sendSet({ agc_mode: mode });
-    return this.snapshot();
   }
 
   async setAgcSettings(settings: {
     threshold?: number;
     offLevel?: number;
-  }): Promise<SliceSnapshot> {
+  }): Promise<void> {
     const entries = Object.create(null) as Record<string, string>;
     if (settings.threshold !== undefined)
       entries.agc_threshold = this.toIntString(settings.threshold);
@@ -1134,134 +1091,110 @@ export class SliceControllerImpl implements SliceController {
     if (Object.keys(entries).length > 0) {
       await this.sendSet(entries);
     }
-    return this.snapshot();
   }
 
-  async setLoopAEnabled(enabled: boolean): Promise<SliceSnapshot> {
+  async setLoopAEnabled(enabled: boolean): Promise<void> {
     await this.sendSet({ loopa: this.toFlag(enabled) });
-    return this.snapshot();
   }
 
-  async setLoopBEnabled(enabled: boolean): Promise<SliceSnapshot> {
+  async setLoopBEnabled(enabled: boolean): Promise<void> {
     await this.sendSet({ loopb: this.toFlag(enabled) });
-    return this.snapshot();
   }
 
-  async setRitEnabled(enabled: boolean): Promise<SliceSnapshot> {
+  async setRitEnabled(enabled: boolean): Promise<void> {
     await this.sendSet({ rit_on: this.toFlag(enabled) });
-    return this.snapshot();
   }
 
-  async setRitOffset(offsetHz: number): Promise<SliceSnapshot> {
+  async setRitOffset(offsetHz: number): Promise<void> {
     await this.sendSet({ rit_freq: this.toIntString(offsetHz) });
-    return this.snapshot();
   }
 
-  async setXitEnabled(enabled: boolean): Promise<SliceSnapshot> {
+  async setXitEnabled(enabled: boolean): Promise<void> {
     await this.sendSet({ xit_on: this.toFlag(enabled) });
-    return this.snapshot();
   }
 
-  async setXitOffset(offsetHz: number): Promise<SliceSnapshot> {
+  async setXitOffset(offsetHz: number): Promise<void> {
     await this.sendSet({ xit_freq: this.toIntString(offsetHz) });
-    return this.snapshot();
   }
 
-  async setTuneStep(stepHz: number): Promise<SliceSnapshot> {
+  async setTuneStep(stepHz: number): Promise<void> {
     await this.sendSet({ step: this.toIntString(stepHz) });
-    return this.snapshot();
   }
 
-  async setTuneStepList(stepsHz: readonly number[]): Promise<SliceSnapshot> {
+  async setTuneStepList(stepsHz: readonly number[]): Promise<void> {
     const encoded = Array.from(stepsHz, (value) =>
       this.toIntString(value),
     ).join(",");
     await this.sendSet({ step_list: encoded });
-    return this.snapshot();
   }
 
-  async setRecordingEnabled(enabled: boolean): Promise<SliceSnapshot> {
+  async setRecordingEnabled(enabled: boolean): Promise<void> {
     await this.sendSet({ record: this.toFlag(enabled) });
-    return this.snapshot();
   }
 
-  async setPlaybackEnabled(enabled: boolean): Promise<SliceSnapshot> {
+  async setPlaybackEnabled(enabled: boolean): Promise<void> {
     await this.sendSet({ play: this.toFlag(enabled) });
-    return this.snapshot();
   }
 
-  async setFmToneMode(mode: SliceToneMode): Promise<SliceSnapshot> {
+  async setFmToneMode(mode: SliceToneMode): Promise<void> {
     await this.sendSet({ fm_tone_mode: mode });
-    return this.snapshot();
   }
 
-  async setFmToneValue(value: number | string): Promise<SliceSnapshot> {
+  async setFmToneValue(value: number | string): Promise<void> {
     await this.sendSet({ fm_tone_value: this.formatToneValue(value) });
-    return this.snapshot();
   }
 
-  async setFmDeviation(deviation: number): Promise<SliceSnapshot> {
+  async setFmDeviation(deviation: number): Promise<void> {
     await this.sendSet({ fm_deviation: this.toIntString(deviation) });
-    return this.snapshot();
   }
 
-  async setFmToneBurstEnabled(enabled: boolean): Promise<SliceSnapshot> {
+  async setFmToneBurstEnabled(enabled: boolean): Promise<void> {
     await this.sendSet({ fm_tone_burst: this.toFlag(enabled) });
-    return this.snapshot();
   }
 
-  async setFmPreDeEmphasisEnabled(enabled: boolean): Promise<SliceSnapshot> {
+  async setFmPreDeEmphasisEnabled(enabled: boolean): Promise<void> {
     await this.sendSet({ dfm_pre_de_emphasis: this.toFlag(enabled) });
-    return this.snapshot();
   }
 
-  async setSquelchEnabled(enabled: boolean): Promise<SliceSnapshot> {
+  async setSquelchEnabled(enabled: boolean): Promise<void> {
     await this.sendSet({ squelch: this.toFlag(enabled) });
-    return this.snapshot();
   }
 
-  async setSquelchLevel(level: number): Promise<SliceSnapshot> {
+  async setSquelchLevel(level: number): Promise<void> {
     await this.sendSet({ squelch_level: this.toIntString(level) });
-    return this.snapshot();
   }
 
-  async setTxOffsetFrequency(offsetMHz: number): Promise<SliceSnapshot> {
+  async setTxOffsetFrequency(offsetMHz: number): Promise<void> {
     await this.sendSet({ tx_offset_freq: formatMegahertz(offsetMHz) });
-    return this.snapshot();
   }
 
   async setFmRepeaterOffsetFrequency(
     offsetMHz: number,
-  ): Promise<SliceSnapshot> {
+  ): Promise<void> {
     await this.sendSet({
       fm_repeater_offset_freq: formatMegahertz(offsetMHz),
     });
-    return this.snapshot();
   }
 
   async setRepeaterOffsetDirection(
     direction: SliceRepeaterOffsetDirection,
-  ): Promise<SliceSnapshot> {
+  ): Promise<void> {
     await this.sendSet({ repeater_offset_dir: direction });
-    return this.snapshot();
   }
 
-  async setDiversityEnabled(enabled: boolean): Promise<SliceSnapshot> {
+  async setDiversityEnabled(enabled: boolean): Promise<void> {
     await this.sendSet({ diversity: this.toFlag(enabled) });
-    return this.snapshot();
   }
 
-  async setDiversityChildEnabled(enabled: boolean): Promise<SliceSnapshot> {
+  async setDiversityChildEnabled(enabled: boolean): Promise<void> {
     await this.sendSet({ diversity_child: this.toFlag(enabled) });
-    return this.snapshot();
   }
 
-  async setDiversityIndex(index: number): Promise<SliceSnapshot> {
+  async setDiversityIndex(index: number): Promise<void> {
     await this.sendSet({ diversity_index: this.toIntString(index) });
-    return this.snapshot();
   }
 
-  async update(request: SliceUpdateRequest): Promise<SliceSnapshot> {
+  async update(request: SliceUpdateRequest): Promise<void> {
     const { frequencyMHz, isLocked, ...setRequest } = request;
     const entries = this.buildSetEntries(setRequest);
     if (Object.keys(entries).length > 0) {
@@ -1273,7 +1206,6 @@ export class SliceControllerImpl implements SliceController {
     if (frequencyMHz !== undefined) {
       await this.setFrequency(frequencyMHz);
     }
-    return this.snapshot();
   }
 
   onStateChange(change: SliceStateChange): void {

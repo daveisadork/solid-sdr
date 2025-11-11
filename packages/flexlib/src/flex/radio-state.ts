@@ -1,6 +1,12 @@
 import type { FlexStatusMessage } from "./protocol.js";
 import type { RfGainInfo } from "./rf-gain.js";
-import { freezeArray, freezeAttributes, isTruthy } from "./radio-state/common.js";
+import type { Logger } from "./adapters.js";
+import {
+  freezeArray,
+  freezeAttributes,
+  isTruthy,
+  setRadioStateLogger,
+} from "./radio-state/common.js";
 import type { SnapshotDiff } from "./radio-state/common.js";
 import {
   createSliceSnapshot,
@@ -139,7 +145,14 @@ export interface RadioStateStore {
   ): WaterfallStateChange | undefined;
 }
 
-export function createRadioStateStore(): RadioStateStore {
+export interface RadioStateStoreOptions {
+  readonly logger?: Pick<Logger, "debug" | "warn">;
+}
+
+export function createRadioStateStore(
+  options: RadioStateStoreOptions = {},
+): RadioStateStore {
+  setRadioStateLogger(options.logger);
   const slices = new Map<string, SliceSnapshot>();
   const panadapters = new Map<string, PanadapterSnapshot>();
   const waterfalls = new Map<string, WaterfallSnapshot>();

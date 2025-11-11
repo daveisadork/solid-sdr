@@ -11,6 +11,13 @@ import {
 } from "./errors.js";
 import { parseRfGainInfo } from "./rf-gain.js";
 import type { RfGainInfo } from "./rf-gain.js";
+import {
+  buildDisplaySetCommand,
+  formatBooleanFlag,
+  formatDbm,
+  formatInteger,
+  formatMegahertz,
+} from "./controller-helpers.js";
 
 export interface WaterfallControllerEvents extends Record<string, unknown> {
   readonly change: WaterfallStateChange;
@@ -85,33 +92,33 @@ export interface WaterfallController {
     event: TKey,
     listener: (payload: WaterfallControllerEvents[TKey]) => void,
   ): Subscription;
-  setCenterFrequency(frequencyMHz: number): Promise<WaterfallSnapshot>;
+  setCenterFrequency(frequencyMHz: number): Promise<void>;
   setBandwidth(
     bandwidthMHz: number,
     options?: { autoCenter?: boolean },
-  ): Promise<WaterfallSnapshot>;
-  setMinDbm(value: number): Promise<WaterfallSnapshot>;
-  setMaxDbm(value: number): Promise<WaterfallSnapshot>;
+  ): Promise<void>;
+  setMinDbm(value: number): Promise<void>;
+  setMaxDbm(value: number): Promise<void>;
   setDbmRange(range: {
     low: number;
     high: number;
-  }): Promise<WaterfallSnapshot>;
-  setFps(value: number): Promise<WaterfallSnapshot>;
-  setAverage(value: number): Promise<WaterfallSnapshot>;
-  setWeightedAverage(enabled: boolean): Promise<WaterfallSnapshot>;
-  setRxAntenna(port: string): Promise<WaterfallSnapshot>;
-  setRfGain(value: number): Promise<WaterfallSnapshot>;
-  setDaxIqChannel(channel: number): Promise<WaterfallSnapshot>;
-  setLoopAEnabled(enabled: boolean): Promise<WaterfallSnapshot>;
-  setLoopBEnabled(enabled: boolean): Promise<WaterfallSnapshot>;
-  setBand(band: string): Promise<WaterfallSnapshot>;
-  setLineDuration(ms: number): Promise<WaterfallSnapshot>;
-  setBlackLevel(level: number): Promise<WaterfallSnapshot>;
-  setColorGain(value: number): Promise<WaterfallSnapshot>;
-  setAutoBlackLevelEnabled(enabled: boolean): Promise<WaterfallSnapshot>;
-  setGradientIndex(index: number): Promise<WaterfallSnapshot>;
-  refreshRfGainInfo(): Promise<WaterfallSnapshot>;
-  update(request: WaterfallUpdateRequest): Promise<WaterfallSnapshot>;
+  }): Promise<void>;
+  setFps(value: number): Promise<void>;
+  setAverage(value: number): Promise<void>;
+  setWeightedAverage(enabled: boolean): Promise<void>;
+  setRxAntenna(port: string): Promise<void>;
+  setRfGain(value: number): Promise<void>;
+  setDaxIqChannel(channel: number): Promise<void>;
+  setLoopAEnabled(enabled: boolean): Promise<void>;
+  setLoopBEnabled(enabled: boolean): Promise<void>;
+  setBand(band: string): Promise<void>;
+  setLineDuration(ms: number): Promise<void>;
+  setBlackLevel(level: number): Promise<void>;
+  setColorGain(value: number): Promise<void>;
+  setAutoBlackLevelEnabled(enabled: boolean): Promise<void>;
+  setGradientIndex(index: number): Promise<void>;
+  refreshRfGainInfo(): Promise<void>;
+  update(request: WaterfallUpdateRequest): Promise<void>;
   close(): Promise<void>;
 }
 
@@ -270,115 +277,96 @@ export class WaterfallControllerImpl implements WaterfallController {
 
   async setCenterFrequency(
     frequencyMHz: number,
-  ): Promise<WaterfallSnapshot> {
+  ): Promise<void> {
     await this.sendSet({ center: formatMegahertz(frequencyMHz) });
-    return this.snapshot();
   }
 
   async setBandwidth(
     bandwidthMHz: number,
     options?: { autoCenter?: boolean },
-  ): Promise<WaterfallSnapshot> {
+  ): Promise<void> {
     const extras: string[] = [];
     if (options?.autoCenter) extras.push("autocenter=1");
     await this.sendSet({ bandwidth: formatMegahertz(bandwidthMHz) }, extras);
-    return this.snapshot();
   }
 
-  async setMinDbm(value: number): Promise<WaterfallSnapshot> {
+  async setMinDbm(value: number): Promise<void> {
     await this.sendSet({ min_dbm: formatDbm(value) });
-    return this.snapshot();
   }
 
-  async setMaxDbm(value: number): Promise<WaterfallSnapshot> {
+  async setMaxDbm(value: number): Promise<void> {
     await this.sendSet({ max_dbm: formatDbm(value) });
-    return this.snapshot();
   }
 
   async setDbmRange(range: {
     low: number;
     high: number;
-  }): Promise<WaterfallSnapshot> {
+  }): Promise<void> {
     await this.sendSet({
       min_dbm: formatDbm(range.low),
       max_dbm: formatDbm(range.high),
     });
-    return this.snapshot();
   }
 
-  async setFps(value: number): Promise<WaterfallSnapshot> {
-    await this.sendSet({ fps: this.toIntString(value) });
-    return this.snapshot();
+  async setFps(value: number): Promise<void> {
+    await this.sendSet({ fps: formatInteger(value) });
   }
 
-  async setAverage(value: number): Promise<WaterfallSnapshot> {
-    await this.sendSet({ average: this.toIntString(value) });
-    return this.snapshot();
+  async setAverage(value: number): Promise<void> {
+    await this.sendSet({ average: formatInteger(value) });
   }
 
-  async setWeightedAverage(enabled: boolean): Promise<WaterfallSnapshot> {
-    await this.sendSet({ weighted_average: this.toFlag(enabled) });
-    return this.snapshot();
+  async setWeightedAverage(enabled: boolean): Promise<void> {
+    await this.sendSet({ weighted_average: formatBooleanFlag(enabled) });
   }
 
-  async setRxAntenna(port: string): Promise<WaterfallSnapshot> {
+  async setRxAntenna(port: string): Promise<void> {
     await this.sendSet({ rxant: port });
-    return this.snapshot();
   }
 
-  async setRfGain(value: number): Promise<WaterfallSnapshot> {
-    await this.sendSet({ rfgain: this.toIntString(value) });
-    return this.snapshot();
+  async setRfGain(value: number): Promise<void> {
+    await this.sendSet({ rfgain: formatInteger(value) });
   }
 
-  async setDaxIqChannel(channel: number): Promise<WaterfallSnapshot> {
-    await this.sendSet({ daxiq_channel: this.toIntString(channel) });
-    return this.snapshot();
+  async setDaxIqChannel(channel: number): Promise<void> {
+    await this.sendSet({ daxiq_channel: formatInteger(channel) });
   }
 
-  async setLoopAEnabled(enabled: boolean): Promise<WaterfallSnapshot> {
-    await this.sendSet({ loopa: this.toFlag(enabled) });
-    return this.snapshot();
+  async setLoopAEnabled(enabled: boolean): Promise<void> {
+    await this.sendSet({ loopa: formatBooleanFlag(enabled) });
   }
 
-  async setLoopBEnabled(enabled: boolean): Promise<WaterfallSnapshot> {
-    await this.sendSet({ loopb: this.toFlag(enabled) });
-    return this.snapshot();
+  async setLoopBEnabled(enabled: boolean): Promise<void> {
+    await this.sendSet({ loopb: formatBooleanFlag(enabled) });
   }
 
-  async setBand(band: string): Promise<WaterfallSnapshot> {
+  async setBand(band: string): Promise<void> {
     await this.sendSet({ band });
-    return this.snapshot();
   }
 
-  async setLineDuration(ms: number): Promise<WaterfallSnapshot> {
-    await this.sendSet({ line_duration: this.toIntString(ms) });
-    return this.snapshot();
+  async setLineDuration(ms: number): Promise<void> {
+    await this.sendSet({ line_duration: formatInteger(ms) });
   }
 
-  async setBlackLevel(level: number): Promise<WaterfallSnapshot> {
-    await this.sendSet({ black_level: this.toIntString(level) });
-    return this.snapshot();
+  async setBlackLevel(level: number): Promise<void> {
+    await this.sendSet({ black_level: formatInteger(level) });
   }
 
-  async setColorGain(value: number): Promise<WaterfallSnapshot> {
-    await this.sendSet({ color_gain: this.toIntString(value) });
-    return this.snapshot();
+  async setColorGain(value: number): Promise<void> {
+    await this.sendSet({ color_gain: formatInteger(value) });
   }
 
   async setAutoBlackLevelEnabled(
     enabled: boolean,
-  ): Promise<WaterfallSnapshot> {
-    await this.sendSet({ auto_black: this.toFlag(enabled) });
-    return this.snapshot();
+  ): Promise<void> {
+    await this.sendSet({ auto_black: formatBooleanFlag(enabled) });
   }
 
-  async setGradientIndex(index: number): Promise<WaterfallSnapshot> {
-    await this.sendSet({ gradient_index: this.toIntString(index) });
-    return this.snapshot();
+  async setGradientIndex(index: number): Promise<void> {
+    await this.sendSet({ gradient_index: formatInteger(index) });
   }
 
-  async refreshRfGainInfo(): Promise<WaterfallSnapshot> {
+  async refreshRfGainInfo(): Promise<void> {
     const stream = this.requireStreamHandle();
     const response = await this.session.command(
       `display panafall rfgain_info ${stream}`,
@@ -393,15 +381,13 @@ export class WaterfallControllerImpl implements WaterfallController {
       );
     }
     this.session.applyWaterfallRfGainInfo(this.id, info);
-    return this.snapshot();
   }
 
-  async update(request: WaterfallUpdateRequest): Promise<WaterfallSnapshot> {
+  async update(request: WaterfallUpdateRequest): Promise<void> {
     const entries = this.buildSetEntries(request);
     if (Object.keys(entries).length > 0) {
       await this.sendSet(entries);
     }
-    return this.snapshot();
   }
 
   async close(): Promise<void> {
@@ -428,31 +414,31 @@ export class WaterfallControllerImpl implements WaterfallController {
       entries.min_dbm = formatDbm(request.lowDbm);
     if (request.highDbm !== undefined)
       entries.max_dbm = formatDbm(request.highDbm);
-    if (request.fps !== undefined) entries.fps = this.toIntString(request.fps);
+    if (request.fps !== undefined) entries.fps = formatInteger(request.fps);
     if (request.average !== undefined)
-      entries.average = this.toIntString(request.average);
+      entries.average = formatInteger(request.average);
     if (request.weightedAverage !== undefined)
-      entries.weighted_average = this.toFlag(request.weightedAverage);
+      entries.weighted_average = formatBooleanFlag(request.weightedAverage);
     if (request.rxAntenna !== undefined) entries.rxant = request.rxAntenna;
     if (request.rfGain !== undefined)
-      entries.rfgain = this.toIntString(request.rfGain);
+      entries.rfgain = formatInteger(request.rfGain);
     if (request.daxIqChannel !== undefined)
-      entries.daxiq_channel = this.toIntString(request.daxIqChannel);
+      entries.daxiq_channel = formatInteger(request.daxIqChannel);
     if (request.loopAEnabled !== undefined)
-      entries.loopa = this.toFlag(request.loopAEnabled);
+      entries.loopa = formatBooleanFlag(request.loopAEnabled);
     if (request.loopBEnabled !== undefined)
-      entries.loopb = this.toFlag(request.loopBEnabled);
+      entries.loopb = formatBooleanFlag(request.loopBEnabled);
     if (request.band !== undefined) entries.band = request.band;
     if (request.lineDurationMs !== undefined)
-      entries.line_duration = this.toIntString(request.lineDurationMs);
+      entries.line_duration = formatInteger(request.lineDurationMs);
     if (request.blackLevel !== undefined)
-      entries.black_level = this.toIntString(request.blackLevel);
+      entries.black_level = formatInteger(request.blackLevel);
     if (request.colorGain !== undefined)
-      entries.color_gain = this.toIntString(request.colorGain);
+      entries.color_gain = formatInteger(request.colorGain);
     if (request.autoBlackLevelEnabled !== undefined)
-      entries.auto_black = this.toFlag(request.autoBlackLevelEnabled);
+      entries.auto_black = formatBooleanFlag(request.autoBlackLevelEnabled);
     if (request.gradientIndex !== undefined)
-      entries.gradient_index = this.toIntString(request.gradientIndex);
+      entries.gradient_index = formatInteger(request.gradientIndex);
     return entries;
   }
 
@@ -461,10 +447,12 @@ export class WaterfallControllerImpl implements WaterfallController {
     extras: readonly string[] = [],
   ): Promise<void> {
     const stream = this.requireStreamHandle();
-    const parts = Object.entries(entries).map(
-      ([key, value]) => `${key}=${value}`,
+    const command = buildDisplaySetCommand(
+      "display panafall set",
+      stream,
+      entries,
+      extras,
     );
-    const command = `display panafall set ${stream} ${parts.join(" ")}${extras.length ? " " + extras.join(" ") : ""}`;
     await this.session.command(command);
     this.session.patchWaterfall(this.id, { stream_id: stream, ...entries });
   }
@@ -480,19 +468,4 @@ export class WaterfallControllerImpl implements WaterfallController {
     return this.streamHandle;
   }
 
-  private toFlag(value: boolean): string {
-    return value ? "1" : "0";
-  }
-
-  private toIntString(value: number): string {
-    return Math.round(value).toString(10);
-  }
-}
-
-function formatMegahertz(frequencyMHz: number): string {
-  return frequencyMHz.toFixed(6);
-}
-
-function formatDbm(value: number): string {
-  return value.toFixed(6);
 }

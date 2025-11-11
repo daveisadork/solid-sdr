@@ -211,6 +211,7 @@ export function createFlexClient(
           connectionOptions?.commandTimeoutMs ??
           opts.defaultCommandTimeoutMs ??
           5_000,
+        logger: adapters.logger,
       });
     },
   };
@@ -218,11 +219,12 @@ export function createFlexClient(
 
 interface InternalSessionOptions {
   readonly defaultCommandTimeoutMs: number;
+  readonly logger?: FlexClientAdapters["logger"];
 }
 
 class FlexRadioSessionImpl implements FlexRadioSession {
   private readonly events = new TypedEventEmitter<FlexRadioEvents>();
-  private readonly store: RadioStateStore = createRadioStateStore();
+  private readonly store: RadioStateStore;
   private readonly slices = new Map<string, SliceControllerImpl>();
   private readonly panControllers = new Map<string, PanadapterControllerImpl>();
   private readonly waterfallControllers = new Map<
@@ -243,6 +245,7 @@ class FlexRadioSessionImpl implements FlexRadioSession {
     private readonly control: FlexControlChannel,
     private readonly options: InternalSessionOptions,
   ) {
+    this.store = createRadioStateStore({ logger: options.logger });
     this.radioController = new RadioControllerImpl(
       {
         command: (command, options) => this.command(command, options),
@@ -410,6 +413,9 @@ class FlexRadioSessionImpl implements FlexRadioSession {
         .map((stream) => stream.id),
     );
     await this.command(command);
+    if (this.closed) {
+      throw new FlexClientClosedError();
+    }
 
     const waitMs = options?.waitTimeoutMs ?? 5_000;
     const immediate = this.getAudioStreams().find(
@@ -423,12 +429,29 @@ class FlexRadioSessionImpl implements FlexRadioSession {
       options?.timeoutMessage ?? `Audio stream (${kind}) creation timed out`;
 
     return await new Promise<AudioStreamController>((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        subscription.unsubscribe();
-        reject(new FlexError(message));
+      let settled = false;
+      let timeout: ReturnType<typeof setTimeout> | undefined;
+      let changeSub: Subscription | undefined;
+      let disconnectSub: Subscription | undefined;
+
+      const cleanup = () => {
+        if (timeout) clearTimeout(timeout);
+        changeSub?.unsubscribe();
+        disconnectSub?.unsubscribe();
+      };
+
+      const settle = (action: () => void) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        action();
+      };
+
+      timeout = setTimeout(() => {
+        settle(() => reject(new FlexError(message)));
       }, waitMs);
 
-      const subscription = this.events.on("change", (change) => {
+      changeSub = this.events.on("change", (change) => {
         if (
           change.entity !== "audioStream" ||
           !change.snapshot ||
@@ -437,10 +460,16 @@ class FlexRadioSessionImpl implements FlexRadioSession {
           return;
         }
         if (!matches(change.snapshot)) return;
-        clearTimeout(timeout);
-        subscription.unsubscribe();
-        resolve(this.audioStream(change.id)!);
+        settle(() => resolve(this.audioStream(change.id)!));
       });
+
+      disconnectSub = this.events.once("disconnected", () => {
+        settle(() => reject(new FlexClientClosedError()));
+      });
+
+      if (this.closed) {
+        settle(() => reject(new FlexClientClosedError()));
+      }
     });
   }
 
@@ -455,6 +484,9 @@ class FlexRadioSessionImpl implements FlexRadioSession {
     if (options?.x !== undefined) command += ` x=${Math.round(options.x)}`;
     if (options?.y !== undefined) command += ` y=${Math.round(options.y)}`;
     await this.command(command);
+    if (this.closed) {
+      throw new FlexClientClosedError();
+    }
 
     const waitMs = options?.waitTimeoutMs ?? 5_000;
 
@@ -466,18 +498,41 @@ class FlexRadioSessionImpl implements FlexRadioSession {
     }
 
     return await new Promise<PanadapterController>((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        subscription.unsubscribe();
-        reject(new FlexError("Panadapter creation timed out"));
+      let settled = false;
+      let timeout: ReturnType<typeof setTimeout> | undefined;
+      let changeSub: Subscription | undefined;
+      let disconnectSub: Subscription | undefined;
+
+      const cleanup = () => {
+        if (timeout) clearTimeout(timeout);
+        changeSub?.unsubscribe();
+        disconnectSub?.unsubscribe();
+      };
+
+      const settle = (action: () => void) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        action();
+      };
+
+      timeout = setTimeout(() => {
+        settle(() => reject(new FlexError("Panadapter creation timed out")));
       }, waitMs);
 
-      const subscription = this.events.on("change", (change) => {
+      changeSub = this.events.on("change", (change) => {
         if (change.entity !== "panadapter" || !change.snapshot) return;
         if (existing.has(change.id)) return;
-        clearTimeout(timeout);
-        subscription.unsubscribe();
-        resolve(this.panadapter(change.id)!);
+        settle(() => resolve(this.panadapter(change.id)!));
       });
+
+      disconnectSub = this.events.once("disconnected", () => {
+        settle(() => reject(new FlexClientClosedError()));
+      });
+
+      if (this.closed) {
+        settle(() => reject(new FlexClientClosedError()));
+      }
     });
   }
 

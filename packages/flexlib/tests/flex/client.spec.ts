@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { FlexRadioDescriptor } from "../../src/flex/adapters.js";
 import { createFlexClient } from "../../src/flex/client.js";
-import { FlexCommandRejectedError } from "../../src/flex/errors.js";
+import {
+  FlexClientClosedError,
+  FlexCommandRejectedError,
+} from "../../src/flex/errors.js";
 import { MockControlFactory, makeStatus } from "../helpers.js";
 
 const descriptor: FlexRadioDescriptor = {
@@ -285,6 +288,49 @@ describe("FlexClient", () => {
     expect(stream.daxChannel).toBe(3);
     expect(stream.clientHandle).toBe(0x9abc);
     expect(session.audioStream("0x02000002")).toBe(stream);
+  });
+
+  it("allows closing audio streams after they are removed from state", async () => {
+    const factory = new MockControlFactory();
+    const client = createFlexClient({ control: factory });
+    const session = await client.connect(descriptor);
+    const channel = factory.channel;
+    if (!channel) throw new Error("control channel not created");
+
+    const creationPromise = session.createRemoteAudioRxStream();
+    expect(channel.commands.at(-1)?.command).toBe(
+      "stream create type=remote_audio_rx",
+    );
+
+    channel.emit(
+      makeStatus("S1|stream 0x0400000A type=remote_audio_rx compression=OPUS"),
+    );
+
+    const stream = await creationPromise;
+    channel.emit(makeStatus("S1|stream 0x0400000A removed=1"));
+
+    await stream.close();
+    expect(channel.commands.at(-1)?.command).toBe(
+      "stream remove 0x0400000A",
+    );
+  });
+
+  it("rejects pending audio stream creation when the session closes", async () => {
+    const factory = new MockControlFactory();
+    const client = createFlexClient({ control: factory });
+    const session = await client.connect(descriptor);
+    const channel = factory.channel;
+    if (!channel) throw new Error("control channel not created");
+
+    const creationPromise = session.createRemoteAudioRxStream({
+      waitTimeoutMs: 5000,
+    });
+    expect(channel.commands.at(-1)?.command).toBe(
+      "stream create type=remote_audio_rx",
+    );
+
+    await session.close();
+    await expect(creationPromise).rejects.toBeInstanceOf(FlexClientClosedError);
   });
 
   it("surfaces command rejections", async () => {

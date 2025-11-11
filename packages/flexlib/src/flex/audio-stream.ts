@@ -44,11 +44,17 @@ export interface AudioStreamController {
 export class AudioStreamControllerImpl implements AudioStreamController {
   private readonly events =
     new TypedEventEmitter<AudioStreamControllerEvents>();
+  private streamHandle?: string;
 
   constructor(
     private readonly session: AudioStreamSessionApi,
     readonly id: string,
-  ) {}
+  ) {
+    const snapshot = this.session.getAudioStream(id);
+    if (snapshot) {
+      this.streamHandle = snapshot.streamId;
+    }
+  }
 
   private current(): AudioStreamSnapshot {
     const snapshot = this.session.getAudioStream(this.id);
@@ -57,6 +63,7 @@ export class AudioStreamControllerImpl implements AudioStreamController {
         `Audio stream ${this.id} is no longer available`,
       );
     }
+    this.streamHandle = snapshot.streamId;
     return snapshot;
   }
 
@@ -104,11 +111,17 @@ export class AudioStreamControllerImpl implements AudioStreamController {
   }
 
   async close(): Promise<void> {
-    const streamId = this.streamId;
+    const snapshot = this.session.getAudioStream(this.id);
+    const streamId = snapshot?.streamId ?? this.streamHandle;
+    if (!streamId) return;
+    this.streamHandle = streamId;
     await this.session.command(`stream remove ${streamId}`);
   }
 
   onStateChange(change: AudioStreamStateChange): void {
+    if (change.snapshot?.streamId) {
+      this.streamHandle = change.snapshot.streamId;
+    }
     this.events.emit("change", change);
   }
 }

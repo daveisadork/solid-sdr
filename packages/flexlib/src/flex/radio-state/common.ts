@@ -1,6 +1,20 @@
+import type { Logger } from "../adapters.js";
+
 /**
  * Shared types and utilities for radio-state snapshot parsing.
  */
+
+type RadioStateLogger = Pick<Logger, "debug" | "warn">;
+
+let currentLogger: RadioStateLogger | undefined;
+
+export function setRadioStateLogger(logger?: RadioStateLogger): void {
+  currentLogger = logger;
+}
+
+function getLogger(): RadioStateLogger | undefined {
+  return currentLogger;
+}
 
 export type Mutable<T> = {
   -readonly [P in keyof T]: T[P] extends ReadonlyArray<infer U>
@@ -139,6 +153,15 @@ export function logUnknownAttribute(
   key: string,
   value: string,
 ): void {
+  const logger = getLogger();
+  if (logger?.debug) {
+    logger.debug(`[radio-state] Unhandled ${entity} attribute`, {
+      entity,
+      key,
+      value,
+    });
+    return;
+  }
   if (typeof console !== "undefined" && typeof console.debug === "function") {
     console.debug(
       `[radio-state] Unhandled ${entity} attribute`,
@@ -152,6 +175,15 @@ export function logParseError(
   key: string,
   value: string,
 ): void {
+  const logger = getLogger();
+  if (logger?.warn) {
+    logger.warn(`[radio-state] Failed to parse ${entity} attribute`, {
+      entity,
+      key,
+      value,
+    });
+    return;
+  }
   if (typeof console !== "undefined" && typeof console.warn === "function") {
     console.warn(
       `[radio-state] Failed to parse ${entity} attribute`,

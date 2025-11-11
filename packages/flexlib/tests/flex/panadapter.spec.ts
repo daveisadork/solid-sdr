@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { FlexRadioDescriptor } from "../../src/flex/adapters.js";
 import { createFlexClient } from "../../src/flex/client.js";
+import { FlexClientClosedError } from "../../src/flex/errors.js";
 import { MockControlFactory, makeStatus } from "../helpers.js";
 
 const descriptor: FlexRadioDescriptor = {
@@ -211,5 +212,19 @@ describe("Panadapter controller", () => {
       0.002,
       6,
     );
+  });
+
+  it("rejects pending panadapter creation when the session closes", async () => {
+    const factory = new MockControlFactory();
+    const client = createFlexClient({ control: factory });
+    const session = await client.connect(descriptor);
+    const channel = factory.channel;
+    if (!channel) throw new Error("control channel not created");
+
+    const creation = session.createPanadapter({ waitTimeoutMs: 5000 });
+    expect(channel.commands.at(-1)?.command).toBe("display panafall create");
+
+    await session.close();
+    await expect(creation).rejects.toBeInstanceOf(FlexClientClosedError);
   });
 });

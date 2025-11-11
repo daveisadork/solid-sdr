@@ -7,7 +7,7 @@ import {
   Show,
 } from "solid-js";
 import { Portal } from "solid-js/web";
-import useFlexRadio, { PacketEvent } from "~/context/flexradio";
+import useFlexRadio, { type FlexUdpPacketEvent } from "~/context/flexradio";
 import { LinearScale } from "./linear-scale";
 
 export function Waterfall(props: { streamId: string }) {
@@ -195,7 +195,7 @@ export function Waterfall(props: { streamId: string }) {
 
     const streamIdInt = parseInt(streamId(), 16);
 
-    return ({ packet }: PacketEvent<"waterfall">) => {
+    return ({ packet }: FlexUdpPacketEvent<"waterfall">) => {
       if (packet.streamId !== streamIdInt) return;
       const tile = packet.tile;
       const binBandwidth = tile.binBandwidth.freqHz;
@@ -342,9 +342,9 @@ export function Waterfall(props: { streamId: string }) {
   createEffect(() => {
     const handler = onWaterfall();
     if (!handler) return;
-    events.addEventListener("waterfall", handler);
+    const subscription = events.on("waterfall", handler);
     onCleanup(() => {
-      events.removeEventListener("waterfall", handler);
+      subscription.unsubscribe();
     });
   });
 

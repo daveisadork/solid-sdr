@@ -18,17 +18,17 @@ import {
 import { showToast } from "~/components/ui/toast";
 import {
   createFlexClient,
+  createFlexUdpSession,
   createVitaDiscoveryAdapter,
+  attachRtcDataChannelToFlexUdp,
   FlexCommandRejectedError,
-  parseVitaPacket,
-  VitaPacketKind,
-  VitaParsedPacket,
-  VitaPacketMetadata,
   scaleMeterRawValue,
   type AudioStreamSnapshot,
   type DiscoverySession,
   type FlexRadioDescriptor,
   type FlexRadioSession,
+  type FlexUdpPacketEvent,
+  type FlexUdpSession,
   type FlexWireMessage,
   type MeterSnapshot,
   type PanadapterSnapshot,
@@ -40,34 +40,6 @@ import {
 } from "@repo/flexlib";
 import { createWebSocketFlexControlFactory } from "~/lib/flex-control";
 import { useRtc } from "./rtc";
-
-export type PacketEventType = VitaPacketKind;
-
-type PacketDetailMap = {
-  [K in PacketEventType]: Extract<VitaParsedPacket, { kind: K }>["packet"];
-};
-
-function toMetadata(parsed: VitaParsedPacket): VitaPacketMetadata {
-  const { header, classId, streamId, timestampInt, timestampFrac } = parsed;
-  return { header, classId, streamId, timestampInt, timestampFrac };
-}
-
-export class PacketEvent<
-  T extends PacketEventType = PacketEventType,
-> extends Event {
-  public readonly packet: PacketDetailMap[T];
-  public readonly metadata: VitaPacketMetadata;
-
-  constructor(
-    type: T,
-    packet: PacketDetailMap[T],
-    metadata: VitaPacketMetadata,
-  ) {
-    super(type);
-    this.packet = packet;
-    this.metadata = metadata;
-  }
-}
 
 export interface DiscoveryRadio extends FlexRadioDescriptor {
   lastSeen: Date;
@@ -326,36 +298,6 @@ export const initialState = () =>
     },
   }) as AppState;
 
-interface PacketEventListener<T extends PacketEventType = PacketEventType> {
-  (evt: PacketEvent<T>): void;
-}
-
-interface PacketEventListenerObject<
-  T extends PacketEventType = PacketEventType,
-> {
-  handleEvent(object: PacketEvent<T>): void;
-}
-
-type PacketEventListenerOrEventListenerObject<
-  T extends PacketEventType = PacketEventType,
-> = PacketEventListener<T> | PacketEventListenerObject<T>;
-
-interface UDPEventTarget extends EventTarget {
-  addEventListener<T extends PacketEventType>(
-    type: T,
-    callback: PacketEventListenerOrEventListenerObject<T> | null,
-    options?: AddEventListenerOptions | boolean,
-  ): void;
-  dispatchEvent(event: PacketEvent): boolean;
-  removeEventListener<T extends PacketEventType>(
-    type: T,
-    callback: PacketEventListenerOrEventListenerObject<T> | null,
-    options?: EventListenerOptions | boolean,
-  ): void;
-}
-
-const _events = new EventTarget() as UDPEventTarget;
-
 const FlexRadioContext = createContext<{
   state: AppState;
   setState: SetStoreFunction<AppState>;
@@ -367,7 +309,7 @@ const FlexRadioContext = createContext<{
     message: string;
     debugOutput?: string;
   }>;
-  events: UDPEventTarget;
+  events: FlexUdpSession;
 }>();
 
 export const FlexRadioProvider: ParentComponent = (props) => {
@@ -377,15 +319,22 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     null,
   );
 
-  const meterScratch = { ids: new Uint16Array(0), values: new Int16Array(0) };
-  const panadapterScratch = { payload: new Uint16Array(0) };
-  const waterfallScratch = { data: new Uint16Array(0) };
+  const logger = {
+    warn(message: string, meta?: Record<string, unknown>) {
+      console.warn(message, meta);
+    },
+    error(message: string, meta?: Record<string, unknown>) {
+      console.error(message, meta);
+    },
+  };
+  const udpSession = createFlexUdpSession({ logger });
   const serialToHost = new Map<string, string>();
   const discoveryWs = createReconnectingWS("/ws/discovery");
   let discoverySession: DiscoverySession | null = null;
   let flexSessionSubscriptions: Subscription[] = [];
   let pendingHandleLine: string | null = null;
   let pingTimer: ReturnType<typeof setInterval> | undefined;
+  let rtcUdpCleanup: (() => void) | undefined;
 
   discoveryWs.addEventListener("open", ({ target }) => {
     (target as WebSocket).binaryType = "arraybuffer";
@@ -445,14 +394,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         };
       },
     },
-    logger: {
-      warn(message, meta) {
-        console.warn(message, meta);
-      },
-      error(message, meta) {
-        console.error(message, meta);
-      },
-    },
+    logger,
   });
   const controlFactory = createWebSocketFlexControlFactory({
     makeSocket(descriptor) {
@@ -460,27 +402,14 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         `/ws/radio?host=${descriptor.host}&port=${descriptor.port}`,
       );
     },
-    logger: {
-      warn(message, meta) {
-        console.warn(message, meta);
-      },
-      error(message, meta) {
-        console.error(message, meta);
-      },
-    },
+    logger,
+    udpSession,
   });
   const flexClient = createFlexClient(
     {
       discovery: discoveryAdapter,
       control: controlFactory,
-      logger: {
-        warn(message, meta) {
-          console.warn(message, meta);
-        },
-        error(message, meta) {
-          console.error(message, meta);
-        },
-      },
+      logger,
     },
     { defaultCommandTimeoutMs: 10_000 },
   );
@@ -819,14 +748,21 @@ export const FlexRadioProvider: ParentComponent = (props) => {
             // sendCommand("sub codec all"),
             sendCommand("sub apd all"),
             sendCommand("keepalive enable"),
-          ]);
-          console.log("Connecting RTC with handle:", handle);
-          setState("connectModal", "stage", ConnectionStage.UDP);
-          await connectRTC(handle).catch(console.error);
-          const { message: clientId } = await sendCommand("client gui");
-          await flexSession()?.createRemoteAudioRxStream({
-            compression: "OPUS",
-          });
+        ]);
+        console.log("Connecting RTC with handle:", handle);
+        setState("connectModal", "stage", ConnectionStage.UDP);
+        const rtc = await connectRTC(handle);
+        rtcUdpCleanup?.();
+        rtcUdpCleanup = attachRtcDataChannelToFlexUdp(udpSession, rtc.data, {
+          onError(error) {
+            console.error("Error decoding UDP packet:", error);
+            disconnect();
+          },
+        });
+        const { message: clientId } = await sendCommand("client gui");
+        await flexSession()?.createRemoteAudioRxStream({
+          compression: "OPUS",
+        });
           setState("connectModal", "stage", ConnectionStage.Done);
           batch(() => {
             setState("clientHandle", handle);
@@ -926,34 +862,8 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     }
   };
 
-  const handleUdpPacket = ({ data }: MessageEvent) => {
-    try {
-      const parsed = parseVitaPacket(new Uint8Array(data), {
-        meter: meterScratch,
-        panadapter: panadapterScratch,
-        waterfall: waterfallScratch,
-      });
-      if (!parsed) {
-        console.warn("Unhandled UDP packet");
-        return;
-      }
-
-      const metadata = toMetadata(parsed);
-      _events.dispatchEvent(
-        new PacketEvent(
-          parsed.kind,
-          parsed.packet as PacketDetailMap[typeof parsed.kind],
-          metadata,
-        ),
-      );
-    } catch (error) {
-      console.error("Error decoding UDP packet:", error);
-      disconnect();
-    }
-  };
-
   createEffect(() => {
-    _events.addEventListener("meter", ({ packet }) => {
+    const subscription = udpSession.on("meter", ({ packet }) => {
       const meterPacket = packet;
       setState(
         "status",
@@ -972,6 +882,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         }),
       );
     });
+    onCleanup(() => subscription.unsubscribe());
   });
 
   const teardownFlexSession = (options?: { resetState?: boolean }) => {
@@ -988,6 +899,10 @@ export const FlexRadioProvider: ParentComponent = (props) => {
       clearInterval(pingTimer);
       pingTimer = undefined;
     }
+    if (rtcUdpCleanup) {
+      rtcUdpCleanup();
+      rtcUdpCleanup = undefined;
+    }
     const currentSession = flexSession();
     setFlexSession(null);
     pendingHandleLine = null;
@@ -1002,6 +917,10 @@ export const FlexRadioProvider: ParentComponent = (props) => {
       setState(reconcile(initialState()));
       serialToHost.clear();
     }
+  };
+
+  const disconnect = () => {
+    teardownFlexSession();
   };
 
   const connect = (addr: { host: string; port: number }) => {
@@ -1033,6 +952,10 @@ export const FlexRadioProvider: ParentComponent = (props) => {
             console.error("Failed to close previous session", error);
           }
         }
+        if (rtcUdpCleanup) {
+          rtcUdpCleanup();
+          rtcUdpCleanup = undefined;
+        }
 
         const newSession = await flexClient.connect(descriptor, {
           connectionParams: {
@@ -1041,8 +964,8 @@ export const FlexRadioProvider: ParentComponent = (props) => {
                 console.error("Control line handler error", error),
               );
             },
-            onBinaryMessage: handleUdpPacket,
           },
+          udpSession,
         });
         setFlexSession(newSession);
         const changeSubscription = newSession.on("change", handleStateChange);
@@ -1123,25 +1046,10 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     teardownFlexSession({ resetState: false });
   });
 
-  createEffect(() => {
-    const rtcSession = sessionRTC();
-    if (!rtcSession) return;
-    console.log("Setting up RTC data channel listener");
-    rtcSession.data.addEventListener("message", handleUdpPacket);
-    onCleanup(() => {
-      console.log("Cleaning up RTC data channel listener");
-      rtcSession.data.removeEventListener("message", handleUdpPacket);
-    });
-  });
-
-  const disconnect = () => {
-    teardownFlexSession();
-  };
-
   return (
     <FlexRadioContext.Provider
       value={{
-        events: _events,
+        events: udpSession,
         state,
         setState,
         sendCommand,
@@ -1165,3 +1073,5 @@ export default function useFlexRadio() {
 
   return context;
 }
+
+export type { FlexUdpPacketEvent } from "@repo/flexlib";

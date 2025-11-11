@@ -1,6 +1,7 @@
 import {
   type FlexControlFactory,
   type FlexRadioDescriptor,
+  type FlexUdpSession,
   type FlexWireTransport,
   type FlexWireTransportFactory,
   type FlexWireTransportHandlers,
@@ -10,13 +11,13 @@ import {
 
 export interface WebSocketControlConnectionParams {
   onControlLine?(line: string): void;
-  onBinaryMessage?(event: MessageEvent<ArrayBuffer>): void;
 }
 
 export interface WebSocketFlexControlFactoryOptions {
   makeSocket(descriptor: FlexRadioDescriptor): WebSocket;
   logger?: Logger;
   commandTerminator?: string;
+  udpSession?: FlexUdpSession;
 }
 
 export function createWebSocketFlexControlFactory(
@@ -33,6 +34,7 @@ export function createWebSocketFlexControlFactory(
 function createWebSocketTransportFactory(
   options: WebSocketFlexControlFactoryOptions,
 ): FlexWireTransportFactory {
+  const udpSession = options.udpSession;
   return {
     async connect(radio, handlers, connectOptions) {
       const params = connectOptions as
@@ -79,21 +81,12 @@ function createWebSocketTransportFactory(
         }
 
         if (data instanceof ArrayBuffer) {
-          params?.onBinaryMessage?.(event as MessageEvent<ArrayBuffer>);
+          udpSession?.ingest(data);
           return;
         }
 
         if (data instanceof Uint8Array) {
-          const buffer =
-            data.byteLength === data.buffer.byteLength && data.byteOffset === 0
-              ? data.buffer
-              : data.buffer.slice(
-                  data.byteOffset,
-                  data.byteOffset + data.byteLength,
-                );
-          params?.onBinaryMessage?.(
-            new MessageEvent("message", { data: buffer, origin: event.origin }),
-          );
+          udpSession?.ingest(data);
           return;
         }
 
@@ -102,12 +95,7 @@ function createWebSocketTransportFactory(
             .arrayBuffer()
             .then((buffer) => {
               if (closed) return;
-              params?.onBinaryMessage?.(
-                new MessageEvent("message", {
-                  data: buffer,
-                  origin: event.origin,
-                }),
-              );
+              udpSession?.ingest(buffer);
             })
             .catch((error) => handlers.onError?.(error));
           return;

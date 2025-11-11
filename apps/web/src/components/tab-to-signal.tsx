@@ -9,7 +9,7 @@ import {
   splitProps,
 } from "solid-js";
 import { throttle } from "@solid-primitives/scheduled";
-import useFlexRadio, { PacketEvent } from "~/context/flexradio";
+import useFlexRadio, { type FlexUdpPacketEvent } from "~/context/flexradio";
 import { cn } from "~/lib/utils";
 
 // ------------ Types ------------
@@ -392,7 +392,7 @@ export const TabToSignal: Component<
   // Intake FFT chunks, reassemble frames, then schedule a scan
   createEffect(() => {
     const stream_id = parseInt(props.streamId, 16);
-    const handler = ({ packet }: PacketEvent<"panadapter">) => {
+    const handler = ({ packet }: FlexUdpPacketEvent<"panadapter">) => {
       if (packet.streamId !== stream_id) return;
       const startingBin = packet.startBinIndex;
       const binsInThisFrame = packet.numBins;
@@ -418,8 +418,8 @@ export const TabToSignal: Component<
       }
     };
 
-    events.addEventListener("panadapter", handler);
-    onCleanup(() => events.removeEventListener("panadapter", handler));
+    const subscription = events.on("panadapter", handler);
+    onCleanup(() => subscription.unsubscribe());
   });
 
   // Shortcuts

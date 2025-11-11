@@ -14,3 +14,4 @@ export * from "./discovery.js";
 export * from "./wire-control.js";
 export * from "./radio.js";
 export * from "./waterfall-line-speed.js";
+export * from "./udp.js";

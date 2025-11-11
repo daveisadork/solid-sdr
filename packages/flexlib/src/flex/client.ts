@@ -49,6 +49,10 @@ import {
   type RemoteAudioRxStreamController,
   AudioStreamControllerImpl,
 } from "./audio-stream.js";
+import {
+  createFlexUdpSession,
+  type FlexUdpSession,
+} from "./udp.js";
 
 export interface FlexClientOptions {
   defaultCommandTimeoutMs?: number;
@@ -75,6 +79,7 @@ export interface FlexDiscoverySession {
 export interface FlexConnectionOptions {
   readonly commandTimeoutMs?: number;
   readonly connectionParams?: Record<string, unknown>;
+  readonly udpSession?: FlexUdpSession;
 }
 
 export interface FlexRadioEvents extends Record<string, unknown> {
@@ -94,6 +99,7 @@ export type FlexRadioEventListener<TKey extends FlexRadioEventKey> = (
 export interface FlexRadioSession {
   readonly descriptor: FlexRadioDescriptor;
   readonly isClosed: boolean;
+  readonly udp: FlexUdpSession;
   snapshot(): RadioStateSnapshot;
   getSlice(id: string): SliceSnapshot | undefined;
   getSlices(): readonly SliceSnapshot[];
@@ -191,6 +197,9 @@ export function createFlexClient(
       };
     },
     async connect(descriptor, connectionOptions) {
+      const udpSession =
+        connectionOptions?.udpSession ??
+        createFlexUdpSession({ logger: adapters.logger });
       const control = await adapters.control.connect(
         descriptor,
         connectionOptions?.connectionParams,
@@ -201,6 +210,7 @@ export function createFlexClient(
           opts.defaultCommandTimeoutMs ??
           5_000,
         logger: adapters.logger,
+        udpSession,
       });
     },
   };
@@ -209,6 +219,7 @@ export function createFlexClient(
 interface InternalSessionOptions {
   readonly defaultCommandTimeoutMs: number;
   readonly logger?: FlexClientAdapters["logger"];
+  readonly udpSession: FlexUdpSession;
 }
 
 class FlexRadioSessionImpl implements FlexRadioSession {
@@ -227,6 +238,7 @@ class FlexRadioSessionImpl implements FlexRadioSession {
   >();
   private readonly radioController: RadioController;
   private readonly messageSub: Subscription;
+  private readonly udpSession: FlexUdpSession;
   private closed = false;
 
   constructor(
@@ -234,6 +246,7 @@ class FlexRadioSessionImpl implements FlexRadioSession {
     private readonly control: FlexControlChannel,
     private readonly options: InternalSessionOptions,
   ) {
+    this.udpSession = options.udpSession;
     this.store = createRadioStateStore({ logger: options.logger });
     this.radioController = new RadioControllerImpl(
       {
@@ -250,6 +263,10 @@ class FlexRadioSessionImpl implements FlexRadioSession {
 
   get isClosed(): boolean {
     return this.closed;
+  }
+
+  get udp(): FlexUdpSession {
+    return this.udpSession;
   }
 
   snapshot(): RadioStateSnapshot {

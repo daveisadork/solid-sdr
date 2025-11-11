@@ -15,11 +15,13 @@ const descriptor: FlexRadioDescriptor = {
   protocol: "tcp",
 };
 
+const NO_HANDSHAKE = { handshake: async () => {} };
+
 describe("Panadapter controller", () => {
   it("reflects state updates and issues commands", async () => {
     const factory = new MockControlFactory();
     const client = createFlexClient({ control: factory });
-    const session = await client.connect(descriptor);
+    const session = await client.connect(descriptor, NO_HANDSHAKE);
     const channel = factory.channel;
     if (!channel) throw new Error("control channel not created");
 
@@ -187,7 +189,7 @@ describe("Panadapter controller", () => {
   it("creates a panadapter via createPanadapter", async () => {
     const factory = new MockControlFactory();
     const client = createFlexClient({ control: factory });
-    const session = await client.connect(descriptor);
+    const session = await client.connect(descriptor, NO_HANDSHAKE);
     const channel = factory.channel;
     if (!channel) throw new Error("control channel not created");
 
@@ -217,7 +219,7 @@ describe("Panadapter controller", () => {
   it("rejects pending panadapter creation when the session closes", async () => {
     const factory = new MockControlFactory();
     const client = createFlexClient({ control: factory });
-    const session = await client.connect(descriptor);
+    const session = await client.connect(descriptor, NO_HANDSHAKE);
     const channel = factory.channel;
     if (!channel) throw new Error("control channel not created");
 

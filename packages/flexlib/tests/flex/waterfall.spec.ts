@@ -15,11 +15,13 @@ const descriptor: FlexRadioDescriptor = {
   protocol: "tcp",
 };
 
+const NO_HANDSHAKE = { handshake: async () => {} };
+
 describe("Waterfall controller", () => {
   it("reflects state updates and issues commands", async () => {
     const factory = new MockControlFactory();
     const client = createFlexClient({ control: factory });
-    const session = await client.connect(descriptor);
+    const session = await client.connect(descriptor, NO_HANDSHAKE);
     const channel = factory.channel;
     if (!channel) throw new Error("control channel not created");
 

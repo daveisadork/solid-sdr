@@ -4,6 +4,7 @@ import type {
   FlexCommandResponse,
   FlexControlChannel,
   FlexRadioDescriptor,
+  Logger,
 } from "./adapters.js";
 import { TypedEventEmitter, type Subscription } from "./events.js";
 import type {
@@ -58,6 +59,19 @@ export interface FlexClientOptions {
   defaultCommandTimeoutMs?: number;
 }
 
+export type FlexConnectionProgressStage =
+  | "control"
+  | "handle"
+  | "sync"
+  | "data-plane"
+  | "ready";
+
+export interface FlexConnectionProgress {
+  readonly stage: FlexConnectionProgressStage;
+  readonly detail?: string;
+  readonly handle?: string;
+}
+
 export interface FlexClient {
   readonly adapters: FlexClientAdapters;
   readonly options: FlexClientOptions;
@@ -78,9 +92,61 @@ export interface FlexDiscoverySession {
 
 export interface FlexConnectionOptions {
   readonly commandTimeoutMs?: number;
-  readonly connectionParams?: Record<string, unknown>;
+  readonly controlOptions?: Record<string, unknown>;
   readonly udpSession?: FlexUdpSession;
+  readonly dataPlane?: FlexDataPlaneFactory;
+  readonly handshake?: FlexHandshake | null;
+  readonly pingIntervalMs?: number | null;
+  readonly onProgress?: (progress: FlexConnectionProgress) => void;
 }
+
+export interface FlexDataPlaneContext {
+  readonly descriptor: FlexRadioDescriptor;
+  readonly handle: string;
+  readonly session: FlexRadioSession;
+  readonly udp: FlexUdpSession;
+  readonly logger?: Logger;
+  command(
+    command: string,
+    options?: FlexCommandOptions,
+  ): Promise<FlexCommandResponse>;
+}
+
+export interface FlexDataPlaneConnection {
+  close(): Promise<void> | void;
+}
+
+export interface FlexDataPlaneFactory {
+  connect(
+    context: FlexDataPlaneContext,
+  ):
+    | Promise<FlexDataPlaneConnection | void>
+    | FlexDataPlaneConnection
+    | void;
+}
+
+export interface FlexWaitForHandleOptions {
+  readonly timeoutMs?: number;
+}
+
+export interface FlexHandshakeContext {
+  readonly descriptor: FlexRadioDescriptor;
+  readonly session: FlexRadioSession;
+  readonly radio: RadioController;
+  readonly udp: FlexUdpSession;
+  readonly logger?: Logger;
+  readonly dataPlaneFactory?: FlexDataPlaneFactory;
+  command(
+    command: string,
+    options?: FlexCommandOptions,
+  ): Promise<FlexCommandResponse>;
+  waitForHandle(options?: FlexWaitForHandleOptions): Promise<string>;
+  emitProgress(progress: FlexConnectionProgress): void;
+  setClientId(clientId: string | null): void;
+  attachDataPlane(factory: FlexDataPlaneFactory): Promise<void>;
+}
+
+export type FlexHandshake = (context: FlexHandshakeContext) => Promise<void>;
 
 export interface FlexRadioEvents extends Record<string, unknown> {
   readonly change: RadioStateChange;
@@ -88,6 +154,8 @@ export interface FlexRadioEvents extends Record<string, unknown> {
   readonly reply: FlexReplyMessage;
   readonly notice: FlexNoticeMessage;
   readonly message: FlexWireMessage;
+  readonly progress: FlexConnectionProgress;
+  readonly ready: undefined;
   readonly disconnected: undefined;
 }
 
@@ -99,6 +167,10 @@ export type FlexRadioEventListener<TKey extends FlexRadioEventKey> = (
 export interface FlexRadioSession {
   readonly descriptor: FlexRadioDescriptor;
   readonly isClosed: boolean;
+  readonly isReady: boolean;
+  readonly ready: Promise<void>;
+  readonly clientHandle: string | null;
+  readonly clientId: string | null;
   readonly udp: FlexUdpSession;
   snapshot(): RadioStateSnapshot;
   getSlice(id: string): SliceSnapshot | undefined;
@@ -202,16 +274,38 @@ export function createFlexClient(
         createFlexUdpSession({ logger: adapters.logger });
       const control = await adapters.control.connect(
         descriptor,
-        connectionOptions?.connectionParams,
+        connectionOptions?.controlOptions,
       );
-      return new FlexRadioSessionImpl(descriptor, control, {
+      const session = new FlexRadioSessionImpl(descriptor, control, {
         defaultCommandTimeoutMs:
           connectionOptions?.commandTimeoutMs ??
           opts.defaultCommandTimeoutMs ??
           5_000,
         logger: adapters.logger,
         udpSession,
+        pingIntervalMs:
+          connectionOptions?.pingIntervalMs ??
+          (connectionOptions?.pingIntervalMs === null ? null : 1_000),
       });
+      const handshake =
+        connectionOptions?.handshake === undefined
+          ? defaultFlexHandshake
+          : connectionOptions.handshake;
+      try {
+        await session.prepare({
+          handshake,
+          dataPlaneFactory: connectionOptions?.dataPlane,
+          onProgress: connectionOptions?.onProgress,
+        });
+      } catch (error) {
+        try {
+          await session.close();
+        } catch {
+          // swallow secondary errors while closing after handshake failure
+        }
+        throw error;
+      }
+      return session;
     },
   };
 }
@@ -220,6 +314,13 @@ interface InternalSessionOptions {
   readonly defaultCommandTimeoutMs: number;
   readonly logger?: FlexClientAdapters["logger"];
   readonly udpSession: FlexUdpSession;
+  readonly pingIntervalMs?: number | null;
+}
+
+interface SessionPrepareOptions {
+  readonly handshake: FlexHandshake | null;
+  readonly dataPlaneFactory?: FlexDataPlaneFactory;
+  readonly onProgress?: (progress: FlexConnectionProgress) => void;
 }
 
 class FlexRadioSessionImpl implements FlexRadioSession {
@@ -238,6 +339,23 @@ class FlexRadioSessionImpl implements FlexRadioSession {
   >();
   private readonly radioController: RadioController;
   private readonly messageSub: Subscription;
+  private readonly rawLineSub: Subscription;
+  private readonly handleWaiters: Array<{
+    resolve: (handle: string) => void;
+    reject: (reason: unknown) => void;
+    timeoutHandle?: ReturnType<typeof setTimeout>;
+  }> = [];
+  private readonly readyPromise: Promise<void>;
+  private readyResolve?: () => void;
+  private readyReject?: (reason?: unknown) => void;
+  private dataPlaneConnection?: FlexDataPlaneConnection;
+  private heartbeatTimer?: ReturnType<typeof setInterval>;
+  private _clientHandle: string | null = null;
+  private _clientId: string | null = null;
+  private _isReady = false;
+  private handshakeError: unknown;
+  private onProgress?: (progress: FlexConnectionProgress) => void;
+  private lastProgress: FlexConnectionProgress | null = null;
   private readonly udpSession: FlexUdpSession;
   private closed = false;
 
@@ -256,13 +374,34 @@ class FlexRadioSessionImpl implements FlexRadioSession {
       },
       () => this.store.getRadio(),
     );
+    this.readyPromise = new Promise<void>((resolve, reject) => {
+      this.readyResolve = resolve;
+      this.readyReject = reject;
+    });
     this.messageSub = control.onMessage((message) =>
       this.handleWireMessage(message),
     );
+    this.rawLineSub = control.onRawLine((line) => this.handleRawLine(line));
   }
 
   get isClosed(): boolean {
     return this.closed;
+  }
+
+  get isReady(): boolean {
+    return this._isReady;
+  }
+
+  get ready(): Promise<void> {
+    return this.readyPromise;
+  }
+
+  get clientHandle(): string | null {
+    return this._clientHandle;
+  }
+
+  get clientId(): string | null {
+    return this._clientId;
   }
 
   get udp(): FlexUdpSession {
@@ -322,6 +461,234 @@ class FlexRadioSessionImpl implements FlexRadioSession {
     return this.getAudioStreams().filter(
       (stream) => stream.type === "remote_audio_rx",
     );
+  }
+
+  async prepare(options: SessionPrepareOptions): Promise<void> {
+    if (options.handshake === null) {
+      this.markReady();
+      return;
+    }
+
+    this.onProgress = options.onProgress;
+    const handshake = options.handshake ?? defaultFlexHandshake;
+    this.emitProgress({ stage: "control" });
+    try {
+      await handshake({
+        descriptor: this.descriptor,
+        session: this,
+        radio: this.radioController,
+        udp: this.udpSession,
+        logger: this.options.logger,
+        dataPlaneFactory: options.dataPlaneFactory,
+        command: (command, commandOptions) =>
+          this.command(command, commandOptions),
+        waitForHandle: (handleOptions) =>
+          this.waitForHandle(handleOptions),
+        emitProgress: (progress) => this.emitProgress(progress),
+        setClientId: (clientId) => this.setClientId(clientId),
+        attachDataPlane: async (factory) => {
+          await this.attachDataPlane(factory);
+        },
+      });
+      if (
+        options.dataPlaneFactory &&
+        !this.dataPlaneConnection &&
+        this._clientHandle
+      ) {
+        await this.attachDataPlane(options.dataPlaneFactory);
+      }
+      this.markReady();
+    } catch (error) {
+      this.failReady(error);
+      throw error;
+    }
+  }
+
+  private async attachDataPlane(
+    factory?: FlexDataPlaneFactory,
+  ): Promise<void> {
+    if (!factory) return;
+    if (!this._clientHandle) {
+      throw new Error("Flex data-plane attachment requires a client handle");
+    }
+    await this.teardownDataPlane();
+    const result = await factory.connect({
+      descriptor: this.descriptor,
+      handle: this._clientHandle,
+      session: this,
+      udp: this.udpSession,
+      logger: this.options.logger,
+      command: (command, commandOptions) =>
+        this.command(command, commandOptions),
+    });
+    if (result) {
+      this.dataPlaneConnection = result;
+    }
+  }
+
+  private async teardownDataPlane(): Promise<void> {
+    if (!this.dataPlaneConnection) return;
+    const connection = this.dataPlaneConnection;
+    this.dataPlaneConnection = undefined;
+    try {
+      await connection.close();
+    } catch (error) {
+      this.options.logger?.warn?.("Flex data-plane close failed", { error });
+    }
+  }
+
+  private waitForHandle(
+    options?: FlexWaitForHandleOptions,
+  ): Promise<string> {
+    if (this._clientHandle) return Promise.resolve(this._clientHandle);
+    if (this.closed) return Promise.reject(new FlexClientClosedError());
+    return new Promise<string>((resolve, reject) => {
+      const waiter = {
+        resolve: (handle: string) => {
+          if (waiter.timeoutHandle) clearTimeout(waiter.timeoutHandle);
+          resolve(handle);
+        },
+        reject: (reason: unknown) => {
+          if (waiter.timeoutHandle) clearTimeout(waiter.timeoutHandle);
+          reject(reason);
+        },
+        timeoutHandle: undefined as ReturnType<typeof setTimeout> | undefined,
+      };
+      if (options?.timeoutMs && options.timeoutMs > 0) {
+        waiter.timeoutHandle = setTimeout(() => {
+          this.removeHandleWaiter(waiter);
+          reject(
+            new Error(
+              `Timed out waiting for Flex handle after ${options.timeoutMs}ms`,
+            ),
+          );
+        }, options.timeoutMs);
+      }
+      this.handleWaiters.push(waiter);
+    });
+  }
+
+  private removeHandleWaiter(waiter: {
+    resolve: (handle: string) => void;
+    reject: (reason: unknown) => void;
+    timeoutHandle?: ReturnType<typeof setTimeout>;
+  }): void {
+    const index = this.handleWaiters.indexOf(waiter);
+    if (index >= 0) {
+      this.handleWaiters.splice(index, 1);
+    }
+  }
+
+  private resolveHandleWaiters(handle: string): void {
+    if (!this.handleWaiters.length) return;
+    const waiters = this.handleWaiters.splice(0, this.handleWaiters.length);
+    for (const waiter of waiters) {
+      if (waiter.timeoutHandle) clearTimeout(waiter.timeoutHandle);
+      try {
+        waiter.resolve(handle);
+      } catch (error) {
+        this.options.logger?.error?.("Handle waiter rejection", { error });
+      }
+    }
+  }
+
+  private rejectHandleWaiters(reason: unknown): void {
+    if (!this.handleWaiters.length) return;
+    const waiters = this.handleWaiters.splice(0, this.handleWaiters.length);
+    for (const waiter of waiters) {
+      if (waiter.timeoutHandle) clearTimeout(waiter.timeoutHandle);
+      try {
+        waiter.reject(reason);
+      } catch (error) {
+        this.options.logger?.error?.("Handle waiter rejection", { error });
+      }
+    }
+  }
+
+  private handleRawLine(line: string): void {
+    if (!line) return;
+    const prefix = line[0];
+    switch (prefix) {
+      case "H": {
+        const handle = line.slice(1).trim();
+        if (handle) this.assignClientHandle(handle);
+        break;
+      }
+      case "V": {
+        const version = line.slice(1).trim();
+        if (version) {
+          this.options.logger?.info?.("Flex radio version", { version });
+        }
+        break;
+      }
+      default:
+        break;
+    }
+  }
+
+  private assignClientHandle(handle: string): void {
+    if (!handle) return;
+    if (this._clientHandle === handle) return;
+    this._clientHandle = handle;
+    this.resolveHandleWaiters(handle);
+  }
+
+  private setClientId(clientId: string | null): void {
+    this._clientId = clientId ?? null;
+  }
+
+  private emitProgress(progress: FlexConnectionProgress): void {
+    this.lastProgress = progress;
+    if (!this.closed) {
+      this.events.emit("progress", progress);
+    }
+    this.onProgress?.(progress);
+  }
+
+  private markReady(): void {
+    if (this._isReady) return;
+    this._isReady = true;
+    if (this.readyResolve) {
+      this.readyResolve();
+      this.readyResolve = undefined;
+      this.readyReject = undefined;
+    }
+    this.startHeartbeat();
+    this.emitProgress({ stage: "ready" });
+    this.events.emit("ready", undefined);
+    this.onProgress = undefined;
+  }
+
+  private startHeartbeat(): void {
+    if (
+      this.heartbeatTimer ||
+      !this.options.pingIntervalMs ||
+      this.options.pingIntervalMs <= 0
+    ) {
+      return;
+    }
+    this.heartbeatTimer = setInterval(() => {
+      this.command("ping").catch((error) => {
+        this.options.logger?.warn?.("Flex ping failed", { error });
+      });
+    }, this.options.pingIntervalMs);
+  }
+
+  private stopHeartbeat(): void {
+    if (!this.heartbeatTimer) return;
+    clearInterval(this.heartbeatTimer);
+    this.heartbeatTimer = undefined;
+  }
+
+  private failReady(reason: unknown): void {
+    this.handshakeError = reason;
+    if (!this._isReady && this.readyReject) {
+      this.readyReject(reason ?? new FlexClientClosedError());
+      this.readyReject = undefined;
+      this.readyResolve = undefined;
+    }
+    this.rejectHandleWaiters(reason ?? new FlexClientClosedError());
+    this.onProgress = undefined;
   }
 
   private patchRadio(
@@ -591,8 +958,18 @@ class FlexRadioSessionImpl implements FlexRadioSession {
   async close(): Promise<void> {
     if (this.closed) return;
     this.closed = true;
+    this.stopHeartbeat();
     this.messageSub.unsubscribe();
-    await this.control.close();
+    this.rawLineSub.unsubscribe();
+    await this.teardownDataPlane();
+    this.failReady(new FlexClientClosedError());
+    this.onProgress = undefined;
+    this.lastProgress = null;
+    try {
+      await this.control.close();
+    } catch (error) {
+      this.options.logger?.warn?.("Flex control close failed", { error });
+    }
     this.events.emit("disconnected", undefined);
     this.events.removeAll();
     this.slices.clear();
@@ -718,4 +1095,72 @@ function normalizeEntityId(token: string): string {
   const upper = withoutPrefix.toUpperCase();
   const padded = upper.padStart(8, "0");
   return `0x${padded}`;
+}
+
+const DEFAULT_HANDLE_TIMEOUT_MS = 10_000;
+
+const DEFAULT_HANDSHAKE_COMMANDS: readonly string[] = [
+  "profile global info",
+  "profile tx info",
+  "profile mic info",
+  "profile display info",
+  "sub client all",
+  "sub tx all",
+  "sub atu all",
+  "sub amplifier all",
+  "sub meter all",
+  "sub pan all",
+  "sub slice all",
+  "sub gps all",
+  "sub audio_stream all",
+  "sub cwx all",
+  "sub xvtr all",
+  "sub memories all",
+  "sub daxiq all",
+  "sub dax all",
+  "sub usb_cable all",
+  "sub tnf all",
+  "sub spot all",
+  "sub rapidm all",
+  "sub ale all",
+  "sub log_manager",
+  "sub radio all",
+  "sub apd all",
+  "keepalive enable",
+];
+
+export async function defaultFlexHandshake(
+  context: FlexHandshakeContext,
+): Promise<void> {
+  const handle = await context.waitForHandle({
+    timeoutMs: DEFAULT_HANDLE_TIMEOUT_MS,
+  });
+  context.emitProgress({ stage: "handle", handle });
+
+  context.emitProgress({ stage: "sync", detail: "radio-info" });
+  await Promise.all([
+    context.radio.refreshInfo(),
+    context.radio.refreshVersions(),
+    context.radio.refreshRxAntennaList(),
+    context.radio.refreshMicList(),
+  ]);
+
+  context.emitProgress({ stage: "sync", detail: "subscriptions" });
+  await Promise.all(
+    DEFAULT_HANDSHAKE_COMMANDS.map((command) => context.command(command)),
+  );
+
+  if (context.dataPlaneFactory) {
+    context.emitProgress({ stage: "data-plane" });
+    await context.attachDataPlane(context.dataPlaneFactory);
+  }
+
+  const clientGuiResponse = await context.command("client gui");
+  const clientId = clientGuiResponse.message?.trim();
+  context.setClientId(clientId && clientId.length ? clientId : null);
+
+  context.emitProgress({ stage: "sync", detail: "audio" });
+  await context.session.createRemoteAudioRxStream({
+    compression: "OPUS",
+  });
 }

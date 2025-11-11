@@ -14,6 +14,7 @@ export class MockControlChannel implements FlexControlChannel {
   readonly commands: Array<{ command: string; options?: FlexCommandOptions }> =
     [];
   private readonly listeners = new Set<(message: FlexWireMessage) => void>();
+  private readonly rawListeners = new Set<(line: string) => void>();
   private sequence = 1;
   private nextResponse?: Partial<FlexCommandResponse>;
   closed = false;
@@ -45,9 +46,22 @@ export class MockControlChannel implements FlexControlChannel {
     };
   }
 
+  onRawLine(listener: (line: string) => void) {
+    this.rawListeners.add(listener);
+    return {
+      unsubscribe: () => this.rawListeners.delete(listener),
+    };
+  }
+
   emit(message: FlexWireMessage) {
     for (const listener of this.listeners) {
       listener(message);
+    }
+  }
+
+  emitRaw(line: string) {
+    for (const listener of this.rawListeners) {
+      listener(line);
     }
   }
 
@@ -57,6 +71,8 @@ export class MockControlChannel implements FlexControlChannel {
 
   close(): Promise<void> {
     this.closed = true;
+    this.listeners.clear();
+    this.rawListeners.clear();
     return Promise.resolve();
   }
 }

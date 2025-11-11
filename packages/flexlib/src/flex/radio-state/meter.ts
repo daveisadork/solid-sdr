@@ -117,7 +117,7 @@ export function createMeterSnapshot(
   }
 
   const snapshot = Object.freeze({
-    ...(previous ?? {}),
+    ...(previous ?? { id }),
     ...partial,
     raw: Object.freeze({
       ...previous?.raw,

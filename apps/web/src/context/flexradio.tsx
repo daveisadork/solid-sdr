@@ -27,7 +27,6 @@ import {
   type DiscoverySession,
   type FlexRadioDescriptor,
   type FlexRadioSession,
-  type FlexUdpPacketEvent,
   type FlexUdpSession,
   type FlexWireMessage,
   type MeterSnapshot,
@@ -37,6 +36,8 @@ import {
   type SliceSnapshot,
   type Subscription,
   type WaterfallSnapshot,
+  type FlexDataPlaneFactory,
+  type FlexConnectionProgress,
 } from "@repo/flexlib";
 import { createWebSocketFlexControlFactory } from "~/lib/flex-control";
 import { useRtc } from "./rtc";
@@ -314,7 +315,7 @@ const FlexRadioContext = createContext<{
 
 export const FlexRadioProvider: ParentComponent = (props) => {
   const [state, setState] = createStore(initialState());
-  const { connect: connectRTC, session: sessionRTC } = useRtc();
+  const { connect: connectRTC, disconnect: disconnectRTC } = useRtc();
   const [flexSession, setFlexSession] = createSignal<FlexRadioSession | null>(
     null,
   );
@@ -332,8 +333,6 @@ export const FlexRadioProvider: ParentComponent = (props) => {
   const discoveryWs = createReconnectingWS("/ws/discovery");
   let discoverySession: DiscoverySession | null = null;
   let flexSessionSubscriptions: Subscription[] = [];
-  let pendingHandleLine: string | null = null;
-  let pingTimer: ReturnType<typeof setInterval> | undefined;
   let rtcUdpCleanup: (() => void) | undefined;
 
   discoveryWs.addEventListener("open", ({ target }) => {
@@ -693,172 +692,10 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     setState("selectedPanadapter", firstOwnPan ?? null);
   });
 
-  const handleControlLine = async (payload: string) => {
-    switch (payload[0]) {
-      case "V": {
-        // Version preamble
-        const version = payload.slice(1);
-        console.log("Version:", version);
-        break;
-      }
-      case "H": {
-        // Handle preamble
-        if (!flexSession()) {
-          pendingHandleLine = payload;
-          return;
-        }
-        const radio = flexSession()!.radio();
-        const handle = payload.slice(1);
-        console.log("Handle:", handle);
-        setState("connectModal", "stage", ConnectionStage.Data);
-        console.log("Requesting initial data...");
-        // setState("clientHandle", handle);
-        try {
-          // await sendCommand("client program SolidFlexRadio");
-          await Promise.all([
-            radio.refreshInfo(),
-            radio.refreshVersions(),
-            radio.refreshRxAntennaList(),
-            radio.refreshMicList(),
-            sendCommand("profile global info"),
-            sendCommand("profile tx info"),
-            sendCommand("profile mic info"),
-            sendCommand("profile display info"),
-            sendCommand("sub client all"),
-            sendCommand("sub tx all"),
-            sendCommand("sub atu all"),
-            sendCommand("sub amplifier all"),
-            sendCommand("sub meter all"),
-            sendCommand("sub pan all"),
-            sendCommand("sub slice all"),
-            sendCommand("sub gps all"),
-            sendCommand("sub audio_stream all"),
-            sendCommand("sub cwx all"),
-            sendCommand("sub xvtr all"),
-            sendCommand("sub memories all"),
-            sendCommand("sub daxiq all"),
-            sendCommand("sub dax all"),
-            sendCommand("sub usb_cable all"),
-            sendCommand("sub tnf all"),
-            sendCommand("sub spot all"),
-            sendCommand("sub rapidm all"),
-            sendCommand("sub ale all"),
-            sendCommand("sub log_manager"),
-            sendCommand("sub radio all"),
-            // sendCommand("sub codec all"),
-            sendCommand("sub apd all"),
-            sendCommand("keepalive enable"),
-        ]);
-        console.log("Connecting RTC with handle:", handle);
-        setState("connectModal", "stage", ConnectionStage.UDP);
-        const rtc = await connectRTC(handle);
-        rtcUdpCleanup?.();
-        rtcUdpCleanup = attachRtcDataChannelToFlexUdp(udpSession, rtc.data, {
-          onError(error) {
-            console.error("Error decoding UDP packet:", error);
-            disconnect();
-          },
-        });
-        const { message: clientId } = await sendCommand("client gui");
-        await flexSession()?.createRemoteAudioRxStream({
-          compression: "OPUS",
-        });
-          setState("connectModal", "stage", ConnectionStage.Done);
-          batch(() => {
-            setState("clientHandle", handle);
-            setState("clientId", clientId);
-          });
-          setTimeout(
-            () => setState("connectModal", "status", ConnectionState.connected),
-            300,
-          );
-        } catch (error) {
-          console.error("Failed to subscribe to initial data:", error);
-          showToast({
-            description: "Failed to subscribe to initial data",
-            variant: "error",
-          });
-          disconnect();
-        }
-        break;
-      }
-      case "R": {
-        const [, responseCode, message] = payload.split("|");
-        if (responseCode && responseCode !== "0") {
-          console.warn("Command reply", payload);
-        }
-        break;
-      }
-      case "M": {
-        // Message
-        const [, description] = payload.split("|");
-        showToast({ description, variant: "info" });
-        break;
-      }
-      case "S": {
-        // Status message
-        const [prefix, message] = payload.split("|");
-        const handle = parseInt(prefix.slice(1), 16);
-        if (
-          handle &&
-          state.clientHandleInt &&
-          state.clientHandleInt !== handle
-        ) {
-          // Message not for us
-          console.log(
-            "Ignoring message for handle",
-            handle,
-            state.clientHandleInt,
-          );
-          return;
-        }
-
-        const [key, ...rest] = message.split(" ");
-        switch (key) {
-          case "stream":
-          case "meter":
-          case "display":
-          case "slice":
-          case "radio":
-          case "gps":
-            return;
-        }
-
-        const split = message.split(" ").filter((part) => part.length);
-        const parts = split.filter((part) => !part.includes("="));
-
-        const current = state.status;
-        const currentPath = ["status"];
-        for (const part of parts) {
-          currentPath.push(part);
-          if (!(part in current)) {
-            try {
-              setState(...currentPath, {});
-            } catch (error) {
-              console.error(
-                "Failed to create status path:",
-                currentPath,
-                error,
-              );
-            }
-          }
-        }
-        const data = Object.fromEntries(
-          split
-            .filter((part) => part.includes("="))
-            .map((part) => part.split("=")),
-        );
-        try {
-          setState(...currentPath, (prev) => ({ ...prev, ...data }));
-        } catch (error) {
-          console.error("Failed to update status:", error);
-        }
-        // console.log(JSON.stringify(state.status, null, 2));
-        break;
-      }
-      default: {
-        console.warn("Unhandled TCP message:", payload);
-      }
+  const handleNoticePayload = (payload: string) => {
+    const [, description] = payload.split("|");
+    if (description) {
+      showToast({ description, variant: "info" });
     }
   };
 
@@ -887,25 +724,13 @@ export const FlexRadioProvider: ParentComponent = (props) => {
 
   const teardownFlexSession = (options?: { resetState?: boolean }) => {
     const { resetState = true } = options ?? {};
-    const rtcSession = sessionRTC();
-    if (rtcSession) {
-      try {
-        rtcSession.close();
-      } catch (error) {
-        console.error("Error closing RTC session", error);
-      }
-    }
-    if (pingTimer) {
-      clearInterval(pingTimer);
-      pingTimer = undefined;
-    }
+    disconnectRTC();
     if (rtcUdpCleanup) {
       rtcUdpCleanup();
       rtcUdpCleanup = undefined;
     }
     const currentSession = flexSession();
     setFlexSession(null);
-    pendingHandleLine = null;
     for (const sub of flexSessionSubscriptions) sub.unsubscribe();
     flexSessionSubscriptions = [];
     if (currentSession) {
@@ -939,6 +764,28 @@ export const FlexRadioProvider: ParentComponent = (props) => {
       return;
     }
 
+    const handleProgress = (progress: FlexConnectionProgress) => {
+      switch (progress.stage) {
+        case "control":
+          setState("connectModal", "stage", ConnectionStage.TCP);
+          break;
+        case "handle":
+        case "sync":
+          setState("connectModal", "stage", ConnectionStage.Data);
+          if (progress.stage === "handle" && progress.handle) {
+            setState("clientHandle", progress.handle);
+          }
+          break;
+        case "data-plane":
+          setState("connectModal", "stage", ConnectionStage.UDP);
+          break;
+        case "ready":
+          setState("connectModal", "stage", ConnectionStage.Done);
+          setState("connectModal", "status", ConnectionState.connected);
+          break;
+      }
+    };
+
     void (async () => {
       try {
         const currentSession = flexSession();
@@ -952,43 +799,77 @@ export const FlexRadioProvider: ParentComponent = (props) => {
             console.error("Failed to close previous session", error);
           }
         }
+        disconnectRTC();
         if (rtcUdpCleanup) {
           rtcUdpCleanup();
           rtcUdpCleanup = undefined;
         }
 
-        const newSession = await flexClient.connect(descriptor, {
-          connectionParams: {
-            onControlLine: (line: string) => {
-              handleControlLine(line).catch((error) =>
-                console.error("Control line handler error", error),
-              );
-            },
+        const dataPlaneFactory: FlexDataPlaneFactory = {
+          async connect({ handle, udp, logger }) {
+            const rtc = await connectRTC(handle);
+            rtcUdpCleanup?.();
+            rtcUdpCleanup = attachRtcDataChannelToFlexUdp(udp, rtc.data, {
+              onError(error) {
+                console.error("Error decoding UDP packet:", error);
+                disconnect();
+              },
+            });
+            return {
+              async close() {
+                if (rtcUdpCleanup) {
+                  rtcUdpCleanup();
+                  rtcUdpCleanup = undefined;
+                }
+                try {
+                  rtc.close();
+                } catch (error) {
+                  logger?.warn?.("Failed to close RTC session", { error });
+                }
+                disconnectRTC();
+              },
+            };
           },
+        };
+
+        const newSession = await flexClient.connect(descriptor, {
           udpSession,
+          dataPlane: dataPlaneFactory,
+          onProgress: handleProgress,
         });
         setFlexSession(newSession);
         const changeSubscription = newSession.on("change", handleStateChange);
         const messageSubscription = newSession.on(
           "message",
           (message: FlexWireMessage) => {
-            if (
-              message.kind === "status" ||
-              message.kind === "reply" ||
-              message.kind === "notice"
-            ) {
-              handleControlLine(message.raw).catch((error) =>
-                console.error("Failed to handle control message", error),
-              );
+            switch (message.kind) {
+              case "notice":
+                handleNoticePayload(message.raw);
+                break;
+              case "reply":
+                if (message.code !== 0) {
+                  console.warn("Command reply", message.raw);
+                }
+                break;
             }
           },
         );
+        const progressSubscription = newSession.on("progress", handleProgress);
+        const readySubscription = newSession.on("ready", () => {
+          batch(() => {
+            setState("clientHandle", newSession.clientHandle);
+            setState("clientId", newSession.clientId);
+          });
+          handleProgress({ stage: "ready" });
+        });
         const disconnectedSubscription = newSession.on("disconnected", () => {
           disconnect();
         });
         flexSessionSubscriptions = [
           changeSubscription,
           messageSubscription,
+          progressSubscription,
+          readySubscription,
           disconnectedSubscription,
         ];
         const initial = newSession.snapshot();
@@ -1004,28 +885,21 @@ export const FlexRadioProvider: ParentComponent = (props) => {
             setState("status", "meters", meter.id, meter);
           });
         });
-        if (pendingHandleLine) {
-          const line = pendingHandleLine;
-          pendingHandleLine = null;
-          await handleControlLine(line);
-        }
-        if (pingTimer) clearInterval(pingTimer);
-        pingTimer = setInterval(() => {
-          sendCommand("ping").catch((error) => {
-            console.warn("Ping command failed", error);
-          });
-        }, 1_000);
+        batch(() => {
+          setState("clientHandle", newSession.clientHandle);
+          setState("clientId", newSession.clientId);
+        });
+        handleProgress({ stage: "ready" });
+        setTimeout(
+          () => setState("connectModal", "status", ConnectionState.connected),
+          300,
+        );
       } catch (error) {
         console.error("Failed to connect to radio", error);
         showToast({
           description: "Failed to connect to radio",
           variant: "error",
         });
-        if (pingTimer) {
-          clearInterval(pingTimer);
-          pingTimer = undefined;
-        }
-        pendingHandleLine = null;
         setState("connectModal", "status", ConnectionState.disconnected);
         setState("connectModal", "selectedRadio", null);
         setState("connectModal", "stage", ConnectionStage.TCP);
@@ -1037,6 +911,11 @@ export const FlexRadioProvider: ParentComponent = (props) => {
           } catch (closeError) {
             console.error("Error while closing failed session", closeError);
           }
+        }
+        disconnectRTC();
+        if (rtcUdpCleanup) {
+          rtcUdpCleanup();
+          rtcUdpCleanup = undefined;
         }
       }
     })();

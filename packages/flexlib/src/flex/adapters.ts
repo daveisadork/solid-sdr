@@ -59,6 +59,7 @@ export interface FlexControlChannel {
     options?: FlexCommandOptions,
   ): Promise<FlexCommandResponse>;
   onMessage(listener: (message: FlexWireMessage) => void): Subscription;
+  onRawLine(listener: (line: string) => void): Subscription;
   close(): Promise<void>;
 }
 

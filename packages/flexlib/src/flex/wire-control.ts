@@ -62,6 +62,7 @@ export function createFlexWireControlFactory(
       connectOptions?: Record<string, unknown>,
     ) {
       const listeners = new Set<(message: FlexWireMessage) => void>();
+      const rawLineListeners = new Set<(line: string) => void>();
       const pending = new Map<number, PendingCommand>();
       let nextSequence = 1;
       let closed = false;
@@ -84,6 +85,7 @@ export function createFlexWireControlFactory(
           error instanceof Error ? error : new FlexClientClosedError();
         settlePendingWithError(cause);
         listeners.clear();
+        rawLineListeners.clear();
       };
 
       const handleReply = (reply: FlexReplyMessage) => {
@@ -112,6 +114,13 @@ export function createFlexWireControlFactory(
       const handleLine = (line: string) => {
         const trimmed = line.trim();
         if (!trimmed) return;
+        for (const listener of rawLineListeners) {
+          try {
+            listener(trimmed);
+          } catch (error) {
+            logger?.error?.("Flex wire raw-line listener threw", { error });
+          }
+        }
         const parsed = parseFlexMessage(trimmed, clock.now());
         if (!parsed) return;
         for (const listener of listeners) {
@@ -256,6 +265,15 @@ export function createFlexWireControlFactory(
           return {
             unsubscribe: () => {
               listeners.delete(listener);
+            },
+          } as Subscription;
+        },
+        onRawLine(listener) {
+          if (closed) throw new FlexClientClosedError();
+          rawLineListeners.add(listener);
+          return {
+            unsubscribe: () => {
+              rawLineListeners.delete(listener);
             },
           } as Subscription;
         },

@@ -18,11 +18,13 @@ const descriptor: FlexRadioDescriptor = {
   protocol: "tcp",
 };
 
+const NO_HANDSHAKE = { handshake: async () => {} };
+
 describe("FlexClient", () => {
   it("connects and updates slice state", async () => {
     const factory = new MockControlFactory();
     const client = createFlexClient({ control: factory });
-    const session = await client.connect(descriptor);
+    const session = await client.connect(descriptor, NO_HANDSHAKE);
     const channel = factory.channel;
     expect(channel).toBeDefined();
     if (!channel) throw new Error("control channel not created");
@@ -191,7 +193,7 @@ describe("FlexClient", () => {
   it("creates remote audio stream controllers", async () => {
     const factory = new MockControlFactory();
     const client = createFlexClient({ control: factory });
-    const session = await client.connect(descriptor);
+    const session = await client.connect(descriptor, NO_HANDSHAKE);
     const channel = factory.channel;
     if (!channel) throw new Error("control channel not created");
 
@@ -243,7 +245,7 @@ describe("FlexClient", () => {
   it("creates remote audio tx stream controllers", async () => {
     const factory = new MockControlFactory();
     const client = createFlexClient({ control: factory });
-    const session = await client.connect(descriptor);
+    const session = await client.connect(descriptor, NO_HANDSHAKE);
     const channel = factory.channel;
     if (!channel) throw new Error("control channel not created");
 
@@ -268,7 +270,7 @@ describe("FlexClient", () => {
   it("creates dax rx audio stream controllers", async () => {
     const factory = new MockControlFactory();
     const client = createFlexClient({ control: factory });
-    const session = await client.connect(descriptor);
+    const session = await client.connect(descriptor, NO_HANDSHAKE);
     const channel = factory.channel;
     if (!channel) throw new Error("control channel not created");
 
@@ -296,7 +298,7 @@ describe("FlexClient", () => {
   it("allows closing audio streams after they are removed from state", async () => {
     const factory = new MockControlFactory();
     const client = createFlexClient({ control: factory });
-    const session = await client.connect(descriptor);
+    const session = await client.connect(descriptor, NO_HANDSHAKE);
     const channel = factory.channel;
     if (!channel) throw new Error("control channel not created");
 
@@ -322,7 +324,7 @@ describe("FlexClient", () => {
   it("rejects pending audio stream creation when the session closes", async () => {
     const factory = new MockControlFactory();
     const client = createFlexClient({ control: factory });
-    const session = await client.connect(descriptor);
+    const session = await client.connect(descriptor, NO_HANDSHAKE);
     const channel = factory.channel;
     if (!channel) throw new Error("control channel not created");
 
@@ -339,7 +341,7 @@ describe("FlexClient", () => {
   it("surfaces command rejections", async () => {
     const factory = new MockControlFactory();
     const client = createFlexClient({ control: factory });
-    const session = await client.connect(descriptor);
+    const session = await client.connect(descriptor, NO_HANDSHAKE);
     const channel = factory.channel;
     if (!channel) throw new Error("control channel not created");
 
@@ -372,7 +374,7 @@ describe("FlexClient", () => {
   it("provides radio snapshots and gps convenience getters", async () => {
     const factory = new MockControlFactory();
     const client = createFlexClient({ control: factory });
-    const session = await client.connect(descriptor);
+    const session = await client.connect(descriptor, NO_HANDSHAKE);
     const channel = factory.channel;
     expect(channel).toBeDefined();
     if (!channel) throw new Error("control channel not created");
@@ -517,7 +519,7 @@ describe("FlexClient", () => {
   it("issues gps install and uninstall commands", async () => {
     const factory = new MockControlFactory();
     const client = createFlexClient({ control: factory });
-    const session = await client.connect(descriptor);
+    const session = await client.connect(descriptor, NO_HANDSHAKE);
     const channel = factory.channel;
     expect(channel).toBeDefined();
     if (!channel) throw new Error("control channel not created");

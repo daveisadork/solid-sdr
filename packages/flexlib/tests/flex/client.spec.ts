@@ -197,6 +197,7 @@ describe("FlexClient", () => {
 
     expect(session.getRemoteAudioRxStreams()).toHaveLength(0);
 
+    channel.prepareResponse({ message: "4000008" });
     const creationPromise = session.createRemoteAudioRxStream({
       compression: "opus",
     });
@@ -246,6 +247,7 @@ describe("FlexClient", () => {
     const channel = factory.channel;
     if (!channel) throw new Error("control channel not created");
 
+    channel.prepareResponse({ message: "4000009" });
     const creationPromise = session.createRemoteAudioTxStream();
     expect(channel.commands.at(-1)?.command).toBe(
       "stream create type=remote_audio_tx",
@@ -270,6 +272,7 @@ describe("FlexClient", () => {
     const channel = factory.channel;
     if (!channel) throw new Error("control channel not created");
 
+    channel.prepareResponse({ message: "2000002" });
     const creationPromise = session.createDaxRxAudioStream({
       daxChannel: 3,
     });
@@ -297,6 +300,7 @@ describe("FlexClient", () => {
     const channel = factory.channel;
     if (!channel) throw new Error("control channel not created");
 
+    channel.prepareResponse({ message: "400000A" });
     const creationPromise = session.createRemoteAudioRxStream();
     expect(channel.commands.at(-1)?.command).toBe(
       "stream create type=remote_audio_rx",
@@ -322,9 +326,8 @@ describe("FlexClient", () => {
     const channel = factory.channel;
     if (!channel) throw new Error("control channel not created");
 
-    const creationPromise = session.createRemoteAudioRxStream({
-      waitTimeoutMs: 5000,
-    });
+    channel.prepareResponse({ message: "400000B" });
+    const creationPromise = session.createRemoteAudioRxStream();
     expect(channel.commands.at(-1)?.command).toBe(
       "stream create type=remote_audio_rx",
     );

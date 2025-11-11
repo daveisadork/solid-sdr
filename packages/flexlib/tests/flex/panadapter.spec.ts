@@ -191,10 +191,10 @@ describe("Panadapter controller", () => {
     const channel = factory.channel;
     if (!channel) throw new Error("control channel not created");
 
+    channel.prepareResponse({ message: "0x50000000,0x52000000" });
     const creation = session.createPanadapter({
       x: 200,
       y: 150,
-      waitTimeoutMs: 2000,
     });
     expect(channel.commands.at(-1)?.command).toBe(
       "display panafall create x=200 y=150",
@@ -221,7 +221,8 @@ describe("Panadapter controller", () => {
     const channel = factory.channel;
     if (!channel) throw new Error("control channel not created");
 
-    const creation = session.createPanadapter({ waitTimeoutMs: 5000 });
+    channel.prepareResponse({ message: "0x50000001,0x52000001" });
+    const creation = session.createPanadapter();
     expect(channel.commands.at(-1)?.command).toBe("display panafall create");
 
     await session.close();

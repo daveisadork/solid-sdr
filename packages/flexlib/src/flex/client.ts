@@ -156,7 +156,6 @@ export interface FlexRadioSession {
 export interface PanadapterCreateOptions {
   readonly x?: number;
   readonly y?: number;
-  readonly waitTimeoutMs?: number;
 }
 
 export type RemoteAudioCompression =
@@ -166,17 +165,11 @@ export type RemoteAudioCompression =
   | "OPUS"
   | (string & {});
 
-export interface AudioStreamCreateOptions {
-  readonly waitTimeoutMs?: number;
-}
-
-export interface RemoteAudioStreamCreateOptions
-  extends AudioStreamCreateOptions {
+export interface RemoteAudioStreamCreateOptions {
   readonly compression?: RemoteAudioCompression;
 }
 
-export interface DaxRxAudioStreamCreateOptions
-  extends AudioStreamCreateOptions {
+export interface DaxRxAudioStreamCreateOptions {
   readonly daxChannel: number;
 }
 
@@ -400,73 +393,54 @@ class FlexRadioSessionImpl implements FlexRadioSession {
   ): Promise<AudioStreamController> {
     if (this.closed) throw new FlexClientClosedError();
     const response = await this.command(command);
+    // The radio emits the status event before it replies, so the store already
+    // has the new stream snapshot by the time we inspect the response.
     if (this.closed) {
       throw new FlexClientClosedError();
     }
-    return this.audioStream(`0x${response.message}`)!;
+    const idRaw = response.message?.split(",")[0]?.trim();
+    if (!idRaw) {
+      throw new FlexError("Audio stream creation did not return an identifier");
+    }
+    const streamId = normalizeEntityId(idRaw);
+    const controller = this.audioStream(streamId);
+    if (!controller) {
+      throw new FlexError(
+        `Audio stream ${streamId} is not available after creation`,
+      );
+    }
+    return controller;
   }
 
   async createPanadapter(
     options?: PanadapterCreateOptions,
   ): Promise<PanadapterController> {
     if (this.closed) throw new FlexClientClosedError();
-    const existing = new Set(
-      this.store.snapshot().panadapters.map((pan) => pan.id),
-    );
     let command = "display panafall create";
     if (options?.x !== undefined) command += ` x=${Math.round(options.x)}`;
     if (options?.y !== undefined) command += ` y=${Math.round(options.y)}`;
-    await this.command(command);
+    const response = await this.command(command);
+    // The radio emits the status event before it replies, so the store already
+    // contains the new panadapter (and associated waterfall) snapshot by now.
     if (this.closed) {
       throw new FlexClientClosedError();
     }
-
-    const waitMs = options?.waitTimeoutMs ?? 5_000;
-
-    const immediate = this.store
-      .snapshot()
-      .panadapters.find((pan) => !existing.has(pan.id));
-    if (immediate) {
-      return this.panadapter(immediate.id)!;
+    const ids = response.message
+      ?.split(",")
+      .map((part) => part.trim())
+      .filter(Boolean);
+    const panToken = ids?.[0];
+    if (!panToken) {
+      throw new FlexError("Panadapter creation did not return identifiers");
     }
-
-    return await new Promise<PanadapterController>((resolve, reject) => {
-      let settled = false;
-      let timeout: ReturnType<typeof setTimeout> | undefined;
-      let changeSub: Subscription | undefined;
-      let disconnectSub: Subscription | undefined;
-
-      const cleanup = () => {
-        if (timeout) clearTimeout(timeout);
-        changeSub?.unsubscribe();
-        disconnectSub?.unsubscribe();
-      };
-
-      const settle = (action: () => void) => {
-        if (settled) return;
-        settled = true;
-        cleanup();
-        action();
-      };
-
-      timeout = setTimeout(() => {
-        settle(() => reject(new FlexError("Panadapter creation timed out")));
-      }, waitMs);
-
-      changeSub = this.events.on("change", (change) => {
-        if (change.entity !== "panadapter" || change.removed) return;
-        if (existing.has(change.id)) return;
-        settle(() => resolve(this.panadapter(change.id)!));
-      });
-
-      disconnectSub = this.events.once("disconnected", () => {
-        settle(() => reject(new FlexClientClosedError()));
-      });
-
-      if (this.closed) {
-        settle(() => reject(new FlexClientClosedError()));
-      }
-    });
+    const panId = normalizeEntityId(panToken);
+    const controller = this.panadapter(panId);
+    if (!controller) {
+      throw new FlexError(
+        `Panadapter ${panId} is not available after creation`,
+      );
+    }
+    return controller;
   }
 
   async createRemoteAudioRxStream(
@@ -715,4 +689,14 @@ function buildCommandErrorMessage(
     parts.push(`radio="${response.message}"`);
   }
   return parts.join(" | ");
+}
+
+function normalizeEntityId(token: string): string {
+  const trimmed = token.trim();
+  const withoutPrefix = trimmed.startsWith("0x") || trimmed.startsWith("0X")
+    ? trimmed.slice(2)
+    : trimmed;
+  const upper = withoutPrefix.toUpperCase();
+  const padded = upper.padStart(8, "0");
+  return `0x${padded}`;
 }

@@ -26,12 +26,15 @@ export class MockControlChannel implements FlexControlChannel {
     const response = this.nextResponse ?? {};
     this.nextResponse = undefined;
     const accepted = response.accepted ?? true;
-    return Promise.resolve({
+    const payload: FlexCommandResponse = {
       sequence: response.sequence ?? this.sequence++,
       accepted,
       code: response.code,
       message: response.message,
       raw: response.raw ?? (accepted ? "R|0|OK" : "R|1|ERR"),
+    };
+    return new Promise((resolve) => {
+      queueMicrotask(() => resolve(payload));
     });
   }
 

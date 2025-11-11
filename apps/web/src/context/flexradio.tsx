@@ -116,13 +116,6 @@ export type Panadapter = Omit<MutableProps<PanadapterSnapshot>, "raw">;
 export type Waterfall = Omit<MutableProps<WaterfallSnapshot>, "raw">;
 export type AudioStream = Omit<MutableProps<AudioStreamSnapshot>, "raw">;
 
-export interface Stream {
-  client_handle: string; // "0x6EB67FCB"
-  compression: string; // "OPUS"
-  ip: string; // "10.10.10.10"
-  type: string; // "remote_audio_rx"
-}
-
 export interface Gradient {
   name: string;
   clip?: string;
@@ -165,15 +158,6 @@ export interface StatusState {
     band: Record<string, IterlockBand>;
   };
   radio: Radio;
-  // radio: {
-  //   oscillator: Record<string, unknown>;
-  //   static_net_params: Record<string, unknown>;
-  //   filter_sharpness: {
-  //     VOICE: Record<string, unknown>;
-  //     CW: Record<string, unknown>;
-  //     DIGITAL: Record<string, unknown>;
-  //   };
-  // };
   stream: Record<string, AudioStream>;
 }
 
@@ -528,7 +512,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     if (change.diff) {
       applyPanadapterDiff(change.diff);
     } else {
-      const key = change.previous?.streamId ?? change.id;
+      const key = change.id;
       setState(
         "status",
         "display",
@@ -547,7 +531,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
 
   const handleWaterfallChange = (change: RadioStateChange) => {
     if (change.entity !== "waterfall") return;
-    const key = change.previous?.streamId ?? change.id;
+    const key = change.id;
     if (change.diff) {
       setState("status", "display", "waterfall", key, change.diff);
     } else {
@@ -564,7 +548,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
 
   const handleMeterChange = (change: RadioStateChange) => {
     if (change.entity !== "meter") return;
-    const key = change.id ?? change.previous?.id;
+    const key = change.id;
     if (change.diff) {
       setState("status", "meters", key, change.diff);
     } else {
@@ -580,7 +564,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
 
   const handleSliceChange = (change: RadioStateChange) => {
     if (change.entity !== "slice") return;
-    const key = change.id ?? change.previous?.id;
+    const key = change.id;
     if (change.diff) {
       setState("status", "slice", key, change.diff);
     } else {
@@ -604,7 +588,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
 
   const handleStreamChange = (change: RadioStateChange) => {
     if (change.entity !== "audioStream") return;
-    const key = change.id ?? change.previous?.id;
+    const key = change.id;
     if (change.diff) {
       setState("status", "stream", key, change.diff);
     } else {

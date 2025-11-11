@@ -2,14 +2,22 @@ import type {
   FlexCommandOptions,
   FlexCommandResponse,
 } from "./adapters.js";
-import type { RadioProperties } from "./radio-state.js";
+import type {
+  RadioFilterSharpnessMode,
+  RadioOscillatorSetting,
+  RadioProperties,
+  RadioStatusContext,
+} from "./radio-state.js";
 
 interface RadioControllerSession {
   command(
     command: string,
     options?: FlexCommandOptions,
   ): Promise<FlexCommandResponse>;
-  patchRadio(attributes: Record<string, string>): void;
+  patchRadio(
+    attributes: Record<string, string>,
+    context?: RadioStatusContext,
+  ): void;
 }
 
 export interface RadioController {
@@ -54,6 +62,22 @@ export interface RadioController {
   get gpsUtcTime(): string | undefined;
   get gpsTrack(): number | undefined;
   get gpsGnssPoweredAntenna(): boolean | undefined;
+  get filterSharpnessVoice(): number;
+  get filterSharpnessVoiceAuto(): boolean;
+  get filterSharpnessCw(): number;
+  get filterSharpnessCwAuto(): boolean;
+  get filterSharpnessDigital(): number;
+  get filterSharpnessDigitalAuto(): boolean;
+  get staticIp(): string | undefined;
+  get staticGateway(): string | undefined;
+  get staticNetmask(): string | undefined;
+  get oscillatorState(): string | undefined;
+  get oscillatorSetting(): RadioOscillatorSetting | undefined;
+  get oscillatorLocked(): boolean;
+  get oscillatorExternalPresent(): boolean;
+  get oscillatorGnssPresent(): boolean;
+  get oscillatorGpsdoPresent(): boolean;
+  get oscillatorTcxoPresent(): boolean;
   setNickname(nickname: string): Promise<void>;
   setCallsign(callsign: string): Promise<void>;
   setFullDuplexEnabled(enabled: boolean): Promise<void>;
@@ -73,6 +97,21 @@ export interface RadioController {
   setRttyMarkDefaultHz(value: number): Promise<void>;
   setFrequencyErrorPpb(value: number): Promise<void>;
   setCalibrationFrequencyMhz(value: number): Promise<void>;
+  setFilterSharpnessLevel(
+    mode: RadioFilterSharpnessMode,
+    level: number,
+  ): Promise<void>;
+  setFilterSharpnessAutoLevel(
+    mode: RadioFilterSharpnessMode,
+    enabled: boolean,
+  ): Promise<void>;
+  setStaticNetworkParams(params: {
+    ip: string;
+    gateway: string;
+    netmask: string;
+  }): Promise<void>;
+  resetStaticNetworkParams(): Promise<void>;
+  setOscillatorSetting(setting: RadioOscillatorSetting): Promise<void>;
 }
 
 export class RadioControllerImpl implements RadioController {
@@ -249,6 +288,70 @@ export class RadioControllerImpl implements RadioController {
     return this.current()?.gpsGnssPoweredAntenna;
   }
 
+  get filterSharpnessVoice(): number {
+    return this.current()?.filterSharpnessVoice ?? 0;
+  }
+
+  get filterSharpnessVoiceAuto(): boolean {
+    return this.current()?.filterSharpnessVoiceAuto ?? false;
+  }
+
+  get filterSharpnessCw(): number {
+    return this.current()?.filterSharpnessCw ?? 0;
+  }
+
+  get filterSharpnessCwAuto(): boolean {
+    return this.current()?.filterSharpnessCwAuto ?? false;
+  }
+
+  get filterSharpnessDigital(): number {
+    return this.current()?.filterSharpnessDigital ?? 0;
+  }
+
+  get filterSharpnessDigitalAuto(): boolean {
+    return this.current()?.filterSharpnessDigitalAuto ?? false;
+  }
+
+  get staticIp(): string | undefined {
+    return this.current()?.staticIp;
+  }
+
+  get staticGateway(): string | undefined {
+    return this.current()?.staticGateway;
+  }
+
+  get staticNetmask(): string | undefined {
+    return this.current()?.staticNetmask;
+  }
+
+  get oscillatorState(): string | undefined {
+    return this.current()?.oscillatorState;
+  }
+
+  get oscillatorSetting(): RadioOscillatorSetting | undefined {
+    return this.current()?.oscillatorSetting;
+  }
+
+  get oscillatorLocked(): boolean {
+    return this.current()?.oscillatorLocked ?? false;
+  }
+
+  get oscillatorExternalPresent(): boolean {
+    return this.current()?.oscillatorExternalPresent ?? false;
+  }
+
+  get oscillatorGnssPresent(): boolean {
+    return this.current()?.oscillatorGnssPresent ?? false;
+  }
+
+  get oscillatorGpsdoPresent(): boolean {
+    return this.current()?.oscillatorGpsdoPresent ?? false;
+  }
+
+  get oscillatorTcxoPresent(): boolean {
+    return this.current()?.oscillatorTcxoPresent ?? false;
+  }
+
   async setNickname(nickname: string): Promise<void> {
     const sanitized = sanitizeNickname(nickname);
     await this.session.command(`radio name ${sanitized}`);
@@ -388,12 +491,102 @@ export class RadioControllerImpl implements RadioController {
     );
   }
 
+  async setFilterSharpnessLevel(
+    mode: RadioFilterSharpnessMode,
+    level: number,
+  ): Promise<void> {
+    const normalizedMode = mode;
+    const clamped = clampInteger(
+      level,
+      FILTER_SHARPNESS_MIN_LEVEL,
+      FILTER_SHARPNESS_MAX_LEVEL,
+    );
+    const encodedLevel = clamped.toString(10);
+    const context: RadioStatusContext = {
+      source: "radio",
+      identifier: "filter_sharpness",
+      positional: [normalizedMode.toUpperCase()] as readonly string[],
+    };
+    await this.commandAndPatch(
+      `radio filter_sharpness ${normalizedMode} level=${encodedLevel}`,
+      { level: encodedLevel },
+      context,
+    );
+  }
+
+  async setFilterSharpnessAutoLevel(
+    mode: RadioFilterSharpnessMode,
+    enabled: boolean,
+  ): Promise<void> {
+    const normalizedMode = mode;
+    const encoded = booleanToNumeric(enabled);
+    const context: RadioStatusContext = {
+      source: "radio",
+      identifier: "filter_sharpness",
+      positional: [normalizedMode.toUpperCase()] as readonly string[],
+    };
+    await this.commandAndPatch(
+      `radio filter_sharpness ${normalizedMode} auto_level=${encoded}`,
+      { auto_level: encoded },
+      context,
+    );
+  }
+
+  async setStaticNetworkParams(params: {
+    ip: string;
+    gateway: string;
+    netmask: string;
+  }): Promise<void> {
+    const payload = {
+      ip: params.ip.trim(),
+      gateway: params.gateway.trim(),
+      netmask: params.netmask.trim(),
+    };
+    const context: RadioStatusContext = {
+      source: "radio",
+      identifier: "static_net_params",
+    };
+    await this.commandAndPatch(
+      `radio static_net_params ip=${payload.ip} gateway=${payload.gateway} netmask=${payload.netmask}`,
+      payload,
+      context,
+    );
+  }
+
+  async resetStaticNetworkParams(): Promise<void> {
+    const context: RadioStatusContext = {
+      source: "radio",
+      identifier: "static_net_params",
+    };
+    await this.commandAndPatch(
+      "radio static_net_params reset",
+      { ip: "", gateway: "", netmask: "" },
+      context,
+    );
+  }
+
+  async setOscillatorSetting(
+    setting: RadioOscillatorSetting,
+  ): Promise<void> {
+    const normalized = setting.toLowerCase() as RadioOscillatorSetting;
+    const context: RadioStatusContext = {
+      source: "radio",
+      identifier: "oscillator",
+    };
+    await this.commandAndPatch(
+      `radio oscillator ${normalized}`,
+      { setting: normalized },
+      context,
+    );
+  }
+
   private async commandAndPatch(
     command: string,
     attributes: Record<string, string>,
+    context?: RadioStatusContext,
   ): Promise<void> {
     await this.session.command(command);
-    this.session.patchRadio(attributes);
+    this.session.patchRadio(attributes, context);
   }
 }
 
@@ -411,6 +604,9 @@ function sanitizeCallsign(value: string): string {
     .toUpperCase()
     .replace(/[^0-9A-Z]/g, "");
 }
+
+const FILTER_SHARPNESS_MIN_LEVEL = 0;
+const FILTER_SHARPNESS_MAX_LEVEL = 3;
 
 function booleanToNumeric(value: boolean): string {
   return value ? "1" : "0";

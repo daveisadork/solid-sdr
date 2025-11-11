@@ -24,6 +24,7 @@ import {
   type MeterSnapshot,
   type AudioStreamSnapshot,
   type RadioProperties,
+  type RadioStatusContext,
 } from "./radio-state.js";
 import {
   FlexClientClosedError,
@@ -126,12 +127,8 @@ export interface FlexRadioSession {
   createDaxRxAudioStream(
     options: DaxRxAudioStreamCreateOptions,
   ): Promise<AudioStreamController>;
-  createDaxTxAudioStream(
-    options?: AudioStreamCreateOptions,
-  ): Promise<AudioStreamController>;
-  createDaxMicAudioStream(
-    options?: AudioStreamCreateOptions,
-  ): Promise<AudioStreamController>;
+  createDaxTxAudioStream(): Promise<AudioStreamController>;
+  createDaxMicAudioStream(): Promise<AudioStreamController>;
   command(
     command: string,
     options?: FlexCommandOptions,
@@ -241,7 +238,8 @@ class FlexRadioSessionImpl implements FlexRadioSession {
     this.radioController = new RadioControllerImpl(
       {
         command: (command, options) => this.command(command, options),
-        patchRadio: (attributes) => this.patchRadio(attributes),
+        patchRadio: (attributes, context) =>
+          this.patchRadio(attributes, context),
       },
       () => this.store.getRadio(),
     );
@@ -309,8 +307,11 @@ class FlexRadioSessionImpl implements FlexRadioSession {
     );
   }
 
-  private patchRadio(attributes: Record<string, string>): void {
-    const change = this.store.patchRadio(attributes);
+  private patchRadio(
+    attributes: Record<string, string>,
+    context?: RadioStatusContext,
+  ): void {
+    const change = this.store.patchRadio(attributes, context);
     if (change) this.handleStateChange(change);
   }
 
@@ -693,9 +694,10 @@ function buildCommandErrorMessage(
 
 function normalizeEntityId(token: string): string {
   const trimmed = token.trim();
-  const withoutPrefix = trimmed.startsWith("0x") || trimmed.startsWith("0X")
-    ? trimmed.slice(2)
-    : trimmed;
+  const withoutPrefix =
+    trimmed.startsWith("0x") || trimmed.startsWith("0X")
+      ? trimmed.slice(2)
+      : trimmed;
   const upper = withoutPrefix.toUpperCase();
   const padded = upper.padStart(8, "0");
   return `0x${padded}`;

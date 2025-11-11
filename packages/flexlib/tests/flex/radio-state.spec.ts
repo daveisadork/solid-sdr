@@ -186,4 +186,60 @@ describe("createRadioStateStore", () => {
     radio = store.getRadio();
     expect(radio?.gpsInstalled).toBe(true);
   });
+
+  it("parses filter sharpness, static network, and oscillator statuses", () => {
+    const store = createRadioStateStore();
+    const filterVoice =
+      "S5FE02338|radio filter_sharpness VOICE level=2 auto_level=1";
+    const filterCw =
+      "S5FE02338|radio filter_sharpness CW level=2 auto_level=1";
+    const filterDigital =
+      "S5FE02338|radio filter_sharpness DIGITAL level=2 auto_level=1";
+    const staticNet =
+      "S5FE02338|radio static_net_params ip= gateway= netmask=";
+    const oscillator =
+      "S5FE02338|radio oscillator state=gpsdo setting=auto locked=1 ext_present=0 gnss_present=0 gpsdo_present=1 tcxo_present=1";
+
+    for (const raw of [
+      filterVoice,
+      filterCw,
+      filterDigital,
+      staticNet,
+      oscillator,
+    ]) {
+      store.apply(makeStatus(raw));
+    }
+
+    const radio = store.getRadio();
+    expect(radio).toBeDefined();
+    expect(radio?.filterSharpnessVoice).toBe(2);
+    expect(radio?.filterSharpnessVoiceAuto).toBe(true);
+    expect(radio?.filterSharpnessCw).toBe(2);
+    expect(radio?.filterSharpnessCwAuto).toBe(true);
+    expect(radio?.filterSharpnessDigital).toBe(2);
+    expect(radio?.filterSharpnessDigitalAuto).toBe(true);
+    expect(radio?.staticIp).toBeUndefined();
+    expect(radio?.staticGateway).toBeUndefined();
+    expect(radio?.staticNetmask).toBeUndefined();
+    expect(radio?.oscillatorState).toBe("gpsdo");
+    expect(radio?.oscillatorSetting).toBe("auto");
+    expect(radio?.oscillatorLocked).toBe(true);
+    expect(radio?.oscillatorExternalPresent).toBe(false);
+    expect(radio?.oscillatorGnssPresent).toBe(false);
+    expect(radio?.oscillatorGpsdoPresent).toBe(true);
+    expect(radio?.oscillatorTcxoPresent).toBe(true);
+
+    expect(radio?.raw["filter_sharpness"]).toBeUndefined();
+    expect(radio?.raw["oscillator"]).toBeUndefined();
+    expect(radio?.raw["state"]).toBe("gpsdo");
+    expect(radio?.raw["setting"]).toBe("auto");
+    expect(radio?.raw["locked"]).toBe("1");
+    expect(radio?.raw["ext_present"]).toBe("0");
+    expect(radio?.raw["gnss_present"]).toBe("0");
+    expect(radio?.raw["gpsdo_present"]).toBe("1");
+    expect(radio?.raw["tcxo_present"]).toBe("1");
+    expect(radio?.raw["ip"]).toBe("");
+    expect(radio?.raw["gateway"]).toBe("");
+    expect(radio?.raw["netmask"]).toBe("");
+  });
 });

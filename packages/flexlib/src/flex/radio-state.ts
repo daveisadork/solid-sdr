@@ -24,7 +24,10 @@ import type {
 import { createMeterSnapshot } from "./radio-state/meter.js";
 import type { MeterSnapshot } from "./radio-state/meter.js";
 import { createRadioProperties } from "./radio-state/radio.js";
-import type { RadioProperties } from "./radio-state/radio.js";
+import type {
+  RadioProperties,
+  RadioStatusContext,
+} from "./radio-state/radio.js";
 
 export type { SnapshotDiff } from "./radio-state/common.js";
 export type { SliceSnapshot } from "./radio-state/slice.js";
@@ -39,7 +42,12 @@ export type {
   MeterSnapshot,
   MeterUnits,
 } from "./radio-state/meter.js";
-export type { RadioProperties } from "./radio-state/radio.js";
+export type {
+  RadioFilterSharpnessMode,
+  RadioOscillatorSetting,
+  RadioProperties,
+  RadioStatusContext,
+} from "./radio-state/radio.js";
 export { KNOWN_METER_UNITS } from "./radio-state/meter.js";
 
 type ChangeMetadata<TSnapshot> = {
@@ -97,7 +105,10 @@ export interface RadioStateStore {
   getMeter(id: string): MeterSnapshot | undefined;
   getAudioStream(id: string): AudioStreamSnapshot | undefined;
   getRadio(): RadioProperties | undefined;
-  patchRadio(attributes: Record<string, string>): RadioStateChange | undefined;
+  patchRadio(
+    attributes: Record<string, string>,
+    context?: RadioStatusContext,
+  ): RadioStateChange | undefined;
   patchSlice(
     id: string,
     attributes: Record<string, string>,
@@ -199,8 +210,8 @@ export function createRadioStateStore(
     getRadio() {
       return radio;
     },
-    patchRadio(attributes) {
-      return patchRadio(attributes);
+    patchRadio(attributes, context) {
+      return patchRadio(attributes, context);
     },
     patchSlice(id, attributes) {
       return patchSlice(id, attributes);
@@ -269,9 +280,14 @@ export function createRadioStateStore(
 
   function patchRadio(
     attributes: Record<string, string>,
+    context?: RadioStatusContext,
   ): RadioStateChange | undefined {
     if (Object.keys(attributes).length === 0) return undefined;
-    const { snapshot, diff } = createRadioProperties(attributes, radio);
+    const { snapshot, diff } = createRadioProperties(
+      attributes,
+      radio,
+      context,
+    );
     const diffKeys = Object.keys(diff as Record<string, unknown>);
     if (diffKeys.length === 0) {
       radio = snapshot;
@@ -487,7 +503,11 @@ export function createRadioStateStore(
     const { snapshot, diff } = createRadioProperties(
       message.attributes,
       radio,
-      message.source,
+      {
+        source: message.source,
+        identifier: message.identifier,
+        positional: message.positional,
+      },
     );
     radio = snapshot;
     return {

@@ -9,6 +9,16 @@ import {
   parseInteger,
 } from "./common.js";
 
+export type RadioFilterSharpnessMode = "voice" | "cw" | "digital";
+
+export type RadioOscillatorSetting = "auto" | "external" | "gpsdo" | "tcxo";
+
+export interface RadioStatusContext {
+  readonly source?: string;
+  readonly identifier?: string;
+  readonly positional?: readonly string[];
+}
+
 export interface RadioProperties {
   readonly nickname: string;
   readonly callsign: string;
@@ -54,6 +64,22 @@ export interface RadioProperties {
   readonly gpsUtcTime?: string;
   readonly gpsTrack?: number;
   readonly gpsGnssPoweredAntenna?: boolean;
+  readonly filterSharpnessVoice: number;
+  readonly filterSharpnessVoiceAuto: boolean;
+  readonly filterSharpnessCw: number;
+  readonly filterSharpnessCwAuto: boolean;
+  readonly filterSharpnessDigital: number;
+  readonly filterSharpnessDigitalAuto: boolean;
+  readonly staticIp?: string;
+  readonly staticGateway?: string;
+  readonly staticNetmask?: string;
+  readonly oscillatorState?: string;
+  readonly oscillatorSetting?: RadioOscillatorSetting;
+  readonly oscillatorLocked: boolean;
+  readonly oscillatorExternalPresent: boolean;
+  readonly oscillatorGnssPresent: boolean;
+  readonly oscillatorGpsdoPresent: boolean;
+  readonly oscillatorTcxoPresent: boolean;
   readonly raw: Readonly<Record<string, string>>;
 }
 
@@ -103,6 +129,22 @@ export function createDefaultRadioProperties(): RadioProperties {
     gpsUtcTime: undefined,
     gpsTrack: undefined,
     gpsGnssPoweredAntenna: undefined,
+    filterSharpnessVoice: 0,
+    filterSharpnessVoiceAuto: false,
+    filterSharpnessCw: 0,
+    filterSharpnessCwAuto: false,
+    filterSharpnessDigital: 0,
+    filterSharpnessDigitalAuto: false,
+    staticIp: undefined,
+    staticGateway: undefined,
+    staticNetmask: undefined,
+    oscillatorState: undefined,
+    oscillatorSetting: undefined,
+    oscillatorLocked: false,
+    oscillatorExternalPresent: false,
+    oscillatorGnssPresent: false,
+    oscillatorGpsdoPresent: false,
+    oscillatorTcxoPresent: false,
     raw: EMPTY_ATTRIBUTES,
   };
 }
@@ -110,12 +152,29 @@ export function createDefaultRadioProperties(): RadioProperties {
 export function createRadioProperties(
   attributes: Record<string, string>,
   previous?: RadioProperties,
-  source?: string,
+  context?: RadioStatusContext,
 ): SnapshotUpdate<RadioProperties> {
   const rawDiff = freezeAttributes(attributes);
   const partial: Mutable<Partial<RadioProperties>> = {};
-  if (source === "gps") applyGpsStatusAttributes(attributes, partial);
-  else applyRadioSourceAttributes(attributes, partial);
+  switch (resolveRadioContext(context)) {
+    case "gps":
+      applyGpsStatusAttributes(attributes, partial);
+      break;
+    case "filter_sharpness":
+      if (context) {
+        applyFilterSharpnessAttributes(attributes, partial, context);
+      }
+      break;
+    case "static_net_params":
+      applyStaticNetworkParams(attributes, partial);
+      break;
+    case "oscillator":
+      applyOscillatorAttributes(attributes, partial);
+      break;
+    default:
+      applyRadioSourceAttributes(attributes, partial);
+      break;
+  }
 
   const base = previous ?? createDefaultRadioProperties();
   const snapshot = Object.freeze({
@@ -263,10 +322,114 @@ function applyRadioSourceAttributes(
         break;
       }
       default: {
-        const handled = applyGpsSharedAttribute(partial, key, value, "radio");
-        if (!handled) logUnknownAttribute("radio", key, value);
+        logUnknownAttribute("radio", key, value);
         break;
       }
+    }
+  }
+}
+
+function applyFilterSharpnessAttributes(
+  attributes: Record<string, string>,
+  partial: Mutable<Partial<RadioProperties>>,
+  context: RadioStatusContext,
+): void {
+  const modeToken = context.positional?.[0];
+  const mode = parseFilterSharpnessMode(modeToken);
+  if (!mode) {
+    const reported = modeToken ?? "";
+    logParseError("radio", "filter_sharpness_mode", reported);
+    return;
+  }
+
+  const levelValue = attributes["level"];
+  if (levelValue !== undefined) {
+    const parsed = parseInteger(levelValue);
+    if (parsed !== undefined) {
+      const clamped = clamp(
+        parsed,
+        FILTER_SHARPNESS_MIN_LEVEL,
+        FILTER_SHARPNESS_MAX_LEVEL,
+      );
+      assignFilterSharpnessLevel(partial, mode, clamped);
+    } else {
+      logParseError("radio", "filter_sharpness.level", levelValue);
+    }
+  }
+
+  const autoValue = attributes["auto_level"];
+  if (autoValue !== undefined) {
+    assignFilterSharpnessAuto(partial, mode, isTruthy(autoValue));
+  }
+}
+
+function applyStaticNetworkParams(
+  attributes: Record<string, string>,
+  partial: Mutable<Partial<RadioProperties>>,
+): void {
+  if ("ip" in attributes) {
+    const parsed = parseIpAddress(attributes["ip"]);
+    if (parsed === undefined && attributes["ip"]) {
+      logParseError("radio", "static_net_params.ip", attributes["ip"]);
+    }
+    partial.staticIp = parsed;
+  }
+  if ("gateway" in attributes) {
+    const parsed = parseIpAddress(attributes["gateway"]);
+    if (parsed === undefined && attributes["gateway"]) {
+      logParseError(
+        "radio",
+        "static_net_params.gateway",
+        attributes["gateway"],
+      );
+    }
+    partial.staticGateway = parsed;
+  }
+  if ("netmask" in attributes) {
+    const parsed = parseIpAddress(attributes["netmask"]);
+    if (parsed === undefined && attributes["netmask"]) {
+      logParseError(
+        "radio",
+        "static_net_params.netmask",
+        attributes["netmask"],
+      );
+    }
+    partial.staticNetmask = parsed;
+  }
+}
+
+function applyOscillatorAttributes(
+  attributes: Record<string, string>,
+  partial: Mutable<Partial<RadioProperties>>,
+): void {
+  for (const [key, value] of Object.entries(attributes)) {
+    switch (key) {
+      case "state":
+        partial.oscillatorState = value || undefined;
+        break;
+      case "setting": {
+        const parsed = parseOscillatorSetting(value);
+        if (parsed) partial.oscillatorSetting = parsed;
+        else if (value) logParseError("radio", "oscillator.setting", value);
+        break;
+      }
+      case "locked":
+        partial.oscillatorLocked = isTruthy(value);
+        break;
+      case "ext_present":
+        partial.oscillatorExternalPresent = isTruthy(value);
+        break;
+      case "gnss_present":
+        partial.oscillatorGnssPresent = isTruthy(value);
+        break;
+      case "gpsdo_present":
+        partial.oscillatorGpsdoPresent = isTruthy(value);
+        break;
+      case "tcxo_present":
+        partial.oscillatorTcxoPresent = isTruthy(value);
+        break;
+      default:
+        logUnknownAttribute("radio", key, value);
     }
   }
 }
@@ -325,49 +488,119 @@ function applyGpsStatusAttributes(
         else logParseError("gps", key, value);
         break;
       }
+      case "gnss_powered_ant":
+        partial.gpsGnssPoweredAntenna = isTruthy(value);
+        break;
       default: {
-        const handled = applyGpsSharedAttribute(partial, key, value, "gps");
-        if (!handled) logUnknownAttribute("gps", key, value);
+        logUnknownAttribute("gps", key, value);
         break;
       }
     }
   }
 }
 
-function applyGpsSharedAttribute(
+const FILTER_SHARPNESS_MIN_LEVEL = 0;
+const FILTER_SHARPNESS_MAX_LEVEL = 3;
+
+type RadioContextKind =
+  | "radio"
+  | "gps"
+  | "filter_sharpness"
+  | "static_net_params"
+  | "oscillator";
+
+function resolveRadioContext(context?: RadioStatusContext): RadioContextKind {
+  const identifier = context?.identifier?.toLowerCase();
+  if (identifier === "gps") return "gps";
+  if (identifier === "filter_sharpness") return "filter_sharpness";
+  if (identifier === "static_net_params") return "static_net_params";
+  if (identifier === "oscillator") return "oscillator";
+
+  const source = context?.source?.toLowerCase();
+  if (source === "gps") return "gps";
+
+  return "radio";
+}
+
+function clamp(value: number, min: number, max: number): number {
+  if (value < min) return min;
+  if (value > max) return max;
+  return value;
+}
+
+function parseFilterSharpnessMode(
+  token: string | undefined,
+): RadioFilterSharpnessMode | undefined {
+  if (!token) return undefined;
+  const normalized = token.trim().toLowerCase();
+  if (normalized === "voice") return "voice";
+  if (normalized === "cw") return "cw";
+  if (normalized === "digital") return "digital";
+  return undefined;
+}
+
+function parseIpAddress(value: string | undefined): string | undefined {
+  if (value === undefined) return undefined;
+  const normalized = value.trim();
+  if (!normalized) return undefined;
+  if (normalized.includes(":")) {
+    // Basic validation for IPv6 literals.
+    return /^[0-9a-fA-F:]+$/.test(normalized) ? normalized : undefined;
+  }
+  const parts = normalized.split(".");
+  if (parts.length !== 4) return undefined;
+  for (const part of parts) {
+    if (!/^\d+$/.test(part)) return undefined;
+    const octet = Number.parseInt(part, 10);
+    if (!Number.isFinite(octet) || octet < 0 || octet > 255) return undefined;
+  }
+  return normalized;
+}
+
+function parseOscillatorSetting(
+  value: string | undefined,
+): RadioOscillatorSetting | undefined {
+  if (!value) return undefined;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "auto") return "auto";
+  if (normalized === "external") return "external";
+  if (normalized === "gpsdo") return "gpsdo";
+  if (normalized === "tcxo") return "tcxo";
+  return undefined;
+}
+
+function assignFilterSharpnessLevel(
   partial: Mutable<Partial<RadioProperties>>,
-  key: string,
-  value: string,
-  entity: string,
-): boolean {
-  switch (key) {
-    case "gps": {
-      const parsed = parseGpsInstalled(value);
-      if (parsed !== undefined) partial.gpsInstalled = parsed;
-      else logUnknownAttribute(entity, key, value);
-      return true;
-    }
-    case "gnss_powered_ant":
-      partial.gpsGnssPoweredAntenna = isTruthy(value);
-      return true;
-    default:
-      return false;
+  mode: RadioFilterSharpnessMode,
+  value: number,
+): void {
+  switch (mode) {
+    case "voice":
+      partial.filterSharpnessVoice = value;
+      break;
+    case "cw":
+      partial.filterSharpnessCw = value;
+      break;
+    case "digital":
+      partial.filterSharpnessDigital = value;
+      break;
   }
 }
 
-function parseGpsInstalled(value: string | undefined): boolean | undefined {
-  if (value === undefined) return undefined;
-  const normalized = value.trim().toLowerCase();
-  if (!normalized) return undefined;
-  if (normalized === "not present") return false;
-  if (normalized === "present") return true;
-  if (normalized === "installed") return true;
-  if (normalized === "removed") return false;
-  if (normalized === "enabled") return true;
-  if (normalized === "disabled") return false;
-  if (normalized === "true" || normalized === "yes" || normalized === "1")
-    return true;
-  if (normalized === "false" || normalized === "no" || normalized === "0")
-    return false;
-  return undefined;
+function assignFilterSharpnessAuto(
+  partial: Mutable<Partial<RadioProperties>>,
+  mode: RadioFilterSharpnessMode,
+  value: boolean,
+): void {
+  switch (mode) {
+    case "voice":
+      partial.filterSharpnessVoiceAuto = value;
+      break;
+    case "cw":
+      partial.filterSharpnessCwAuto = value;
+      break;
+    case "digital":
+      partial.filterSharpnessDigitalAuto = value;
+      break;
+  }
 }

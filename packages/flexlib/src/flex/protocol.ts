@@ -296,7 +296,7 @@ function parseAttributes(
         attributes[key] = value;
       }
     }
-    return { attributes, identifier };
+    return { attributes, identifier: identifier ?? "gps" };
   }
 
   if (!segment) return { attributes, identifier };

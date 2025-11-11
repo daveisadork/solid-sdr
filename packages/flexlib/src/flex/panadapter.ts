@@ -132,10 +132,7 @@ export interface PanadapterController {
   setAutoCenter(enabled: boolean): Promise<void>;
   setMinDbm(value: number): Promise<void>;
   setMaxDbm(value: number): Promise<void>;
-  setDbmRange(range: {
-    low: number;
-    high: number;
-  }): Promise<void>;
+  setDbmRange(range: { low: number; high: number }): Promise<void>;
   setFps(value: number): Promise<void>;
   setAverage(value: number): Promise<void>;
   setWeightedAverage(enabled: boolean): Promise<void>;
@@ -401,10 +398,7 @@ export class PanadapterControllerImpl implements PanadapterController {
     await this.sendSet({ max_dbm: formatDbm(clamped) });
   }
 
-  async setDbmRange(range: {
-    low: number;
-    high: number;
-  }): Promise<void> {
+  async setDbmRange(range: { low: number; high: number }): Promise<void> {
     const low = this.clampNumber(range.low, -180, undefined);
     const high = this.clampNumber(range.high, undefined, 20);
     await this.sendSet({
@@ -442,17 +436,13 @@ export class PanadapterControllerImpl implements PanadapterController {
     await this.sendSet({ wnb_level: formatInteger(clamped) });
   }
 
-  async setNoiseFloorPosition(
-    value: number,
-  ): Promise<void> {
+  async setNoiseFloorPosition(value: number): Promise<void> {
     await this.sendSet({
       pan_position: formatInteger(Math.round(value)),
     });
   }
 
-  async setNoiseFloorPositionEnabled(
-    enabled: boolean,
-  ): Promise<void> {
+  async setNoiseFloorPositionEnabled(enabled: boolean): Promise<void> {
     await this.sendSet({ pan_position_enable: formatBooleanFlag(enabled) });
   }
 
@@ -506,9 +496,7 @@ export class PanadapterControllerImpl implements PanadapterController {
     await this.sendSet({ n1mm_port: formatInteger(port) });
   }
 
-  async setLoggerDisplayRadioNumber(
-    radio: number,
-  ): Promise<void> {
+  async setLoggerDisplayRadioNumber(radio: number): Promise<void> {
     await this.sendSet({ n1mm_radio: formatInteger(radio) });
   }
 
@@ -551,8 +539,8 @@ export class PanadapterControllerImpl implements PanadapterController {
   }
 
   onStateChange(change: PanadapterStateChange): void {
-    if (change.snapshot?.streamId) {
-      this.streamHandle = change.snapshot.streamId;
+    if (change.diff?.streamId) {
+      this.streamHandle = change.diff.streamId;
     }
     this.events.emit("change", change);
   }
@@ -674,5 +662,4 @@ export class PanadapterControllerImpl implements PanadapterController {
     if (max !== undefined && result > max) result = max;
     return result;
   }
-
 }

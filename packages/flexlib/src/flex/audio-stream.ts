@@ -1,7 +1,4 @@
-import type {
-  FlexCommandOptions,
-  FlexCommandResponse,
-} from "./adapters.js";
+import type { FlexCommandOptions, FlexCommandResponse } from "./adapters.js";
 import { TypedEventEmitter, type Subscription } from "./events.js";
 import { FlexStateUnavailableError } from "./errors.js";
 import type {
@@ -9,8 +6,7 @@ import type {
   AudioStreamStateChange,
 } from "./radio-state.js";
 
-export interface AudioStreamControllerEvents
-  extends Record<string, unknown> {
+export interface AudioStreamControllerEvents extends Record<string, unknown> {
   readonly change: AudioStreamStateChange;
 }
 
@@ -119,8 +115,8 @@ export class AudioStreamControllerImpl implements AudioStreamController {
   }
 
   onStateChange(change: AudioStreamStateChange): void {
-    if (change.snapshot?.streamId) {
-      this.streamHandle = change.snapshot.streamId;
+    if (change.diff?.streamId) {
+      this.streamHandle = change.diff.streamId;
     }
     this.events.emit("change", change);
   }

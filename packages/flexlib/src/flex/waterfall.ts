@@ -1,8 +1,5 @@
 import type { FlexCommandOptions, FlexCommandResponse } from "./adapters.js";
-import type {
-  WaterfallSnapshot,
-  WaterfallStateChange,
-} from "./radio-state.js";
+import type { WaterfallSnapshot, WaterfallStateChange } from "./radio-state.js";
 import { TypedEventEmitter, type Subscription } from "./events.js";
 import {
   FlexClientClosedError,
@@ -99,10 +96,7 @@ export interface WaterfallController {
   ): Promise<void>;
   setMinDbm(value: number): Promise<void>;
   setMaxDbm(value: number): Promise<void>;
-  setDbmRange(range: {
-    low: number;
-    high: number;
-  }): Promise<void>;
+  setDbmRange(range: { low: number; high: number }): Promise<void>;
   setFps(value: number): Promise<void>;
   setAverage(value: number): Promise<void>;
   setWeightedAverage(enabled: boolean): Promise<void>;
@@ -275,9 +269,7 @@ export class WaterfallControllerImpl implements WaterfallController {
     return this.events.on(event, listener);
   }
 
-  async setCenterFrequency(
-    frequencyMHz: number,
-  ): Promise<void> {
+  async setCenterFrequency(frequencyMHz: number): Promise<void> {
     await this.sendSet({ center: formatMegahertz(frequencyMHz) });
   }
 
@@ -298,10 +290,7 @@ export class WaterfallControllerImpl implements WaterfallController {
     await this.sendSet({ max_dbm: formatDbm(value) });
   }
 
-  async setDbmRange(range: {
-    low: number;
-    high: number;
-  }): Promise<void> {
+  async setDbmRange(range: { low: number; high: number }): Promise<void> {
     await this.sendSet({
       min_dbm: formatDbm(range.low),
       max_dbm: formatDbm(range.high),
@@ -356,9 +345,7 @@ export class WaterfallControllerImpl implements WaterfallController {
     await this.sendSet({ color_gain: formatInteger(value) });
   }
 
-  async setAutoBlackLevelEnabled(
-    enabled: boolean,
-  ): Promise<void> {
+  async setAutoBlackLevelEnabled(enabled: boolean): Promise<void> {
     await this.sendSet({ auto_black: formatBooleanFlag(enabled) });
   }
 
@@ -396,8 +383,8 @@ export class WaterfallControllerImpl implements WaterfallController {
   }
 
   onStateChange(change: WaterfallStateChange): void {
-    if (change.snapshot?.streamId) {
-      this.streamHandle = change.snapshot.streamId;
+    if (change.diff?.streamId) {
+      this.streamHandle = change.diff.streamId;
     }
     this.events.emit("change", change);
   }
@@ -467,5 +454,4 @@ export class WaterfallControllerImpl implements WaterfallController {
     }
     return this.streamHandle;
   }
-
 }

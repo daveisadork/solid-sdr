@@ -3,22 +3,15 @@ import type { RfGainInfo } from "./rf-gain.js";
 import type { Logger } from "./adapters.js";
 import {
   freezeArray,
-  freezeAttributes,
   isTruthy,
   setRadioStateLogger,
 } from "./radio-state/common.js";
 import type { SnapshotDiff } from "./radio-state/common.js";
-import {
-  createSliceSnapshot,
-} from "./radio-state/slice.js";
+import { createSliceSnapshot } from "./radio-state/slice.js";
 import type { SliceSnapshot } from "./radio-state/slice.js";
-import {
-  createPanadapterSnapshot,
-} from "./radio-state/panadapter.js";
+import { createPanadapterSnapshot } from "./radio-state/panadapter.js";
 import type { PanadapterSnapshot } from "./radio-state/panadapter.js";
-import {
-  createWaterfallSnapshot,
-} from "./radio-state/waterfall.js";
+import { createWaterfallSnapshot } from "./radio-state/waterfall.js";
 import type { WaterfallSnapshot } from "./radio-state/waterfall.js";
 import {
   AUDIO_STREAM_TYPES,
@@ -29,13 +22,8 @@ import type {
   AudioStreamSnapshot,
 } from "./radio-state/audio-stream.js";
 import { createMeterSnapshot } from "./radio-state/meter.js";
-import type {
-  MeterSnapshot,
-} from "./radio-state/meter.js";
-import {
-  createDefaultRadioProperties,
-  createRadioProperties,
-} from "./radio-state/radio.js";
+import type { MeterSnapshot } from "./radio-state/meter.js";
+import { createRadioProperties } from "./radio-state/radio.js";
 import type { RadioProperties } from "./radio-state/radio.js";
 
 export type { SnapshotDiff } from "./radio-state/common.js";
@@ -55,17 +43,8 @@ export type { RadioProperties } from "./radio-state/radio.js";
 export { KNOWN_METER_UNITS } from "./radio-state/meter.js";
 
 type ChangeMetadata<TSnapshot> = {
-  readonly snapshot?: TSnapshot;
-  readonly previous?: TSnapshot;
   readonly diff?: SnapshotDiff<TSnapshot>;
-  readonly rawDiff?: Readonly<Record<string, string>>;
-};
-
-type RequiredSnapshotChange<TSnapshot> = {
-  readonly snapshot: TSnapshot;
-  readonly previous?: TSnapshot;
-  readonly diff: SnapshotDiff<TSnapshot>;
-  readonly rawDiff: Readonly<Record<string, string>>;
+  readonly removed: boolean;
 };
 
 export type RadioStateChange =
@@ -77,7 +56,7 @@ export type RadioStateChange =
       entity: "audioStream";
       id: string;
     } & ChangeMetadata<AudioStreamSnapshot>)
-  | ({ entity: "radio" } & RequiredSnapshotChange<RadioProperties>)
+  | ({ entity: "radio" } & ChangeMetadata<RadioProperties>)
   | {
       entity: "unknown";
       source: string;
@@ -264,14 +243,12 @@ export function createRadioStateStore(
       return {
         entity: "slice",
         id,
-        previous,
-        snapshot: undefined,
-        rawDiff: freezeAttributes(message.attributes),
+        removed: true,
       };
     }
 
     const previous = slices.get(id);
-    const { snapshot, diff, rawDiff } = createSliceSnapshot(
+    const { snapshot, diff } = createSliceSnapshot(
       id,
       message.attributes,
       previous,
@@ -285,10 +262,8 @@ export function createRadioStateStore(
     return {
       entity: "slice",
       id,
-      previous,
-      snapshot,
+      removed: false,
       diff,
-      rawDiff,
     };
   }
 
@@ -296,11 +271,7 @@ export function createRadioStateStore(
     attributes: Record<string, string>,
   ): RadioStateChange | undefined {
     if (Object.keys(attributes).length === 0) return undefined;
-    const previous = radio ?? createDefaultRadioProperties();
-    const { snapshot, diff, rawDiff } = createRadioProperties(
-      attributes,
-      radio,
-    );
+    const { snapshot, diff } = createRadioProperties(attributes, radio);
     const diffKeys = Object.keys(diff as Record<string, unknown>);
     if (diffKeys.length === 0) {
       radio = snapshot;
@@ -309,10 +280,8 @@ export function createRadioStateStore(
     radio = snapshot;
     return {
       entity: "radio",
-      previous,
-      snapshot,
       diff,
-      rawDiff,
+      removed: false,
     };
   }
 
@@ -336,20 +305,17 @@ export function createRadioStateStore(
     }
 
     if (isMarkedDeleted(message.attributes)) {
-      const previous = panadapters.get(id);
       panadapters.delete(id);
       detachSlicesFromPanadapter(id);
       return {
         entity: "panadapter",
         id,
-        previous,
-        snapshot: undefined,
-        rawDiff: freezeAttributes(message.attributes),
+        removed: true,
       };
     }
 
     const previous = panadapters.get(id);
-    const { snapshot, diff, rawDiff } = createPanadapterSnapshot(
+    const { snapshot, diff } = createPanadapterSnapshot(
       id,
       message.attributes,
       previous,
@@ -358,10 +324,8 @@ export function createRadioStateStore(
     return {
       entity: "panadapter",
       id,
-      previous,
-      snapshot,
       diff,
-      rawDiff,
+      removed: false,
     };
   }
 
@@ -395,14 +359,11 @@ export function createRadioStateStore(
     }
 
     if (isMarkedDeleted(message.attributes)) {
-      const previous = audioStreams.get(id);
       audioStreams.delete(id);
       return {
         entity: "audioStream",
         id,
-        previous,
-        snapshot: undefined,
-        rawDiff: freezeAttributes(message.attributes),
+        removed: true,
       };
     }
 
@@ -416,7 +377,7 @@ export function createRadioStateStore(
     if (attributePatch["stream_id"] === undefined && id) {
       attributePatch["stream_id"] = id;
     }
-    const { snapshot, diff, rawDiff } = createAudioStreamSnapshot(
+    const { snapshot, diff } = createAudioStreamSnapshot(
       id,
       attributePatch,
       previous,
@@ -425,10 +386,8 @@ export function createRadioStateStore(
     return {
       entity: "audioStream",
       id,
-      previous,
-      snapshot,
       diff,
-      rawDiff,
+      removed: false,
     };
   }
 
@@ -453,21 +412,18 @@ export function createRadioStateStore(
 
     if (message.identifier === "waterfall" || message.attributes["pan"]) {
       if (isMarkedDeleted(message.attributes)) {
-        const previous = waterfalls.get(id);
         waterfalls.delete(id);
         return {
           entity: "waterfall",
           id,
-          previous,
-          snapshot: undefined,
-          rawDiff: freezeAttributes(message.attributes),
+          removed: true,
         };
       }
       const previous = waterfalls.get(id);
       const attributes = streamHint
         ? { stream_id: streamHint, ...message.attributes }
         : message.attributes;
-      const { snapshot, diff, rawDiff } = createWaterfallSnapshot(
+      const { snapshot, diff } = createWaterfallSnapshot(
         id,
         attributes,
         previous,
@@ -476,10 +432,8 @@ export function createRadioStateStore(
       return {
         entity: "waterfall",
         id,
-        previous,
-        snapshot,
         diff,
-        rawDiff,
+        removed: false,
       };
     }
 
@@ -506,19 +460,16 @@ export function createRadioStateStore(
     }
 
     if (isMarkedDeleted(message.attributes)) {
-      const previous = meters.get(id);
       meters.delete(id);
       return {
         entity: "meter",
         id,
-        previous,
-        snapshot: undefined,
-        rawDiff: freezeAttributes(message.attributes),
+        removed: true,
       };
     }
 
     const previous = meters.get(id);
-    const { snapshot, diff, rawDiff } = createMeterSnapshot(
+    const { snapshot, diff } = createMeterSnapshot(
       id,
       message.attributes,
       previous,
@@ -527,16 +478,13 @@ export function createRadioStateStore(
     return {
       entity: "meter",
       id,
-      previous,
-      snapshot,
       diff,
-      rawDiff,
+      removed: false,
     };
   }
 
   function handleRadio(message: FlexStatusMessage): RadioStateChange {
-    const previous = radio;
-    const { snapshot, diff, rawDiff } = createRadioProperties(
+    const { snapshot, diff } = createRadioProperties(
       message.attributes,
       radio,
       message.source,
@@ -544,10 +492,8 @@ export function createRadioStateStore(
     radio = snapshot;
     return {
       entity: "radio",
-      snapshot,
-      previous,
       diff,
-      rawDiff,
+      removed: false,
     };
   }
 
@@ -599,7 +545,7 @@ export function createRadioStateStore(
     const baseAttributes: Record<string, string> = previous
       ? {}
       : { index: id };
-    const { snapshot, diff, rawDiff } = createSliceSnapshot(
+    const { snapshot, diff } = createSliceSnapshot(
       id,
       { ...baseAttributes, ...attributes },
       previous,
@@ -613,10 +559,8 @@ export function createRadioStateStore(
     return {
       entity: "slice",
       id,
-      previous,
-      snapshot,
       diff,
-      rawDiff,
+      removed: false,
     };
   }
 
@@ -626,7 +570,7 @@ export function createRadioStateStore(
   ): PanadapterStateChange | undefined {
     const previous = panadapters.get(id);
     const stream = attributes["stream_id"] ?? previous?.streamId ?? id;
-    const { snapshot, diff, rawDiff } = createPanadapterSnapshot(
+    const { snapshot, diff } = createPanadapterSnapshot(
       id,
       { stream_id: stream, ...attributes },
       previous,
@@ -635,10 +579,8 @@ export function createRadioStateStore(
     return {
       entity: "panadapter",
       id,
-      previous,
-      snapshot,
       diff,
-      rawDiff,
+      removed: false,
     };
   }
 
@@ -648,7 +590,7 @@ export function createRadioStateStore(
   ): WaterfallStateChange | undefined {
     const previous = waterfalls.get(id);
     const stream = attributes["stream_id"] ?? previous?.streamId ?? id;
-    const { snapshot, diff, rawDiff } = createWaterfallSnapshot(
+    const { snapshot, diff } = createWaterfallSnapshot(
       id,
       { stream_id: stream, ...attributes },
       previous,
@@ -657,10 +599,8 @@ export function createRadioStateStore(
     return {
       entity: "waterfall",
       id,
-      previous,
-      snapshot,
       diff,
-      rawDiff,
+      removed: false,
     };
   }
 
@@ -677,7 +617,7 @@ export function createRadioStateStore(
     if (attributePatch["stream_id"] === undefined) {
       attributePatch["stream_id"] = previous?.streamId ?? id;
     }
-    const { snapshot, diff, rawDiff } = createAudioStreamSnapshot(
+    const { snapshot, diff } = createAudioStreamSnapshot(
       id,
       attributePatch,
       previous,
@@ -686,10 +626,8 @@ export function createRadioStateStore(
     return {
       entity: "audioStream",
       id,
-      previous,
-      snapshot,
       diff,
-      rawDiff,
+      removed: false,
     };
   }
 

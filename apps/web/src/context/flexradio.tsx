@@ -81,8 +81,8 @@ export enum ConnectionState {
 
 export enum ConnectionStage {
   TCP = 0,
-  UDP = 1,
-  Data = 2,
+  Data = 1,
+  UDP = 2,
   Done = 3,
 }
 
@@ -778,21 +778,19 @@ export const FlexRadioProvider: ParentComponent = (props) => {
           pendingHandleLine = payload;
           return;
         }
+        const radio = flexSession()!.radio();
         const handle = payload.slice(1);
         console.log("Handle:", handle);
-        console.log("Connecting RTC with handle:", handle);
-        setState("connectModal", "stage", ConnectionStage.UDP);
-        await connectRTC(handle).catch(console.error);
         setState("connectModal", "stage", ConnectionStage.Data);
         console.log("Requesting initial data...");
         // setState("clientHandle", handle);
         try {
           // await sendCommand("client program SolidFlexRadio");
           await Promise.all([
-            sendCommand("info"),
-            sendCommand("version"),
-            sendCommand("ant list"),
-            sendCommand("mic list"),
+            radio.refreshInfo(),
+            radio.refreshVersions(),
+            radio.refreshRxAntennaList(),
+            radio.refreshMicList(),
             sendCommand("profile global info"),
             sendCommand("profile tx info"),
             sendCommand("profile mic info"),
@@ -822,6 +820,9 @@ export const FlexRadioProvider: ParentComponent = (props) => {
             sendCommand("sub apd all"),
             sendCommand("keepalive enable"),
           ]);
+          console.log("Connecting RTC with handle:", handle);
+          setState("connectModal", "stage", ConnectionStage.UDP);
+          await connectRTC(handle).catch(console.error);
           const { message: clientId } = await sendCommand("client gui");
           await flexSession()?.createRemoteAudioRxStream({
             compression: "OPUS",

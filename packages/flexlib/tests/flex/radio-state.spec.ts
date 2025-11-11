@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { createRadioStateStore } from "../../src/flex/radio-state.js";
+import {
+  buildRadioListAttributes,
+  parseRadioInfoReply,
+  parseRadioVersionReply,
+} from "../../src/flex/radio-replies.js";
 import { lineSpeedToDurationMs } from "../../src/flex/waterfall-line-speed.js";
 import { makeStatus } from "../helpers.js";
 
@@ -241,5 +246,69 @@ describe("createRadioStateStore", () => {
     expect(radio?.raw["ip"]).toBe("");
     expect(radio?.raw["gateway"]).toBe("");
     expect(radio?.raw["netmask"]).toBe("");
+  });
+
+  it("applies info, version, and list replies to radio properties", () => {
+    const store = createRadioStateStore();
+    const infoMessage =
+      'model="FLEX-8600",chassis_serial="1225-1213-8600-7918",name="FLEX-8600",callsign="KF0SMY",gps="Locked",atu_present=1,num_scu=2,num_slice=4,num_tx=1,software_ver=4.0.1.39161,mac=00:1C:2D:05:33:BA,ip=10.16.83.234,netmask=255.255.255.0,gateway=10.16.83.1,location="",region="USA",screensaver=model,options="GPS",1750_tone_burst=0,diversity_allowed=1';
+    store.patchRadio(parseRadioInfoReply(infoMessage), { source: "info" });
+
+    let radio = store.getRadio();
+    expect(radio).toBeDefined();
+    expect(radio?.model).toBe("FLEX-8600");
+    expect(radio?.serial).toBe("1225-1213-8600-7918");
+    expect(radio?.nickname).toBe("FLEX-8600");
+    expect(radio?.callsign).toBe("KF0SMY");
+    expect(radio?.version).toBe("4.0.1.39161");
+    expect(radio?.macAddress).toBe("00:1C:2D:05:33:BA");
+    expect(radio?.ipAddress).toBe("10.16.83.234");
+    expect(radio?.netmask).toBe("255.255.255.0");
+    expect(radio?.gateway).toBe("10.16.83.1");
+    expect(radio?.region).toBe("USA");
+    expect(radio?.screensaverMode).toBe("model");
+    expect(radio?.radioOptions).toBe("GPS");
+    expect(radio?.tx1750ToneBurst).toBe(false);
+    expect(radio?.diversityAllowed).toBe(true);
+    expect(radio?.atuPresent).toBe(true);
+    expect(radio?.scuCount).toBe(2);
+    expect(radio?.sliceCount).toBe(4);
+    expect(radio?.txCount).toBe(1);
+    expect(radio?.gpsInstalled).toBe(true);
+    expect(radio?.gpsLock).toBe(true);
+
+    const versionMessage =
+      "SmartSDR-MB=4.0.1.39161#PSoC-MBTRX=1.0.6.0#PSoC-MBPA100=0.0.1.28#FPGA-MB=0x85d60e8c";
+    store.patchRadio(parseRadioVersionReply(versionMessage), {
+      source: "version",
+    });
+
+    radio = store.getRadio();
+    expect(radio?.versionsRaw).toBe(versionMessage);
+    expect(radio?.version).toBe("4.0.1.39161");
+    expect(radio?.trxPsocVersion).toBe("1.0.6.0");
+    expect(radio?.paPsocVersion).toBe("0.0.1.28");
+    expect(radio?.fpgaVersion).toBe("0x85d60e8c");
+
+    store.patchRadio(
+      buildRadioListAttributes(
+        "rx_ant_list",
+        "ANT1,ANT2,RX_A,RX_B,XVTA,XVTB",
+      ),
+    );
+    store.patchRadio(
+      buildRadioListAttributes("mic_list", "MIC,BAL,LINE,ACC,PC"),
+    );
+
+    radio = store.getRadio();
+    expect(radio?.rxAntennaList).toEqual([
+      "ANT1",
+      "ANT2",
+      "RX_A",
+      "RX_B",
+      "XVTA",
+      "XVTB",
+    ]);
+    expect(radio?.micInputList).toEqual(["MIC", "BAL", "LINE", "ACC", "PC"]);
   });
 });

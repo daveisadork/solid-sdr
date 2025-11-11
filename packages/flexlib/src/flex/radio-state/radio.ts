@@ -1,10 +1,12 @@
 import type { Mutable, SnapshotUpdate } from "./common.js";
 import {
   EMPTY_ATTRIBUTES,
+  freezeArray,
   freezeAttributes,
   isTruthy,
   logParseError,
   logUnknownAttribute,
+  parseCsv,
   parseFloatSafe,
   parseInteger,
 } from "./common.js";
@@ -13,6 +15,10 @@ export type RadioFilterSharpnessMode = "voice" | "cw" | "digital";
 
 export type RadioOscillatorSetting = "auto" | "external" | "gpsdo" | "tcxo";
 
+export type RadioScreensaverMode = "model" | "name" | "callsign" | "none";
+
+const EMPTY_STRING_LIST: readonly string[] = Object.freeze([]);
+
 export interface RadioStatusContext {
   readonly source?: string;
   readonly identifier?: string;
@@ -20,9 +26,31 @@ export interface RadioStatusContext {
 }
 
 export interface RadioProperties {
+  readonly model: string;
+  readonly serial: string;
   readonly nickname: string;
   readonly callsign: string;
-  readonly firmware: string;
+  readonly version: string;
+  readonly macAddress: string;
+  readonly ipAddress: string;
+  readonly netmask: string;
+  readonly gateway: string;
+  readonly location: string;
+  readonly region: string;
+  readonly screensaverMode: RadioScreensaverMode;
+  readonly radioOptions: string;
+  readonly tx1750ToneBurst: boolean;
+  readonly diversityAllowed: boolean;
+  readonly atuPresent: boolean;
+  readonly scuCount: number;
+  readonly sliceCount: number;
+  readonly txCount: number;
+  readonly rxAntennaList: readonly string[];
+  readonly micInputList: readonly string[];
+  readonly versionsRaw: string;
+  readonly trxPsocVersion: string;
+  readonly paPsocVersion: string;
+  readonly fpgaVersion: string;
   readonly availableSlices: number;
   readonly availablePanadapters: number;
   readonly availableDaxIq: number;
@@ -85,9 +113,31 @@ export interface RadioProperties {
 
 export function createDefaultRadioProperties(): RadioProperties {
   return {
+    model: "",
+    serial: "",
     nickname: "",
     callsign: "",
-    firmware: "",
+    version: "",
+    macAddress: "",
+    ipAddress: "",
+    netmask: "",
+    gateway: "",
+    location: "",
+    region: "",
+    screensaverMode: "none",
+    radioOptions: "",
+    tx1750ToneBurst: false,
+    diversityAllowed: false,
+    atuPresent: false,
+    scuCount: 0,
+    sliceCount: 0,
+    txCount: 0,
+    rxAntennaList: EMPTY_STRING_LIST,
+    micInputList: EMPTY_STRING_LIST,
+    versionsRaw: "",
+    trxPsocVersion: "",
+    paPsocVersion: "",
+    fpgaVersion: "",
     availableSlices: 0,
     availablePanadapters: 0,
     availableDaxIq: 0,
@@ -172,7 +222,7 @@ export function createRadioProperties(
       applyOscillatorAttributes(attributes, partial);
       break;
     default:
-      applyRadioSourceAttributes(attributes, partial);
+      applyRadioSourceAttributes(attributes, partial, previous);
       break;
   }
 
@@ -195,17 +245,118 @@ export function createRadioProperties(
 function applyRadioSourceAttributes(
   attributes: Record<string, string>,
   partial: Mutable<Partial<RadioProperties>>,
+  previous?: RadioProperties,
 ): void {
   for (const [key, value] of Object.entries(attributes)) {
     switch (key) {
+      case "model":
+        partial.model = value;
+        break;
+      case "chassis_serial":
+        partial.serial = value;
+        break;
+      case "name":
       case "nickname":
         partial.nickname = value;
         break;
       case "callsign":
         partial.callsign = value;
         break;
+      case "software_ver":
       case "version":
-        partial.firmware = value;
+        partial.version = value;
+        break;
+      case "mac":
+        partial.macAddress = value;
+        break;
+      case "ip":
+        partial.ipAddress = value;
+        break;
+      case "netmask":
+        partial.netmask = value;
+        break;
+      case "gateway":
+        partial.gateway = value;
+        break;
+      case "location":
+        partial.location = value;
+        break;
+      case "region":
+        partial.region = value;
+        break;
+      case "screensaver":
+        partial.screensaverMode = parseScreensaverMode(value);
+        break;
+      case "options":
+        partial.radioOptions = value;
+        break;
+      case "1750_tone_burst":
+        partial.tx1750ToneBurst = isTruthy(value);
+        break;
+      case "diversity_allowed":
+        partial.diversityAllowed = isTruthy(value);
+        break;
+      case "atu_present":
+        partial.atuPresent = isTruthy(value);
+        break;
+      case "num_scu": {
+        const parsed = parseInteger(value);
+        if (parsed !== undefined) partial.scuCount = parsed;
+        else logParseError("radio", key, value);
+        break;
+      }
+      case "num_slice": {
+        const parsed = parseInteger(value);
+        if (parsed !== undefined) partial.sliceCount = parsed;
+        else logParseError("radio", key, value);
+        break;
+      }
+      case "num_tx": {
+        const parsed = parseInteger(value);
+        if (parsed !== undefined) partial.txCount = parsed;
+        else logParseError("radio", key, value);
+        break;
+      }
+      case "rx_ant_list": {
+        const parsed = parseCsv(value) ?? [];
+        partial.rxAntennaList = freezeArray(parsed, previous?.rxAntennaList);
+        break;
+      }
+      case "mic_list": {
+        const parsed = parseCsv(value) ?? [];
+        partial.micInputList = freezeArray(parsed, previous?.micInputList);
+        break;
+      }
+      case "versions_raw":
+        partial.versionsRaw = value;
+        break;
+      case "SmartSDR-MB":
+        partial.version = value;
+        break;
+      case "PSoC-MBTRX":
+        partial.trxPsocVersion = value;
+        break;
+      case "PSoC-MBPA100":
+        partial.paPsocVersion = value;
+        break;
+      case "FPGA-MB":
+        partial.fpgaVersion = value;
+        break;
+      case "gps": {
+        const normalized = value?.trim().toLowerCase();
+        if (normalized) {
+          partial.gpsInstalled = normalized !== "not present";
+          if (normalized === "locked") partial.gpsLock = true;
+          if (normalized === "not present") partial.gpsLock = false;
+          partial.gpsStatus = value;
+        }
+        break;
+      }
+      case "gps_installed":
+        partial.gpsInstalled = isTruthy(value);
+        break;
+      case "gps_status":
+        partial.gpsStatus = value;
         break;
       case "slices": {
         const parsed = parseInteger(value);
@@ -327,6 +478,15 @@ function applyRadioSourceAttributes(
       }
     }
   }
+}
+
+function parseScreensaverMode(value: string | undefined): RadioScreensaverMode {
+  if (!value) return "none";
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "model") return "model";
+  if (normalized === "name") return "name";
+  if (normalized === "callsign") return "callsign";
+  return "none";
 }
 
 function applyFilterSharpnessAttributes(
@@ -491,6 +651,15 @@ function applyGpsStatusAttributes(
       case "gnss_powered_ant":
         partial.gpsGnssPoweredAntenna = isTruthy(value);
         break;
+      case "gps": {
+        const normalized = value?.trim().toLowerCase();
+        if (normalized) {
+          partial.gpsInstalled = normalized !== "not present";
+          if (normalized === "locked") partial.gpsLock = true;
+          partial.gpsStatus = value;
+        }
+        break;
+      }
       default: {
         logUnknownAttribute("gps", key, value);
         break;

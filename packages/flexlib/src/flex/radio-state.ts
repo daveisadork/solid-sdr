@@ -45,6 +45,7 @@ export type {
 export type {
   RadioFilterSharpnessMode,
   RadioOscillatorSetting,
+  RadioScreensaverMode,
   RadioProperties,
   RadioStatusContext,
 } from "./radio-state/radio.js";

@@ -1,13 +1,17 @@
-import type {
-  FlexCommandOptions,
-  FlexCommandResponse,
-} from "./adapters.js";
+import type { FlexCommandOptions, FlexCommandResponse } from "./adapters.js";
 import type {
   RadioFilterSharpnessMode,
   RadioOscillatorSetting,
   RadioProperties,
+  RadioScreensaverMode,
   RadioStatusContext,
 } from "./radio-state.js";
+import { FlexError } from "./errors.js";
+import {
+  buildRadioListAttributes,
+  parseRadioInfoReply,
+  parseRadioVersionReply,
+} from "./radio-replies.js";
 
 interface RadioControllerSession {
   command(
@@ -20,11 +24,35 @@ interface RadioControllerSession {
   ): void;
 }
 
+const EMPTY_STRING_LIST = Object.freeze([]) as readonly string[];
+
 export interface RadioController {
   snapshot(): RadioProperties | undefined;
+  get model(): string;
+  get serial(): string;
   get nickname(): string;
   get callsign(): string;
-  get firmware(): string;
+  get version(): string;
+  get macAddress(): string;
+  get ipAddress(): string;
+  get netmask(): string;
+  get gateway(): string;
+  get location(): string;
+  get region(): string;
+  get screensaverMode(): RadioScreensaverMode;
+  get radioOptions(): string;
+  get tx1750ToneBurst(): boolean;
+  get diversityAllowed(): boolean;
+  get atuPresent(): boolean;
+  get scuCount(): number;
+  get sliceCount(): number;
+  get txCount(): number;
+  get rxAntennaList(): readonly string[];
+  get micInputList(): readonly string[];
+  get versionsRaw(): string;
+  get trxPsocVersion(): string;
+  get paPsocVersion(): string;
+  get fpgaVersion(): string;
   get gpsLock(): boolean;
   get fullDuplexEnabled(): boolean;
   get enforcePrivateIpConnections(): boolean;
@@ -78,6 +106,10 @@ export interface RadioController {
   get oscillatorGnssPresent(): boolean;
   get oscillatorGpsdoPresent(): boolean;
   get oscillatorTcxoPresent(): boolean;
+  refreshInfo(): Promise<void>;
+  refreshVersions(): Promise<void>;
+  refreshRxAntennaList(): Promise<void>;
+  refreshMicList(): Promise<void>;
   setNickname(nickname: string): Promise<void>;
   setCallsign(callsign: string): Promise<void>;
   setFullDuplexEnabled(enabled: boolean): Promise<void>;
@@ -128,6 +160,14 @@ export class RadioControllerImpl implements RadioController {
     return this.getRadio();
   }
 
+  get model(): string {
+    return this.current()?.model ?? "";
+  }
+
+  get serial(): string {
+    return this.current()?.serial ?? "";
+  }
+
   get nickname(): string {
     return this.current()?.nickname ?? "";
   }
@@ -136,8 +176,88 @@ export class RadioControllerImpl implements RadioController {
     return this.current()?.callsign ?? "";
   }
 
-  get firmware(): string {
-    return this.current()?.firmware ?? "";
+  get version(): string {
+    return this.current()?.version ?? "";
+  }
+
+  get macAddress(): string {
+    return this.current()?.macAddress ?? "";
+  }
+
+  get ipAddress(): string {
+    return this.current()?.ipAddress ?? "";
+  }
+
+  get netmask(): string {
+    return this.current()?.netmask ?? "";
+  }
+
+  get gateway(): string {
+    return this.current()?.gateway ?? "";
+  }
+
+  get location(): string {
+    return this.current()?.location ?? "";
+  }
+
+  get region(): string {
+    return this.current()?.region ?? "";
+  }
+
+  get screensaverMode(): RadioScreensaverMode {
+    return this.current()?.screensaverMode ?? "none";
+  }
+
+  get radioOptions(): string {
+    return this.current()?.radioOptions ?? "";
+  }
+
+  get tx1750ToneBurst(): boolean {
+    return this.current()?.tx1750ToneBurst ?? false;
+  }
+
+  get diversityAllowed(): boolean {
+    return this.current()?.diversityAllowed ?? false;
+  }
+
+  get atuPresent(): boolean {
+    return this.current()?.atuPresent ?? false;
+  }
+
+  get scuCount(): number {
+    return this.current()?.scuCount ?? 0;
+  }
+
+  get sliceCount(): number {
+    return this.current()?.sliceCount ?? 0;
+  }
+
+  get txCount(): number {
+    return this.current()?.txCount ?? 0;
+  }
+
+  get rxAntennaList(): readonly string[] {
+    return this.current()?.rxAntennaList ?? EMPTY_STRING_LIST;
+  }
+
+  get micInputList(): readonly string[] {
+    return this.current()?.micInputList ?? EMPTY_STRING_LIST;
+  }
+
+  get versionsRaw(): string {
+    return this.current()?.versionsRaw ?? "";
+  }
+
+  get trxPsocVersion(): string {
+    return this.current()?.trxPsocVersion ?? "";
+  }
+
+  get paPsocVersion(): string {
+    return this.current()?.paPsocVersion ?? "";
+  }
+
+  get fpgaVersion(): string {
+    return this.current()?.fpgaVersion ?? "";
   }
 
   get gpsLock(): boolean {
@@ -352,6 +472,49 @@ export class RadioControllerImpl implements RadioController {
     return this.current()?.oscillatorTcxoPresent ?? false;
   }
 
+  async refreshInfo(): Promise<void> {
+    const response = await this.session.command("info");
+    const message = response.message;
+    if (!message) {
+      throw new FlexError("Flex radio returned no info data");
+    }
+    const attributes = parseRadioInfoReply(message);
+    if (Object.keys(attributes).length === 0) {
+      throw new FlexError("Flex radio returned an unrecognized info payload");
+    }
+    this.session.patchRadio(attributes, { source: "info" });
+  }
+
+  async refreshVersions(): Promise<void> {
+    const response = await this.session.command("version");
+    const message = response.message;
+    if (!message) {
+      throw new FlexError("Flex radio returned no version data");
+    }
+    const attributes = parseRadioVersionReply(message);
+    if (Object.keys(attributes).length === 0) {
+      throw new FlexError(
+        "Flex radio returned an unrecognized version payload",
+      );
+    }
+    this.session.patchRadio(attributes, { source: "version" });
+  }
+
+  async refreshRxAntennaList(): Promise<void> {
+    const response = await this.session.command("ant list");
+    const attributes = buildRadioListAttributes(
+      "rx_ant_list",
+      response.message,
+    );
+    this.session.patchRadio(attributes);
+  }
+
+  async refreshMicList(): Promise<void> {
+    const response = await this.session.command("mic list");
+    const attributes = buildRadioListAttributes("mic_list", response.message);
+    this.session.patchRadio(attributes);
+  }
+
   async setNickname(nickname: string): Promise<void> {
     const sanitized = sanitizeNickname(nickname);
     await this.session.command(`radio name ${sanitized}`);
@@ -393,10 +556,9 @@ export class RadioControllerImpl implements RadioController {
   }
 
   async setProfileAutoSave(enabled: boolean): Promise<void> {
-    await this.commandAndPatch(
-      `profile autosave ${enabled ? "on" : "off"}`,
-      { auto_save: booleanToNumeric(enabled) },
-    );
+    await this.commandAndPatch(`profile autosave ${enabled ? "on" : "off"}`, {
+      auto_save: booleanToNumeric(enabled),
+    });
   }
 
   async setLineoutGain(gain: number): Promise<void> {
@@ -436,26 +598,23 @@ export class RadioControllerImpl implements RadioController {
 
   async setRemoteOnEnabled(enabled: boolean): Promise<void> {
     const encoded = booleanToNumeric(enabled);
-    await this.commandAndPatch(
-      `radio set remote_on_enabled=${encoded}`,
-      { remote_on_enabled: encoded },
-    );
+    await this.commandAndPatch(`radio set remote_on_enabled=${encoded}`, {
+      remote_on_enabled: encoded,
+    });
   }
 
   async setTnfEnabled(enabled: boolean): Promise<void> {
     const encoded = booleanToNumeric(enabled);
-    await this.commandAndPatch(
-      `radio set tnf_enabled=${encoded}`,
-      { tnf_enabled: encoded },
-    );
+    await this.commandAndPatch(`radio set tnf_enabled=${encoded}`, {
+      tnf_enabled: encoded,
+    });
   }
 
   async setBinauralRx(enabled: boolean): Promise<void> {
     const encoded = booleanToNumeric(enabled);
-    await this.commandAndPatch(
-      `radio set binaural_rx=${encoded}`,
-      { binaural_rx: encoded },
-    );
+    await this.commandAndPatch(`radio set binaural_rx=${encoded}`, {
+      binaural_rx: encoded,
+    });
   }
 
   async setMuteLocalAudioWhenRemote(enabled: boolean): Promise<void> {
@@ -468,27 +627,24 @@ export class RadioControllerImpl implements RadioController {
 
   async setRttyMarkDefaultHz(value: number): Promise<void> {
     const rounded = toInteger(value, "RTTY mark");
-    await this.commandAndPatch(
-      `radio set rtty_mark_default=${rounded}`,
-      { rtty_mark_default: rounded.toString(10) },
-    );
+    await this.commandAndPatch(`radio set rtty_mark_default=${rounded}`, {
+      rtty_mark_default: rounded.toString(10),
+    });
   }
 
   async setFrequencyErrorPpb(value: number): Promise<void> {
     const rounded = toInteger(value, "frequency error");
-    await this.commandAndPatch(
-      `radio set freq_error_ppb=${rounded}`,
-      { freq_error_ppb: rounded.toString(10) },
-    );
+    await this.commandAndPatch(`radio set freq_error_ppb=${rounded}`, {
+      freq_error_ppb: rounded.toString(10),
+    });
   }
 
   async setCalibrationFrequencyMhz(value: number): Promise<void> {
     const normalized = ensureFinite(value, "calibration frequency");
     const formatted = normalized.toFixed(6);
-    await this.commandAndPatch(
-      `radio set cal_freq=${formatted}`,
-      { cal_freq: formatted },
-    );
+    await this.commandAndPatch(`radio set cal_freq=${formatted}`, {
+      cal_freq: formatted,
+    });
   }
 
   async setFilterSharpnessLevel(
@@ -565,9 +721,7 @@ export class RadioControllerImpl implements RadioController {
     );
   }
 
-  async setOscillatorSetting(
-    setting: RadioOscillatorSetting,
-  ): Promise<void> {
+  async setOscillatorSetting(setting: RadioOscillatorSetting): Promise<void> {
     const normalized = setting.toLowerCase() as RadioOscillatorSetting;
     const context: RadioStatusContext = {
       source: "radio",
@@ -600,9 +754,7 @@ function sanitizeNickname(value: string): string {
 }
 
 function sanitizeCallsign(value: string): string {
-  return value
-    .toUpperCase()
-    .replace(/[^0-9A-Z]/g, "");
+  return value.toUpperCase().replace(/[^0-9A-Z]/g, "");
 }
 
 const FILTER_SHARPNESS_MIN_LEVEL = 0;

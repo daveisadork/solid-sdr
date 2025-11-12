@@ -117,21 +117,19 @@ export interface ConnectModalState {
 }
 
 export interface StatusState {
-  meters: Record<string, Meter>;
+  meter: Record<string, Meter>;
   eq: {
     rx: Record<string, unknown>;
     rxsc: Record<string, unknown>;
   };
   slice: Record<string, Slice>;
-  display: {
-    pan: Record<string, Panadapter>;
-    waterfall: Record<string, Waterfall>;
-  };
+  panadapter: Record<string, Panadapter>;
+  waterfall: Record<string, Waterfall>;
   interlock: {
     band: Record<string, IterlockBand>;
   };
   radio: Radio;
-  stream: Record<string, AudioStream>;
+  audioStream: Record<string, AudioStream>;
 }
 
 export interface AppState {
@@ -247,16 +245,14 @@ export const initialState = () =>
       panPendingCenterMHz: {},
     },
     status: {
-      meters: {},
+      meter: {},
       eq: {
         rx: {},
         rxsc: {},
       },
       slice: {},
-      display: {
-        pan: {},
-        waterfall: {},
-      },
+      panadapter: {},
+      waterfall: {},
       interlock: {
         band: {},
       },
@@ -295,7 +291,7 @@ export const initialState = () =>
         //   DIGITAL: {},
         // },
       },
-      stream: {},
+      audioStream: {},
     },
   }) as AppState;
 
@@ -431,7 +427,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         setState("runtime", "panSettledCenterMHz", key, pendingCenterMHz);
       }
       setState("runtime", "panPendingCenterMHz", key, pendingCenterMHz);
-      setState("status", "display", "pan", key, pan);
+      setState("status", "panadapter", key, pan);
     });
   };
 
@@ -443,8 +439,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
       const key = change.id;
       setState(
         "status",
-        "display",
-        "pan",
+        "panadapter",
         produce((pan) => {
           delete pan[key];
         }),
@@ -457,100 +452,29 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     }
   };
 
-  const handleWaterfallChange = (change: RadioStateChange) => {
-    if (change.entity !== "waterfall") return;
-    const key = change.id;
-    if (change.diff) {
-      setState("status", "display", "waterfall", key, change.diff);
-    } else {
-      setState(
-        "status",
-        "display",
-        "waterfall",
-        produce((waterfalls) => {
-          delete waterfalls[key];
-        }),
-      );
-    }
-  };
-
-  const handleMeterChange = (change: RadioStateChange) => {
-    if (change.entity !== "meter") return;
-    const key = change.id;
-    if (change.diff) {
-      setState("status", "meters", key, change.diff);
-    } else {
-      setState(
-        "status",
-        "meters",
-        produce((meters) => {
-          delete meters[key];
-        }),
-      );
-    }
-  };
-
-  const handleSliceChange = (change: RadioStateChange) => {
-    if (change.entity !== "slice") return;
-    const key = change.id;
-    if (change.diff) {
-      setState("status", "slice", key, change.diff);
-    } else {
-      if (!key) return;
-      setState(
-        "status",
-        "slice",
-        produce((slices) => {
-          delete slices[key];
-        }),
-      );
-    }
-  };
-
-  const handleRadioChange = (change: RadioStateChange) => {
-    if (change.entity !== "radio") return;
-    if (change.diff) {
-      setState("status", "radio", change.diff);
-    }
-  };
-
-  const handleStreamChange = (change: RadioStateChange) => {
-    if (change.entity !== "audioStream") return;
-    const key = change.id;
-    if (change.diff) {
-      setState("status", "stream", key, change.diff);
-    } else {
-      if (!key) return;
-      setState(
-        "status",
-        "stream",
-        produce((streams) => {
-          delete streams[key];
-        }),
-      );
-    }
-  };
-
   const handleStateChange = (change: RadioStateChange) => {
     switch (change.entity) {
-      case "radio":
-        handleRadioChange(change);
-        break;
-      case "slice":
-        handleSliceChange(change);
-        break;
       case "panadapter":
         handlePanadapterChange(change);
         break;
+      case "radio":
+        setState("status", change.entity, change.diff);
+        break;
       case "waterfall":
-        handleWaterfallChange(change);
-        break;
+      case "slice":
       case "meter":
-        handleMeterChange(change);
-        break;
       case "audioStream":
-        handleStreamChange(change);
-        break;
+        if (change.diff) {
+          setState("status", change.entity, change.id, change.diff);
+        } else {
+          setState(
+            "status",
+            change.entity,
+            produce((items) => {
+              delete items[change.id];
+            }),
+          );
+        }
       default:
         break;
     }
@@ -678,7 +602,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     const clientHandle = parseInt(state.clientHandle, 16);
     const selectedPanadapter = state.selectedPanadapter;
     const panadapter = selectedPanadapter
-      ? state.status.display.pan[selectedPanadapter]
+      ? state.status.panadapter[selectedPanadapter]
       : null;
 
     if (panadapter) {
@@ -686,9 +610,9 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     }
 
     const firstOwnPan =
-      Object.keys(state.status.display.pan).filter(
+      Object.keys(state.status.panadapter).filter(
         (streamId) =>
-          state.status.display.pan[streamId]?.clientHandle === clientHandle,
+          state.status.panadapter[streamId]?.clientHandle === clientHandle,
       )[0] || null;
     setState("selectedPanadapter", firstOwnPan ?? null);
   });
@@ -705,7 +629,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
       const meterPacket = packet;
       setState(
         "status",
-        "meters",
+        "meter",
         produce((meters) => {
           const count = meterPacket.numMeters;
           for (let i = 0; i < count; i++) {
@@ -880,10 +804,10 @@ export const FlexRadioProvider: ParentComponent = (props) => {
           );
           initial.panadapters.forEach((pan) => applyPanadapterDiff(pan));
           initial.waterfalls.forEach((waterfall) =>
-            setState("status", "display", "waterfall", waterfall.id, waterfall),
+            setState("status", "waterfall", waterfall.id, waterfall),
           );
           initial.meters.forEach((meter) => {
-            setState("status", "meters", meter.id, meter);
+            setState("status", "meter", meter.id, meter);
           });
         });
         batch(() => {

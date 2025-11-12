@@ -21,10 +21,10 @@ export function Panadapter(props: { streamId: string }) {
   const streamId = () => props.streamId;
   const { events, session, state, setState } = useFlexRadio();
   const [pan] = createKeyedSubstore(
-    () => state.status.display.pan,
+    () => state.status.panadapter,
     streamId,
     setState,
-    ["status", "display", "pan"],
+    ["status", "pan"],
   );
 
   const [canvasRef, setCanvasRef] = createSignal<HTMLCanvasElement>();
@@ -73,7 +73,7 @@ export function Panadapter(props: { streamId: string }) {
   createEffect(() => {
     const { gradients } = state.palette;
     const { gradientIndex: gradient_index } =
-      state.status.display.waterfall[pan().waterfallStreamId];
+      state.status.waterfall[pan().waterfallStreamId];
     const { colors } = gradients[gradient_index];
     const colorMin = 0;
     const colorMax = 1;
@@ -113,7 +113,7 @@ export function Panadapter(props: { streamId: string }) {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     const { gradients } = state.palette;
-    const waterfall = state.status.display.waterfall[pan().waterfallStreamId];
+    const waterfall = state.status.waterfall[pan().waterfallStreamId];
     if (!waterfall) return;
     const { gradientIndex } = waterfall;
     const { colors } = gradients[gradientIndex];

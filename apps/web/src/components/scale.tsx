@@ -118,7 +118,7 @@ export const Scale = <T extends ValidComponent = "button">(
   createEffect(() => {
     if (!size.width) return;
     const { centerFrequencyMHz, bandwidthMHz } =
-      state.status.display.pan[local.streamId];
+      state.status.panadapter[local.streamId];
     const ticks = buildFrequencyGrid({
       centerFrequencyMHz,
       bandwidthMHz,

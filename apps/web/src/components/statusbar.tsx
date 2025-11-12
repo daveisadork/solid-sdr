@@ -7,13 +7,13 @@ import { GpsStatus } from "./gps-status";
 
 export function StatusBar() {
   const { state } = useFlexRadio();
-  const [meters] = createStore(state.status.meters);
+  const [meters] = createStore(state.status.meter);
 
   const [voltageId, setVoltageId] = createSignal<number | string>();
   const [tempId, setTempId] = createSignal<number | string>();
 
   createEffect(() => {
-    if (state.status.meters[voltageId()!]) return;
+    if (state.status.meter[voltageId()!]) return;
     for (const meterId in meters) {
       const { name, value } = meters[meterId];
       if (name === "+13.8A" && value !== undefined) {
@@ -25,7 +25,7 @@ export function StatusBar() {
   });
 
   createEffect(() => {
-    if (state.status.meters[tempId()!]) return;
+    if (state.status.meter[tempId()!]) return;
     for (const meterId in meters) {
       const { name, value } = meters[meterId];
       if (name === "PATEMP" && value !== undefined) {

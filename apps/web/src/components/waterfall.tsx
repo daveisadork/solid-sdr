@@ -1,6 +1,5 @@
 import { createElementSize } from "@solid-primitives/resize-observer";
 import {
-  batch,
   createEffect,
   createMemo,
   createSignal,
@@ -14,8 +13,8 @@ import { LinearScale } from "./linear-scale";
 export function Waterfall(props: { streamId: string }) {
   const streamId = () => props.streamId;
   const { events, session, state, setState } = useFlexRadio();
-  const waterfall = () => state.status.display.waterfall[streamId()];
-  const pan = () => state.status.display.pan[waterfall().panadapterStreamId];
+  const waterfall = () => state.status.waterfall[streamId()];
+  const pan = () => state.status.panadapter[waterfall().panadapterStreamId];
 
   const [canvasWidth, setCanvasWidth] = createSignal(1);
   const [widthMultiplier, setWidthMultiplier] = createSignal(1.0);
@@ -320,13 +319,12 @@ export function Waterfall(props: { streamId: string }) {
         setBinBandwidth(binBandwidth);
         setLastCalculatedCenter(calculatedCenter);
         const panStreamId = waterfall().panadapterStreamId;
-        if (panStreamId && state.status.display.pan[panStreamId]) {
+        if (panStreamId && state.status.panadapter[panStreamId]) {
           // Data packets reflect the new tuning; mark the panadapter center as settled.
           const centerMHz = Number((calculatedCenter / 1_000_000).toFixed(6));
           setState(
             "status",
-            "display",
-            "pan",
+            "panadapter",
             panStreamId,
             "centerFrequencyMHz",
             centerMHz,

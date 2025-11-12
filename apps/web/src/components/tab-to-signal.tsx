@@ -149,7 +149,7 @@ export const TabToSignal: Component<
   const [targets, setTargets] = createSignal<Target[]>([]);
   let tracks: Track[] = []; // persistent across scans
 
-  const pan = () => state.status.display.pan[props.streamId];
+  const pan = () => state.status.panadapter[props.streamId];
 
   const panController = () => session()?.panadapter(props.streamId);
 

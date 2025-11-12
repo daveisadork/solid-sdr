@@ -58,13 +58,11 @@ const BANDS: { id: string; label: string }[] = [
 export function TuningPanel(props: { streamId: string }) {
   const streamId = () => props.streamId;
   const { session, state, setState } = useFlexRadio();
-  const [pan] = createStore(state.status.display.pan[streamId()]);
+  const [pan] = createStore(state.status.panadapter[streamId()]);
   const panController = () => session()?.panadapter(streamId());
   const waterfallId = () => pan.waterfallStreamId;
   const wfController = () => session()?.waterfall(waterfallId());
-  const [waterfall] = createStore(
-    state.status.display.waterfall[waterfallId()],
-  );
+  const [waterfall] = createStore(state.status.waterfall[waterfallId()]);
   const [gradients] = createStore(state.palette.gradients);
   const [rawFrequency, setRawFrequency] = createSignal(
     panController().centerFrequencyMHz,
@@ -449,10 +447,10 @@ export function TuningPanel(props: { streamId: string }) {
         </SliderTrack>
       </Slider>
       <pre class="block w-full overflow-x-auto overflow-y-visible shrink-0">
-        {JSON.stringify(state.status.display.pan, null, 2)}
+        {JSON.stringify(state.status.panadapter, null, 2)}
       </pre>
       <pre class="block w-full overflow-x-auto overflow-y-visible shrink-0">
-        {JSON.stringify(state.status.display.waterfall, null, 2)}
+        {JSON.stringify(state.status.waterfall, null, 2)}
       </pre>
     </div>
   );

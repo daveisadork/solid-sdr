@@ -95,8 +95,8 @@ const LevelMeter = (props: { sliceIndex?: string }) => {
     if (state.status.slice[meterId()!]) {
       return;
     }
-    for (const meterId in state.status.meters) {
-      const meter: Meter = state.status.meters[meterId];
+    for (const meterId in state.status.meter) {
+      const meter: Meter = state.status.meter[meterId];
       if (
         meter.source === "SLC" &&
         meter.sourceIndex === sliceIndex &&
@@ -112,7 +112,7 @@ const LevelMeter = (props: { sliceIndex?: string }) => {
   return (
     <Show when={meterId()} keyed>
       {(id) => {
-        const meter = state.status.meters[id];
+        const meter = state.status.meter[id];
         return (
           <MeterElement
             value={meter.value}
@@ -158,7 +158,7 @@ export function DetachedSlice(props: { sliceIndex: string }) {
   const sliceIndex = () => props.sliceIndex;
   const { session, state } = useFlexRadio();
   const slice = () => state.status.slice[props.sliceIndex];
-  const pan = () => state.status.display.pan[slice()?.panadapterStreamId];
+  const pan = () => state.status.panadapter[slice()?.panadapterStreamId];
 
   return (
     <Button
@@ -185,7 +185,7 @@ export function DetachedSlice(props: { sliceIndex: string }) {
 
 export function DetachedSlices(props: { streamId: string }) {
   const { state } = useFlexRadio();
-  const pan = () => state.status.display.pan[props.streamId];
+  const pan = () => state.status.panadapter[props.streamId];
 
   return (
     <div class="flex absolute top-10 left-0 bottom-0 right-0 pointer-events-none">
@@ -230,7 +230,7 @@ export function Slice(props: { sliceIndex: string }) {
   const [slice, setSlice] = createStore(state.status.slice[sliceIndex()]);
   const sliceController = () => session()?.slice(sliceIndex());
   const streamId = () => slice.panadapterStreamId;
-  const [pan] = createStore(state.status.display.pan[streamId()]);
+  const [pan] = createStore(state.status.panadapter[streamId()]);
   const [offset, setOffset] = createSignal(0);
   const [ref, setRef] = createSignal<HTMLDivElement>();
   const [sentinel, setSentinel] = createSignal<HTMLDivElement>();

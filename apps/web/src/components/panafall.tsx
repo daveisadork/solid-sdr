@@ -85,7 +85,7 @@ export function Panafall() {
   const selectedPan = createMemo(() => {
     const streamId = panStreamId();
     if (!streamId) return null;
-    return state.status.display.pan[streamId] || null;
+    return state.status.panadapter[streamId] || null;
   });
 
   const pxPerMHz = createMemo(() => {
@@ -195,11 +195,11 @@ export function Panafall() {
 
   createEffect(() => {
     const streamId = state.selectedPanadapter;
-    const panadapter = streamId ? state.status.display.pan[streamId] : null;
+    const panadapter = streamId ? state.status.panadapter[streamId] : null;
     setPanStreamId(panadapter?.clientHandle ? streamId : null);
     const waterfallStreamId = panadapter?.waterfallStreamId ?? null;
     const waterfall = waterfallStreamId
-      ? state.status.display.waterfall[waterfallStreamId]
+      ? state.status.waterfall[waterfallStreamId]
       : null;
     setWaterfallStreamId(
       waterfall?.panadapterStreamId === streamId ? waterfallStreamId : null,
@@ -259,7 +259,7 @@ export function Panafall() {
                   const streamId = panStreamId();
                   if (!streamId) return;
                   const { bandwidthMHz, width } =
-                    state.status.display.pan[streamId];
+                    state.status.panadapter[streamId];
                   const rect = e.currentTarget.getBoundingClientRect();
                   const x = Math.max(
                     0,
@@ -267,7 +267,7 @@ export function Panafall() {
                   );
                   const mhzPerPx = bandwidthMHz / width;
                   const freq = (
-                    state.status.display.pan[streamId].centerFrequencyMHz +
+                    state.status.panadapter[streamId].centerFrequencyMHz +
                     (x - width / 2) * mhzPerPx
                   ).toFixed(3);
                   panController()?.clickTune(Number(freq));

@@ -18,9 +18,15 @@ import {
   formatInteger,
   formatMegahertz,
 } from "./controller-helpers.js";
+import type {
+  FlexUdpPacketEvent,
+  FlexUdpScope,
+  FlexUdpSession,
+} from "./udp.js";
 
 export interface PanadapterControllerEvents extends Record<string, unknown> {
   readonly change: PanadapterStateChange;
+  readonly data: FlexUdpPacketEvent<"panadapter">;
 }
 
 export interface PanadapterUpdateRequest {
@@ -64,6 +70,7 @@ export interface PanadapterSessionApi {
   getPanadapter(id: string): PanadapterSnapshot | undefined;
   patchPanadapter(id: string, attributes: Record<string, string>): void;
   applyPanadapterRfGainInfo(id: string, info: RfGainInfo): void;
+  readonly udp: FlexUdpSession;
 }
 
 export interface PanadapterController {
@@ -170,6 +177,9 @@ export interface PanadapterController {
 export class PanadapterControllerImpl implements PanadapterController {
   private readonly events = new TypedEventEmitter<PanadapterControllerEvents>();
   private streamHandle?: string;
+  private dataListeners = 0;
+  private dataScope?: FlexUdpScope<"panadapter">;
+  private dataSubscription?: Subscription;
 
   constructor(
     private readonly session: PanadapterSessionApi,
@@ -365,6 +375,17 @@ export class PanadapterControllerImpl implements PanadapterController {
     event: TKey,
     listener: (payload: PanadapterControllerEvents[TKey]) => void,
   ): Subscription {
+    if (event === "data") {
+      this.ensureDataPipeline();
+      this.dataListeners += 1;
+      const subscription = this.events.on(event, listener);
+      return {
+        unsubscribe: () => {
+          subscription.unsubscribe();
+          this.handleDataUnsubscribe();
+        },
+      };
+    }
     return this.events.on(event, listener);
   }
 
@@ -544,6 +565,7 @@ export class PanadapterControllerImpl implements PanadapterController {
   }
 
   async close(): Promise<void> {
+    this.teardownDataPipeline();
     const stream = this.requireStreamHandle();
     await this.session.command(`display pan remove ${stream}`);
   }
@@ -553,6 +575,9 @@ export class PanadapterControllerImpl implements PanadapterController {
       this.streamHandle = change.diff.streamId;
     }
     this.events.emit("change", change);
+    if (change.removed) {
+      this.teardownDataPipeline();
+    }
   }
 
   private buildSetEntries(
@@ -631,6 +656,34 @@ export class PanadapterControllerImpl implements PanadapterController {
     await this.session.command(command);
     if (patchState)
       this.session.patchPanadapter(this.id, { stream_id: stream, ...entries });
+  }
+
+  private ensureDataPipeline(): void {
+    if (this.dataSubscription) return;
+    const streamNumericId = Number.parseInt(this.streamId, 16);
+    if (!Number.isFinite(streamNumericId)) return;
+    this.dataScope = this.session.udp.scope(
+      "panadapter",
+      (event) => event.metadata.streamId === streamNumericId,
+    );
+    this.dataSubscription = this.dataScope.on((event) => {
+      this.events.emit("data", event);
+    });
+  }
+
+  private handleDataUnsubscribe(): void {
+    if (this.dataListeners === 0) return;
+    this.dataListeners = Math.max(0, this.dataListeners - 1);
+    if (this.dataListeners === 0) {
+      this.teardownDataPipeline();
+    }
+  }
+
+  private teardownDataPipeline(): void {
+    this.dataSubscription?.unsubscribe();
+    this.dataSubscription = undefined;
+    this.dataScope?.removeAll();
+    this.dataScope = undefined;
   }
 
   private requireStreamHandle(): string {

@@ -238,7 +238,7 @@ export class VitaWaterfallPacket {
     );
     const readableWords = Math.min(wordsExpected, readableBytes >> 1);
 
-    let arr =
+    const arr =
       out?.data && out.data.length >= wordsExpected
         ? out.data
         : new Uint16Array(wordsExpected);

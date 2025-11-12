@@ -7,9 +7,15 @@ export type { MeterUnits, KnownMeterUnits } from "./radio-state.js";
 export { KNOWN_METER_UNITS } from "./radio-state.js";
 import { TypedEventEmitter, type Subscription } from "./events.js";
 import { FlexStateUnavailableError } from "./errors.js";
+import type {
+  FlexUdpPacketEvent,
+  FlexUdpScope,
+  FlexUdpSession,
+} from "./udp.js";
 
 export interface MeterControllerEvents extends Record<string, unknown> {
   readonly change: MeterStateChange;
+  readonly data: FlexUdpPacketEvent<"meter">;
 }
 
 export interface MeterController {
@@ -32,10 +38,14 @@ export interface MeterController {
 
 export interface MeterSessionApi {
   getMeter(id: string): MeterSnapshot | undefined;
+  readonly udp: FlexUdpSession;
 }
 
 export class MeterControllerImpl implements MeterController {
   private readonly events = new TypedEventEmitter<MeterControllerEvents>();
+  private dataListeners = 0;
+  private dataScope?: FlexUdpScope<"meter">;
+  private dataSubscription?: Subscription;
 
   constructor(
     private readonly session: MeterSessionApi,
@@ -96,11 +106,54 @@ export class MeterControllerImpl implements MeterController {
     event: TKey,
     listener: (payload: MeterControllerEvents[TKey]) => void,
   ): Subscription {
+    if (event === "data") {
+      this.ensureDataPipeline();
+      this.dataListeners += 1;
+      const subscription = this.events.on(event, listener);
+      return {
+        unsubscribe: () => {
+          subscription.unsubscribe();
+          this.handleDataUnsubscribe();
+        },
+      };
+    }
     return this.events.on(event, listener);
   }
 
   onStateChange(change: MeterStateChange): void {
     this.events.emit("change", change);
+    if (change.removed) {
+      this.teardownDataPipeline();
+    }
+  }
+
+  private ensureDataPipeline(): void {
+    if (this.dataSubscription) return;
+    const meterId = this.sourceIndex;
+    if (!Number.isFinite(meterId)) return;
+    const numericId = Math.trunc(meterId);
+    this.dataScope = this.session.udp.scope(
+      "meter",
+      ({ packet }) => hasMeterId(packet.ids, numericId),
+    );
+    this.dataSubscription = this.dataScope.on((event) => {
+      this.events.emit("data", event);
+    });
+  }
+
+  private handleDataUnsubscribe(): void {
+    if (this.dataListeners === 0) return;
+    this.dataListeners = Math.max(0, this.dataListeners - 1);
+    if (this.dataListeners === 0) {
+      this.teardownDataPipeline();
+    }
+  }
+
+  private teardownDataPipeline(): void {
+    this.dataSubscription?.unsubscribe();
+    this.dataSubscription = undefined;
+    this.dataScope?.removeAll();
+    this.dataScope = undefined;
   }
 }
 
@@ -135,4 +188,13 @@ export function scaleMeterRawValue(
   }
 
   return value;
+}
+
+function hasMeterId(ids: Uint16Array, expected: number): boolean {
+  for (let index = 0; index < ids.length; index++) {
+    if (ids[index] === expected) {
+      return true;
+    }
+  }
+  return false;
 }

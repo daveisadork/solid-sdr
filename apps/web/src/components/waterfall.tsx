@@ -192,10 +192,7 @@ export function Waterfall(props: { streamId: string }) {
       screenCtx.drawImage(offscreen, 0, 0, canvas.width, canvas.height);
     };
 
-    const streamIdInt = parseInt(streamId(), 16);
-
     return ({ packet }: FlexUdpPacketEvent<"waterfall">) => {
-      if (packet.streamId !== streamIdInt) return;
       const tile = packet.tile;
       const binBandwidth = tile.binBandwidth.freqHz;
       const firstBinFreq = tile.frameLowFreq.freqHz;
@@ -344,8 +341,9 @@ export function Waterfall(props: { streamId: string }) {
   createEffect(() => {
     const handler = onWaterfall();
     if (!handler) return;
-    const { unsubscribe } = events.on("waterfall", handler);
-    onCleanup(unsubscribe);
+    const subscription = waterfallController()?.on("data", handler);
+    if (!subscription) return;
+    onCleanup(subscription.unsubscribe);
   });
 
   return (

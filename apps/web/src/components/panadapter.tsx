@@ -19,7 +19,7 @@ import type { FrequencyGridTick } from "./scale";
 
 export function Panadapter(props: { streamId: string }) {
   const streamId = () => props.streamId;
-  const { events, session, state, setState } = useFlexRadio();
+  const { session, state, setState } = useFlexRadio();
   const [pan] = createKeyedSubstore(
     () => state.status.panadapter,
     streamId,
@@ -155,7 +155,6 @@ export function Panadapter(props: { streamId: string }) {
     ctx.imageSmoothingEnabled = false;
     offscreenCtx.imageSmoothingEnabled = false;
 
-    const stream_id = parseInt(streamId(), 16);
     let skipFrame = 0;
     let frameStartTime = performance.now();
     let rafId: number | null = null;
@@ -179,7 +178,6 @@ export function Panadapter(props: { streamId: string }) {
     };
 
     return ({ packet }: FlexUdpPacketEvent<"panadapter">) => {
-      if (packet.streamId !== stream_id) return;
       const startingBin = packet.startBinIndex;
       const binsInThisFrame = packet.numBins;
       const totalBins = packet.totalBinsInFrame;
@@ -304,8 +302,9 @@ export function Panadapter(props: { streamId: string }) {
   createEffect(() => {
     const handler = onPanadapter();
     if (!handler) return;
-    const { unsubscribe } = events.on("panadapter", handler);
-    onCleanup(unsubscribe);
+    const subscription = session()?.panadapter(streamId())?.on("data", handler);
+    if (!subscription) return;
+    onCleanup(subscription.unsubscribe);
   });
 
   return (

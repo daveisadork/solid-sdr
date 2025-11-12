@@ -1,5 +1,9 @@
 import type { Logger } from "./adapters.js";
-import { TypedEventEmitter, type Subscription } from "./events.js";
+import {
+  TypedEventEmitter,
+  type Listener,
+  type Subscription,
+} from "./events.js";
 import {
   parseVitaPacket,
   type ParseVitaPacketOptions,
@@ -42,6 +46,10 @@ export interface FlexUdpSession {
   removeAll(): void;
   ingest(payload: FlexUdpPayload): void;
   ingestMessageEvent(event: FlexUdpMessageEvent): void;
+  scope<TKey extends FlexUdpEventKey>(
+    event: TKey,
+    filter?: FlexUdpScopeFilter<TKey>,
+  ): FlexUdpScope<TKey>;
 }
 
 export interface FlexUdpSessionOptions {
@@ -67,6 +75,17 @@ export function createFlexUdpSession(
 
 export interface AttachRtcDataChannelOptions {
   readonly onError?: (error: unknown) => void;
+}
+
+export type FlexUdpScopeFilter<TKey extends FlexUdpEventKey> = (
+  event: FlexUdpEvents[TKey],
+) => boolean;
+
+export interface FlexUdpScope<TKey extends FlexUdpEventKey> {
+  on(listener: Listener<FlexUdpEvents[TKey]>): Subscription;
+  once(listener: Listener<FlexUdpEvents[TKey]>): Subscription;
+  off(listener: Listener<FlexUdpEvents[TKey]>): void;
+  removeAll(): void;
 }
 
 export function attachRtcDataChannelToFlexUdp(
@@ -182,5 +201,76 @@ class FlexUdpSessionImpl implements FlexUdpSession {
       );
     }
     throw new TypeError("Unsupported UDP payload");
+  }
+
+  scope<TKey extends FlexUdpEventKey>(
+    event: TKey,
+    filter: FlexUdpScopeFilter<TKey> = () => true,
+  ): FlexUdpScope<TKey> {
+    return new FlexUdpScopeImpl(this, event, filter);
+  }
+}
+
+class FlexUdpScopeImpl<TKey extends FlexUdpEventKey>
+  implements FlexUdpScope<TKey>
+{
+  private readonly listeners = new Set<Listener<FlexUdpEvents[TKey]>>();
+  private parentSubscription?: Subscription;
+
+  constructor(
+    private readonly parent: FlexUdpSessionImpl,
+    private readonly event: TKey,
+    private readonly filter: FlexUdpScopeFilter<TKey>,
+  ) {}
+
+  on(listener: Listener<FlexUdpEvents[TKey]>): Subscription {
+    this.listeners.add(listener);
+    this.ensureParent();
+    return {
+      unsubscribe: () => this.off(listener),
+    };
+  }
+
+  once(listener: Listener<FlexUdpEvents[TKey]>): Subscription {
+    const wrapper: Listener<FlexUdpEvents[TKey]> = (payload) => {
+      this.off(wrapper);
+      listener(payload);
+    };
+    return this.on(wrapper);
+  }
+
+  off(listener: Listener<FlexUdpEvents[TKey]>): void {
+    const removed = this.listeners.delete(listener);
+    if (!removed) return;
+    if (this.listeners.size === 0) {
+      this.teardownParent();
+    }
+  }
+
+  removeAll(): void {
+    if (this.listeners.size === 0) return;
+    this.listeners.clear();
+    this.teardownParent();
+  }
+
+  private ensureParent(): void {
+    if (this.parentSubscription) return;
+    this.parentSubscription = this.parent.on(this.event, (payload) => {
+      if (this.filter(payload)) {
+        this.emit(payload);
+      }
+    });
+  }
+
+  private teardownParent(): void {
+    if (!this.parentSubscription) return;
+    this.parentSubscription.unsubscribe();
+    this.parentSubscription = undefined;
+  }
+
+  private emit(payload: FlexUdpEvents[TKey]): void {
+    for (const listener of this.listeners) {
+      listener(payload);
+    }
   }
 }

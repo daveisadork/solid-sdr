@@ -19,9 +19,15 @@ import {
   clampLineSpeed,
   lineSpeedToDurationMs,
 } from "./waterfall-line-speed.js";
+import type {
+  FlexUdpPacketEvent,
+  FlexUdpScope,
+  FlexUdpSession,
+} from "./udp.js";
 
 export interface WaterfallControllerEvents extends Record<string, unknown> {
   readonly change: WaterfallStateChange;
+  readonly data: FlexUdpPacketEvent<"waterfall">;
 }
 
 export interface WaterfallUpdateRequest {
@@ -56,6 +62,7 @@ export interface WaterfallSessionApi {
   getWaterfall(id: string): WaterfallSnapshot | undefined;
   patchWaterfall(id: string, attributes: Record<string, string>): void;
   applyWaterfallRfGainInfo(id: string, info: RfGainInfo): void;
+  readonly udp: FlexUdpSession;
 }
 
 export interface WaterfallController {
@@ -129,6 +136,9 @@ export interface WaterfallController {
 export class WaterfallControllerImpl implements WaterfallController {
   private readonly events = new TypedEventEmitter<WaterfallControllerEvents>();
   private streamHandle?: string;
+  private dataListeners = 0;
+  private dataScope?: FlexUdpScope<"waterfall">;
+  private dataSubscription?: Subscription;
 
   constructor(
     private readonly session: WaterfallSessionApi,
@@ -282,6 +292,17 @@ export class WaterfallControllerImpl implements WaterfallController {
     event: TKey,
     listener: (payload: WaterfallControllerEvents[TKey]) => void,
   ): Subscription {
+    if (event === "data") {
+      this.ensureDataPipeline();
+      this.dataListeners += 1;
+      const subscription = this.events.on(event, listener);
+      return {
+        unsubscribe: () => {
+          subscription.unsubscribe();
+          this.handleDataUnsubscribe();
+        },
+      };
+    }
     return this.events.on(event, listener);
   }
 
@@ -394,6 +415,7 @@ export class WaterfallControllerImpl implements WaterfallController {
   }
 
   async close(): Promise<void> {
+    this.teardownDataPipeline();
     const stream = this.requireStreamHandle();
     await this.session.command(`display panafall remove ${stream}`);
   }
@@ -403,6 +425,9 @@ export class WaterfallControllerImpl implements WaterfallController {
       this.streamHandle = change.diff.streamId;
     }
     this.events.emit("change", change);
+    if (change.removed) {
+      this.teardownDataPipeline();
+    }
   }
 
   private buildSetEntries(
@@ -471,5 +496,33 @@ export class WaterfallControllerImpl implements WaterfallController {
       throw new FlexClientClosedError();
     }
     return this.streamHandle;
+  }
+
+  private ensureDataPipeline(): void {
+    if (this.dataSubscription) return;
+    const streamNumericId = Number.parseInt(this.streamId, 16);
+    if (!Number.isFinite(streamNumericId)) return;
+    this.dataScope = this.session.udp.scope(
+      "waterfall",
+      (event) => event.metadata.streamId === streamNumericId,
+    );
+    this.dataSubscription = this.dataScope.on((event) => {
+      this.events.emit("data", event);
+    });
+  }
+
+  private handleDataUnsubscribe(): void {
+    if (this.dataListeners === 0) return;
+    this.dataListeners = Math.max(0, this.dataListeners - 1);
+    if (this.dataListeners === 0) {
+      this.teardownDataPipeline();
+    }
+  }
+
+  private teardownDataPipeline(): void {
+    this.dataSubscription?.unsubscribe();
+    this.dataSubscription = undefined;
+    this.dataScope?.removeAll();
+    this.dataScope = undefined;
   }
 }

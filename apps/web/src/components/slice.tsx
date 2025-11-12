@@ -782,6 +782,49 @@ export function Slice(props: { sliceIndex: string }) {
                         </div>
                       </Slider>
                       <Slider
+                        disabled={!slice.nrfEnabled}
+                        value={[slice.nrfLevel]}
+                        onChange={([value]) => {
+                          sliceController().setNrfLevel(value);
+                        }}
+                        getValueLabel={(params) => `${params.values[0]}%`}
+                        class="space-y-2"
+                      >
+                        <div class="flex w-full justify-between">
+                          <SliderLabel>NRF</SliderLabel>
+                          <SliderValueLabel />
+                        </div>
+                        <div class="flex w-full items-center space-x-2 justify-between">
+                          <Switch
+                            class="h-auto flex items-center origin-left scale-75"
+                            checked={slice.nrfEnabled}
+                            onChange={(isChecked) => {
+                              sliceController().setNrfEnabled(isChecked);
+                            }}
+                          >
+                            <SwitchControl>
+                              <SwitchThumb />
+                            </SwitchControl>
+                          </Switch>
+                          <SliderTrack>
+                            <SliderFill />
+                            <SliderThumb />
+                          </SliderTrack>
+                        </div>
+                      </Slider>
+                      <Switch
+                        class="flex items-center space-x-2 justify-between"
+                        checked={slice.rnnEnabled}
+                        onChange={(isChecked) => {
+                          sliceController().setRnnEnabled(isChecked);
+                        }}
+                      >
+                        <SwitchLabel>AI Noise Reduction</SwitchLabel>
+                        <SwitchControl>
+                          <SwitchThumb />
+                        </SwitchControl>
+                      </Switch>
+                      <Slider
                         disabled={!slice.anfEnabled}
                         minValue={0}
                         maxValue={100}

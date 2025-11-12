@@ -48,8 +48,8 @@
     "build": "tsdown",
     "test": "vitest",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
+    "lint": "eslint src tests",
+    "lint:fix": "eslint src tests --fix",
     "format": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "format:write": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\""
   },

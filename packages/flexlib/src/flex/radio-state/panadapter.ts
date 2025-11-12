@@ -1,4 +1,4 @@
-import type { MutableProps, SnapshotUpdate } from "./common.js";
+import type { Mutable, SnapshotUpdate } from "./common.js";
 import {
   arraysShallowEqual,
   freezeAttributes,
@@ -66,7 +66,7 @@ export function createPanadapterSnapshot(
   previous?: PanadapterSnapshot,
 ): SnapshotUpdate<PanadapterSnapshot> {
   const rawDiff = freezeAttributes(attributes);
-  const partial: MutableProps<Partial<PanadapterSnapshot>> = {};
+  const partial: Mutable<Partial<PanadapterSnapshot>> = {};
 
   for (const [key, value] of Object.entries(attributes)) {
     switch (key) {

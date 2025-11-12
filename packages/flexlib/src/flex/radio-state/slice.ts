@@ -1,4 +1,4 @@
-import type { MutableProps, SnapshotUpdate } from "./common.js";
+import type { Mutable, SnapshotUpdate } from "./common.js";
 import {
   arraysShallowEqual,
   freezeAttributes,
@@ -116,7 +116,7 @@ export function createSliceSnapshot(
   previous?: SliceSnapshot,
 ): SnapshotUpdate<SliceSnapshot> {
   const rawDiff = freezeAttributes(attributes);
-  const partial: MutableProps<Partial<SliceSnapshot>> = {};
+  const partial: Mutable<Partial<SliceSnapshot>> = {};
 
   for (const [key, value] of Object.entries(attributes)) {
     switch (key) {

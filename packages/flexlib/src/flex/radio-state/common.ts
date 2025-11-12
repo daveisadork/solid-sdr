@@ -17,19 +17,11 @@ function getLogger(): RadioStateLogger | undefined {
 }
 
 export type Mutable<T> = {
-  -readonly [P in keyof T]: T[P] extends ReadonlyArray<infer U>
-    ? U[]
-    : T[P] extends Readonly<Record<string, infer V>>
-      ? Record<string, V>
-      : T[P];
-};
-
-export type MutableProps<T> = {
   -readonly [P in keyof T]: T[P];
 };
 
 export type SnapshotDiff<TSnapshot> = Readonly<
-  MutableProps<Partial<Omit<TSnapshot, "raw">>>
+  Mutable<Partial<Omit<TSnapshot, "raw">>>
 >;
 
 export interface SnapshotUpdate<TSnapshot> {

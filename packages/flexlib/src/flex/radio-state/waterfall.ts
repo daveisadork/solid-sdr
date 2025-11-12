@@ -1,4 +1,4 @@
-import type { MutableProps, SnapshotUpdate } from "./common.js";
+import type { Mutable, SnapshotUpdate } from "./common.js";
 import { lineSpeedToDurationMs } from "../waterfall-line-speed.js";
 import {
   arraysShallowEqual,
@@ -58,7 +58,7 @@ export function createWaterfallSnapshot(
   previous?: WaterfallSnapshot,
 ): SnapshotUpdate<WaterfallSnapshot> {
   const rawDiff = freezeAttributes(attributes);
-  const partial: MutableProps<Partial<WaterfallSnapshot>> = {};
+  const partial: Mutable<Partial<WaterfallSnapshot>> = {};
 
   for (const [key, value] of Object.entries(attributes)) {
     switch (key) {

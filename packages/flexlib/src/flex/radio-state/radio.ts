@@ -1,4 +1,4 @@
-import type { MutableProps, SnapshotUpdate } from "./common.js";
+import type { Mutable, SnapshotUpdate } from "./common.js";
 import {
   arraysShallowEqual,
   EMPTY_ATTRIBUTES,
@@ -205,7 +205,7 @@ export function createRadioProperties(
   context?: RadioStatusContext,
 ): SnapshotUpdate<RadioProperties> {
   const rawDiff = freezeAttributes(attributes);
-  const partial: MutableProps<Partial<RadioProperties>> = {};
+  const partial: Mutable<Partial<RadioProperties>> = {};
   switch (resolveRadioContext(context)) {
     case "gps":
       applyGpsStatusAttributes(attributes, partial);
@@ -244,7 +244,7 @@ export function createRadioProperties(
 
 function applyRadioSourceAttributes(
   attributes: Record<string, string>,
-  partial: MutableProps<Partial<RadioProperties>>,
+  partial: Mutable<Partial<RadioProperties>>,
   previous?: RadioProperties,
 ): void {
   for (const [key, value] of Object.entries(attributes)) {
@@ -495,7 +495,7 @@ function parseScreensaverMode(value: string | undefined): RadioScreensaverMode {
 
 function applyFilterSharpnessAttributes(
   attributes: Record<string, string>,
-  partial: MutableProps<Partial<RadioProperties>>,
+  partial: Mutable<Partial<RadioProperties>>,
   context: RadioStatusContext,
 ): void {
   const modeToken = context.positional?.[0];
@@ -529,7 +529,7 @@ function applyFilterSharpnessAttributes(
 
 function applyStaticNetworkParams(
   attributes: Record<string, string>,
-  partial: MutableProps<Partial<RadioProperties>>,
+  partial: Mutable<Partial<RadioProperties>>,
 ): void {
   if ("ip" in attributes) {
     const parsed = parseIpAddress(attributes["ip"]);
@@ -564,7 +564,7 @@ function applyStaticNetworkParams(
 
 function applyOscillatorAttributes(
   attributes: Record<string, string>,
-  partial: MutableProps<Partial<RadioProperties>>,
+  partial: Mutable<Partial<RadioProperties>>,
 ): void {
   for (const [key, value] of Object.entries(attributes)) {
     switch (key) {
@@ -600,7 +600,7 @@ function applyOscillatorAttributes(
 
 function applyGpsStatusAttributes(
   attributes: Record<string, string>,
-  partial: MutableProps<Partial<RadioProperties>>,
+  partial: Mutable<Partial<RadioProperties>>,
 ): void {
   for (const [key, value] of Object.entries(attributes)) {
     switch (key) {
@@ -743,7 +743,7 @@ function parseOscillatorSetting(
 }
 
 function assignFilterSharpnessLevel(
-  partial: MutableProps<Partial<RadioProperties>>,
+  partial: Mutable<Partial<RadioProperties>>,
   mode: RadioFilterSharpnessMode,
   value: number,
 ): void {
@@ -761,7 +761,7 @@ function assignFilterSharpnessLevel(
 }
 
 function assignFilterSharpnessAuto(
-  partial: MutableProps<Partial<RadioProperties>>,
+  partial: Mutable<Partial<RadioProperties>>,
   mode: RadioFilterSharpnessMode,
   value: boolean,
 ): void {

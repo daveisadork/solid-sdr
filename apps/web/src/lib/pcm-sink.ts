@@ -174,7 +174,7 @@ export class PcmSink {
     });
     this.audioEl = new Audio();
     this.audioEl.autoplay = true;
-    this.audioEl.playsInline = true;
+    this.audioEl.setAttribute("playsinline", "");
     this.audioEl.muted = false;
     this.audioEl.srcObject = this.msDest.stream;
 
@@ -358,7 +358,19 @@ export class PcmSink {
     } else {
       // buffer fallback: schedule immediately (engine timing)
       const buf = this.ctx.createBuffer(this.channels, frames, targetRate);
-      for (let c = 0; c < this.channels; c++) buf.copyToChannel(out[c], c);
+      for (let c = 0; c < this.channels; c++) {
+        const plane = out[c];
+        let source: Float32Array<ArrayBuffer>;
+        if (
+          typeof SharedArrayBuffer !== "undefined" &&
+          plane.buffer instanceof SharedArrayBuffer
+        ) {
+          source = new Float32Array(plane) as Float32Array<ArrayBuffer>;
+        } else {
+          source = plane as Float32Array<ArrayBuffer>;
+        }
+        buf.copyToChannel(source, c);
+      }
       this.scheduleBuffer(buf);
     }
   }

@@ -125,24 +125,18 @@ function createWebSocketTransportFactory(
             socket.send(payload);
             return;
           }
-          if (payload instanceof Uint8Array) {
-            socket.send(payload);
+          const maybeBinary: unknown = payload;
+          if (maybeBinary instanceof Uint8Array) {
+            socket.send(maybeBinary);
             return;
           }
-          if (payload instanceof ArrayBuffer) {
-            socket.send(payload);
+          if (maybeBinary instanceof ArrayBuffer) {
+            socket.send(maybeBinary);
             return;
           }
-          if (ArrayBuffer.isView(payload)) {
-            socket.send(
-              payload.byteLength === payload.buffer.byteLength &&
-                payload.byteOffset === 0
-                ? payload.buffer
-                : payload.buffer.slice(
-                    payload.byteOffset,
-                    payload.byteOffset + payload.byteLength,
-                  ),
-            );
+          if (ArrayBuffer.isView(maybeBinary)) {
+            const view = maybeBinary as ArrayBufferView;
+            socket.send(view);
             return;
           }
           throw new Error("Unsupported payload for Flex control transport");

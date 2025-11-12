@@ -24,7 +24,7 @@ export type Mutable<T> = {
       : T[P];
 };
 
-type MutableProps<T> = {
+export type MutableProps<T> = {
   -readonly [P in keyof T]: T[P];
 };
 
@@ -41,19 +41,6 @@ export interface SnapshotUpdate<TSnapshot> {
 export const EMPTY_ATTRIBUTES: Readonly<Record<string, string>> = Object.freeze(
   {},
 );
-
-export function freezeArray<T>(
-  input: readonly T[],
-  previous?: readonly T[],
-): readonly T[] {
-  if (previous && arraysShallowEqual(previous, input)) {
-    return previous;
-  }
-  if (!Object.isFrozen(input)) {
-    Object.freeze(input as T[]);
-  }
-  return input;
-}
 
 export function freezeAttributes(
   attributes: Record<string, string>,
@@ -95,9 +82,7 @@ export function parseMegahertz(value: string | undefined): number | undefined {
   return parsed;
 }
 
-export function parseFloatSafe(
-  value: string | undefined,
-): number | undefined {
+export function parseFloatSafe(value: string | undefined): number | undefined {
   if (!value) return undefined;
   const parsed = Number.parseFloat(value);
   if (!Number.isFinite(parsed)) return undefined;

@@ -1,7 +1,6 @@
-import type { Mutable, SnapshotUpdate } from "./common.js";
+import type { MutableProps, SnapshotUpdate } from "./common.js";
 import {
   arraysShallowEqual,
-  freezeArray,
   freezeAttributes,
   isTruthy,
   logParseError,
@@ -117,7 +116,7 @@ export function createSliceSnapshot(
   previous?: SliceSnapshot,
 ): SnapshotUpdate<SliceSnapshot> {
   const rawDiff = freezeAttributes(attributes);
-  const partial: Mutable<Partial<SliceSnapshot>> = {};
+  const partial: MutableProps<Partial<SliceSnapshot>> = {};
 
   for (const [key, value] of Object.entries(attributes)) {
     switch (key) {
@@ -436,7 +435,7 @@ export function createSliceSnapshot(
         if (!parsed) {
           logParseError("slice", key, value);
         } else if (!arraysShallowEqual(previous?.tuneStepListHz, parsed)) {
-          partial.tuneStepListHz = freezeArray(parsed, previous?.tuneStepListHz);
+          partial.tuneStepListHz = Object.freeze(parsed);
         }
         break;
       }
@@ -563,13 +562,8 @@ export function createSliceSnapshot(
         const parsed = parseCsv(value);
         if (!parsed) {
           logParseError("slice", key, value);
-        } else if (
-          !arraysShallowEqual(previous?.availableRxAntennas, parsed)
-        ) {
-          partial.availableRxAntennas = freezeArray(
-            parsed,
-            previous?.availableRxAntennas,
-          );
+        } else if (!arraysShallowEqual(previous?.availableRxAntennas, parsed)) {
+          partial.availableRxAntennas = Object.freeze(parsed);
         }
         break;
       }
@@ -577,13 +571,8 @@ export function createSliceSnapshot(
         const parsed = parseCsv(value);
         if (!parsed) {
           logParseError("slice", key, value);
-        } else if (
-          !arraysShallowEqual(previous?.availableTxAntennas, parsed)
-        ) {
-          partial.availableTxAntennas = freezeArray(
-            parsed,
-            previous?.availableTxAntennas,
-          );
+        } else if (!arraysShallowEqual(previous?.availableTxAntennas, parsed)) {
+          partial.availableTxAntennas = Object.freeze(parsed);
         }
         break;
       }
@@ -592,7 +581,7 @@ export function createSliceSnapshot(
         if (!parsed) {
           logParseError("slice", key, value);
         } else if (!arraysShallowEqual(previous?.modeList, parsed)) {
-          partial.modeList = freezeArray(parsed, previous?.modeList);
+          partial.modeList = Object.freeze(parsed);
         }
         break;
       }
@@ -607,7 +596,7 @@ export function createSliceSnapshot(
         if (!parsed) {
           logParseError("slice", key, value);
         } else if (!arraysShallowEqual(previous?.meterIds, parsed)) {
-          partial.meterIds = freezeArray(parsed, previous?.meterIds);
+          partial.meterIds = Object.freeze(parsed);
         }
         break;
       }

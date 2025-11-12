@@ -438,7 +438,7 @@ export function Slice(props: { sliceIndex: string }) {
                 <div class="flex justify-between items-center space-x-2">
                   <Select
                     value={slice.rxAntenna}
-                    options={slice.availableRxAntennas}
+                    options={Array.from(slice.availableRxAntennas)}
                     onChange={(v) => {
                       if (!v || v === slice.rxAntenna) return;
                       sliceController().setRxAntenna(v);
@@ -461,7 +461,7 @@ export function Slice(props: { sliceIndex: string }) {
                   </Select>
                   <Select
                     value={slice.txAntenna}
-                    options={slice.availableTxAntennas}
+                    options={Array.from(slice.availableTxAntennas)}
                     onChange={(v) => {
                       if (!v || v === slice.txAntenna) return;
                       sliceController().setTxAntenna(v);

@@ -126,18 +126,10 @@ export function Panadapter(props: { streamId: string }) {
     return gradient;
   });
 
-  createEffect(() => {
-    console.log("Panadapter", streamId(), pan().width, pan().height);
-  });
-
   const resizeCallback = debounce(async (width: number, height: number) => {
-    const xPixels = Math.round(width);
-    const yPixels = Math.round(height);
-    console.log("Resizing panadapter", streamId(), xPixels, yPixels);
-    setUpdating(true);
     const controller = session()?.panadapter(streamId());
-    await controller?.setWidth(xPixels);
-    await controller?.setHeight(yPixels);
+    setUpdating(true);
+    await controller?.setSize({ width, height });
     setUpdating(false);
   }, 250);
 
@@ -312,10 +304,8 @@ export function Panadapter(props: { streamId: string }) {
   createEffect(() => {
     const handler = onPanadapter();
     if (!handler) return;
-    const subscription = events.on("panadapter", handler);
-    onCleanup(() => {
-      subscription.unsubscribe();
-    });
+    const { unsubscribe } = events.on("panadapter", handler);
+    onCleanup(unsubscribe);
   });
 
   return (

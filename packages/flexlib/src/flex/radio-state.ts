@@ -1,11 +1,7 @@
 import type { FlexStatusMessage } from "./protocol.js";
 import type { RfGainInfo } from "./rf-gain.js";
 import type { Logger } from "./adapters.js";
-import {
-  freezeArray,
-  isTruthy,
-  setRadioStateLogger,
-} from "./radio-state/common.js";
+import { isTruthy, setRadioStateLogger } from "./radio-state/common.js";
 import type { SnapshotDiff } from "./radio-state/common.js";
 import { createSliceSnapshot } from "./radio-state/slice.js";
 import type { SliceSnapshot } from "./radio-state/slice.js";
@@ -529,7 +525,7 @@ export function createRadioStateStore(
         const filtered = pan.attachedSlices.filter((id) => id !== sliceId);
         const updated = Object.freeze({
           ...pan,
-          attachedSlices: freezeArray(filtered),
+          attachedSlices: Object.freeze(filtered),
         });
         panadapters.set(prevPan, updated);
       }
@@ -540,7 +536,7 @@ export function createRadioStateStore(
     if (!pan.attachedSlices.includes(sliceId)) {
       const next = {
         ...pan,
-        attachedSlices: freezeArray([...pan.attachedSlices, sliceId]),
+        attachedSlices: Object.freeze([...pan.attachedSlices, sliceId]),
       };
       panadapters.set(nextPan, Object.freeze(next));
     }

@@ -597,11 +597,13 @@ export const FlexRadioProvider: ParentComponent = (props) => {
           console.warn("Discovery adapter error", error);
         },
       })
-      .then((session) => {
+      .then(async (session) => {
         if (disposed) {
-          return session.stop().catch((error) => {
+          try {
+            return await session.stop();
+          } catch (error) {
             console.error("Failed to stop discovery session", error);
-          });
+          }
         }
         discoverySession = session;
       })
@@ -666,8 +668,8 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     }
   };
 
-  window.state = state;
-  window.sendCommand = sendCommand; // Expose for debugging
+  // window.state = state;
+  // window.sendCommand = sendCommand; // Expose for debugging
 
   createEffect(() => {
     if (!state.clientHandle) {
@@ -688,7 +690,6 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         (streamId) =>
           state.status.display.pan[streamId]?.clientHandle === clientHandle,
       )[0] || null;
-    console.log("Setting first owned panadapter:", firstOwnPan);
     setState("selectedPanadapter", firstOwnPan ?? null);
   });
 
@@ -700,7 +701,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
   };
 
   createEffect(() => {
-    const subscription = udpSession.on("meter", ({ packet }) => {
+    const { unsubscribe } = udpSession.on("meter", ({ packet }) => {
       const meterPacket = packet;
       setState(
         "status",
@@ -719,7 +720,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         }),
       );
     });
-    onCleanup(() => subscription.unsubscribe());
+    onCleanup(unsubscribe);
   });
 
   const teardownFlexSession = (options?: { resetState?: boolean }) => {

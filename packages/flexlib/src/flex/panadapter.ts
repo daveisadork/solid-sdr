@@ -155,6 +155,7 @@ export interface PanadapterController {
   setLoopBEnabled(enabled: boolean): Promise<void>;
   setWidth(width: number): Promise<void>;
   setHeight(height: number): Promise<void>;
+  setSize(size: { width: number; height: number }): Promise<void>;
   setBand(band: string): Promise<void>;
   setLoggerDisplayEnabled(enabled: boolean): Promise<void>;
   setLoggerDisplayAddress(address: string): Promise<void>;
@@ -374,9 +375,10 @@ export class PanadapterControllerImpl implements PanadapterController {
   async setBandwidth(bandwidthMHz: number): Promise<void> {
     const snapshot = this.current();
     const target = this.clampBandwidth(bandwidthMHz, snapshot);
-    const extras: string[] = [];
-    if (snapshot.autoCenterEnabled) extras.push("autocenter=1");
-    await this.sendSet({ bandwidth: formatMegahertz(target) }, extras);
+    await this.sendSet({
+      bandwidth: formatMegahertz(target),
+      autocenter: snapshot.autoCenterEnabled ? "1" : "0",
+    });
   }
 
   /**
@@ -420,11 +422,11 @@ export class PanadapterControllerImpl implements PanadapterController {
   }
 
   async setBandZoom(enabled: boolean): Promise<void> {
-    await this.sendSet({ band_zoom: formatBooleanFlag(enabled) });
+    await this.sendSet({ band_zoom: formatBooleanFlag(enabled) }, false);
   }
 
   async setSegmentZoom(enabled: boolean): Promise<void> {
-    await this.sendSet({ segment_zoom: formatBooleanFlag(enabled) });
+    await this.sendSet({ segment_zoom: formatBooleanFlag(enabled) }, false);
   }
 
   async setWnbEnabled(enabled: boolean): Promise<void> {
@@ -480,6 +482,14 @@ export class PanadapterControllerImpl implements PanadapterController {
     await this.sendSet(entries);
   }
 
+  async setSize(size: { width: number; height: number }): Promise<void> {
+    const entries: Record<string, string> = {
+      xpixels: formatInteger(size.width),
+      ypixels: formatInteger(size.height),
+    };
+    await this.sendSet(entries);
+  }
+
   async setBand(band: string): Promise<void> {
     await this.sendSet({ band });
   }
@@ -524,12 +534,12 @@ export class PanadapterControllerImpl implements PanadapterController {
   }
 
   async update(request: PanadapterUpdateRequest): Promise<void> {
+    if (request.autoCenterEnabled !== undefined) {
+      this.applyAutoCenter(request.autoCenterEnabled);
+    }
     const entries = this.buildSetEntries(request);
     if (Object.keys(entries).length > 0) {
       await this.sendSet(entries);
-    }
-    if (request.autoCenterEnabled !== undefined) {
-      this.applyAutoCenter(request.autoCenterEnabled);
     }
   }
 
@@ -554,6 +564,9 @@ export class PanadapterControllerImpl implements PanadapterController {
     if (request.bandwidthMHz !== undefined) {
       const target = this.clampBandwidth(request.bandwidthMHz);
       entries.bandwidth = formatMegahertz(target);
+      if (request.autoCenterEnabled) {
+        entries.autocenter = formatBooleanFlag(request.autoCenterEnabled);
+      }
     }
     if (request.lowDbm !== undefined) {
       const clamped = this.clampNumber(request.lowDbm, -180, undefined);
@@ -611,17 +624,13 @@ export class PanadapterControllerImpl implements PanadapterController {
 
   private async sendSet(
     entries: Record<string, string>,
-    extras: readonly string[] = [],
+    patchState: boolean = true,
   ): Promise<void> {
     const stream = this.requireStreamHandle();
-    const command = buildDisplaySetCommand(
-      "display pan set",
-      stream,
-      entries,
-      extras,
-    );
+    const command = buildDisplaySetCommand("display pan set", stream, entries);
     await this.session.command(command);
-    this.session.patchPanadapter(this.id, { stream_id: stream, ...entries });
+    if (patchState)
+      this.session.patchPanadapter(this.id, { stream_id: stream, ...entries });
   }
 
   private requireStreamHandle(): string {

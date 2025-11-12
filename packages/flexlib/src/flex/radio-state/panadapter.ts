@@ -1,7 +1,6 @@
-import type { Mutable, SnapshotUpdate } from "./common.js";
+import type { MutableProps, SnapshotUpdate } from "./common.js";
 import {
   arraysShallowEqual,
-  freezeArray,
   freezeAttributes,
   isTruthy,
   logParseError,
@@ -67,7 +66,7 @@ export function createPanadapterSnapshot(
   previous?: PanadapterSnapshot,
 ): SnapshotUpdate<PanadapterSnapshot> {
   const rawDiff = freezeAttributes(attributes);
-  const partial: Mutable<Partial<PanadapterSnapshot>> = {};
+  const partial: MutableProps<Partial<PanadapterSnapshot>> = {};
 
   for (const [key, value] of Object.entries(attributes)) {
     switch (key) {
@@ -174,7 +173,7 @@ export function createPanadapterSnapshot(
           logParseError("waterfall", key, value);
         } else if (!arraysShallowEqual(previous?.rfGainMarkers, parsed)) {
           // Only update if the markers have changed.
-          partial.rfGainMarkers = freezeArray(parsed, previous?.rfGainMarkers);
+          partial.rfGainMarkers = Object.freeze(parsed);
         }
         break;
       }
@@ -271,7 +270,7 @@ export function createPanadapterSnapshot(
         if (parsed === undefined) {
           logParseError("panadapter", key, value);
         } else if (!arraysShallowEqual(previous?.rxAntennas, parsed)) {
-          partial.rxAntennas = freezeArray(parsed, previous?.rxAntennas);
+          partial.rxAntennas = Object.freeze(parsed);
         }
         break;
       }

@@ -50,10 +50,7 @@ import {
   type RemoteAudioRxStreamController,
   AudioStreamControllerImpl,
 } from "./audio-stream.js";
-import {
-  createFlexUdpSession,
-  type FlexUdpSession,
-} from "./udp.js";
+import { createFlexUdpSession, type FlexUdpSession } from "./udp.js";
 
 export interface FlexClientOptions {
   defaultCommandTimeoutMs?: number;
@@ -119,10 +116,7 @@ export interface FlexDataPlaneConnection {
 export interface FlexDataPlaneFactory {
   connect(
     context: FlexDataPlaneContext,
-  ):
-    | Promise<FlexDataPlaneConnection | void>
-    | FlexDataPlaneConnection
-    | void;
+  ): Promise<FlexDataPlaneConnection | void> | FlexDataPlaneConnection | void;
 }
 
 export interface FlexWaitForHandleOptions {
@@ -353,9 +347,7 @@ class FlexRadioSessionImpl implements FlexRadioSession {
   private _clientHandle: string | null = null;
   private _clientId: string | null = null;
   private _isReady = false;
-  private handshakeError: unknown;
   private onProgress?: (progress: FlexConnectionProgress) => void;
-  private lastProgress: FlexConnectionProgress | null = null;
   private readonly udpSession: FlexUdpSession;
   private closed = false;
 
@@ -482,8 +474,7 @@ class FlexRadioSessionImpl implements FlexRadioSession {
         dataPlaneFactory: options.dataPlaneFactory,
         command: (command, commandOptions) =>
           this.command(command, commandOptions),
-        waitForHandle: (handleOptions) =>
-          this.waitForHandle(handleOptions),
+        waitForHandle: (handleOptions) => this.waitForHandle(handleOptions),
         emitProgress: (progress) => this.emitProgress(progress),
         setClientId: (clientId) => this.setClientId(clientId),
         attachDataPlane: async (factory) => {
@@ -504,9 +495,7 @@ class FlexRadioSessionImpl implements FlexRadioSession {
     }
   }
 
-  private async attachDataPlane(
-    factory?: FlexDataPlaneFactory,
-  ): Promise<void> {
+  private async attachDataPlane(factory?: FlexDataPlaneFactory): Promise<void> {
     if (!factory) return;
     if (!this._clientHandle) {
       throw new Error("Flex data-plane attachment requires a client handle");
@@ -537,9 +526,7 @@ class FlexRadioSessionImpl implements FlexRadioSession {
     }
   }
 
-  private waitForHandle(
-    options?: FlexWaitForHandleOptions,
-  ): Promise<string> {
+  private waitForHandle(options?: FlexWaitForHandleOptions): Promise<string> {
     if (this._clientHandle) return Promise.resolve(this._clientHandle);
     if (this.closed) return Promise.reject(new FlexClientClosedError());
     return new Promise<string>((resolve, reject) => {
@@ -638,7 +625,6 @@ class FlexRadioSessionImpl implements FlexRadioSession {
   }
 
   private emitProgress(progress: FlexConnectionProgress): void {
-    this.lastProgress = progress;
     if (!this.closed) {
       this.events.emit("progress", progress);
     }
@@ -681,7 +667,6 @@ class FlexRadioSessionImpl implements FlexRadioSession {
   }
 
   private failReady(reason: unknown): void {
-    this.handshakeError = reason;
     if (!this._isReady && this.readyReject) {
       this.readyReject(reason ?? new FlexClientClosedError());
       this.readyReject = undefined;
@@ -964,7 +949,6 @@ class FlexRadioSessionImpl implements FlexRadioSession {
     await this.teardownDataPlane();
     this.failReady(new FlexClientClosedError());
     this.onProgress = undefined;
-    this.lastProgress = null;
     try {
       await this.control.close();
     } catch (error) {

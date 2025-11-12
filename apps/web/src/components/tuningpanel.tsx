@@ -85,13 +85,11 @@ export function TuningPanel(props: { streamId: string }) {
   );
 
   const updateAverage = debounce((value: number) => {
-    console.log("Setting Average to", value);
     const controller = panController();
     controller.setAverage(value).catch(() => setRawAverage(controller.average));
   }, 250);
 
   createEffect(() => {
-    console.log("Average effect triggered");
     const average = rawAverage();
     if (average !== pan.average) {
       updateAverage(average);
@@ -99,7 +97,6 @@ export function TuningPanel(props: { streamId: string }) {
   });
 
   const updateFps = debounce((value: number) => {
-    console.log("Setting FPS to", value);
     panController()
       ?.setFps(value)
       .catch(() => setRawFps(pan.fps));
@@ -112,22 +109,19 @@ export function TuningPanel(props: { streamId: string }) {
     }
   });
 
-  const updateLineDuration = debounce((value: number) => {
-    console.log("Setting Line Duration to", value);
+  const updateLineSpeed = debounce((value: number) => {
     const wf = wfController();
     wf.setLineSpeed(value).catch(() => setRawLineSpeed(wf.lineSpeed ?? 0));
   }, 250);
 
   createEffect(() => {
-    console.log("Line duration effect triggered");
-    const lineDuration = rawLineSpeed();
-    if (lineDuration !== waterfall.lineSpeed) {
-      updateLineDuration(lineDuration);
+    const lineSpeed = rawLineSpeed();
+    if (lineSpeed !== waterfall.lineSpeed) {
+      updateLineSpeed(lineSpeed);
     }
   });
 
   const updateColorGain = debounce((value: number) => {
-    console.log("Setting Color Gain to", value);
     const controller = wfController();
     controller.setColorGain(value).catch(() => {
       setRawColorGain(controller.colorGain);
@@ -135,7 +129,6 @@ export function TuningPanel(props: { streamId: string }) {
   }, 250);
 
   createEffect(() => {
-    console.log("Color gain effect triggered");
     const colorGain = rawColorGain();
     if (colorGain !== waterfall.colorGain) {
       updateColorGain(colorGain);
@@ -143,7 +136,6 @@ export function TuningPanel(props: { streamId: string }) {
   });
 
   const updateBlackLevel = debounce((value: number) => {
-    console.log("Setting Black Level to", value);
     const wf = wfController();
     wf.setBlackLevel(value).catch(() => setRawBlackLevel(wf.blackLevel));
   }, 250);
@@ -244,7 +236,7 @@ export function TuningPanel(props: { streamId: string }) {
             panController()?.setRxAntenna(value);
           }
         }}
-        options={pan.rxAntennas}
+        options={Array.from(pan.rxAntennas)}
         itemComponent={(props) => (
           <SelectItem item={props.item}>{props.item.rawValue}</SelectItem>
         )}
@@ -309,7 +301,6 @@ export function TuningPanel(props: { streamId: string }) {
             panController()?.setBandwidth(value);
           }
         }}
-        onChange={(value) => console.log("bandwidth changed:", value)}
         onRawValueChange={setRawBandwidth}
       >
         <NumberFieldDescription class="select-none">

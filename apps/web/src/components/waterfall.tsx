@@ -1,5 +1,6 @@
 import { createElementSize } from "@solid-primitives/resize-observer";
 import {
+  batch,
   createEffect,
   createMemo,
   createSignal,
@@ -14,8 +15,7 @@ export function Waterfall(props: { streamId: string }) {
   const streamId = () => props.streamId;
   const { events, session, state, setState } = useFlexRadio();
   const waterfall = () => state.status.display.waterfall[streamId()];
-  const pan = () =>
-    state.status.display.pan[waterfall().panadapterStreamId];
+  const pan = () => state.status.display.pan[waterfall().panadapterStreamId];
 
   const [canvasWidth, setCanvasWidth] = createSignal(1);
   const [widthMultiplier, setWidthMultiplier] = createSignal(1.0);
@@ -331,8 +331,12 @@ export function Waterfall(props: { streamId: string }) {
             "centerFrequencyMHz",
             centerMHz,
           );
-          setState("runtime", "panSettledCenterMHz", panStreamId, centerMHz);
-          setState("runtime", "panPendingCenterMHz", panStreamId, centerMHz);
+          setState(
+            "runtime",
+            ["panSettledCenterMHz", "panPendingCenterMHz"],
+            panStreamId,
+            centerMHz,
+          );
         }
         expFrame = Math.max(frame + 1, expFrame);
       }
@@ -342,10 +346,8 @@ export function Waterfall(props: { streamId: string }) {
   createEffect(() => {
     const handler = onWaterfall();
     if (!handler) return;
-    const subscription = events.on("waterfall", handler);
-    onCleanup(() => {
-      subscription.unsubscribe();
-    });
+    const { unsubscribe } = events.on("waterfall", handler);
+    onCleanup(unsubscribe);
   });
 
   return (

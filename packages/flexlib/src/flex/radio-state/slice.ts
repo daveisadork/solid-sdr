@@ -357,7 +357,7 @@ export function createSliceSnapshot(
         break;
       case "esc_gain": {
         const parsed = parseFloatSafe(value);
-        if (parsed !== undefined) partial.escGain = parsed;
+        if (parsed !== undefined) partial.escGain = Number(parsed.toFixed(2));
         else logParseError("slice", key, value);
         break;
       }
@@ -618,7 +618,7 @@ export function createSliceSnapshot(
   }
 
   const snapshot = Object.freeze({
-    ...(previous ?? { id }),
+    ...(previous ?? { id, escGain: 1.0, escPhaseShift: 0.0 }),
     ...partial,
     raw: Object.freeze({
       ...previous?.raw,

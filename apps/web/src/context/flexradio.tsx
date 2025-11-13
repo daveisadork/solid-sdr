@@ -592,8 +592,8 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     }
   };
 
-  // window.state = state;
-  // window.sendCommand = sendCommand; // Expose for debugging
+  window.state = state;
+  window.sendCommand = sendCommand; // Expose for debugging
 
   createEffect(() => {
     if (!state.clientHandle) {

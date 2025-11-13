@@ -2,6 +2,11 @@ import type { FlexCommandOptions, FlexCommandResponse } from "./adapters.js";
 import type { SliceSnapshot, SliceStateChange } from "./radio-state.js";
 import { TypedEventEmitter, type Subscription } from "./events.js";
 import { FlexStateUnavailableError } from "./errors.js";
+import {
+  formatBooleanFlag,
+  formatInteger,
+  formatMegahertz,
+} from "./controller-helpers.js";
 
 export type SliceAgcMode = "off" | "slow" | "med" | "fast" | (string & {});
 export type SliceToneMode = "off" | "ctcss_tx" | (string & {});
@@ -71,7 +76,7 @@ export interface SliceUpdateRequest {
   recordingEnabled?: boolean;
   playbackEnabled?: boolean;
   fmToneMode?: SliceToneMode;
-  fmToneValue?: number | string;
+  fmToneValue?: number;
   fmDeviation?: number;
   fmToneBurstEnabled?: boolean;
   fmPreDeEmphasisEnabled?: boolean;
@@ -81,8 +86,6 @@ export interface SliceUpdateRequest {
   fmRepeaterOffsetFrequencyMHz?: number;
   repeaterOffsetDirection?: SliceRepeaterOffsetDirection;
   diversityEnabled?: boolean;
-  diversityChild?: boolean;
-  diversityIndex?: number;
 }
 
 export interface SliceController {
@@ -219,18 +222,57 @@ export interface SliceController {
    * Noise Reduction (NR) level from 0 to 100.
    */
   readonly nrLevel: number;
+  /**
+   * Whether the LMS legacy noise reduction (NRL) is enabled for the slice.
+   */
   readonly nrlEnabled: boolean;
+  /**
+   * LMS legacy noise reduction (NRL) level from 0 to 100.
+   */
   readonly nrlLevel: number;
+  /**
+   * Whether the LMS legacy auto-notch filter (ANFL) is enabled for the slice.
+   */
   readonly anflEnabled: boolean;
+  /**
+   * LMS legacy auto-notch filter (ANFL) level from 0 to 100.
+   */
   readonly anflLevel: number;
+  /**
+   * Whether spectral subtraction noise reduction (NRS) is enabled for the slice.
+   */
   readonly nrsEnabled: boolean;
+  /**
+   * Spectral subtraction noise reduction (NRS) level from 0 to 100.
+   */
   readonly nrsLevel: number;
+  /**
+   * Whether AI (RNN) noise reduction is enabled for the slice.
+   */
   readonly rnnEnabled: boolean;
+  /**
+   * Whether the FFT-based automatic notch filter (ANFT) is enabled for the slice.
+   */
   readonly anftEnabled: boolean;
+  /**
+   * Whether noise reduction with filter (NRF) is enabled for the slice.
+   */
   readonly nrfEnabled: boolean;
+  /**
+   * Noise reduction with filter (NRF) level from 0 to 100.
+   */
   readonly nrfLevel: number;
+  /**
+   * Whether ESC (Enhanced Signal Clarity) processing is enabled for the slice.
+   */
   readonly escEnabled: boolean;
+  /**
+   * Gain applied by the Enhanced Signal Clarity (ESC) processor.
+   */
   readonly escGain: number;
+  /**
+   * Phase shift applied by the Enhanced Signal Clarity (ESC) processor.
+   */
   readonly escPhaseShift: number;
   /**
    * Current AGC mode for the slice.
@@ -410,18 +452,57 @@ export interface SliceController {
    * Sets the Wideband Noise Blanker (WNB) level from 0 to 100.
    */
   setWnbLevel(level: number): Promise<void>;
+  /**
+   * Enables or disables the LMS legacy noise reduction (NRL) for the slice.
+   */
   setNrlEnabled(enabled: boolean): Promise<void>;
+  /**
+   * Sets the LMS legacy noise reduction (NRL) level from 0 to 100.
+   */
   setNrlLevel(level: number): Promise<void>;
+  /**
+   * Enables or disables the LMS legacy auto-notch filter (ANFL) for the slice.
+   */
   setAnflEnabled(enabled: boolean): Promise<void>;
+  /**
+   * Sets the LMS legacy auto-notch filter (ANFL) level from 0 to 100.
+   */
   setAnflLevel(level: number): Promise<void>;
+  /**
+   * Enables or disables spectral subtraction noise reduction (NRS) for the slice.
+   */
   setNrsEnabled(enabled: boolean): Promise<void>;
+  /**
+   * Sets the spectral subtraction noise reduction (NRS) level from 0 to 100.
+   */
   setNrsLevel(level: number): Promise<void>;
+  /**
+   * Enables or disables AI (RNN) noise reduction for the slice.
+   */
   setRnnEnabled(enabled: boolean): Promise<void>;
+  /**
+   * Enables or disables the FFT-based automatic notch filter (ANFT) for the slice.
+   */
   setAnftEnabled(enabled: boolean): Promise<void>;
+  /**
+   * Enables or disables noise reduction with filter (NRF) for the slice.
+   */
   setNrfEnabled(enabled: boolean): Promise<void>;
+  /**
+   * Sets the noise reduction with filter (NRF) level from 0 to 100.
+   */
   setNrfLevel(level: number): Promise<void>;
+  /**
+   * Enables or disables ESC (Enhanced Signal Clarity) processing for the slice.
+   */
   setEscEnabled(enabled: boolean): Promise<void>;
+  /**
+   * Sets the gain used by the Enhanced Signal Clarity (ESC) processor.
+   */
   setEscGain(gain: number): Promise<void>;
+  /**
+   * Sets the phase shift used by the Enhanced Signal Clarity (ESC) processor.
+   */
   setEscPhaseShift(phase: number): Promise<void>;
   /**
    * Enables or disables the Noise Blanker (NB).
@@ -503,17 +584,9 @@ export interface SliceController {
     direction: SliceRepeaterOffsetDirection,
   ): Promise<void>;
   /**
-   * Enables or disables simple diversity reception for the slice (FLEX-6700/FLEX-6700R only).
+   * Enables or disables simple diversity reception for the slice.
    */
   setDiversityEnabled(enabled: boolean): Promise<void>;
-  /**
-   * Marks the slice as the diversity child (FLEX-6700/FLEX-6700R only).
-   */
-  setDiversityChildEnabled(enabled: boolean): Promise<void>;
-  /**
-   * Sets the index of the paired diversity slice.
-   */
-  setDiversityIndex(index: number): Promise<void>;
   update(request: SliceUpdateRequest): Promise<void>;
 }
 
@@ -880,17 +953,14 @@ export class SliceControllerImpl implements SliceController {
 
   async setFrequency(frequencyMHz: number): Promise<void> {
     const formattedFrequency = formatMegahertz(frequencyMHz);
-    await this.session.command(
-      `slice tune ${this.id} ${formattedFrequency}`,
-    );
+    await this.session.command(`slice tune ${this.id} ${formattedFrequency}`);
     this.session.patchSlice(this.id, {
       freq: formattedFrequency,
     });
   }
 
   async nudge(deltaHz: number): Promise<void> {
-    const nextFrequency =
-      this.current().frequencyMHz + deltaHz / 1_000_000;
+    const nextFrequency = this.current().frequencyMHz + deltaHz / 1_000_000;
     return this.setFrequency(nextFrequency);
   }
 
@@ -907,7 +977,7 @@ export class SliceControllerImpl implements SliceController {
   }
 
   async setActive(active: boolean): Promise<void> {
-    await this.sendSet({ active: this.toFlag(active) });
+    await this.sendSet({ active: formatBooleanFlag(active) });
   }
 
   async setLocked(locked: boolean): Promise<void> {
@@ -916,12 +986,12 @@ export class SliceControllerImpl implements SliceController {
       : `slice unlock ${this.id}`;
     await this.session.command(command);
     this.session.patchSlice(this.id, {
-      lock: this.toFlag(locked),
+      lock: formatBooleanFlag(locked),
     });
   }
 
   async enableTransmit(enabled: boolean): Promise<void> {
-    await this.sendSet({ tx: this.toFlag(enabled) });
+    await this.sendSet({ tx: formatBooleanFlag(enabled) });
   }
 
   async setRxAntenna(port: string): Promise<void> {
@@ -933,118 +1003,118 @@ export class SliceControllerImpl implements SliceController {
   }
 
   async assignDaxChannel(channel: number): Promise<void> {
-    await this.sendSet({ dax: this.toIntString(channel) });
+    await this.sendSet({ dax: formatInteger(channel) });
   }
 
   async setRfGain(hundredthsDb: number): Promise<void> {
-    await this.sendSet({ rfgain: this.toIntString(hundredthsDb) });
+    await this.sendSet({ rfgain: formatInteger(hundredthsDb) });
   }
 
   async setFilterLow(lowHz: number): Promise<void> {
-    await this.sendSet({ filter_lo: this.toIntString(lowHz) });
+    await this.sendSet({ filter_lo: formatInteger(lowHz) });
   }
 
   async setFilterHigh(highHz: number): Promise<void> {
-    await this.sendSet({ filter_hi: this.toIntString(highHz) });
+    await this.sendSet({ filter_hi: formatInteger(highHz) });
   }
 
   async setFilter(lowHz: number, highHz: number): Promise<void> {
     await this.sendSet({
-      filter_lo: this.toIntString(lowHz),
-      filter_hi: this.toIntString(highHz),
+      filter_lo: formatInteger(lowHz),
+      filter_hi: formatInteger(highHz),
     });
   }
 
   async setRttyMark(markHz: number): Promise<void> {
-    await this.sendSet({ rtty_mark: this.toIntString(markHz) });
+    await this.sendSet({ rtty_mark: formatInteger(markHz) });
   }
 
   async setRttyShift(shiftHz: number): Promise<void> {
-    await this.sendSet({ rtty_shift: this.toIntString(shiftHz) });
+    await this.sendSet({ rtty_shift: formatInteger(shiftHz) });
   }
 
   async setDigLOffset(offsetHz: number): Promise<void> {
-    await this.sendSet({ digl_offset: this.toIntString(offsetHz) });
+    await this.sendSet({ digl_offset: formatInteger(offsetHz) });
   }
 
   async setDigUOffset(offsetHz: number): Promise<void> {
-    await this.sendSet({ digu_offset: this.toIntString(offsetHz) });
+    await this.sendSet({ digu_offset: formatInteger(offsetHz) });
   }
 
   async setAudioGain(gain: number): Promise<void> {
-    await this.sendSet({ audio_level: this.toIntString(gain) });
+    await this.sendSet({ audio_level: formatInteger(gain) });
   }
 
   async setAudioPan(pan: number): Promise<void> {
-    await this.sendSet({ audio_pan: this.toIntString(pan) });
+    await this.sendSet({ audio_pan: formatInteger(pan) });
   }
 
   async setMute(muted: boolean): Promise<void> {
-    await this.sendSet({ audio_mute: this.toFlag(muted) });
+    await this.sendSet({ audio_mute: formatBooleanFlag(muted) });
   }
 
   async setAnfEnabled(enabled: boolean): Promise<void> {
-    await this.sendSet({ anf: this.toFlag(enabled) });
+    await this.sendSet({ anf: formatBooleanFlag(enabled) });
   }
 
   async setAnfLevel(level: number): Promise<void> {
-    await this.sendSet({ anf_level: this.toIntString(level) });
+    await this.sendSet({ anf_level: formatInteger(level) });
   }
 
   async setApfEnabled(enabled: boolean): Promise<void> {
-    await this.sendSet({ apf: this.toFlag(enabled) });
+    await this.sendSet({ apf: formatBooleanFlag(enabled) });
   }
 
   async setApfLevel(level: number): Promise<void> {
-    await this.sendSet({ apf_level: this.toIntString(level) });
+    await this.sendSet({ apf_level: formatInteger(level) });
   }
 
   async setWnbEnabled(enabled: boolean): Promise<void> {
-    await this.sendSet({ wnb: this.toFlag(enabled) });
+    await this.sendSet({ wnb: formatBooleanFlag(enabled) });
   }
 
   async setWnbLevel(level: number): Promise<void> {
-    await this.sendSet({ wnb_level: this.toIntString(level) });
+    await this.sendSet({ wnb_level: formatInteger(level) });
   }
 
   async setNrlEnabled(enabled: boolean): Promise<void> {
-    await this.sendSet({ lms_nr: this.toFlag(enabled) });
+    await this.sendSet({ lms_nr: formatBooleanFlag(enabled) });
   }
 
   async setNrlLevel(level: number): Promise<void> {
-    await this.sendSet({ lms_nr_level: this.toIntString(level) });
+    await this.sendSet({ lms_nr_level: formatInteger(level) });
   }
 
   async setAnflEnabled(enabled: boolean): Promise<void> {
-    await this.sendSet({ lms_anf: this.toFlag(enabled) });
+    await this.sendSet({ lms_anf: formatBooleanFlag(enabled) });
   }
 
   async setAnflLevel(level: number): Promise<void> {
-    await this.sendSet({ lms_anf_level: this.toIntString(level) });
+    await this.sendSet({ lms_anf_level: formatInteger(level) });
   }
 
   async setNrsEnabled(enabled: boolean): Promise<void> {
-    await this.sendSet({ speex_nr: this.toFlag(enabled) });
+    await this.sendSet({ speex_nr: formatBooleanFlag(enabled) });
   }
 
   async setNrsLevel(level: number): Promise<void> {
-    await this.sendSet({ speex_nr_level: this.toIntString(level) });
+    await this.sendSet({ speex_nr_level: formatInteger(level) });
   }
 
   async setRnnEnabled(enabled: boolean): Promise<void> {
-    await this.sendSet({ rnnoise: this.toFlag(enabled) });
+    await this.sendSet({ rnnoise: formatBooleanFlag(enabled) });
   }
 
   async setAnftEnabled(enabled: boolean): Promise<void> {
-    await this.sendSet({ anft: this.toFlag(enabled) });
+    await this.sendSet({ anft: formatBooleanFlag(enabled) });
   }
 
   async setNrfEnabled(enabled: boolean): Promise<void> {
-    await this.sendSet({ nrf: this.toFlag(enabled) });
+    await this.sendSet({ nrf: formatBooleanFlag(enabled) });
   }
 
   async setNrfLevel(level: number): Promise<void> {
-    await this.sendSet({ nrf_level: this.toIntString(level) });
+    await this.sendSet({ nrf_level: formatInteger(level) });
   }
 
   async setEscEnabled(enabled: boolean): Promise<void> {
@@ -1060,19 +1130,19 @@ export class SliceControllerImpl implements SliceController {
   }
 
   async setNbEnabled(enabled: boolean): Promise<void> {
-    await this.sendSet({ nb: this.toFlag(enabled) });
+    await this.sendSet({ nb: formatBooleanFlag(enabled) });
   }
 
   async setNbLevel(level: number): Promise<void> {
-    await this.sendSet({ nb_level: this.toIntString(level) });
+    await this.sendSet({ nb_level: formatInteger(level) });
   }
 
   async setNrEnabled(enabled: boolean): Promise<void> {
-    await this.sendSet({ nr: this.toFlag(enabled) });
+    await this.sendSet({ nr: formatBooleanFlag(enabled) });
   }
 
   async setNrLevel(level: number): Promise<void> {
-    await this.sendSet({ nr_level: this.toIntString(level) });
+    await this.sendSet({ nr_level: formatInteger(level) });
   }
 
   async setAgcMode(mode: SliceAgcMode): Promise<void> {
@@ -1085,92 +1155,90 @@ export class SliceControllerImpl implements SliceController {
   }): Promise<void> {
     const entries = Object.create(null) as Record<string, string>;
     if (settings.threshold !== undefined)
-      entries.agc_threshold = this.toIntString(settings.threshold);
+      entries.agc_threshold = formatInteger(settings.threshold);
     if (settings.offLevel !== undefined)
-      entries.agc_off_level = this.toIntString(settings.offLevel);
+      entries.agc_off_level = formatInteger(settings.offLevel);
     if (Object.keys(entries).length > 0) {
       await this.sendSet(entries);
     }
   }
 
   async setLoopAEnabled(enabled: boolean): Promise<void> {
-    await this.sendSet({ loopa: this.toFlag(enabled) });
+    await this.sendSet({ loopa: formatBooleanFlag(enabled) });
   }
 
   async setLoopBEnabled(enabled: boolean): Promise<void> {
-    await this.sendSet({ loopb: this.toFlag(enabled) });
+    await this.sendSet({ loopb: formatBooleanFlag(enabled) });
   }
 
   async setRitEnabled(enabled: boolean): Promise<void> {
-    await this.sendSet({ rit_on: this.toFlag(enabled) });
+    await this.sendSet({ rit_on: formatBooleanFlag(enabled) });
   }
 
   async setRitOffset(offsetHz: number): Promise<void> {
-    await this.sendSet({ rit_freq: this.toIntString(offsetHz) });
+    await this.sendSet({ rit_freq: formatInteger(offsetHz) });
   }
 
   async setXitEnabled(enabled: boolean): Promise<void> {
-    await this.sendSet({ xit_on: this.toFlag(enabled) });
+    await this.sendSet({ xit_on: formatBooleanFlag(enabled) });
   }
 
   async setXitOffset(offsetHz: number): Promise<void> {
-    await this.sendSet({ xit_freq: this.toIntString(offsetHz) });
+    await this.sendSet({ xit_freq: formatInteger(offsetHz) });
   }
 
   async setTuneStep(stepHz: number): Promise<void> {
-    await this.sendSet({ step: this.toIntString(stepHz) });
+    await this.sendSet({ step: formatInteger(stepHz) });
   }
 
   async setTuneStepList(stepsHz: readonly number[]): Promise<void> {
-    const encoded = Array.from(stepsHz, (value) =>
-      this.toIntString(value),
-    ).join(",");
+    const encoded = Array.from(stepsHz, (value) => formatInteger(value)).join(
+      ",",
+    );
     await this.sendSet({ step_list: encoded });
   }
 
   async setRecordingEnabled(enabled: boolean): Promise<void> {
-    await this.sendSet({ record: this.toFlag(enabled) });
+    await this.sendSet({ record: formatBooleanFlag(enabled) });
   }
 
   async setPlaybackEnabled(enabled: boolean): Promise<void> {
-    await this.sendSet({ play: this.toFlag(enabled) });
+    await this.sendSet({ play: formatBooleanFlag(enabled) });
   }
 
   async setFmToneMode(mode: SliceToneMode): Promise<void> {
     await this.sendSet({ fm_tone_mode: mode });
   }
 
-  async setFmToneValue(value: number | string): Promise<void> {
-    await this.sendSet({ fm_tone_value: this.formatToneValue(value) });
+  async setFmToneValue(value: number): Promise<void> {
+    await this.sendSet({ fm_tone_value: formatMegahertz(value) });
   }
 
   async setFmDeviation(deviation: number): Promise<void> {
-    await this.sendSet({ fm_deviation: this.toIntString(deviation) });
+    await this.sendSet({ fm_deviation: formatInteger(deviation) });
   }
 
   async setFmToneBurstEnabled(enabled: boolean): Promise<void> {
-    await this.sendSet({ fm_tone_burst: this.toFlag(enabled) });
+    await this.sendSet({ fm_tone_burst: formatBooleanFlag(enabled) });
   }
 
   async setFmPreDeEmphasisEnabled(enabled: boolean): Promise<void> {
-    await this.sendSet({ dfm_pre_de_emphasis: this.toFlag(enabled) });
+    await this.sendSet({ dfm_pre_de_emphasis: formatBooleanFlag(enabled) });
   }
 
   async setSquelchEnabled(enabled: boolean): Promise<void> {
-    await this.sendSet({ squelch: this.toFlag(enabled) });
+    await this.sendSet({ squelch: formatBooleanFlag(enabled) });
   }
 
   async setSquelchLevel(level: number): Promise<void> {
-    await this.sendSet({ squelch_level: this.toIntString(level) });
+    await this.sendSet({ squelch_level: formatInteger(level) });
   }
 
   async setTxOffsetFrequency(offsetMHz: number): Promise<void> {
     await this.sendSet({ tx_offset_freq: formatMegahertz(offsetMHz) });
   }
 
-  async setFmRepeaterOffsetFrequency(
-    offsetMHz: number,
-  ): Promise<void> {
+  async setFmRepeaterOffsetFrequency(offsetMHz: number): Promise<void> {
     await this.sendSet({
       fm_repeater_offset_freq: formatMegahertz(offsetMHz),
     });
@@ -1183,15 +1251,9 @@ export class SliceControllerImpl implements SliceController {
   }
 
   async setDiversityEnabled(enabled: boolean): Promise<void> {
-    await this.sendSet({ diversity: this.toFlag(enabled) });
-  }
-
-  async setDiversityChildEnabled(enabled: boolean): Promise<void> {
-    await this.sendSet({ diversity_child: this.toFlag(enabled) });
-  }
-
-  async setDiversityIndex(index: number): Promise<void> {
-    await this.sendSet({ diversity_index: this.toIntString(index) });
+    const request: SliceUpdateRequest = { diversityEnabled: enabled };
+    if (!enabled) request.escEnabled = false;
+    await this.sendSet(this.buildSetEntries(request));
   }
 
   async update(request: SliceUpdateRequest): Promise<void> {
@@ -1217,8 +1279,10 @@ export class SliceControllerImpl implements SliceController {
       ([key, value]) => `${key}=${value}`,
     );
     const command = `slice set ${this.id} ${parts.join(" ")}`;
-    await this.session.command(command);
+    console.log("SliceControllerImpl.set", command);
     this.session.patchSlice(this.id, { index: this.id, ...entries });
+    await this.session.command(command);
+    // this.session.patchSlice(this.id, { index: this.id, ...entries });
   }
 
   private buildSetEntries(
@@ -1227,66 +1291,66 @@ export class SliceControllerImpl implements SliceController {
     const entries = Object.create(null) as Record<string, string>;
     if (request.mode !== undefined) entries.mode = request.mode;
     if (request.isActive !== undefined)
-      entries.active = this.toFlag(request.isActive);
+      entries.active = formatBooleanFlag(request.isActive);
     if (request.isTransmitEnabled !== undefined)
-      entries.tx = this.toFlag(request.isTransmitEnabled);
+      entries.tx = formatBooleanFlag(request.isTransmitEnabled);
     if (request.rxAntenna !== undefined) entries.rxant = request.rxAntenna;
     if (request.txAntenna !== undefined)
       entries.txant = request.txAntenna ?? "";
     if (request.daxChannel !== undefined)
-      entries.dax = this.toIntString(request.daxChannel);
+      entries.dax = formatInteger(request.daxChannel);
     if (request.rfGain !== undefined)
-      entries.rfgain = this.toIntString(request.rfGain);
+      entries.rfgain = formatInteger(request.rfGain);
     if (request.filterLowHz !== undefined)
-      entries.filter_lo = this.toIntString(request.filterLowHz);
+      entries.filter_lo = formatInteger(request.filterLowHz);
     if (request.filterHighHz !== undefined)
-      entries.filter_hi = this.toIntString(request.filterHighHz);
+      entries.filter_hi = formatInteger(request.filterHighHz);
     if (request.rttyMarkHz !== undefined)
-      entries.rtty_mark = this.toIntString(request.rttyMarkHz);
+      entries.rtty_mark = formatInteger(request.rttyMarkHz);
     if (request.rttyShiftHz !== undefined)
-      entries.rtty_shift = this.toIntString(request.rttyShiftHz);
+      entries.rtty_shift = formatInteger(request.rttyShiftHz);
     if (request.diglOffsetHz !== undefined)
-      entries.digl_offset = this.toIntString(request.diglOffsetHz);
+      entries.digl_offset = formatInteger(request.diglOffsetHz);
     if (request.diguOffsetHz !== undefined)
-      entries.digu_offset = this.toIntString(request.diguOffsetHz);
+      entries.digu_offset = formatInteger(request.diguOffsetHz);
     if (request.audioPan !== undefined)
-      entries.audio_pan = this.toIntString(request.audioPan);
+      entries.audio_pan = formatInteger(request.audioPan);
     if (request.audioGain !== undefined)
-      entries.audio_level = this.toIntString(request.audioGain);
+      entries.audio_level = formatInteger(request.audioGain);
     if (request.isMuted !== undefined)
-      entries.audio_mute = this.toFlag(request.isMuted);
+      entries.audio_mute = formatBooleanFlag(request.isMuted);
     if (request.anfEnabled !== undefined)
-      entries.anf = this.toFlag(request.anfEnabled);
+      entries.anf = formatBooleanFlag(request.anfEnabled);
     if (request.anfLevel !== undefined)
-      entries.anf_level = this.toIntString(request.anfLevel);
+      entries.anf_level = formatInteger(request.anfLevel);
     if (request.apfEnabled !== undefined)
-      entries.apf = this.toFlag(request.apfEnabled);
+      entries.apf = formatBooleanFlag(request.apfEnabled);
     if (request.apfLevel !== undefined)
-      entries.apf_level = this.toIntString(request.apfLevel);
+      entries.apf_level = formatInteger(request.apfLevel);
     if (request.wnbEnabled !== undefined)
-      entries.wnb = this.toFlag(request.wnbEnabled);
+      entries.wnb = formatBooleanFlag(request.wnbEnabled);
     if (request.wnbLevel !== undefined)
-      entries.wnb_level = this.toIntString(request.wnbLevel);
+      entries.wnb_level = formatInteger(request.wnbLevel);
     if (request.nrlEnabled !== undefined)
-      entries.lms_nr = this.toFlag(request.nrlEnabled);
+      entries.lms_nr = formatBooleanFlag(request.nrlEnabled);
     if (request.nrlLevel !== undefined)
-      entries.lms_nr_level = this.toIntString(request.nrlLevel);
+      entries.lms_nr_level = formatInteger(request.nrlLevel);
     if (request.anflEnabled !== undefined)
-      entries.lms_anf = this.toFlag(request.anflEnabled);
+      entries.lms_anf = formatBooleanFlag(request.anflEnabled);
     if (request.anflLevel !== undefined)
-      entries.lms_anf_level = this.toIntString(request.anflLevel);
+      entries.lms_anf_level = formatInteger(request.anflLevel);
     if (request.nrsEnabled !== undefined)
-      entries.speex_nr = this.toFlag(request.nrsEnabled);
+      entries.speex_nr = formatBooleanFlag(request.nrsEnabled);
     if (request.nrsLevel !== undefined)
-      entries.speex_nr_level = this.toIntString(request.nrsLevel);
+      entries.speex_nr_level = formatInteger(request.nrsLevel);
     if (request.rnnEnabled !== undefined)
-      entries.rnnoise = this.toFlag(request.rnnEnabled);
+      entries.rnnoise = formatBooleanFlag(request.rnnEnabled);
     if (request.anftEnabled !== undefined)
-      entries.anft = this.toFlag(request.anftEnabled);
+      entries.anft = formatBooleanFlag(request.anftEnabled);
     if (request.nrfEnabled !== undefined)
-      entries.nrf = this.toFlag(request.nrfEnabled);
+      entries.nrf = formatBooleanFlag(request.nrfEnabled);
     if (request.nrfLevel !== undefined)
-      entries.nrf_level = this.toIntString(request.nrfLevel);
+      entries.nrf_level = formatInteger(request.nrfLevel);
     if (request.escEnabled !== undefined)
       entries.esc = request.escEnabled ? "on" : "off";
     if (request.escGain !== undefined)
@@ -1294,54 +1358,56 @@ export class SliceControllerImpl implements SliceController {
     if (request.escPhaseShift !== undefined)
       entries.esc_phase_shift = String(request.escPhaseShift);
     if (request.nbEnabled !== undefined)
-      entries.nb = this.toFlag(request.nbEnabled);
+      entries.nb = formatBooleanFlag(request.nbEnabled);
     if (request.nbLevel !== undefined)
-      entries.nb_level = this.toIntString(request.nbLevel);
+      entries.nb_level = formatInteger(request.nbLevel);
     if (request.nrEnabled !== undefined)
-      entries.nr = this.toFlag(request.nrEnabled);
+      entries.nr = formatBooleanFlag(request.nrEnabled);
     if (request.nrLevel !== undefined)
-      entries.nr_level = this.toIntString(request.nrLevel);
+      entries.nr_level = formatInteger(request.nrLevel);
     if (request.agcMode !== undefined) entries.agc_mode = request.agcMode;
     if (request.agcThreshold !== undefined)
-      entries.agc_threshold = this.toIntString(request.agcThreshold);
+      entries.agc_threshold = formatInteger(request.agcThreshold);
     if (request.agcOffLevel !== undefined)
-      entries.agc_off_level = this.toIntString(request.agcOffLevel);
+      entries.agc_off_level = formatInteger(request.agcOffLevel);
     if (request.loopAEnabled !== undefined)
-      entries.loopa = this.toFlag(request.loopAEnabled);
+      entries.loopa = formatBooleanFlag(request.loopAEnabled);
     if (request.loopBEnabled !== undefined)
-      entries.loopb = this.toFlag(request.loopBEnabled);
+      entries.loopb = formatBooleanFlag(request.loopBEnabled);
     if (request.ritEnabled !== undefined)
-      entries.rit_on = this.toFlag(request.ritEnabled);
+      entries.rit_on = formatBooleanFlag(request.ritEnabled);
     if (request.ritOffsetHz !== undefined)
-      entries.rit_freq = this.toIntString(request.ritOffsetHz);
+      entries.rit_freq = formatInteger(request.ritOffsetHz);
     if (request.xitEnabled !== undefined)
-      entries.xit_on = this.toFlag(request.xitEnabled);
+      entries.xit_on = formatBooleanFlag(request.xitEnabled);
     if (request.xitOffsetHz !== undefined)
-      entries.xit_freq = this.toIntString(request.xitOffsetHz);
+      entries.xit_freq = formatInteger(request.xitOffsetHz);
     if (request.tuneStepHz !== undefined)
-      entries.step = this.toIntString(request.tuneStepHz);
+      entries.step = formatInteger(request.tuneStepHz);
     if (request.tuneStepListHz !== undefined)
       entries.step_list = Array.from(request.tuneStepListHz, (value) =>
-        this.toIntString(value),
+        formatInteger(value),
       ).join(",");
     if (request.recordingEnabled !== undefined)
-      entries.record = this.toFlag(request.recordingEnabled);
+      entries.record = formatBooleanFlag(request.recordingEnabled);
     if (request.playbackEnabled !== undefined)
-      entries.play = this.toFlag(request.playbackEnabled);
+      entries.play = formatBooleanFlag(request.playbackEnabled);
     if (request.fmToneMode !== undefined)
       entries.fm_tone_mode = request.fmToneMode;
     if (request.fmToneValue !== undefined)
-      entries.fm_tone_value = this.formatToneValue(request.fmToneValue);
+      entries.fm_tone_value = formatMegahertz(request.fmToneValue);
     if (request.fmDeviation !== undefined)
-      entries.fm_deviation = this.toIntString(request.fmDeviation);
+      entries.fm_deviation = formatInteger(request.fmDeviation);
     if (request.fmToneBurstEnabled !== undefined)
-      entries.fm_tone_burst = this.toFlag(request.fmToneBurstEnabled);
+      entries.fm_tone_burst = formatBooleanFlag(request.fmToneBurstEnabled);
     if (request.fmPreDeEmphasisEnabled !== undefined)
-      entries.dfm_pre_de_emphasis = this.toFlag(request.fmPreDeEmphasisEnabled);
+      entries.dfm_pre_de_emphasis = formatBooleanFlag(
+        request.fmPreDeEmphasisEnabled,
+      );
     if (request.squelchEnabled !== undefined)
-      entries.squelch = this.toFlag(request.squelchEnabled);
+      entries.squelch = formatBooleanFlag(request.squelchEnabled);
     if (request.squelchLevel !== undefined)
-      entries.squelch_level = this.toIntString(request.squelchLevel);
+      entries.squelch_level = formatInteger(request.squelchLevel);
     if (request.txOffsetFrequencyMHz !== undefined)
       entries.tx_offset_freq = formatMegahertz(request.txOffsetFrequencyMHz);
     if (request.fmRepeaterOffsetFrequencyMHz !== undefined)
@@ -1351,29 +1417,11 @@ export class SliceControllerImpl implements SliceController {
     if (request.repeaterOffsetDirection !== undefined)
       entries.repeater_offset_dir = request.repeaterOffsetDirection;
     if (request.diversityEnabled !== undefined)
-      entries.diversity = this.toFlag(request.diversityEnabled);
+      entries.diversity = formatBooleanFlag(request.diversityEnabled);
     if (request.diversityChild !== undefined)
-      entries.diversity_child = this.toFlag(request.diversityChild);
+      entries.diversity_child = formatBooleanFlag(request.diversityChild);
     if (request.diversityIndex !== undefined)
-      entries.diversity_index = this.toIntString(request.diversityIndex);
+      entries.diversity_index = formatInteger(request.diversityIndex);
     return entries;
   }
-
-  private toFlag(value: boolean): string {
-    return value ? "1" : "0";
-  }
-
-  private toIntString(value: number): string {
-    return Math.round(value).toString(10);
-  }
-
-  private formatToneValue(value: number | string): string {
-    if (typeof value === "number") {
-      return value.toFixed(1);
-    }
-    return value;
-  }
-}
-function formatMegahertz(frequencyMHz: number): string {
-  return frequencyMHz.toFixed(6);
 }

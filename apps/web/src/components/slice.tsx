@@ -671,6 +671,73 @@ export function Slice(props: { sliceIndex: string }) {
                           <SwitchThumb />
                         </SwitchControl>
                       </Switch>
+                      <Show when={slice.diversityParent}>
+                        <Switch
+                          class="flex items-center space-x-2 justify-between"
+                          checked={slice.escEnabled}
+                          disabled={slice.diversityChild}
+                          onChange={(isChecked) => {
+                            sliceController().setEscEnabled(isChecked);
+                          }}
+                        >
+                          <SwitchLabel>
+                            Enhanced Signal Clarity (ESC)
+                          </SwitchLabel>
+                          <SwitchControl>
+                            <SwitchThumb />
+                          </SwitchControl>
+                        </Switch>
+                        <Slider
+                          disabled={!slice.escEnabled}
+                          value={[slice.escGain]}
+                          minValue={0.01}
+                          maxValue={2.0}
+                          step={0.01}
+                          onChange={([value]) => {
+                            console.log(value);
+                            sliceController()
+                              .setEscGain(value)
+                              .catch(console.log);
+                          }}
+                          getValueLabel={(params) => `${params.values[0]}`}
+                          class="space-y-3"
+                        >
+                          <div class="flex w-full justify-between">
+                            <SliderLabel>ESC Gain</SliderLabel>
+                            <SliderValueLabel />
+                          </div>
+                          <SliderTrack>
+                            <SliderFill />
+                            <SliderThumb />
+                          </SliderTrack>
+                        </Slider>
+                        <Slider
+                          disabled={!slice.escEnabled}
+                          minValue={0}
+                          maxValue={360}
+                          value={[
+                            Math.round(slice.escPhaseShift * (Math.PI / 180)),
+                          ]}
+                          onChange={([value]) => {
+                            const radians = value * (180 / Math.PI);
+                            if (radians === slice.escPhaseShift) return;
+                            sliceController()
+                              .setEscPhaseShift(radians)
+                              .catch(console.log);
+                          }}
+                          getValueLabel={(params) => `${params.values[0]}°`}
+                          class="space-y-3"
+                        >
+                          <div class="flex w-full justify-between">
+                            <SliderLabel>ESC Phase Shift</SliderLabel>
+                            <SliderValueLabel />
+                          </div>
+                          <SliderTrack>
+                            <SliderFill />
+                            <SliderThumb />
+                          </SliderTrack>
+                        </Slider>
+                      </Show>
                     </PopoverContent>
                   </Popover>
                   <Popover>
@@ -694,12 +761,18 @@ export function Slice(props: { sliceIndex: string }) {
                         class="space-y-2"
                       >
                         <div class="flex w-full justify-between">
-                          <SliderLabel>Wideband Noise Blanker</SliderLabel>
+                          <SliderLabel>
+                            Wideband Noise Blanker (WNB)
+                          </SliderLabel>
                           <SliderValueLabel />
                         </div>
                         <div class="flex w-full items-center justify-between">
+                          <SliderTrack>
+                            <SliderFill />
+                            <SliderThumb />
+                          </SliderTrack>
                           <Switch
-                            class="h-auto flex items-center origin-left scale-75"
+                            class="h-auto flex items-center origin-right scale-75"
                             checked={slice.wnbEnabled}
                             onChange={(isChecked) => {
                               sliceController().setWnbEnabled(isChecked);
@@ -709,10 +782,6 @@ export function Slice(props: { sliceIndex: string }) {
                               <SwitchThumb />
                             </SwitchControl>
                           </Switch>
-                          <SliderTrack>
-                            <SliderFill />
-                            <SliderThumb />
-                          </SliderTrack>
                         </div>
                       </Slider>
                       <Slider
@@ -727,12 +796,16 @@ export function Slice(props: { sliceIndex: string }) {
                         class="space-y-2"
                       >
                         <div class="flex w-full justify-between">
-                          <SliderLabel>Noise Blanker</SliderLabel>
+                          <SliderLabel>Noise Blanker (NB)</SliderLabel>
                           <SliderValueLabel />
                         </div>
                         <div class="flex w-full items-center space-x-2 justify-between">
+                          <SliderTrack>
+                            <SliderFill />
+                            <SliderThumb />
+                          </SliderTrack>
                           <Switch
-                            class="h-auto flex items-center origin-left scale-75"
+                            class="h-auto flex items-center origin-right scale-75"
                             checked={slice.nbEnabled}
                             onChange={(isChecked) => {
                               sliceController().setNbEnabled(isChecked);
@@ -742,10 +815,6 @@ export function Slice(props: { sliceIndex: string }) {
                               <SwitchThumb />
                             </SwitchControl>
                           </Switch>
-                          <SliderTrack>
-                            <SliderFill />
-                            <SliderThumb />
-                          </SliderTrack>
                         </div>
                       </Slider>
                       <Slider
@@ -760,12 +829,16 @@ export function Slice(props: { sliceIndex: string }) {
                         class="space-y-2"
                       >
                         <div class="flex w-full justify-between">
-                          <SliderLabel>Noise Reduction</SliderLabel>
+                          <SliderLabel>Noise Reduction (NR)</SliderLabel>
                           <SliderValueLabel />
                         </div>
                         <div class="flex w-full items-center space-x-2 justify-between">
+                          <SliderTrack>
+                            <SliderFill />
+                            <SliderThumb />
+                          </SliderTrack>
                           <Switch
-                            class="h-auto flex items-center origin-left scale-75"
+                            class="h-auto flex items-center origin-right scale-75"
                             checked={slice.nrEnabled}
                             onChange={(isChecked) => {
                               sliceController().setNrEnabled(isChecked);
@@ -775,43 +848,32 @@ export function Slice(props: { sliceIndex: string }) {
                               <SwitchThumb />
                             </SwitchControl>
                           </Switch>
-                          <SliderTrack>
-                            <SliderFill />
-                            <SliderThumb />
-                          </SliderTrack>
                         </div>
                       </Slider>
-                      <Slider
-                        disabled={!slice.nrfEnabled}
-                        value={[slice.nrfLevel]}
-                        onChange={([value]) => {
-                          sliceController().setNrfLevel(value);
+                      <Switch
+                        class="flex items-center space-x-2 justify-between"
+                        checked={slice.nrsEnabled}
+                        onChange={(isChecked) => {
+                          sliceController().setNrsEnabled(isChecked);
                         }}
-                        getValueLabel={(params) => `${params.values[0]}%`}
-                        class="space-y-2"
                       >
-                        <div class="flex w-full justify-between">
-                          <SliderLabel>NRF</SliderLabel>
-                          <SliderValueLabel />
-                        </div>
-                        <div class="flex w-full items-center space-x-2 justify-between">
-                          <Switch
-                            class="h-auto flex items-center origin-left scale-75"
-                            checked={slice.nrfEnabled}
-                            onChange={(isChecked) => {
-                              sliceController().setNrfEnabled(isChecked);
-                            }}
-                          >
-                            <SwitchControl>
-                              <SwitchThumb />
-                            </SwitchControl>
-                          </Switch>
-                          <SliderTrack>
-                            <SliderFill />
-                            <SliderThumb />
-                          </SliderTrack>
-                        </div>
-                      </Slider>
+                        <SwitchLabel>Spectral Subtraction (NRS)</SwitchLabel>
+                        <SwitchControl>
+                          <SwitchThumb />
+                        </SwitchControl>
+                      </Switch>
+                      <Switch
+                        class="flex items-center space-x-2 justify-between"
+                        checked={slice.nrfEnabled}
+                        onChange={(isChecked) => {
+                          sliceController().setNrfEnabled(isChecked);
+                        }}
+                      >
+                        <SwitchLabel>Noise Reduction Filter (NRF)</SwitchLabel>
+                        <SwitchControl>
+                          <SwitchThumb />
+                        </SwitchControl>
+                      </Switch>
                       <Switch
                         class="flex items-center space-x-2 justify-between"
                         checked={slice.rnnEnabled}
@@ -819,7 +881,7 @@ export function Slice(props: { sliceIndex: string }) {
                           sliceController().setRnnEnabled(isChecked);
                         }}
                       >
-                        <SwitchLabel>AI Noise Reduction</SwitchLabel>
+                        <SwitchLabel>AI Noise Reduction (RNN)</SwitchLabel>
                         <SwitchControl>
                           <SwitchThumb />
                         </SwitchControl>
@@ -836,12 +898,18 @@ export function Slice(props: { sliceIndex: string }) {
                         class="space-y-2"
                       >
                         <div class="flex w-full justify-between">
-                          <SliderLabel>Automatic Notch Filter</SliderLabel>
+                          <SliderLabel>
+                            Automatic Notch Filter (ANF)
+                          </SliderLabel>
                           <SliderValueLabel />
                         </div>
                         <div class="flex w-full items-center space-x-2 justify-between">
+                          <SliderTrack>
+                            <SliderFill />
+                            <SliderThumb />
+                          </SliderTrack>
                           <Switch
-                            class="h-auto flex items-center origin-left scale-75"
+                            class="h-auto flex items-center origin-right scale-75"
                             checked={slice.anfEnabled}
                             onChange={(isChecked) => {
                               sliceController().setAnfEnabled(isChecked);
@@ -851,10 +919,76 @@ export function Slice(props: { sliceIndex: string }) {
                               <SwitchThumb />
                             </SwitchControl>
                           </Switch>
+                        </div>
+                      </Slider>
+                      <Slider
+                        disabled={!slice.apfEnabled}
+                        minValue={0}
+                        maxValue={100}
+                        value={[slice.apfLevel]}
+                        onChange={([value]) => {
+                          sliceController().setApfLevel(value);
+                        }}
+                        getValueLabel={(params) => `${params.values[0]}%`}
+                        class="space-y-2"
+                      >
+                        <div class="flex w-full justify-between">
+                          <SliderLabel>
+                            Automatic Peaking Filter (APF)
+                          </SliderLabel>
+                          <SliderValueLabel />
+                        </div>
+                        <div class="flex w-full items-center space-x-2 justify-between">
                           <SliderTrack>
                             <SliderFill />
                             <SliderThumb />
                           </SliderTrack>
+                          <Switch
+                            class="h-auto flex items-center origin-right scale-75"
+                            checked={slice.apfEnabled}
+                            onChange={(isChecked) => {
+                              sliceController().setApfEnabled(isChecked);
+                            }}
+                          >
+                            <SwitchControl>
+                              <SwitchThumb />
+                            </SwitchControl>
+                          </Switch>
+                        </div>
+                      </Slider>
+                      <Slider
+                        disabled={!slice.nrlEnabled}
+                        minValue={0}
+                        maxValue={100}
+                        value={[slice.nrlLevel]}
+                        onChange={([value]) => {
+                          sliceController().setNrlLevel(value);
+                        }}
+                        getValueLabel={(params) => `${params.values[0]}%`}
+                        class="space-y-2"
+                      >
+                        <div class="flex w-full justify-between">
+                          <SliderLabel>
+                            Legacy Noise Reduction (NRL)
+                          </SliderLabel>
+                          <SliderValueLabel />
+                        </div>
+                        <div class="flex w-full items-center space-x-2 justify-between">
+                          <SliderTrack>
+                            <SliderFill />
+                            <SliderThumb />
+                          </SliderTrack>
+                          <Switch
+                            class="h-auto flex items-center origin-right scale-75"
+                            checked={slice.nrlEnabled}
+                            onChange={(isChecked) => {
+                              sliceController().setNrlEnabled(isChecked);
+                            }}
+                          >
+                            <SwitchControl>
+                              <SwitchThumb />
+                            </SwitchControl>
+                          </Switch>
                         </div>
                       </Slider>
                     </PopoverContent>

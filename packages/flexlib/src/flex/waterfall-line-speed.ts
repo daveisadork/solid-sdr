@@ -6,7 +6,7 @@ export function clampLineSpeed(value: number): number {
   if (!Number.isFinite(value)) return LINE_SPEED_MIN;
   if (value <= LINE_SPEED_MIN) return LINE_SPEED_MIN;
   if (value >= LINE_SPEED_MAX) return LINE_SPEED_MAX;
-  return Math.round(value);
+  return Math.floor(value);
 }
 
 export function lineSpeedToDurationMs(speed: number): number {

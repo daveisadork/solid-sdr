@@ -254,8 +254,13 @@ export const FrequencyInput: Component<FrequencyInputProps> = (props) => {
       updateDigits("0", 1, input);
       return;
     }
-    const multiplied = `${value}000`;
-    updateDigits(multiplied, Math.max(multiplied.length - 3, 0), input);
+    const multiplier = value < 1000 ? "000000" : "000";
+    const multiplied = `${value}${multiplier}`;
+    updateDigits(
+      multiplied,
+      Math.max(multiplied.length - multiplier.length, 0),
+      input,
+    );
   };
 
   const commitWithScale = async (

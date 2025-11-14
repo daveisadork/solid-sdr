@@ -1279,10 +1279,8 @@ export class SliceControllerImpl implements SliceController {
       ([key, value]) => `${key}=${value}`,
     );
     const command = `slice set ${this.id} ${parts.join(" ")}`;
-    console.log("SliceControllerImpl.set", command);
     this.session.patchSlice(this.id, { index: this.id, ...entries });
     await this.session.command(command);
-    // this.session.patchSlice(this.id, { index: this.id, ...entries });
   }
 
   private buildSetEntries(
@@ -1418,10 +1416,6 @@ export class SliceControllerImpl implements SliceController {
       entries.repeater_offset_dir = request.repeaterOffsetDirection;
     if (request.diversityEnabled !== undefined)
       entries.diversity = formatBooleanFlag(request.diversityEnabled);
-    if (request.diversityChild !== undefined)
-      entries.diversity_child = formatBooleanFlag(request.diversityChild);
-    if (request.diversityIndex !== undefined)
-      entries.diversity_index = formatInteger(request.diversityIndex);
     return entries;
   }
 }

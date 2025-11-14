@@ -1,7 +1,6 @@
 import useFlexRadio from "~/context/flexradio";
-import { createEffect, createSignal, For } from "solid-js";
+import { createSignal, For } from "solid-js";
 import { createStore } from "solid-js/store";
-import { lineSpeedToDurationMs } from "@repo/flexlib";
 import {
   NumberField,
   NumberFieldDecrementTrigger,
@@ -26,7 +25,6 @@ import {
   SliderTrack,
   SliderValueLabel,
 } from "./ui/slider";
-import { debounce } from "@solid-primitives/scheduled";
 import {
   SegmentedControl,
   SegmentedControlGroup,
@@ -36,6 +34,8 @@ import {
   SegmentedControlItemsList,
   SegmentedControlLabel,
 } from "./ui/segmented-control";
+
+import { SliderToggle } from "./slider-toggle";
 
 const BANDS: { id: string; label: string }[] = [
   { id: "160", label: "160m" },
@@ -70,89 +70,6 @@ export function TuningPanel(props: { streamId: string }) {
   const [rawBandwidth, setRawBandwidth] = createSignal(
     panController().bandwidthMHz,
   );
-  const [rawAverage, setRawAverage] = createSignal(panController().average);
-  const [rawFps, setRawFps] = createSignal(pan.fps);
-  const [rawLineSpeed, setRawLineSpeed] = createSignal(
-    wfController().lineSpeed ?? 0,
-  );
-  const [rawColorGain, setRawColorGain] = createSignal(
-    wfController().colorGain,
-  );
-  const [rawBlackLevel, setRawBlackLevel] = createSignal(
-    wfController().blackLevel,
-  );
-
-  const updateAverage = debounce((value: number) => {
-    const controller = panController();
-    controller.setAverage(value).catch(() => setRawAverage(controller.average));
-  }, 250);
-
-  createEffect(() => {
-    const average = rawAverage();
-    if (average !== pan.average) {
-      updateAverage(average);
-    }
-  });
-
-  const updateFps = debounce((value: number) => {
-    panController()
-      ?.setFps(value)
-      .catch(() => setRawFps(pan.fps));
-  }, 250);
-
-  createEffect(() => {
-    const fps = rawFps();
-    if (fps !== pan.fps) {
-      updateFps(fps);
-    }
-  });
-
-  const updateLineSpeed = debounce((value: number) => {
-    const wf = wfController();
-    wf.setLineSpeed(value).catch(() => setRawLineSpeed(wf.lineSpeed ?? 0));
-  }, 250);
-
-  createEffect(() => {
-    const lineSpeed = rawLineSpeed();
-    if (lineSpeed !== waterfall.lineSpeed) {
-      updateLineSpeed(lineSpeed);
-    }
-  });
-
-  const updateColorGain = debounce((value: number) => {
-    const controller = wfController();
-    controller.setColorGain(value).catch(() => {
-      setRawColorGain(controller.colorGain);
-    });
-  }, 250);
-
-  createEffect(() => {
-    const colorGain = rawColorGain();
-    if (colorGain !== waterfall.colorGain) {
-      updateColorGain(colorGain);
-    }
-  });
-
-  const updateBlackLevel = debounce((value: number) => {
-    const wf = wfController();
-    wf.setBlackLevel(value).catch(() => setRawBlackLevel(wf.blackLevel));
-  }, 250);
-
-  createEffect(() => {
-    const auto_black = waterfall.autoBlackLevelEnabled;
-    const black_level = waterfall.blackLevel;
-    const blackLevel = rawBlackLevel();
-    if (auto_black) {
-      setRawBlackLevel(black_level);
-    } else if (blackLevel !== black_level) {
-      updateBlackLevel(blackLevel);
-    }
-  });
-
-  createEffect(() => setRawAverage(pan.average));
-  createEffect(() => setRawFps(pan.fps));
-  createEffect(() => setRawLineSpeed(waterfall.lineSpeed ?? 0));
-  createEffect(() => setRawColorGain(waterfall.colorGain));
 
   return (
     <div class="flex flex-col px-4 gap-4 size-full text-sm overflow-y-auto overflow-x-hidden select-none overscroll-y-contain">
@@ -206,7 +123,7 @@ export function TuningPanel(props: { streamId: string }) {
       </SegmentedControl>
       <Select
         value={gradients[waterfall.gradientIndex].name}
-        onChange={(value) => {
+        onChange={(value: string) => {
           if (!value) return;
           wfController().setGradientIndex(
             gradients.findIndex((item) => item.name === value),
@@ -228,7 +145,7 @@ export function TuningPanel(props: { streamId: string }) {
       </Select>
       <Select
         value={pan.rxAntenna}
-        onChange={(value) => {
+        onChange={(value: string) => {
           if (!value) return;
           if (value !== pan.rxAntenna) {
             panController()?.setRxAntenna(value);
@@ -246,7 +163,7 @@ export function TuningPanel(props: { streamId: string }) {
       </Select>
       <Select
         value={pan.band}
-        onChange={(value) => {
+        onChange={(value: string) => {
           if (!value || value === pan.band) return;
           panController()?.setBand(value);
           // setPan("band", value);
@@ -358,12 +275,31 @@ export function TuningPanel(props: { streamId: string }) {
         </SwitchControl>
         <SwitchLabel>Weighted Average</SwitchLabel>
       </Switch>
+      <SliderToggle
+        label="Noise Floor"
+        switchChecked={pan.noiseFloorPositionEnabled}
+        onSwitchChange={(isChecked) => {
+          panController()?.setNoiseFloorPositionEnabled(isChecked);
+        }}
+        minValue={0}
+        maxValue={100}
+        value={[100 - pan.noiseFloorPosition]}
+        onChange={([value]) => {
+          const position = 100 - value;
+          if (position === pan.noiseFloorPosition) return;
+          panController()?.setNoiseFloorPosition(position);
+        }}
+        getValueLabel={(params) => `${params.values[0]}%`}
+      />
 
       <Slider
         minValue={0}
         maxValue={100}
-        value={[rawAverage()]}
-        onChange={([value]) => setRawAverage(value)}
+        value={[pan.average]}
+        onChange={([value]) => {
+          if (value === pan.average) return;
+          panController()?.setAverage(Math.floor(value));
+        }}
         getValueLabel={(params) => params.values[0].toString()}
         class="space-y-3"
       >
@@ -379,8 +315,11 @@ export function TuningPanel(props: { streamId: string }) {
       <Slider
         minValue={1}
         maxValue={60}
-        value={[rawFps()]}
-        onChange={([value]) => setRawFps(value)}
+        value={[pan.fps]}
+        onChange={([value]) => {
+          if (value === pan.fps) return;
+          panController()?.setFps(value);
+        }}
         getValueLabel={(params) => params.values[0].toString()}
         class="space-y-3"
       >
@@ -394,13 +333,15 @@ export function TuningPanel(props: { streamId: string }) {
         </SliderTrack>
       </Slider>
       <Slider
-        minValue={1}
+        minValue={0}
         maxValue={100}
-        value={[rawLineSpeed()]}
-        onChange={([value]) => setRawLineSpeed(Math.round(value))}
-        getValueLabel={(params) =>
-          `${lineSpeedToDurationMs(params.values[0])} ms`
-        }
+        value={[100 - waterfall.lineSpeed]}
+        onChange={([value]) => {
+          const speed = 100 - value;
+          if (speed === waterfall.lineSpeed) return;
+          wfController()?.setLineSpeed(100 - speed);
+        }}
+        getValueLabel={() => `${waterfall.lineDurationMs} ms`}
         class="space-y-3"
       >
         <div class="flex w-full justify-between">
@@ -415,8 +356,11 @@ export function TuningPanel(props: { streamId: string }) {
       <Slider
         minValue={0}
         maxValue={100}
-        value={[rawColorGain()]}
-        onChange={([value]) => setRawColorGain(Math.round(value))}
+        value={[waterfall.colorGain]}
+        onChange={([value]) => {
+          if (value === waterfall.colorGain) return;
+          wfController()?.setColorGain(Math.floor(value));
+        }}
         getValueLabel={(params) => `${params.values[0] / 5} dB`}
         class="space-y-3"
       >
@@ -432,8 +376,11 @@ export function TuningPanel(props: { streamId: string }) {
       <Slider
         minValue={0}
         maxValue={100}
-        value={[rawBlackLevel()]}
-        onChange={([value]) => setRawBlackLevel(Math.round(value))}
+        value={[waterfall.blackLevel]}
+        onChange={([value]) => {
+          if (value === waterfall.blackLevel) return;
+          wfController()?.setBlackLevel(Math.floor(value));
+        }}
         getValueLabel={(params) => params.values[0].toString()}
         class="space-y-3"
       >

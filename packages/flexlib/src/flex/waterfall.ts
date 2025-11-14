@@ -44,10 +44,7 @@ export interface WaterfallUpdateRequest {
   loopAEnabled?: boolean;
   loopBEnabled?: boolean;
   band?: string;
-  /** Raw 0-100 line speed value mirrored from the radio. */
   lineSpeed?: number;
-  /** @deprecated Pass the raw 0-100 speed directly or use lineSpeed. */
-  lineDurationMs?: number;
   blackLevel?: number;
   colorGain?: number;
   autoBlackLevelEnabled?: boolean;
@@ -459,8 +456,6 @@ export class WaterfallControllerImpl implements WaterfallController {
     if (request.band !== undefined) entries.band = request.band;
     if (request.lineSpeed !== undefined)
       entries.line_duration = formatInteger(clampLineSpeed(request.lineSpeed));
-    else if (request.lineDurationMs !== undefined)
-      entries.line_duration = formatInteger(request.lineDurationMs);
     if (request.blackLevel !== undefined)
       entries.black_level = formatInteger(request.blackLevel);
     if (request.colorGain !== undefined)

@@ -53,9 +53,9 @@ import {
   SegmentedControlItemsList,
   SegmentedControlLabel,
 } from "./ui/segmented-control";
-import { cn } from "~/lib/utils";
+import { cn, degToRad, radToDeg } from "~/lib/utils";
 import { FrequencyInput } from "./frequency-input";
-import { Tooltip, TooltipTrigger, TooltipContent } from "./ui/tooltip";
+import { SliderToggle } from "./slider-toggle";
 
 const StatusToggle: Component<ComponentProps<"span"> & { active?: boolean }> = (
   props,
@@ -84,67 +84,6 @@ const Triangle: Component<ComponentProps<"div">> = (props) => {
       }}
       {...others}
     />
-  );
-};
-
-type SliderToggleProps = ComponentProps<typeof Slider> & {
-  label: JSX.Element | string;
-  tooltip?: JSX.Element | string;
-  switchChecked: boolean;
-  onSwitchChange: (checked: boolean) => void;
-  switchClass?: string;
-  switchContainerClass?: string;
-  switchDisabled?: boolean;
-};
-
-const SliderToggle: Component<SliderToggleProps> = (props) => {
-  const [local, sliderProps] = splitProps(props, [
-    "class",
-    "label",
-    "switchChecked",
-    "onSwitchChange",
-    "switchClass",
-    "switchContainerClass",
-    "switchDisabled",
-    "tooltip",
-  ]);
-
-  return (
-    <Slider class={cn("space-y-2", local.class)} {...sliderProps}>
-      <Tooltip placement="top">
-        <TooltipTrigger as="div" class="flex w-full justify-between">
-          <SliderLabel>{local.label}</SliderLabel>
-          <SliderValueLabel />
-        </TooltipTrigger>
-        <Show when={local.tooltip}>
-          <TooltipContent>{local.tooltip}</TooltipContent>
-        </Show>
-      </Tooltip>
-      <div
-        class={cn(
-          "flex w-full items-center justify-between space-x-2",
-          local.switchContainerClass,
-        )}
-      >
-        <SliderTrack>
-          <SliderFill />
-          <SliderThumb />
-        </SliderTrack>
-        <Switch
-          class={cn(
-            "h-auto flex items-center origin-right scale-75",
-            local.switchClass,
-          )}
-          checked={local.switchChecked}
-          disabled={local.switchDisabled}
-          onChange={local.onSwitchChange}
-        >
-          <SwitchControl>
-            <SwitchThumb />
-          </SwitchControl>
-        </Switch>
-      </div>
-    </Slider>
   );
 };
 
@@ -501,7 +440,7 @@ export function Slice(props: { sliceIndex: string }) {
                   <Select
                     value={slice.rxAntenna}
                     options={Array.from(slice.availableRxAntennas)}
-                    onChange={(v) => {
+                    onChange={(v: string) => {
                       if (!v || v === slice.rxAntenna) return;
                       sliceController().setRxAntenna(v);
                     }}
@@ -524,7 +463,7 @@ export function Slice(props: { sliceIndex: string }) {
                   <Select
                     value={slice.txAntenna}
                     options={Array.from(slice.availableTxAntennas)}
-                    onChange={(v) => {
+                    onChange={(v: string) => {
                       if (!v || v === slice.txAntenna) return;
                       sliceController().setTxAntenna(v);
                     }}
@@ -756,7 +695,7 @@ export function Slice(props: { sliceIndex: string }) {
                           maxValue={2.0}
                           step={0.01}
                           onChange={([value]) => {
-                            console.log(value);
+                            if (value === slice.escGain) return;
                             sliceController()
                               .setEscGain(value)
                               .catch(console.log);
@@ -777,14 +716,12 @@ export function Slice(props: { sliceIndex: string }) {
                           disabled={!slice.escEnabled}
                           minValue={0}
                           maxValue={360}
-                          value={[
-                            Math.round(slice.escPhaseShift * (Math.PI / 180)),
-                          ]}
+                          value={[Math.round(radToDeg(slice.escPhaseShift))]}
                           onChange={([value]) => {
-                            const radians = value * (180 / Math.PI);
-                            if (radians === slice.escPhaseShift) return;
+                            const rad = degToRad(value);
+                            if (rad === slice.escPhaseShift) return;
                             sliceController()
-                              .setEscPhaseShift(radians)
+                              .setEscPhaseShift(rad)
                               .catch(console.log);
                           }}
                           getValueLabel={(params) => `${params.values[0]}°`}
@@ -953,7 +890,7 @@ export function Slice(props: { sliceIndex: string }) {
                         disabled={!slice.anflEnabled}
                         minValue={0}
                         maxValue={100}
-                        value={[slice.anfLevel]}
+                        value={[slice.anflLevel]}
                         onChange={([value]) => {
                           sliceController().setAnflLevel(value);
                         }}
@@ -979,7 +916,7 @@ export function Slice(props: { sliceIndex: string }) {
                     >
                       <ToggleGroup
                         value={slice.mode}
-                        onChange={(mode) => {
+                        onChange={(mode: string) => {
                           if (!mode || mode === slice.mode) return;
                           sliceController().setMode(mode);
                         }}

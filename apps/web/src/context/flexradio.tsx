@@ -64,6 +64,13 @@ export type Meter = Omit<MutableProps<MeterSnapshot>, "raw"> & {
   value?: number;
 };
 
+const withoutRaw = <T extends { raw?: unknown }>(
+  obj: T,
+): MutableProps<Omit<T, "raw">> => {
+  const { raw: _, ...rest } = obj;
+  return rest;
+};
+
 export interface Gradient {
   name: string;
   clip?: string; // Optional, used for gradients that have a clipping color
@@ -417,7 +424,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     const key = diff.streamId || diff.id;
     // Keep the displayed center frequency pinned to the last settled value until
     // the data streams confirm the new frequency.
-    const { raw: _, ...pan } = diff;
+    const pan = withoutRaw(diff);
     const pendingCenterMHz = pan.centerFrequencyMHz;
     const centerFrequencyMHz =
       state.runtime.panSettledCenterMHz[key] ?? pendingCenterMHz;
@@ -804,26 +811,29 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         ];
         const initial = newSession.snapshot();
         batch(() => {
-          {
-            const { raw: _, ...radio } = initial.radio;
-            setState("status", "radio", radio);
-          }
-          {
-            const { raw: _, ...featureLicense } = initial.featureLicense;
-            setState("status", "featureLicense", featureLicense);
-          }
+          setState("status", "radio", withoutRaw(initial.radio));
+          setState(
+            "status",
+            "featureLicense",
+            withoutRaw(initial.featureLicense),
+          );
           initial.slices.forEach((slice) =>
-            setState("status", "slice", slice.id, slice),
+            setState("status", "slice", slice.id, withoutRaw(slice)),
           );
           initial.panadapters.forEach((pan) => applyPanadapterDiff(pan));
           initial.waterfalls.forEach((waterfall) =>
-            setState("status", "waterfall", waterfall.id, waterfall),
+            setState(
+              "status",
+              "waterfall",
+              waterfall.id,
+              withoutRaw(waterfall),
+            ),
           );
           initial.meters.forEach((meter) => {
-            setState("status", "meter", meter.id, meter);
+            setState("status", "meter", meter.id, withoutRaw(meter));
           });
           initial.audioStreams.forEach((stream) =>
-            setState("status", "audioStream", stream.id, stream),
+            setState("status", "audioStream", stream.id, withoutRaw(stream)),
           );
           setState("clientHandle", newSession.clientHandle);
           setState("clientId", newSession.clientId);

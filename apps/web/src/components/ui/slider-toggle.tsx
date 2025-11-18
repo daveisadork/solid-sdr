@@ -9,11 +9,11 @@ import {
   SliderThumb,
   SliderTrack,
   SliderValueLabel,
-} from "./ui/slider";
+} from "./slider";
 
-import { Switch, SwitchControl, SwitchThumb } from "./ui/switch";
-import { cn } from "~/lib/utils";
-import { Tooltip, TooltipTrigger, TooltipContent } from "./ui/tooltip";
+import { Switch, SwitchControl, SwitchThumb } from "./switch";
+import { cn } from "../../lib/utils";
+import { Tooltip, TooltipTrigger, TooltipContent } from "./tooltip";
 
 type SliderToggleProps = ComponentProps<typeof Slider> & {
   label: JSX.Element | string;

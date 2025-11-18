@@ -16,6 +16,8 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
+  PopoverAnchor,
+  PopoverArrow,
 } from "~/components/ui/popover";
 
 import { Meter as MeterElement } from "@kobalte/core/meter";
@@ -43,7 +45,6 @@ import {
 import { Trigger as SelectTrigger } from "@kobalte/core/select";
 import { ToggleButton } from "@kobalte/core";
 import { ToggleGroup, ToggleGroupItem } from "./ui/toggle-group";
-import { Switch, SwitchControl, SwitchLabel, SwitchThumb } from "./ui/switch";
 import {
   SegmentedControl,
   SegmentedControlGroup,
@@ -55,7 +56,9 @@ import {
 } from "./ui/segmented-control";
 import { cn, degToRad, radToDeg } from "~/lib/utils";
 import { FrequencyInput } from "./frequency-input";
-import { SliderToggle } from "./slider-toggle";
+import { SliderToggle } from "./ui/slider-toggle";
+import { SimpleSwitch } from "./ui/simple-switch";
+import { SimpleSlider } from "./ui/simple-slider";
 
 const StatusToggle: Component<ComponentProps<"span"> & { active?: boolean }> = (
   props,
@@ -537,404 +540,323 @@ export function Slice(props: { sliceIndex: string }) {
                         <BaselineVolumeOff />
                       </Show>
                     </PopoverTrigger>
-                    <PopoverContent
-                      class="space-y-6 shadow-black shadow-lg"
-                      classList={{
-                        "bg-background/50 backdrop-blur-xl":
-                          state.display.enableTransparencyEffects,
-                      }}
-                    >
-                      <Switch
-                        class="flex items-center space-x-2 justify-between"
-                        checked={slice.isMuted}
-                        onChange={(isChecked) => {
-                          sliceController().setMute(isChecked);
-                        }}
-                      >
-                        <SwitchLabel>Audio Mute</SwitchLabel>
-                        <SwitchControl>
-                          <SwitchThumb />
-                        </SwitchControl>
-                      </Switch>
-                      <Slider
-                        minValue={0}
-                        maxValue={100}
-                        value={[slice.audioGain]}
-                        onChange={([value]) => {
-                          sliceController().setAudioGain(value);
-                        }}
-                        getValueLabel={(params) => `${params.values[0]}%`}
-                        class="space-y-3"
-                      >
-                        <div class="flex w-full justify-between">
-                          <SliderLabel>Audio Level</SliderLabel>
-                          <SliderValueLabel />
-                        </div>
-                        <SliderTrack>
-                          <SliderFill />
-                          <SliderThumb />
-                        </SliderTrack>
-                      </Slider>
-                      <Slider
-                        minValue={0}
-                        maxValue={100}
-                        value={[slice.audioPan]}
-                        onChange={([value]) => {
-                          sliceController().setAudioPan(value);
-                        }}
-                        getValueLabel={(params) => {
-                          const value = params.values[0] - 50;
-                          if (value === 0) return "Center";
-                          return value < 0 ? `L${-value}` : `R${value}`;
-                        }}
-                        class="space-y-3"
-                      >
-                        <div class="flex w-full justify-between">
-                          <SliderLabel>Audio Pan</SliderLabel>
-                          <SliderValueLabel />
-                        </div>
-                        <SliderTrack>
-                          <SliderFill
-                            style={{
-                              right:
-                                slice.audioPan > 50
-                                  ? `${100 - slice.audioPan}%`
-                                  : "50%",
-                              left:
-                                slice.audioPan <= 50
-                                  ? `${slice.audioPan}%`
-                                  : "50%",
-                            }}
-                          />
-                          <SliderThumb />
-                        </SliderTrack>
-                      </Slider>
-                      <SegmentedControl
-                        value={slice.agcMode}
-                        onChange={(value) => {
-                          sliceController().setAgcMode(value);
-                        }}
-                      >
-                        <SegmentedControlLabel>AGC Mode</SegmentedControlLabel>
-                        <SegmentedControlGroup>
-                          <SegmentedControlIndicator />
-                          <SegmentedControlItemsList class="bg-muted/50">
-                            <For
-                              each={[
-                                { label: "Off", value: "off" },
-                                { label: "Slow", value: "slow" },
-                                { label: "Med", value: "med" },
-                                { label: "Fast", value: "fast" },
-                              ]}
-                            >
-                              {({ label, value }) => (
-                                <SegmentedControlItem value={value}>
-                                  <SegmentedControlItemLabel>
-                                    {label}
-                                  </SegmentedControlItemLabel>
-                                </SegmentedControlItem>
-                              )}
-                            </For>
-                          </SegmentedControlItemsList>
-                        </SegmentedControlGroup>
-                      </SegmentedControl>
-                      <Slider
-                        disabled={slice.agcMode === "off"}
-                        minValue={0}
-                        maxValue={100}
-                        value={[slice.agcThreshold]}
-                        onChange={([threshold]) => {
-                          sliceController().setAgcSettings({ threshold });
-                        }}
-                        getValueLabel={(params) => `${params.values[0]}%`}
-                        class="space-y-3"
-                      >
-                        <div class="flex w-full justify-between">
-                          <SliderLabel>AGC Threshold</SliderLabel>
-                          <SliderValueLabel />
-                        </div>
-                        <SliderTrack>
-                          <SliderFill />
-                          <SliderThumb />
-                        </SliderTrack>
-                      </Slider>
-
-                      <Switch
-                        class="flex items-center space-x-2 justify-between"
-                        checked={slice.diversityEnabled}
-                        disabled={slice.diversityChild}
-                        onChange={(isChecked) => {
-                          sliceController().setDiversityEnabled(isChecked);
-                        }}
-                      >
-                        <SwitchLabel>Diversity Reception</SwitchLabel>
-                        <SwitchControl>
-                          <SwitchThumb />
-                        </SwitchControl>
-                      </Switch>
-                      <Show when={slice.diversityParent}>
-                        <Switch
-                          class="flex items-center space-x-2 justify-between"
-                          checked={slice.escEnabled}
+                    <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 bg-background/50 backdrop-blur-xl">
+                      <PopoverArrow />
+                      <div class="p-4 flex flex-col space-y-6 max-h-[var(--kb-popper-content-available-height)] overflow-x-auto">
+                        <SimpleSwitch
+                          checked={slice.isMuted}
+                          onChange={(isChecked) => {
+                            sliceController().setMute(isChecked);
+                          }}
+                          label="Audio Mute"
+                        />
+                        <SimpleSlider
+                          minValue={0}
+                          maxValue={100}
+                          value={[slice.audioGain]}
+                          onChange={([value]) => {
+                            sliceController().setAudioGain(value);
+                          }}
+                          getValueLabel={(params) => `${params.values[0]}%`}
+                          label="Audio Level"
+                        />
+                        <Slider
+                          minValue={0}
+                          maxValue={100}
+                          value={[slice.audioPan]}
+                          onChange={([value]) => {
+                            sliceController().setAudioPan(value);
+                          }}
+                          getValueLabel={(params) => {
+                            const value = params.values[0] - 50;
+                            if (value === 0) return "Center";
+                            return value < 0 ? `L${-value}` : `R${value}`;
+                          }}
+                          class="space-y-3"
+                        >
+                          <div class="flex w-full justify-between">
+                            <SliderLabel>Audio Pan</SliderLabel>
+                            <SliderValueLabel />
+                          </div>
+                          <SliderTrack>
+                            <SliderFill
+                              style={{
+                                right:
+                                  slice.audioPan > 50
+                                    ? `${100 - slice.audioPan}%`
+                                    : "50%",
+                                left:
+                                  slice.audioPan <= 50
+                                    ? `${slice.audioPan}%`
+                                    : "50%",
+                              }}
+                            />
+                            <SliderThumb />
+                          </SliderTrack>
+                        </Slider>
+                        <SegmentedControl
+                          value={slice.agcMode}
+                          onChange={(value) => {
+                            sliceController().setAgcMode(value);
+                          }}
+                        >
+                          <SegmentedControlLabel>
+                            AGC Mode
+                          </SegmentedControlLabel>
+                          <SegmentedControlGroup>
+                            <SegmentedControlIndicator />
+                            <SegmentedControlItemsList class="bg-muted/50">
+                              <For
+                                each={[
+                                  { label: "Off", value: "off" },
+                                  { label: "Slow", value: "slow" },
+                                  { label: "Med", value: "med" },
+                                  { label: "Fast", value: "fast" },
+                                ]}
+                              >
+                                {({ label, value }) => (
+                                  <SegmentedControlItem value={value}>
+                                    <SegmentedControlItemLabel>
+                                      {label}
+                                    </SegmentedControlItemLabel>
+                                  </SegmentedControlItem>
+                                )}
+                              </For>
+                            </SegmentedControlItemsList>
+                          </SegmentedControlGroup>
+                        </SegmentedControl>
+                        <SimpleSlider
+                          disabled={slice.agcMode === "off"}
+                          minValue={0}
+                          maxValue={100}
+                          value={[slice.agcThreshold]}
+                          onChange={([threshold]) => {
+                            sliceController().setAgcSettings({ threshold });
+                          }}
+                          getValueLabel={(params) => `${params.values[0]}%`}
+                          label="AGC Threshold"
+                        />
+                        <SimpleSwitch
+                          checked={slice.diversityEnabled}
                           disabled={slice.diversityChild}
                           onChange={(isChecked) => {
-                            sliceController().setEscEnabled(isChecked);
+                            sliceController().setDiversityEnabled(isChecked);
                           }}
-                        >
-                          <SwitchLabel>
-                            Enhanced Signal Clarity (ESC)
-                          </SwitchLabel>
-                          <SwitchControl>
-                            <SwitchThumb />
-                          </SwitchControl>
-                        </Switch>
-                        <Slider
-                          disabled={!slice.escEnabled}
-                          value={[slice.escGain]}
-                          minValue={0.01}
-                          maxValue={2.0}
-                          step={0.01}
-                          onChange={([value]) => {
-                            if (value === slice.escGain) return;
-                            sliceController()
-                              .setEscGain(value)
-                              .catch(console.log);
-                          }}
-                          getValueLabel={(params) => `${params.values[0]}`}
-                          class="space-y-3"
-                        >
-                          <div class="flex w-full justify-between">
-                            <SliderLabel>ESC Gain</SliderLabel>
-                            <SliderValueLabel />
-                          </div>
-                          <SliderTrack>
-                            <SliderFill />
-                            <SliderThumb />
-                          </SliderTrack>
-                        </Slider>
-                        <Slider
-                          disabled={!slice.escEnabled}
-                          minValue={0}
-                          maxValue={360}
-                          value={[Math.round(radToDeg(slice.escPhaseShift))]}
-                          onChange={([value]) => {
-                            const rad = degToRad(value);
-                            if (rad === slice.escPhaseShift) return;
-                            sliceController()
-                              .setEscPhaseShift(rad)
-                              .catch(console.log);
-                          }}
-                          getValueLabel={(params) => `${params.values[0]}°`}
-                          class="space-y-3"
-                        >
-                          <div class="flex w-full justify-between">
-                            <SliderLabel>ESC Phase Shift</SliderLabel>
-                            <SliderValueLabel />
-                          </div>
-                          <SliderTrack>
-                            <SliderFill />
-                            <SliderThumb />
-                          </SliderTrack>
-                        </Slider>
-                      </Show>
+                          label="Diversity Reception"
+                        />
+                        <Show when={slice.diversityParent}>
+                          <SimpleSwitch
+                            checked={slice.escEnabled}
+                            disabled={slice.diversityChild}
+                            onChange={(isChecked) => {
+                              sliceController().setEscEnabled(isChecked);
+                            }}
+                            label="Enhanced Signal Clarity (ESC)"
+                          />
+                          <SimpleSlider
+                            disabled={!slice.escEnabled}
+                            value={[slice.escGain]}
+                            minValue={0.01}
+                            maxValue={2.0}
+                            step={0.01}
+                            onChange={([value]) => {
+                              if (value === slice.escGain) return;
+                              sliceController()
+                                .setEscGain(value)
+                                .catch(console.log);
+                            }}
+                            getValueLabel={(params) => `${params.values[0]}`}
+                            label="ESC Gain"
+                          />
+                          <SimpleSlider
+                            disabled={!slice.escEnabled}
+                            minValue={0}
+                            maxValue={360}
+                            value={[Math.round(radToDeg(slice.escPhaseShift))]}
+                            onChange={([value]) => {
+                              const rad = degToRad(value);
+                              if (rad === slice.escPhaseShift) return;
+                              sliceController()
+                                .setEscPhaseShift(rad)
+                                .catch(console.log);
+                            }}
+                            getValueLabel={(params) => `${params.values[0]}°`}
+                            label="ESC Phase Shift"
+                          />
+                        </Show>
+                      </div>
                     </PopoverContent>
                   </Popover>
                   <Popover>
                     <PopoverTrigger>DSP</PopoverTrigger>
-                    <PopoverContent
-                      class="space-y-6 shadow-black shadow-lg"
-                      classList={{
-                        "bg-background/50 backdrop-blur-xl":
-                          state.display.enableTransparencyEffects,
-                      }}
-                    >
-                      <SliderToggle
-                        disabled={!slice.wnbEnabled}
-                        minValue={0}
-                        maxValue={100}
-                        value={[slice.wnbLevel]}
-                        onChange={([value]) => {
-                          sliceController().setWnbLevel(value);
-                        }}
-                        getValueLabel={(params) => `${params.values[0]}%`}
-                        label="Wideband Noise Blanker (WNB)"
-                        switchChecked={slice.wnbEnabled}
-                        onSwitchChange={(isChecked) => {
-                          sliceController().setWnbEnabled(isChecked);
-                        }}
-                      />
-                      <SliderToggle
-                        disabled={!slice.nbEnabled}
-                        minValue={0}
-                        maxValue={100}
-                        value={[slice.nbLevel]}
-                        onChange={([value]) => {
-                          sliceController().setNbLevel(value);
-                        }}
-                        getValueLabel={(params) => `${params.values[0]}%`}
-                        label="Noise Blanker (NB)"
-                        switchChecked={slice.nbEnabled}
-                        onSwitchChange={(isChecked) => {
-                          sliceController().setNbEnabled(isChecked);
-                        }}
-                      />
-                      <SliderToggle
-                        disabled={!slice.nrEnabled}
-                        minValue={0}
-                        maxValue={100}
-                        value={[slice.nrLevel]}
-                        onChange={([value]) => {
-                          sliceController().setNrLevel(value);
-                        }}
-                        getValueLabel={(params) => `${params.values[0]}%`}
-                        label="Noise Reduction (NR)"
-                        switchChecked={slice.nrEnabled}
-                        onSwitchChange={(isChecked) => {
-                          sliceController().setNrEnabled(isChecked);
-                        }}
-                      />
-                      <Switch
-                        class="flex items-center space-x-2 justify-between"
-                        checked={slice.nrsEnabled}
-                        onChange={(isChecked) => {
-                          sliceController().setNrsEnabled(isChecked);
-                        }}
-                      >
-                        <SwitchLabel>Spectral Subtraction (NRS)</SwitchLabel>
-                        <SwitchControl>
-                          <SwitchThumb />
-                        </SwitchControl>
-                      </Switch>
-                      <Switch
-                        class="flex items-center space-x-2 justify-between"
-                        checked={slice.nrfEnabled}
-                        onChange={(isChecked) => {
-                          sliceController().setNrfEnabled(isChecked);
-                        }}
-                      >
-                        <SwitchLabel>Noise Reduction Filter (NRF)</SwitchLabel>
-                        <SwitchControl>
-                          <SwitchThumb />
-                        </SwitchControl>
-                      </Switch>
-                      <Switch
-                        class="flex items-center space-x-2 justify-between"
-                        checked={slice.rnnEnabled}
-                        onChange={(isChecked) => {
-                          sliceController().setRnnEnabled(isChecked);
-                        }}
-                      >
-                        <SwitchLabel>AI Noise Reduction (RNN)</SwitchLabel>
-                        <SwitchControl>
-                          <SwitchThumb />
-                        </SwitchControl>
-                      </Switch>
-                      <SliderToggle
-                        disabled={!slice.anfEnabled}
-                        minValue={0}
-                        maxValue={100}
-                        value={[slice.anfLevel]}
-                        onChange={([value]) => {
-                          sliceController().setAnfLevel(value);
-                        }}
-                        getValueLabel={(params) => `${params.values[0]}%`}
-                        label="Automatic Notch Filter (ANF)"
-                        switchChecked={slice.anfEnabled}
-                        onSwitchChange={(isChecked) => {
-                          sliceController().setAnfEnabled(isChecked);
-                        }}
-                      />
-                      <Switch
-                        class="flex items-center space-x-2 justify-between"
-                        checked={slice.anftEnabled}
-                        onChange={(isChecked) => {
-                          sliceController().setAnftEnabled(isChecked);
-                        }}
-                      >
-                        <SwitchLabel>FFT Auto Notch Filter (ANFT)</SwitchLabel>
-                        <SwitchControl>
-                          <SwitchThumb />
-                        </SwitchControl>
-                      </Switch>
-                      <SliderToggle
-                        disabled={!slice.apfEnabled}
-                        minValue={0}
-                        maxValue={100}
-                        value={[slice.apfLevel]}
-                        onChange={([value]) => {
-                          sliceController().setApfLevel(value);
-                        }}
-                        getValueLabel={(params) => `${params.values[0]}%`}
-                        label="Automatic Peaking Filter (APF)"
-                        switchChecked={slice.apfEnabled}
-                        onSwitchChange={(isChecked) => {
-                          sliceController().setApfEnabled(isChecked);
-                        }}
-                      />
-                      <SliderToggle
-                        disabled={!slice.nrlEnabled}
-                        minValue={0}
-                        maxValue={100}
-                        value={[slice.nrlLevel]}
-                        onChange={([value]) => {
-                          sliceController().setNrlLevel(value);
-                        }}
-                        getValueLabel={(params) => `${params.values[0]}%`}
-                        label="Legacy Noise Reduction (NRL)"
-                        switchChecked={slice.nrlEnabled}
-                        onSwitchChange={(isChecked) => {
-                          sliceController().setNrlEnabled(isChecked);
-                        }}
-                      />
-                      <SliderToggle
-                        disabled={!slice.anflEnabled}
-                        minValue={0}
-                        maxValue={100}
-                        value={[slice.anflLevel]}
-                        onChange={([value]) => {
-                          sliceController().setAnflLevel(value);
-                        }}
-                        getValueLabel={(params) => `${params.values[0]}%`}
-                        label="Legacy Auto Notch Filter (ANFL)"
-                        switchChecked={slice.anflEnabled}
-                        onSwitchChange={(isChecked) => {
-                          sliceController().setAnflEnabled(isChecked);
-                        }}
-                      />
+                    <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 bg-background/50 backdrop-blur-xl">
+                      <PopoverArrow />
+                      <div class="p-4 flex flex-col space-y-6 max-h-[var(--kb-popper-content-available-height)] overflow-x-auto">
+                        <SliderToggle
+                          disabled={!slice.wnbEnabled}
+                          minValue={0}
+                          maxValue={100}
+                          value={[slice.wnbLevel]}
+                          onChange={([value]) => {
+                            sliceController().setWnbLevel(value);
+                          }}
+                          getValueLabel={(params) => `${params.values[0]}%`}
+                          label="Wideband Noise Blanker (WNB)"
+                          switchChecked={slice.wnbEnabled}
+                          onSwitchChange={(isChecked) => {
+                            sliceController().setWnbEnabled(isChecked);
+                          }}
+                        />
+                        <SliderToggle
+                          disabled={!slice.nbEnabled}
+                          minValue={0}
+                          maxValue={100}
+                          value={[slice.nbLevel]}
+                          onChange={([value]) => {
+                            sliceController().setNbLevel(value);
+                          }}
+                          getValueLabel={(params) => `${params.values[0]}%`}
+                          label="Noise Blanker (NB)"
+                          switchChecked={slice.nbEnabled}
+                          onSwitchChange={(isChecked) => {
+                            sliceController().setNbEnabled(isChecked);
+                          }}
+                        />
+                        <SliderToggle
+                          disabled={!slice.nrEnabled}
+                          minValue={0}
+                          maxValue={100}
+                          value={[slice.nrLevel]}
+                          onChange={([value]) => {
+                            sliceController().setNrLevel(value);
+                          }}
+                          getValueLabel={(params) => `${params.values[0]}%`}
+                          label="Noise Reduction (NR)"
+                          switchChecked={slice.nrEnabled}
+                          onSwitchChange={(isChecked) => {
+                            sliceController().setNrEnabled(isChecked);
+                          }}
+                        />
+                        <SimpleSwitch
+                          checked={slice.nrsEnabled}
+                          onChange={(isChecked) => {
+                            sliceController().setNrsEnabled(isChecked);
+                          }}
+                          label="Spectral Subtraction (NRS)"
+                        />
+                        <SimpleSwitch
+                          checked={slice.nrfEnabled}
+                          onChange={(isChecked) => {
+                            sliceController().setNrfEnabled(isChecked);
+                          }}
+                          label="Noise Reduction Filter (NRF)"
+                        />
+                        <SimpleSwitch
+                          checked={slice.rnnEnabled}
+                          onChange={(isChecked) => {
+                            sliceController().setRnnEnabled(isChecked);
+                          }}
+                          label="AI Noise Reduction (RNN)"
+                        />
+                        <SliderToggle
+                          disabled={!slice.anfEnabled}
+                          minValue={0}
+                          maxValue={100}
+                          value={[slice.anfLevel]}
+                          onChange={([value]) => {
+                            sliceController().setAnfLevel(value);
+                          }}
+                          getValueLabel={(params) => `${params.values[0]}%`}
+                          label="Automatic Notch Filter (ANF)"
+                          switchChecked={slice.anfEnabled}
+                          onSwitchChange={(isChecked) => {
+                            sliceController().setAnfEnabled(isChecked);
+                          }}
+                        />
+                        <SimpleSwitch
+                          checked={slice.anftEnabled}
+                          onChange={(isChecked) => {
+                            sliceController().setAnftEnabled(isChecked);
+                          }}
+                          label=" FFT Auto Notch Filter (ANFT)"
+                        />
+                        <SliderToggle
+                          disabled={!slice.apfEnabled}
+                          minValue={0}
+                          maxValue={100}
+                          value={[slice.apfLevel]}
+                          onChange={([value]) => {
+                            sliceController().setApfLevel(value);
+                          }}
+                          getValueLabel={(params) => `${params.values[0]}%`}
+                          label="Automatic Peaking Filter (APF)"
+                          switchChecked={slice.apfEnabled}
+                          onSwitchChange={(isChecked) => {
+                            sliceController().setApfEnabled(isChecked);
+                          }}
+                        />
+                        <SliderToggle
+                          disabled={!slice.nrlEnabled}
+                          minValue={0}
+                          maxValue={100}
+                          value={[slice.nrlLevel]}
+                          onChange={([value]) => {
+                            sliceController().setNrlLevel(value);
+                          }}
+                          getValueLabel={(params) => `${params.values[0]}%`}
+                          label="Legacy Noise Reduction (NRL)"
+                          switchChecked={slice.nrlEnabled}
+                          onSwitchChange={(isChecked) => {
+                            sliceController().setNrlEnabled(isChecked);
+                          }}
+                        />
+                        <SliderToggle
+                          disabled={!slice.anflEnabled}
+                          minValue={0}
+                          maxValue={100}
+                          value={[slice.anflLevel]}
+                          onChange={([value]) => {
+                            sliceController().setAnflLevel(value);
+                          }}
+                          getValueLabel={(params) => `${params.values[0]}%`}
+                          label="Legacy Auto Notch Filter (ANFL)"
+                          switchChecked={slice.anflEnabled}
+                          onSwitchChange={(isChecked) => {
+                            sliceController().setAnflEnabled(isChecked);
+                          }}
+                        />
+                      </div>
                     </PopoverContent>
                   </Popover>
                   <Popover>
                     <PopoverTrigger disabled={slice.diversityChild}>
                       {slice.mode}
                     </PopoverTrigger>
-                    <PopoverContent
-                      class="space-y-6 shadow-black shadow-lg"
-                      classList={{
-                        "bg-background/50 backdrop-blur-xl":
-                          state.display.enableTransparencyEffects,
-                      }}
-                    >
-                      <ToggleGroup
-                        value={slice.mode}
-                        onChange={(mode: string) => {
-                          if (!mode || mode === slice.mode) return;
-                          sliceController().setMode(mode);
-                        }}
-                        class="grid grid-cols-4"
-                      >
-                        <For each={slice.modeList}>
-                          {(mode) => (
-                            <ToggleGroupItem
-                              variant="outline"
-                              size="sm"
-                              class="border-muted-foreground data-[pressed]:bg-primary data-[pressed]:text-primary-foreground"
-                              value={mode}
-                            >
-                              {mode}
-                            </ToggleGroupItem>
-                          )}
-                        </For>
-                      </ToggleGroup>
+                    <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 bg-background/50 backdrop-blur-xl">
+                      <PopoverArrow />
+                      <div class="p-4 flex flex-col space-y-6 max-h-[var(--kb-popper-content-available-height)] overflow-x-auto">
+                        <ToggleGroup
+                          value={slice.mode}
+                          onChange={(mode: string) => {
+                            if (!mode || mode === slice.mode) return;
+                            sliceController().setMode(mode);
+                          }}
+                          class="grid grid-cols-4"
+                        >
+                          <For each={slice.modeList}>
+                            {(mode) => (
+                              <ToggleGroupItem
+                                variant="outline"
+                                size="sm"
+                                class="border-muted-foreground data-[pressed]:bg-primary data-[pressed]:text-primary-foreground"
+                                value={mode}
+                              >
+                                {mode}
+                              </ToggleGroupItem>
+                            )}
+                          </For>
+                        </ToggleGroup>
+                      </div>
                     </PopoverContent>
                   </Popover>
                   <StatusToggle active={slice.ritEnabled || slice.xitEnabled}>

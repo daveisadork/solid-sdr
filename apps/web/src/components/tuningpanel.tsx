@@ -16,15 +16,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import { Switch, SwitchControl, SwitchLabel, SwitchThumb } from "./ui/switch";
-import {
-  Slider,
-  SliderFill,
-  SliderLabel,
-  SliderThumb,
-  SliderTrack,
-  SliderValueLabel,
-} from "./ui/slider";
 import {
   SegmentedControl,
   SegmentedControlGroup,
@@ -35,7 +26,9 @@ import {
   SegmentedControlLabel,
 } from "./ui/segmented-control";
 
-import { SliderToggle } from "./slider-toggle";
+import { SliderToggle } from "./ui/slider-toggle";
+import { SimpleSwitch } from "./ui/simple-switch";
+import { SimpleSlider } from "./ui/simple-slider";
 
 const BANDS: { id: string; label: string }[] = [
   { id: "160", label: "160m" },
@@ -227,54 +220,34 @@ export function TuningPanel(props: { streamId: string }) {
           <NumberFieldDecrementTrigger class="select-none" />
         </NumberFieldGroup>
       </NumberField>
-      <Switch
-        class="flex items-center space-x-2"
+      <SimpleSwitch
         checked={pan.isBandZoomOn}
         onChange={(isChecked) => {
           panController()?.setBandZoom(isChecked);
         }}
-      >
-        <SwitchControl>
-          <SwitchThumb />
-        </SwitchControl>
-        <SwitchLabel>Band Zoom</SwitchLabel>
-      </Switch>
-      <Switch
-        class="flex items-center space-x-2"
+        label="Band Zoom"
+      />
+      <SimpleSwitch
         checked={pan.isSegmentZoomOn}
         onChange={(isChecked) => {
           panController()?.setSegmentZoom(isChecked);
         }}
-      >
-        <SwitchControl>
-          <SwitchThumb />
-        </SwitchControl>
-        <SwitchLabel>Segment Zoom</SwitchLabel>
-      </Switch>
-      <Switch
-        class="flex items-center space-x-2"
+        label="Segment Zoom"
+      />
+      <SimpleSwitch
         checked={waterfall.autoBlackLevelEnabled}
         onChange={(isChecked) => {
           wfController()?.setAutoBlackLevelEnabled(isChecked);
         }}
-      >
-        <SwitchControl>
-          <SwitchThumb />
-        </SwitchControl>
-        <SwitchLabel>Auto Black Level</SwitchLabel>
-      </Switch>
-      <Switch
-        class="flex items-center space-x-2"
+        label="Auto Black Level"
+      />
+      <SimpleSwitch
         checked={pan.weightedAverage}
         onChange={(isChecked) => {
           panController()?.setWeightedAverage(isChecked);
         }}
-      >
-        <SwitchControl>
-          <SwitchThumb />
-        </SwitchControl>
-        <SwitchLabel>Weighted Average</SwitchLabel>
-      </Switch>
+        label="Weighted Average"
+      />
       <SliderToggle
         label="Noise Floor"
         switchChecked={pan.noiseFloorPositionEnabled}
@@ -292,7 +265,7 @@ export function TuningPanel(props: { streamId: string }) {
         getValueLabel={(params) => `${params.values[0]}%`}
       />
 
-      <Slider
+      <SimpleSlider
         minValue={0}
         maxValue={100}
         value={[pan.average]}
@@ -301,18 +274,9 @@ export function TuningPanel(props: { streamId: string }) {
           panController()?.setAverage(Math.floor(value));
         }}
         getValueLabel={(params) => params.values[0].toString()}
-        class="space-y-3"
-      >
-        <div class="flex w-full justify-between">
-          <SliderLabel>Average</SliderLabel>
-          <SliderValueLabel />
-        </div>
-        <SliderTrack>
-          <SliderFill />
-          <SliderThumb />
-        </SliderTrack>
-      </Slider>
-      <Slider
+        label="Average"
+      />
+      <SimpleSlider
         minValue={1}
         maxValue={60}
         value={[pan.fps]}
@@ -321,39 +285,21 @@ export function TuningPanel(props: { streamId: string }) {
           panController()?.setFps(value);
         }}
         getValueLabel={(params) => params.values[0].toString()}
-        class="space-y-3"
-      >
-        <div class="flex w-full justify-between">
-          <SliderLabel>FPS</SliderLabel>
-          <SliderValueLabel />
-        </div>
-        <SliderTrack>
-          <SliderFill />
-          <SliderThumb />
-        </SliderTrack>
-      </Slider>
-      <Slider
+        label="FPS"
+      />
+      <SimpleSlider
         minValue={0}
         maxValue={100}
         value={[100 - waterfall.lineSpeed]}
         onChange={([value]) => {
           const speed = 100 - value;
           if (speed === waterfall.lineSpeed) return;
-          wfController()?.setLineSpeed(100 - speed);
+          wfController()?.setLineSpeed(speed);
         }}
         getValueLabel={() => `${waterfall.lineDurationMs} ms`}
-        class="space-y-3"
-      >
-        <div class="flex w-full justify-between">
-          <SliderLabel>Line Duration</SliderLabel>
-          <SliderValueLabel />
-        </div>
-        <SliderTrack>
-          <SliderFill />
-          <SliderThumb />
-        </SliderTrack>
-      </Slider>
-      <Slider
+        label="Line Duration"
+      />
+      <SimpleSlider
         minValue={0}
         maxValue={100}
         value={[waterfall.colorGain]}
@@ -362,37 +308,20 @@ export function TuningPanel(props: { streamId: string }) {
           wfController()?.setColorGain(Math.floor(value));
         }}
         getValueLabel={(params) => `${params.values[0] / 5} dB`}
-        class="space-y-3"
-      >
-        <div class="flex w-full justify-between">
-          <SliderLabel>Color Gain</SliderLabel>
-          <SliderValueLabel />
-        </div>
-        <SliderTrack>
-          <SliderFill />
-          <SliderThumb />
-        </SliderTrack>
-      </Slider>
-      <Slider
+        label="Color Gain"
+      />
+      <SimpleSlider
         minValue={0}
         maxValue={100}
+        disabled={waterfall.autoBlackLevelEnabled}
         value={[waterfall.blackLevel]}
         onChange={([value]) => {
           if (value === waterfall.blackLevel) return;
           wfController()?.setBlackLevel(Math.floor(value));
         }}
         getValueLabel={(params) => params.values[0].toString()}
-        class="space-y-3"
-      >
-        <div class="flex w-full justify-between">
-          <SliderLabel>Black Level</SliderLabel>
-          <SliderValueLabel />
-        </div>
-        <SliderTrack>
-          <SliderFill />
-          <SliderThumb />
-        </SliderTrack>
-      </Slider>
+        label="Black Level"
+      />
       <pre class="block w-full overflow-x-auto overflow-y-visible shrink-0">
         {JSON.stringify(state.status.panadapter, null, 2)}
       </pre>

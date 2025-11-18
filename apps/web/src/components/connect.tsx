@@ -9,9 +9,7 @@ import {
   DialogTrigger,
 } from "./ui/dialog";
 import { Skeleton } from "./ui/skeleton";
-import useFlexRadio, {
-  ConnectionState,
-} from "~/context/flexradio";
+import useFlexRadio, { ConnectionState } from "~/context/flexradio";
 import { ProgressCircle } from "./ui/progress-circle";
 
 export default function Connect() {
@@ -54,7 +52,7 @@ export default function Connect() {
       >
         {state.clientHandle ? "Disconnect" : "Connect"}
       </DialogTrigger>
-      <DialogContent class="sm:max-w-[425px]">
+      <DialogContent class="sm:max-w-[425px] data-[closed]:slide-out-to-left data-[closed]:slide-out-to-bottom data-[expanded]:slide-in-from-left data-[expanded]:slide-in-from-bottom">
         <DialogHeader>
           <DialogTitle>Connect</DialogTitle>
         </DialogHeader>

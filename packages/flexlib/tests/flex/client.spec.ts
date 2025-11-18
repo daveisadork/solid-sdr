@@ -153,9 +153,9 @@ describe("FlexClient", () => {
 
     await slice?.setFmToneValue(100.0);
     expect(channel.commands.at(-1)?.command).toBe(
-      "slice set 0 fm_tone_value=100.0",
+      "slice set 0 fm_tone_value=100.000000",
     );
-    expect(slice?.fmToneValue).toBe("100.0");
+    expect(slice?.fmToneValue).toBe("100.000000");
 
     await slice?.setFmPreDeEmphasisEnabled(true);
     expect(channel.commands.at(-1)?.command).toBe(
@@ -185,6 +185,18 @@ describe("FlexClient", () => {
     expect(slice?.agcThreshold).toBe(65);
     expect(slice?.loopAEnabled).toBe(true);
     expect(slice?.txOffsetFrequencyMHz).toBeCloseTo(0.0015);
+
+    channel.emit(
+      makeStatus(
+        "S1|license feature name=smartlink enabled=1 reason=license_file",
+      ),
+    );
+    const featureLicense = session.getFeatureLicense();
+    expect(featureLicense?.features["smartlink"]?.enabled).toBe(true);
+    const controller = session.featureLicense();
+    expect(controller.getFeature("smartlink")?.reason).toBe("license_file");
+    await controller.sendCommand("license refresh");
+    expect(channel.commands.at(-1)?.command).toBe("license refresh");
 
     channel.emit(makeStatus("S2|slice 0 in_use=0"));
     expect(session.getSlice("0")).toBeUndefined();
@@ -224,16 +236,12 @@ describe("FlexClient", () => {
     expect(session.audioStream("0x04000008")).toBe(stream);
     expect(session.remoteAudioRxStream("0x04000008")).toBe(stream);
 
-    channel.emit(
-      makeStatus("S1|stream 0x04000008 ip=10.0.0.6 slice=1"),
-    );
+    channel.emit(makeStatus("S1|stream 0x04000008 ip=10.0.0.6 slice=1"));
     expect(stream.ip).toBe("10.0.0.6");
     expect(stream.slice).toBe("1");
 
     await stream.close();
-    expect(channel.commands.at(-1)?.command).toBe(
-      "stream remove 0x04000008",
-    );
+    expect(channel.commands.at(-1)?.command).toBe("stream remove 0x04000008");
 
     channel.emit(makeStatus("S1|stream 0x04000008 removed=1"));
     expect(session.getAudioStreams()).toHaveLength(0);
@@ -316,9 +324,7 @@ describe("FlexClient", () => {
     channel.emit(makeStatus("S1|stream 0x0400000A removed=1"));
 
     await stream.close();
-    expect(channel.commands.at(-1)?.command).toBe(
-      "stream remove 0x0400000A",
-    );
+    expect(channel.commands.at(-1)?.command).toBe("stream remove 0x0400000A");
   });
 
   it("rejects pending audio stream creation when the session closes", async () => {
@@ -506,7 +512,9 @@ describe("FlexClient", () => {
     expect(radio.rttyMarkDefaultHz).toBe(1925);
 
     await radio.setFrequencyErrorPpb(-2.6);
-    expect(channel.commands.at(-1)?.command).toBe("radio set freq_error_ppb=-3");
+    expect(channel.commands.at(-1)?.command).toBe(
+      "radio set freq_error_ppb=-3",
+    );
     expect(radio.frequencyErrorPpb).toBe(-3);
 
     await radio.setCalibrationFrequencyMhz(15.1234567);

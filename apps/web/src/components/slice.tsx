@@ -16,7 +16,6 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-  PopoverAnchor,
   PopoverArrow,
 } from "~/components/ui/popover";
 
@@ -645,44 +644,53 @@ export function Slice(props: { sliceIndex: string }) {
                           label="Diversity Reception"
                         />
                         <Show when={slice.diversityParent}>
-                          <SimpleSwitch
-                            checked={slice.escEnabled}
-                            disabled={slice.diversityChild}
-                            onChange={(isChecked) => {
-                              sliceController().setEscEnabled(isChecked);
-                            }}
-                            label="Enhanced Signal Clarity (ESC)"
-                          />
-                          <SimpleSlider
-                            disabled={!slice.escEnabled}
-                            value={[slice.escGain]}
-                            minValue={0.01}
-                            maxValue={2.0}
-                            step={0.01}
-                            onChange={([value]) => {
-                              if (value === slice.escGain) return;
-                              sliceController()
-                                .setEscGain(value)
-                                .catch(console.log);
-                            }}
-                            getValueLabel={(params) => `${params.values[0]}`}
-                            label="ESC Gain"
-                          />
-                          <SimpleSlider
-                            disabled={!slice.escEnabled}
-                            minValue={0}
-                            maxValue={360}
-                            value={[Math.round(radToDeg(slice.escPhaseShift))]}
-                            onChange={([value]) => {
-                              const rad = degToRad(value);
-                              if (rad === slice.escPhaseShift) return;
-                              sliceController()
-                                .setEscPhaseShift(rad)
-                                .catch(console.log);
-                            }}
-                            getValueLabel={(params) => `${params.values[0]}°`}
-                            label="ESC Phase Shift"
-                          />
+                          <Show
+                            when={
+                              state.status.featureLicense?.features?.DIV_ESC
+                                ?.enabled
+                            }
+                          >
+                            <SimpleSwitch
+                              checked={slice.escEnabled}
+                              disabled={slice.diversityChild}
+                              onChange={(isChecked) => {
+                                sliceController().setEscEnabled(isChecked);
+                              }}
+                              label="Enhanced Signal Clarity (ESC)"
+                            />
+                            <SimpleSlider
+                              disabled={!slice.escEnabled}
+                              value={[slice.escGain]}
+                              minValue={0.01}
+                              maxValue={2.0}
+                              step={0.01}
+                              onChange={([value]) => {
+                                if (value === slice.escGain) return;
+                                sliceController()
+                                  .setEscGain(value)
+                                  .catch(console.log);
+                              }}
+                              getValueLabel={(params) => `${params.values[0]}`}
+                              label="ESC Gain"
+                            />
+                            <SimpleSlider
+                              disabled={!slice.escEnabled}
+                              minValue={0}
+                              maxValue={360}
+                              value={[
+                                Math.round(radToDeg(slice.escPhaseShift)),
+                              ]}
+                              onChange={([value]) => {
+                                const rad = degToRad(value);
+                                if (rad === slice.escPhaseShift) return;
+                                sliceController()
+                                  .setEscPhaseShift(rad)
+                                  .catch(console.log);
+                              }}
+                              getValueLabel={(params) => `${params.values[0]}°`}
+                              label="ESC Phase Shift"
+                            />
+                          </Show>
                         </Show>
                       </div>
                     </PopoverContent>

@@ -26,6 +26,7 @@ import {
   type AudioStreamSnapshot,
   type RadioProperties,
   type RadioStatusContext,
+  type FeatureLicenseSnapshot,
 } from "./radio-state.js";
 import {
   FlexClientClosedError,
@@ -50,6 +51,10 @@ import {
   type RemoteAudioRxStreamController,
   AudioStreamControllerImpl,
 } from "./audio-stream.js";
+import {
+  FeatureLicenseControllerImpl,
+  type FeatureLicenseController,
+} from "./feature-license.js";
 import { createFlexUdpSession, type FlexUdpSession } from "./udp.js";
 
 export interface FlexClientOptions {
@@ -180,7 +185,9 @@ export interface FlexRadioSession {
   getRemoteAudioRxStream(id: string): AudioStreamSnapshot | undefined;
   getRemoteAudioRxStreams(): readonly AudioStreamSnapshot[];
   getRadio(): RadioProperties | undefined;
+  getFeatureLicense(): FeatureLicenseSnapshot | undefined;
   radio(): RadioController;
+  featureLicense(): FeatureLicenseController;
   slice(id: string): SliceController | undefined;
   panadapter(id: string): PanadapterController | undefined;
   waterfall(id: string): WaterfallController | undefined;
@@ -332,6 +339,7 @@ class FlexRadioSessionImpl implements FlexRadioSession {
     AudioStreamControllerImpl
   >();
   private readonly radioController: RadioController;
+  private readonly featureLicenseController: FeatureLicenseController;
   private readonly messageSub: Subscription;
   private readonly rawLineSub: Subscription;
   private readonly handleWaiters: Array<{
@@ -365,6 +373,12 @@ class FlexRadioSessionImpl implements FlexRadioSession {
           this.patchRadio(attributes, context),
       },
       () => this.store.getRadio(),
+    );
+    this.featureLicenseController = new FeatureLicenseControllerImpl(
+      {
+        command: (command, options) => this.command(command, options),
+      },
+      () => this.store.getFeatureLicense(),
     );
     this.readyPromise = new Promise<void>((resolve, reject) => {
       this.readyResolve = resolve;
@@ -690,6 +704,14 @@ class FlexRadioSessionImpl implements FlexRadioSession {
 
   radio(): RadioController {
     return this.radioController;
+  }
+
+  getFeatureLicense(): FeatureLicenseSnapshot | undefined {
+    return this.store.getFeatureLicense();
+  }
+
+  featureLicense(): FeatureLicenseController {
+    return this.featureLicenseController;
   }
 
   slice(id: string): SliceController | undefined {
@@ -1102,6 +1124,7 @@ const DEFAULT_HANDSHAKE_COMMANDS: readonly string[] = [
   "sub memories all",
   "sub daxiq all",
   "sub dax all",
+  "sub license all",
   "sub usb_cable all",
   "sub tnf all",
   "sub spot all",

@@ -138,6 +138,59 @@ describe("createRadioStateStore", () => {
     expect(store.getMeter("1")).toBeUndefined();
   });
 
+  it("tracks feature license metadata and features", () => {
+    const store = createRadioStateStore();
+    store.apply(
+      makeStatus(
+        "S1|license radio_id=abcd1234 issued=2024-01-01T00:00:00Z last_refreshed_date=2024-02-01T00:00:00Z highest_major_version=3 region=na",
+      ),
+    );
+    let license = store.getFeatureLicense();
+    expect(license).toBeDefined();
+    expect(license?.radioId).toBe("ABCD1234");
+    expect(license?.issueDate?.toISOString()).toBe("2024-01-01T00:00:00.000Z");
+    expect(license?.lastRefreshDate?.toISOString()).toBe(
+      "2024-02-01T00:00:00.000Z",
+    );
+    expect(license?.highestMajorVersion).toBe(3);
+    expect(license?.region).toBe("na");
+
+    store.apply(
+      makeStatus(
+        "S1|license feature name=smartlink enabled=1 reason=license_file",
+      ),
+    );
+    store.apply(
+      makeStatus(
+        "S1|license feature name=auto_tune enabled=0 reason=plus",
+      ),
+    );
+    store.apply(
+      makeStatus(
+        "S1|license subscription name=smartsdr+ expiration=2025-03-15T00:00:00Z",
+      ),
+    );
+    store.apply(
+      makeStatus(
+        "S1|license subscription name=smartsdr+_early_access expiration=2025-04-15T00:00:00Z",
+      ),
+    );
+
+    license = store.getFeatureLicense();
+    expect(license?.features["smartlink"]?.enabled).toBe(true);
+    expect(license?.features["smartlink"]?.reason).toBe("license_file");
+    expect(license?.features["auto_tune"]?.enabled).toBe(false);
+    expect(license?.features["auto_tune"]?.reason).toBe("plus");
+    expect(license?.smartSdrPlusActive).toBe(true);
+    expect(license?.smartSdrPlusExpiration?.toISOString()).toBe(
+      "2025-03-15T00:00:00.000Z",
+    );
+    expect(license?.smartSdrPlusEarlyAccessActive).toBe(true);
+    expect(license?.smartSdrPlusEarlyAccessExpiration?.toISOString()).toBe(
+      "2025-04-15T00:00:00.000Z",
+    );
+  });
+
   it("tracks waterfall attributes from a real message", () => {
     const store = createRadioStateStore();
     store.apply(makeStatus(WATERFALL_STATUS));

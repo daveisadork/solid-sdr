@@ -2,6 +2,7 @@ export * from "./adapters.js";
 export * from "./client.js";
 export * from "./errors.js";
 export * from "./events.js";
+export * from "./feature-license.js";
 export * from "./protocol.js";
 export * from "./radio-state.js";
 export * from "./response-codes.js";

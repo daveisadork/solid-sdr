@@ -3,12 +3,6 @@ import type { RfGainInfo } from "./rf-gain.js";
 import type { Logger } from "./adapters.js";
 import { isTruthy, setRadioStateLogger } from "./radio-state/common.js";
 import type { SnapshotDiff } from "./radio-state/common.js";
-import { createSliceSnapshot } from "./radio-state/slice.js";
-import type { SliceSnapshot } from "./radio-state/slice.js";
-import { createPanadapterSnapshot } from "./radio-state/panadapter.js";
-import type { PanadapterSnapshot } from "./radio-state/panadapter.js";
-import { createWaterfallSnapshot } from "./radio-state/waterfall.js";
-import type { WaterfallSnapshot } from "./radio-state/waterfall.js";
 import {
   AUDIO_STREAM_TYPES,
   createAudioStreamSnapshot,
@@ -17,13 +11,23 @@ import type {
   AudioStreamKind,
   AudioStreamSnapshot,
 } from "./radio-state/audio-stream.js";
+import {
+  createFeatureLicenseSnapshot,
+  type FeatureLicenseSnapshot,
+} from "./radio-state/feature-license.js";
 import { createMeterSnapshot } from "./radio-state/meter.js";
 import type { MeterSnapshot } from "./radio-state/meter.js";
+import { createPanadapterSnapshot } from "./radio-state/panadapter.js";
+import type { PanadapterSnapshot } from "./radio-state/panadapter.js";
 import { createRadioProperties } from "./radio-state/radio.js";
 import type {
   RadioProperties,
   RadioStatusContext,
 } from "./radio-state/radio.js";
+import { createSliceSnapshot } from "./radio-state/slice.js";
+import type { SliceSnapshot } from "./radio-state/slice.js";
+import { createWaterfallSnapshot } from "./radio-state/waterfall.js";
+import type { WaterfallSnapshot } from "./radio-state/waterfall.js";
 
 export type { SnapshotDiff } from "./radio-state/common.js";
 export type { SliceSnapshot } from "./radio-state/slice.js";
@@ -33,6 +37,7 @@ export type {
   AudioStreamKind,
   AudioStreamSnapshot,
 } from "./radio-state/audio-stream.js";
+export type { FeatureLicenseSnapshot } from "./radio-state/feature-license.js";
 export type {
   KnownMeterUnits,
   MeterSnapshot,
@@ -62,6 +67,7 @@ export type RadioStateChange =
       id: string;
     } & ChangeMetadata<AudioStreamSnapshot>)
   | ({ entity: "radio" } & ChangeMetadata<RadioProperties>)
+  | ({ entity: "featureLicense" } & ChangeMetadata<FeatureLicenseSnapshot>)
   | {
       entity: "unknown";
       source: string;
@@ -91,6 +97,7 @@ export interface RadioStateSnapshot {
   readonly meters: readonly MeterSnapshot[];
   readonly audioStreams: readonly AudioStreamSnapshot[];
   readonly radio?: RadioProperties;
+  readonly featureLicense?: FeatureLicenseSnapshot;
 }
 
 export interface RadioStateStore {
@@ -102,6 +109,7 @@ export interface RadioStateStore {
   getMeter(id: string): MeterSnapshot | undefined;
   getAudioStream(id: string): AudioStreamSnapshot | undefined;
   getRadio(): RadioProperties | undefined;
+  getFeatureLicense(): FeatureLicenseSnapshot | undefined;
   patchRadio(
     attributes: Record<string, string>,
     context?: RadioStatusContext,
@@ -146,6 +154,7 @@ export function createRadioStateStore(
   const meters = new Map<string, MeterSnapshot>();
   const audioStreams = new Map<string, AudioStreamSnapshot>();
   let radio: RadioProperties | undefined;
+  let featureLicense: FeatureLicenseSnapshot | undefined;
 
   return {
     apply(message) {
@@ -161,6 +170,11 @@ export function createRadioStateStore(
         case "radio":
         case "gps":
           return [handleRadio(message)];
+        case "license": {
+          const change = handleLicense(message);
+          if (change) return [change];
+          return [];
+        }
         case "display": {
           switch (message.identifier) {
             case "pan":
@@ -187,6 +201,7 @@ export function createRadioStateStore(
         meters: Array.from(meters.values()),
         audioStreams: Array.from(audioStreams.values()),
         radio,
+        featureLicense,
       };
     },
     getSlice(id) {
@@ -206,6 +221,9 @@ export function createRadioStateStore(
     },
     getRadio() {
       return radio;
+    },
+    getFeatureLicense() {
+      return featureLicense;
     },
     patchRadio(attributes, context) {
       return patchRadio(attributes, context);
@@ -492,6 +510,23 @@ export function createRadioStateStore(
       entity: "meter",
       id,
       diff,
+      removed: false,
+    };
+  }
+
+  function handleLicense(
+    message: FlexStatusMessage,
+  ): RadioStateChange | undefined {
+    const update = createFeatureLicenseSnapshot(
+      message.attributes,
+      { identifier: message.identifier },
+      featureLicense,
+    );
+    if (!update) return undefined;
+    featureLicense = update.snapshot;
+    return {
+      entity: "featureLicense",
+      diff: update.diff,
       removed: false,
     };
   }

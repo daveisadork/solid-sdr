@@ -38,6 +38,7 @@ import {
   type WaterfallSnapshot,
   type FlexDataPlaneFactory,
   type FlexConnectionProgress,
+  FeatureLicenseSnapshot,
 } from "@repo/flexlib";
 import { createWebSocketFlexControlFactory } from "~/lib/flex-control";
 import { useRtc } from "./rtc";
@@ -88,6 +89,7 @@ export type Slice = Omit<MutableProps<SliceSnapshot>, "raw">;
 export type Panadapter = Omit<MutableProps<PanadapterSnapshot>, "raw">;
 export type Waterfall = Omit<MutableProps<WaterfallSnapshot>, "raw">;
 export type AudioStream = Omit<MutableProps<AudioStreamSnapshot>, "raw">;
+export type FeatureLicense = Omit<MutableProps<FeatureLicenseSnapshot>, "raw">;
 
 export interface Gradient {
   name: string;
@@ -129,6 +131,7 @@ export interface StatusState {
     band: Record<string, IterlockBand>;
   };
   radio: Radio;
+  featureLicense: FeatureLicense;
   audioStream: Record<string, AudioStream>;
 }
 
@@ -291,6 +294,7 @@ export const initialState = () =>
         //   DIGITAL: {},
         // },
       },
+      featureLicense: {},
       audioStream: {},
     },
   }) as AppState;
@@ -458,6 +462,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         handlePanadapterChange(change);
         break;
       case "radio":
+      case "featureLicense":
         setState("status", change.entity, change.diff);
         break;
       case "waterfall":
@@ -799,6 +804,14 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         ];
         const initial = newSession.snapshot();
         batch(() => {
+          {
+            const { raw: _, ...radio } = initial.radio;
+            setState("status", "radio", radio);
+          }
+          {
+            const { raw: _, ...featureLicense } = initial.featureLicense;
+            setState("status", "featureLicense", featureLicense);
+          }
           initial.slices.forEach((slice) =>
             setState("status", "slice", slice.id, slice),
           );
@@ -809,8 +822,9 @@ export const FlexRadioProvider: ParentComponent = (props) => {
           initial.meters.forEach((meter) => {
             setState("status", "meter", meter.id, meter);
           });
-        });
-        batch(() => {
+          initial.audioStreams.forEach((stream) =>
+            setState("status", "audioStream", stream.id, stream),
+          );
           setState("clientHandle", newSession.clientHandle);
           setState("clientId", newSession.clientId);
         });

@@ -24,7 +24,7 @@ import {
   type WaterfallSnapshot,
   type MeterSnapshot,
   type AudioStreamSnapshot,
-  type RadioProperties,
+  type RadioSnapshot,
   type RadioStatusContext,
   type FeatureLicenseSnapshot,
   type GuiClientSnapshot,
@@ -187,7 +187,7 @@ export interface FlexRadioSession {
   getGuiClients(): readonly GuiClientSnapshot[];
   getRemoteAudioRxStream(id: string): AudioStreamSnapshot | undefined;
   getRemoteAudioRxStreams(): readonly AudioStreamSnapshot[];
-  getRadio(): RadioProperties | undefined;
+  getRadio(): RadioSnapshot | undefined;
   getFeatureLicense(): FeatureLicenseSnapshot | undefined;
   radio(): RadioController;
   featureLicense(): FeatureLicenseController;
@@ -713,7 +713,7 @@ class FlexRadioSessionImpl implements FlexRadioSession {
     if (change) this.handleStateChange(change);
   }
 
-  getRadio(): RadioProperties | undefined {
+  getRadio(): RadioSnapshot | undefined {
     return this.store.getRadio();
   }
 

@@ -2,7 +2,7 @@ import type { FlexCommandOptions, FlexCommandResponse } from "./adapters.js";
 import type {
   RadioFilterSharpnessMode,
   RadioOscillatorSetting,
-  RadioProperties,
+  RadioSnapshot,
   RadioScreensaverMode,
   RadioStatusContext,
 } from "./radio-state.js";
@@ -27,7 +27,7 @@ interface RadioControllerSession {
 const EMPTY_STRING_LIST = Object.freeze([]) as readonly string[];
 
 export interface RadioController {
-  snapshot(): RadioProperties | undefined;
+  snapshot(): RadioSnapshot | undefined;
   get model(): string;
   get serial(): string;
   get nickname(): string;
@@ -149,14 +149,14 @@ export interface RadioController {
 export class RadioControllerImpl implements RadioController {
   constructor(
     private readonly session: RadioControllerSession,
-    private readonly getRadio: () => RadioProperties | undefined,
+    private readonly getRadio: () => RadioSnapshot | undefined,
   ) {}
 
-  snapshot(): RadioProperties | undefined {
+  snapshot(): RadioSnapshot | undefined {
     return this.getRadio();
   }
 
-  private current(): RadioProperties | undefined {
+  private current(): RadioSnapshot | undefined {
     return this.getRadio();
   }
 

@@ -31,7 +31,7 @@ import {
   type FlexWireMessage,
   type MeterSnapshot,
   type PanadapterSnapshot,
-  type RadioProperties,
+  type RadioSnapshot,
   type RadioStateChange,
   type SliceSnapshot,
   type Subscription,
@@ -92,7 +92,7 @@ type MutableProps<T> = {
   -readonly [P in keyof T]: T[P];
 };
 
-export type Radio = Omit<MutableProps<RadioProperties>, "raw">;
+export type Radio = Omit<MutableProps<RadioSnapshot>, "raw">;
 export type Slice = Omit<MutableProps<SliceSnapshot>, "raw">;
 export type Panadapter = Omit<MutableProps<PanadapterSnapshot>, "raw">;
 export type Waterfall = Omit<MutableProps<WaterfallSnapshot>, "raw">;
@@ -480,9 +480,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
       case "slice":
       case "meter":
       case "audioStream":
-        if (change.diff) {
-          setState("status", change.entity, change.id, change.diff);
-        } else {
+        if (change.removed) {
           setState(
             "status",
             change.entity,
@@ -490,6 +488,8 @@ export const FlexRadioProvider: ParentComponent = (props) => {
               delete items[change.id];
             }),
           );
+        } else {
+          setState("status", change.entity, change.id, change.diff);
         }
       default:
         break;

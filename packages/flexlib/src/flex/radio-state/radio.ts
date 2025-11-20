@@ -111,7 +111,7 @@ export interface RadioSnapshot {
   readonly raw: Readonly<Record<string, string>>;
 }
 
-export function createDefaultRadioProperties(): RadioSnapshot {
+export function createDefaultRadioSnapshot(): RadioSnapshot {
   return {
     model: "",
     serial: "",
@@ -199,7 +199,7 @@ export function createDefaultRadioProperties(): RadioSnapshot {
   };
 }
 
-export function createRadioProperties(
+export function createRadioSnapshot(
   attributes: Record<string, string>,
   previous?: RadioSnapshot,
   context?: RadioStatusContext,
@@ -226,7 +226,7 @@ export function createRadioProperties(
       break;
   }
 
-  const base = previous ?? createDefaultRadioProperties();
+  const base = previous ?? createDefaultRadioSnapshot();
   const snapshot = Object.freeze({
     ...base,
     ...partial,

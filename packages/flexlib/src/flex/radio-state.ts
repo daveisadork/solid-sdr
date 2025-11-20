@@ -23,7 +23,7 @@ import { createMeterSnapshot } from "./radio-state/meter.js";
 import type { MeterSnapshot } from "./radio-state/meter.js";
 import { createPanadapterSnapshot } from "./radio-state/panadapter.js";
 import type { PanadapterSnapshot } from "./radio-state/panadapter.js";
-import { createRadioProperties } from "./radio-state/radio.js";
+import { createRadioSnapshot } from "./radio-state/radio.js";
 import type { RadioSnapshot, RadioStatusContext } from "./radio-state/radio.js";
 import { createSliceSnapshot } from "./radio-state/slice.js";
 import type { SliceSnapshot } from "./radio-state/slice.js";
@@ -52,7 +52,7 @@ export type {
   RadioFilterSharpnessMode,
   RadioOscillatorSetting,
   RadioScreensaverMode,
-  RadioSnapshot as RadioProperties,
+  RadioSnapshot as RadioSnapshot,
   RadioStatusContext,
 } from "./radio-state/radio.js";
 export { KNOWN_METER_UNITS } from "./radio-state/meter.js";
@@ -347,7 +347,7 @@ export function createRadioStateStore(
     context?: RadioStatusContext,
   ): RadioStateChange | undefined {
     if (Object.keys(attributes).length === 0) return undefined;
-    const { snapshot, diff } = createRadioProperties(
+    const { snapshot, diff } = createRadioSnapshot(
       attributes,
       radio,
       context,
@@ -666,7 +666,7 @@ export function createRadioStateStore(
   }
 
   function handleRadio(message: FlexStatusMessage): RadioStateChange {
-    const { snapshot, diff } = createRadioProperties(
+    const { snapshot, diff } = createRadioSnapshot(
       message.attributes,
       radio,
       {

@@ -25,7 +25,7 @@ export interface RadioStatusContext {
   readonly positional?: readonly string[];
 }
 
-export interface RadioProperties {
+export interface RadioSnapshot {
   readonly model: string;
   readonly serial: string;
   readonly nickname: string;
@@ -111,7 +111,7 @@ export interface RadioProperties {
   readonly raw: Readonly<Record<string, string>>;
 }
 
-export function createDefaultRadioProperties(): RadioProperties {
+export function createDefaultRadioProperties(): RadioSnapshot {
   return {
     model: "",
     serial: "",
@@ -201,11 +201,11 @@ export function createDefaultRadioProperties(): RadioProperties {
 
 export function createRadioProperties(
   attributes: Record<string, string>,
-  previous?: RadioProperties,
+  previous?: RadioSnapshot,
   context?: RadioStatusContext,
-): SnapshotUpdate<RadioProperties> {
+): SnapshotUpdate<RadioSnapshot> {
   const rawDiff = freezeAttributes(attributes);
-  const partial: Mutable<Partial<RadioProperties>> = {};
+  const partial: Mutable<Partial<RadioSnapshot>> = {};
   switch (resolveRadioContext(context)) {
     case "gps":
       applyGpsStatusAttributes(attributes, partial);
@@ -234,7 +234,7 @@ export function createRadioProperties(
       ...base.raw,
       ...attributes,
     }),
-  }) as RadioProperties;
+  }) as RadioSnapshot;
   return {
     snapshot,
     diff: Object.freeze(partial),
@@ -244,8 +244,8 @@ export function createRadioProperties(
 
 function applyRadioSourceAttributes(
   attributes: Record<string, string>,
-  partial: Mutable<Partial<RadioProperties>>,
-  previous?: RadioProperties,
+  partial: Mutable<Partial<RadioSnapshot>>,
+  previous?: RadioSnapshot,
 ): void {
   for (const [key, value] of Object.entries(attributes)) {
     switch (key) {
@@ -495,7 +495,7 @@ function parseScreensaverMode(value: string | undefined): RadioScreensaverMode {
 
 function applyFilterSharpnessAttributes(
   attributes: Record<string, string>,
-  partial: Mutable<Partial<RadioProperties>>,
+  partial: Mutable<Partial<RadioSnapshot>>,
   context: RadioStatusContext,
 ): void {
   const modeToken = context.positional?.[0];
@@ -529,7 +529,7 @@ function applyFilterSharpnessAttributes(
 
 function applyStaticNetworkParams(
   attributes: Record<string, string>,
-  partial: Mutable<Partial<RadioProperties>>,
+  partial: Mutable<Partial<RadioSnapshot>>,
 ): void {
   if ("ip" in attributes) {
     const parsed = parseIpAddress(attributes["ip"]);
@@ -564,7 +564,7 @@ function applyStaticNetworkParams(
 
 function applyOscillatorAttributes(
   attributes: Record<string, string>,
-  partial: Mutable<Partial<RadioProperties>>,
+  partial: Mutable<Partial<RadioSnapshot>>,
 ): void {
   for (const [key, value] of Object.entries(attributes)) {
     switch (key) {
@@ -600,7 +600,7 @@ function applyOscillatorAttributes(
 
 function applyGpsStatusAttributes(
   attributes: Record<string, string>,
-  partial: Mutable<Partial<RadioProperties>>,
+  partial: Mutable<Partial<RadioSnapshot>>,
 ): void {
   for (const [key, value] of Object.entries(attributes)) {
     switch (key) {
@@ -743,7 +743,7 @@ function parseOscillatorSetting(
 }
 
 function assignFilterSharpnessLevel(
-  partial: Mutable<Partial<RadioProperties>>,
+  partial: Mutable<Partial<RadioSnapshot>>,
   mode: RadioFilterSharpnessMode,
   value: number,
 ): void {
@@ -761,7 +761,7 @@ function assignFilterSharpnessLevel(
 }
 
 function assignFilterSharpnessAuto(
-  partial: Mutable<Partial<RadioProperties>>,
+  partial: Mutable<Partial<RadioSnapshot>>,
   mode: RadioFilterSharpnessMode,
   value: boolean,
 ): void {

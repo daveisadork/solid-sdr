@@ -24,10 +24,7 @@ import type { MeterSnapshot } from "./radio-state/meter.js";
 import { createPanadapterSnapshot } from "./radio-state/panadapter.js";
 import type { PanadapterSnapshot } from "./radio-state/panadapter.js";
 import { createRadioProperties } from "./radio-state/radio.js";
-import type {
-  RadioProperties,
-  RadioStatusContext,
-} from "./radio-state/radio.js";
+import type { RadioSnapshot, RadioStatusContext } from "./radio-state/radio.js";
 import { createSliceSnapshot } from "./radio-state/slice.js";
 import type { SliceSnapshot } from "./radio-state/slice.js";
 import { createWaterfallSnapshot } from "./radio-state/waterfall.js";
@@ -55,7 +52,7 @@ export type {
   RadioFilterSharpnessMode,
   RadioOscillatorSetting,
   RadioScreensaverMode,
-  RadioProperties,
+  RadioSnapshot as RadioProperties,
   RadioStatusContext,
 } from "./radio-state/radio.js";
 export { KNOWN_METER_UNITS } from "./radio-state/meter.js";
@@ -76,7 +73,7 @@ export type RadioStateChange =
       id: string;
     } & ChangeMetadata<AudioStreamSnapshot>)
   | ({ entity: "guiClient"; id: string } & ChangeMetadata<GuiClientSnapshot>)
-  | ({ entity: "radio" } & ChangeMetadata<RadioProperties>)
+  | ({ entity: "radio" } & ChangeMetadata<RadioSnapshot>)
   | ({ entity: "featureLicense" } & ChangeMetadata<FeatureLicenseSnapshot>)
   | {
       entity: "unknown";
@@ -111,7 +108,7 @@ export interface RadioStateSnapshot {
   readonly meters: readonly MeterSnapshot[];
   readonly audioStreams: readonly AudioStreamSnapshot[];
   readonly guiClients: readonly GuiClientSnapshot[];
-  readonly radio?: RadioProperties;
+  readonly radio: RadioSnapshot;
   readonly featureLicense?: FeatureLicenseSnapshot;
 }
 
@@ -125,7 +122,7 @@ export interface RadioStateStore {
   getAudioStream(id: string): AudioStreamSnapshot | undefined;
   getGuiClient(id: string): GuiClientSnapshot | undefined;
   getGuiClients(): readonly GuiClientSnapshot[];
-  getRadio(): RadioProperties | undefined;
+  getRadio(): RadioSnapshot | undefined;
   getFeatureLicense(): FeatureLicenseSnapshot | undefined;
   patchRadio(
     attributes: Record<string, string>,
@@ -175,7 +172,7 @@ export function createRadioStateStore(
   const audioStreams = new Map<string, AudioStreamSnapshot>();
   const guiClients = new Map<string, GuiClientSnapshot>();
   const guiClientsByHandle = new Map<number, string>();
-  let radio: RadioProperties | undefined;
+  let radio: RadioSnapshot;
   let featureLicense: FeatureLicenseSnapshot | undefined;
   let localClientHandle: number | undefined;
 
@@ -310,7 +307,9 @@ export function createRadioStateStore(
           removed: true,
         },
       ];
-      changes.push(...recomputeGuiClientTransmitSlices([previous?.clientHandle]));
+      changes.push(
+        ...recomputeGuiClientTransmitSlices([previous?.clientHandle]),
+      );
       return changes;
     }
 

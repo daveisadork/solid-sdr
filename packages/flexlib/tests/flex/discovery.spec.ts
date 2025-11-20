@@ -96,6 +96,7 @@ describe("createVitaDiscoveryAdapter", () => {
     expect(descriptor.discoveryMeta?.externalPortLink).toBe(true);
     expect(descriptor.discoveryMeta?.availableClients).toBe(2);
     expect(descriptor.discoveryMeta?.inUseHosts).toBeUndefined();
+    expect(descriptor.guiClients).toBeUndefined();
 
     expect(onError).not.toHaveBeenCalled();
 
@@ -121,6 +122,7 @@ describe("createVitaDiscoveryAdapter", () => {
 
     factory.emit(SAMPLE_PACKET_ONE_CLIENT.slice());
     expect(onOnline).toHaveBeenCalledTimes(1);
+    expect(onOnline.mock.calls[0][0].guiClients).toHaveLength(1);
     expect(onOffline).not.toHaveBeenCalled();
 
     vi.advanceTimersByTime(999);
@@ -193,6 +195,18 @@ describe("createVitaDiscoveryAdapter", () => {
     expect(meta?.guiClientStations).toBe("MacBook Pro,LAPTOP-9V8U8FDA");
     expect(meta?.guiClientHandles).toBe("0x29DD2CDC,0x7D2D0108");
     expect(meta?.guiClientIps).toBe("10.16.83.154,10.16.83.60");
+    expect(descriptor.guiClients).toEqual([
+      expect.objectContaining({
+        handle: 0x29dd2cdc,
+        program: "SmartSDR-Mac",
+        station: "MacBook Pro",
+      }),
+      expect.objectContaining({
+        handle: 0x7d2d0108,
+        program: "SmartSDR-Win",
+        station: "LAPTOP-9V8U8FDA",
+      }),
+    ]);
 
     await session.stop();
   });

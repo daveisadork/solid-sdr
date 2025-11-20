@@ -1,5 +1,13 @@
 # Repository Guidelines
 
+## Project Goals
+
+- Deliver a feature-complete, idiomatic TypeScript port of the official FlexLib C# library.
+- Support Node/server environments, but optimize first for in-browser and Electron-style GUI clients.
+- Provide the absolute best developer experience so complex radio interactions stay approachable without losing flexibility.
+- Treat performance as a first-class concern to keep GUI clients responsive on lower-power hardware such as Raspberry Pi.
+- Design APIs that drop cleanly into reactive UI frameworks (SolidJS, React/Redux, etc.) with minimal glue code.
+
 ## Project Structure & Module Organization
 
 - `src/` groups code by domain: `src/flex/` houses the TCP command client and radio model, `src/vita/` contains UDP/VITA parsers, and `src/util/` provides cross-cutting helpers. `src/index.ts` re-exports the domains for consumers.

@@ -5,6 +5,7 @@ import type {
   Logger,
 } from "./adapters.js";
 import { parseVitaPacket } from "../vita/parser.js";
+import { parseDiscoveredGuiClients } from "./gui-client.js";
 
 const DEFAULT_CLOCK: Clock = { now: () => Date.now() };
 
@@ -279,13 +280,25 @@ export function decodeDiscoveryPayload(
     meta.guiClientHandles = guiClientHandles.join(",");
   }
 
+  const discoveredGuiClients = parseDiscoveredGuiClients({
+    programs: guiClientPrograms,
+    stations: guiClientStations,
+    handles: guiClientHandles,
+  });
+
   meta.lastSeen = timestamp;
 
+  let enrichedDescriptor = descriptor;
   if (Object.keys(meta).length > 0) {
-    return { ...descriptor, discoveryMeta: meta };
+    enrichedDescriptor = { ...enrichedDescriptor, discoveryMeta: meta };
   }
-
-  return descriptor;
+  if (discoveredGuiClients.length > 0) {
+    enrichedDescriptor = {
+      ...enrichedDescriptor,
+      guiClients: discoveredGuiClients,
+    };
+  }
+  return enrichedDescriptor;
 }
 
 function resolveProtocol(

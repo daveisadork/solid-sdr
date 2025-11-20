@@ -364,4 +364,37 @@ describe("createRadioStateStore", () => {
     ]);
     expect(radio?.micInputList).toEqual(["MIC", "BAL", "LINE", "ACC", "PC"]);
   });
+
+  it("tracks GUI clients and transmit slices", () => {
+    const store = createRadioStateStore();
+    const [change] = store.apply(
+      makeStatus(
+        "S1|client 0x29DD2CDC connected client_id=ABCD1234 program=SmartSDR station=Home\u007fOffice local_ptt=1",
+      ),
+    );
+    expect(change?.entity).toBe("guiClient");
+    let client = store.getGuiClient("0x29DD2CDC");
+    expect(client).toBeDefined();
+    expect(client?.clientId).toBe("ABCD1234");
+    expect(client?.program).toBe("SmartSDR");
+    expect(client?.station).toBe("Home Office");
+    expect(client?.isLocalPtt).toBe(true);
+    expect(client?.isThisClient).toBe(false);
+
+    const handleChanges = store.setLocalClientHandle("0x29DD2CDC");
+    expect(handleChanges).toHaveLength(1);
+    client = store.getGuiClient("0x29DD2CDC");
+    expect(client?.isThisClient).toBe(true);
+
+    store.apply(
+      makeStatus(
+        "S2|slice 0 in_use=1 tx=1 sample_rate=24000 RF_frequency=14.100000 client_handle=0x29DD2CDC",
+      ),
+    );
+    client = store.getGuiClient("0x29DD2CDC");
+    expect(client?.transmitSliceId).toBe("0");
+
+    store.apply(makeStatus("S3|client 0x29DD2CDC disconnected forced=0"));
+    expect(store.getGuiClient("0x29DD2CDC")).toBeUndefined();
+  });
 });

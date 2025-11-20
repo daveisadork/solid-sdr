@@ -38,7 +38,8 @@ import {
   type WaterfallSnapshot,
   type FlexDataPlaneFactory,
   type FlexConnectionProgress,
-  FeatureLicenseSnapshot,
+  type FeatureLicenseSnapshot,
+  type GuiClientSnapshot,
 } from "@repo/flexlib";
 import { createWebSocketFlexControlFactory } from "~/lib/flex-control";
 import { useRtc } from "./rtc";
@@ -97,6 +98,7 @@ export type Panadapter = Omit<MutableProps<PanadapterSnapshot>, "raw">;
 export type Waterfall = Omit<MutableProps<WaterfallSnapshot>, "raw">;
 export type AudioStream = Omit<MutableProps<AudioStreamSnapshot>, "raw">;
 export type FeatureLicense = Omit<MutableProps<FeatureLicenseSnapshot>, "raw">;
+export type GuiClient = Omit<MutableProps<GuiClientSnapshot>, "raw">;
 
 export interface Gradient {
   name: string;
@@ -140,6 +142,7 @@ export interface StatusState {
   radio: Radio;
   featureLicense: FeatureLicense;
   audioStream: Record<string, AudioStream>;
+  guiClients: Record<string, GuiClient>;
 }
 
 export interface AppState {
@@ -266,6 +269,7 @@ export const initialState = () =>
       interlock: {
         band: {},
       },
+      guiClients: {},
       radio: {
         // // slices: 4,
         // // panadapters: 4,
@@ -817,6 +821,9 @@ export const FlexRadioProvider: ParentComponent = (props) => {
             "featureLicense",
             withoutRaw(initial.featureLicense),
           );
+          initial.guiClients.forEach((client) => {
+            setState("status", "guiClients", client.id, withoutRaw(client));
+          });
           initial.slices.forEach((slice) =>
             setState("status", "slice", slice.id, withoutRaw(slice)),
           );

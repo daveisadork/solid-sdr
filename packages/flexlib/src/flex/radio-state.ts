@@ -1,7 +1,11 @@
 import type { FlexStatusMessage } from "./protocol.js";
 import type { RfGainInfo } from "./rf-gain.js";
 import type { Logger } from "./adapters.js";
-import { isTruthy, setRadioStateLogger } from "./radio-state/common.js";
+import {
+  isTruthy,
+  parseIntegerMaybeHex,
+  setRadioStateLogger,
+} from "./radio-state/common.js";
 import type { SnapshotDiff } from "./radio-state/common.js";
 import {
   AUDIO_STREAM_TYPES,
@@ -28,6 +32,10 @@ import { createSliceSnapshot } from "./radio-state/slice.js";
 import type { SliceSnapshot } from "./radio-state/slice.js";
 import { createWaterfallSnapshot } from "./radio-state/waterfall.js";
 import type { WaterfallSnapshot } from "./radio-state/waterfall.js";
+import {
+  createGuiClientSnapshot,
+  type GuiClientSnapshot,
+} from "./radio-state/gui-client.js";
 
 export type { SnapshotDiff } from "./radio-state/common.js";
 export type { SliceSnapshot } from "./radio-state/slice.js";
@@ -51,6 +59,7 @@ export type {
   RadioStatusContext,
 } from "./radio-state/radio.js";
 export { KNOWN_METER_UNITS } from "./radio-state/meter.js";
+export type { GuiClientSnapshot } from "./radio-state/gui-client.js";
 
 type ChangeMetadata<TSnapshot> = {
   readonly diff?: SnapshotDiff<TSnapshot>;
@@ -66,6 +75,7 @@ export type RadioStateChange =
       entity: "audioStream";
       id: string;
     } & ChangeMetadata<AudioStreamSnapshot>)
+  | ({ entity: "guiClient"; id: string } & ChangeMetadata<GuiClientSnapshot>)
   | ({ entity: "radio" } & ChangeMetadata<RadioProperties>)
   | ({ entity: "featureLicense" } & ChangeMetadata<FeatureLicenseSnapshot>)
   | {
@@ -89,6 +99,10 @@ export type AudioStreamStateChange = Extract<
   RadioStateChange,
   { entity: "audioStream" }
 >;
+export type GuiClientStateChange = Extract<
+  RadioStateChange,
+  { entity: "guiClient" }
+>;
 
 export interface RadioStateSnapshot {
   readonly slices: readonly SliceSnapshot[];
@@ -96,6 +110,7 @@ export interface RadioStateSnapshot {
   readonly waterfalls: readonly WaterfallSnapshot[];
   readonly meters: readonly MeterSnapshot[];
   readonly audioStreams: readonly AudioStreamSnapshot[];
+  readonly guiClients: readonly GuiClientSnapshot[];
   readonly radio?: RadioProperties;
   readonly featureLicense?: FeatureLicenseSnapshot;
 }
@@ -108,6 +123,8 @@ export interface RadioStateStore {
   getWaterfall(id: string): WaterfallSnapshot | undefined;
   getMeter(id: string): MeterSnapshot | undefined;
   getAudioStream(id: string): AudioStreamSnapshot | undefined;
+  getGuiClient(id: string): GuiClientSnapshot | undefined;
+  getGuiClients(): readonly GuiClientSnapshot[];
   getRadio(): RadioProperties | undefined;
   getFeatureLicense(): FeatureLicenseSnapshot | undefined;
   patchRadio(
@@ -138,6 +155,9 @@ export interface RadioStateStore {
     id: string,
     info: RfGainInfo,
   ): WaterfallStateChange | undefined;
+  setLocalClientHandle(
+    handle: string | number | undefined,
+  ): readonly RadioStateChange[];
 }
 
 export interface RadioStateStoreOptions {
@@ -153,14 +173,17 @@ export function createRadioStateStore(
   const waterfalls = new Map<string, WaterfallSnapshot>();
   const meters = new Map<string, MeterSnapshot>();
   const audioStreams = new Map<string, AudioStreamSnapshot>();
+  const guiClients = new Map<string, GuiClientSnapshot>();
+  const guiClientsByHandle = new Map<number, string>();
   let radio: RadioProperties | undefined;
   let featureLicense: FeatureLicenseSnapshot | undefined;
+  let localClientHandle: number | undefined;
 
   return {
     apply(message) {
       switch (message.source) {
         case "slice":
-          return [handleSlice(message)];
+          return handleSlice(message);
         case "pan":
           return [handlePanadapter(message)];
         case "stream":
@@ -170,6 +193,8 @@ export function createRadioStateStore(
         case "radio":
         case "gps":
           return [handleRadio(message)];
+        case "client":
+          return handleClient(message);
         case "license": {
           const change = handleLicense(message);
           if (change) return [change];
@@ -200,6 +225,7 @@ export function createRadioStateStore(
         waterfalls: Array.from(waterfalls.values()),
         meters: Array.from(meters.values()),
         audioStreams: Array.from(audioStreams.values()),
+        guiClients: Array.from(guiClients.values()),
         radio,
         featureLicense,
       };
@@ -218,6 +244,12 @@ export function createRadioStateStore(
     },
     getAudioStream(id) {
       return audioStreams.get(id);
+    },
+    getGuiClient(id) {
+      return guiClients.get(id);
+    },
+    getGuiClients() {
+      return Array.from(guiClients.values());
     },
     getRadio() {
       return radio;
@@ -246,16 +278,21 @@ export function createRadioStateStore(
     applyWaterfallRfGainInfo(id, info) {
       return applyWaterfallRfGainInfo(id, info);
     },
+    setLocalClientHandle(handle) {
+      return updateLocalClientHandle(handle);
+    },
   };
 
-  function handleSlice(message: FlexStatusMessage): RadioStateChange {
+  function handleSlice(message: FlexStatusMessage): RadioStateChange[] {
     const id = resolveIdentifier(message, message.attributes["index"]);
     if (!id) {
-      return {
-        entity: "unknown",
-        source: message.source,
-        attributes: message.attributes,
-      };
+      return [
+        {
+          entity: "unknown",
+          source: message.source,
+          attributes: message.attributes,
+        },
+      ];
     }
 
     if (isMarkedDeleted(message.attributes)) {
@@ -266,11 +303,15 @@ export function createRadioStateStore(
         undefined,
         previous?.panadapterStreamId,
       );
-      return {
-        entity: "slice",
-        id,
-        removed: true,
-      };
+      const changes: RadioStateChange[] = [
+        {
+          entity: "slice",
+          id,
+          removed: true,
+        },
+      ];
+      changes.push(...recomputeGuiClientTransmitSlices([previous?.clientHandle]));
+      return changes;
     }
 
     const previous = slices.get(id);
@@ -285,12 +326,21 @@ export function createRadioStateStore(
       snapshot.panadapterStreamId,
       previous?.panadapterStreamId,
     );
-    return {
-      entity: "slice",
-      id,
-      removed: false,
-      diff,
-    };
+    const changes: RadioStateChange[] = [
+      {
+        entity: "slice",
+        id,
+        removed: false,
+        diff,
+      },
+    ];
+    changes.push(
+      ...recomputeGuiClientTransmitSlices([
+        snapshot.clientHandle,
+        previous?.clientHandle,
+      ]),
+    );
+    return changes;
   }
 
   function patchRadio(
@@ -420,6 +470,91 @@ export function createRadioStateStore(
       diff,
       removed: false,
     };
+  }
+
+  function handleClient(message: FlexStatusMessage): RadioStateChange[] {
+    const id = resolveIdentifier(message, message.identifier);
+    if (!id) {
+      return [
+        {
+          entity: "unknown",
+          source: message.source,
+          attributes: message.attributes,
+        },
+      ];
+    }
+
+    const action = message.positional[0]?.toLowerCase();
+    if (action === "disconnected") {
+      const existing = guiClients.get(id);
+      if (!existing) {
+        return [
+          {
+            entity: "unknown",
+            source: message.source,
+            id,
+            attributes: message.attributes,
+          },
+        ];
+      }
+      guiClients.delete(id);
+      guiClientsByHandle.delete(existing.clientHandle);
+      return [
+        {
+          entity: "guiClient",
+          id,
+          removed: true,
+        },
+      ];
+    }
+
+    if (action === "connected") {
+      const clientIdAttr = message.attributes["client_id"]?.trim();
+      if (!clientIdAttr) {
+        return [
+          {
+            entity: "unknown",
+            source: message.source,
+            id,
+            attributes: message.attributes,
+          },
+        ];
+      }
+      const previous = guiClients.get(id);
+      const { snapshot, diff } = createGuiClientSnapshot(
+        id,
+        message.attributes,
+        previous,
+        { localClientHandle },
+      );
+      guiClients.set(id, snapshot);
+      if (!previous || previous.clientHandle !== snapshot.clientHandle) {
+        if (previous) guiClientsByHandle.delete(previous.clientHandle);
+        guiClientsByHandle.set(snapshot.clientHandle, id);
+      }
+      const changes: RadioStateChange[] = [
+        {
+          entity: "guiClient",
+          id,
+          diff,
+          removed: false,
+        },
+      ];
+      const transmitChange = updateGuiClientTransmitSlice(
+        snapshot.clientHandle,
+      );
+      if (transmitChange) changes.push(transmitChange);
+      return changes;
+    }
+
+    return [
+      {
+        entity: "unknown",
+        source: message.source,
+        id,
+        attributes: message.attributes,
+      },
+    ];
   }
 
   function handleDisplay(
@@ -577,6 +712,51 @@ export function createRadioStateStore(
     }
   }
 
+  function recomputeGuiClientTransmitSlices(
+    handles: readonly (number | undefined)[],
+  ): RadioStateChange[] {
+    const updates: RadioStateChange[] = [];
+    const seen = new Set<number>();
+    for (const handle of handles) {
+      if (handle === undefined || seen.has(handle)) continue;
+      seen.add(handle);
+      const change = updateGuiClientTransmitSlice(handle);
+      if (change) updates.push(change);
+    }
+    return updates;
+  }
+
+  function updateGuiClientTransmitSlice(
+    handle: number,
+  ): RadioStateChange | undefined {
+    const clientId = guiClientsByHandle.get(handle);
+    if (!clientId) return undefined;
+    const client = guiClients.get(clientId);
+    if (!client) return undefined;
+    const nextSliceId = findTransmitSliceId(handle);
+    if (client.transmitSliceId === nextSliceId) return undefined;
+    const updated = Object.freeze({
+      ...client,
+      transmitSliceId: nextSliceId,
+    });
+    guiClients.set(clientId, updated);
+    return {
+      entity: "guiClient",
+      id: clientId,
+      removed: false,
+      diff: Object.freeze({ transmitSliceId: nextSliceId }),
+    };
+  }
+
+  function findTransmitSliceId(handle: number): string | undefined {
+    for (const slice of slices.values()) {
+      if (slice.clientHandle === handle && slice.isTransmitEnabled) {
+        return slice.id;
+      }
+    }
+    return undefined;
+  }
+
   function detachSlicesFromPanadapter(panId: string): void {
     for (const slice of slices.values()) {
       if (slice.panadapterStreamId === panId) {
@@ -681,6 +861,39 @@ export function createRadioStateStore(
       diff,
       removed: false,
     };
+  }
+
+  function updateLocalClientHandle(
+    handle: string | number | undefined,
+  ): RadioStateChange[] {
+    const normalized =
+      typeof handle === "number"
+        ? Number.isFinite(handle)
+          ? handle
+          : undefined
+        : typeof handle === "string"
+          ? parseIntegerMaybeHex(handle)
+          : undefined;
+    if (normalized === localClientHandle) return [];
+    localClientHandle = normalized;
+    const changes: RadioStateChange[] = [];
+    for (const [id, client] of guiClients) {
+      const isThisClient =
+        normalized !== undefined && client.clientHandle === normalized;
+      if (client.isThisClient === isThisClient) continue;
+      const updated = Object.freeze({
+        ...client,
+        isThisClient,
+      });
+      guiClients.set(id, updated);
+      changes.push({
+        entity: "guiClient",
+        id,
+        removed: false,
+        diff: Object.freeze({ isThisClient }),
+      });
+    }
+    return changes;
   }
 
   function applyPanadapterRfGainInfo(

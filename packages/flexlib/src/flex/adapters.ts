@@ -1,5 +1,6 @@
 import type { Subscription } from "./events.js";
 import type { FlexWireMessage } from "./protocol.js";
+import type { DiscoveredGuiClient } from "./gui-client.js";
 
 export interface Clock {
   now(): number;
@@ -24,6 +25,7 @@ export interface FlexRadioDescriptor {
   readonly port: number;
   readonly protocol: "tcp" | "tls";
   readonly discoveryMeta?: Record<string, string | number | boolean>;
+  readonly guiClients?: readonly DiscoveredGuiClient[];
 }
 
 export interface DiscoveryCallbacks {

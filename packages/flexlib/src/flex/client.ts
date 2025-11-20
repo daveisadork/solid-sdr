@@ -27,6 +27,7 @@ import {
   type RadioProperties,
   type RadioStatusContext,
   type FeatureLicenseSnapshot,
+  type GuiClientSnapshot,
 } from "./radio-state.js";
 import {
   FlexClientClosedError,
@@ -182,6 +183,8 @@ export interface FlexRadioSession {
   getMeters(): readonly MeterSnapshot[];
   getAudioStream(id: string): AudioStreamSnapshot | undefined;
   getAudioStreams(): readonly AudioStreamSnapshot[];
+  getGuiClient(id: string): GuiClientSnapshot | undefined;
+  getGuiClients(): readonly GuiClientSnapshot[];
   getRemoteAudioRxStream(id: string): AudioStreamSnapshot | undefined;
   getRemoteAudioRxStreams(): readonly AudioStreamSnapshot[];
   getRadio(): RadioProperties | undefined;
@@ -458,6 +461,14 @@ class FlexRadioSessionImpl implements FlexRadioSession {
     return this.store.snapshot().audioStreams;
   }
 
+  getGuiClient(id: string): GuiClientSnapshot | undefined {
+    return this.store.getGuiClient(id);
+  }
+
+  getGuiClients(): readonly GuiClientSnapshot[] {
+    return this.store.snapshot().guiClients;
+  }
+
   getRemoteAudioRxStream(id: string): AudioStreamSnapshot | undefined {
     const stream = this.getAudioStream(id);
     return stream && stream.type === "remote_audio_rx" ? stream : undefined;
@@ -631,6 +642,10 @@ class FlexRadioSessionImpl implements FlexRadioSession {
     if (!handle) return;
     if (this._clientHandle === handle) return;
     this._clientHandle = handle;
+    const clientChanges = this.store.setLocalClientHandle(handle);
+    for (const change of clientChanges) {
+      this.handleStateChange(change);
+    }
     this.resolveHandleWaiters(handle);
   }
 

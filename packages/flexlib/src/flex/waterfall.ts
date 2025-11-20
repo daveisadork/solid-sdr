@@ -20,14 +20,14 @@ import {
   lineSpeedToDurationMs,
 } from "./waterfall-line-speed.js";
 import type {
-  FlexUdpPacketEvent,
-  FlexUdpScope,
-  FlexUdpSession,
-} from "./udp.js";
+  UdpPacketEvent,
+  UdpScope,
+  UdpSession,
+} from "./udp-session.js";
 
 export interface WaterfallControllerEvents extends Record<string, unknown> {
   readonly change: WaterfallStateChange;
-  readonly data: FlexUdpPacketEvent<"waterfall">;
+  readonly data: UdpPacketEvent<"waterfall">;
 }
 
 export interface WaterfallUpdateRequest {
@@ -59,7 +59,7 @@ export interface WaterfallSessionApi {
   getWaterfall(id: string): WaterfallSnapshot | undefined;
   patchWaterfall(id: string, attributes: Record<string, string>): void;
   applyWaterfallRfGainInfo(id: string, info: RfGainInfo): void;
-  readonly udp: FlexUdpSession;
+  readonly udp: UdpSession;
 }
 
 export interface WaterfallController {
@@ -134,7 +134,7 @@ export class WaterfallControllerImpl implements WaterfallController {
   private readonly events = new TypedEventEmitter<WaterfallControllerEvents>();
   private streamHandle?: string;
   private dataListeners = 0;
-  private dataScope?: FlexUdpScope<"waterfall">;
+  private dataScope?: UdpScope<"waterfall">;
   private dataSubscription?: Subscription;
 
   constructor(

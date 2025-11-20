@@ -56,7 +56,7 @@ import {
   FeatureLicenseControllerImpl,
   type FeatureLicenseController,
 } from "./feature-license.js";
-import { createFlexUdpSession, type FlexUdpSession } from "./udp.js";
+import { createUdpSession, type UdpSession } from "./udp-session.js";
 
 export interface FlexClientOptions {
   defaultCommandTimeoutMs?: number;
@@ -96,7 +96,7 @@ export interface FlexDiscoverySession {
 export interface FlexConnectionOptions {
   readonly commandTimeoutMs?: number;
   readonly controlOptions?: Record<string, unknown>;
-  readonly udpSession?: FlexUdpSession;
+  readonly udpSession?: UdpSession;
   readonly dataPlane?: FlexDataPlaneFactory;
   readonly handshake?: FlexHandshake | null;
   readonly pingIntervalMs?: number | null;
@@ -107,7 +107,7 @@ export interface FlexDataPlaneContext {
   readonly descriptor: FlexRadioDescriptor;
   readonly handle: string;
   readonly session: FlexRadioSession;
-  readonly udp: FlexUdpSession;
+  readonly udp: UdpSession;
   readonly logger?: Logger;
   command(
     command: string,
@@ -133,7 +133,7 @@ export interface FlexHandshakeContext {
   readonly descriptor: FlexRadioDescriptor;
   readonly session: FlexRadioSession;
   readonly radio: RadioController;
-  readonly udp: FlexUdpSession;
+  readonly udp: UdpSession;
   readonly logger?: Logger;
   readonly dataPlaneFactory?: FlexDataPlaneFactory;
   command(
@@ -171,7 +171,7 @@ export interface FlexRadioSession {
   readonly ready: Promise<void>;
   readonly clientHandle: string | null;
   readonly clientId: string | null;
-  readonly udp: FlexUdpSession;
+  readonly udp: UdpSession;
   snapshot(): RadioStateSnapshot;
   getSlice(id: string): SliceSnapshot | undefined;
   getSlices(): readonly SliceSnapshot[];
@@ -275,7 +275,7 @@ export function createFlexClient(
     async connect(descriptor, connectionOptions) {
       const udpSession =
         connectionOptions?.udpSession ??
-        createFlexUdpSession({ logger: adapters.logger });
+        createUdpSession({ logger: adapters.logger });
       const control = await adapters.control.connect(
         descriptor,
         connectionOptions?.controlOptions,
@@ -317,7 +317,7 @@ export function createFlexClient(
 interface InternalSessionOptions {
   readonly defaultCommandTimeoutMs: number;
   readonly logger?: FlexClientAdapters["logger"];
-  readonly udpSession: FlexUdpSession;
+  readonly udpSession: UdpSession;
   readonly pingIntervalMs?: number | null;
 }
 
@@ -359,7 +359,7 @@ class FlexRadioSessionImpl implements FlexRadioSession {
   private _clientId: string | null = null;
   private _isReady = false;
   private onProgress?: (progress: FlexConnectionProgress) => void;
-  private readonly udpSession: FlexUdpSession;
+  private readonly udpSession: UdpSession;
   private closed = false;
 
   constructor(
@@ -413,7 +413,7 @@ class FlexRadioSessionImpl implements FlexRadioSession {
     return this._clientId;
   }
 
-  get udp(): FlexUdpSession {
+  get udp(): UdpSession {
     return this.udpSession;
   }
 

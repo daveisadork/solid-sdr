@@ -8,14 +8,14 @@ export { KNOWN_METER_UNITS } from "./state/index.js";
 import { TypedEventEmitter, type Subscription } from "./events.js";
 import { FlexStateUnavailableError } from "./errors.js";
 import type {
-  FlexUdpPacketEvent,
-  FlexUdpScope,
-  FlexUdpSession,
-} from "./udp.js";
+  UdpPacketEvent,
+  UdpScope,
+  UdpSession,
+} from "./udp-session.js";
 
 export interface MeterControllerEvents extends Record<string, unknown> {
   readonly change: MeterStateChange;
-  readonly data: FlexUdpPacketEvent<"meter">;
+  readonly data: UdpPacketEvent<"meter">;
 }
 
 export interface MeterController {
@@ -38,13 +38,13 @@ export interface MeterController {
 
 export interface MeterSessionApi {
   getMeter(id: string): MeterSnapshot | undefined;
-  readonly udp: FlexUdpSession;
+  readonly udp: UdpSession;
 }
 
 export class MeterControllerImpl implements MeterController {
   private readonly events = new TypedEventEmitter<MeterControllerEvents>();
   private dataListeners = 0;
-  private dataScope?: FlexUdpScope<"meter">;
+  private dataScope?: UdpScope<"meter">;
   private dataSubscription?: Subscription;
 
   constructor(

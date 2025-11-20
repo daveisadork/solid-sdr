@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { FlexRadioDescriptor } from "../../src/flex/adapters.js";
 import { createFlexClient } from "../../src/flex/session.js";
 import { FlexClientClosedError } from "../../src/flex/errors.js";
-import { MockControlFactory, makeStatus } from "../helpers.js";
+import { createMockControl, makeStatus } from "../helpers.js";
 
 const descriptor: FlexRadioDescriptor = {
   serial: "1234-0001",
@@ -21,11 +21,11 @@ const NO_HANDSHAKE = { handshake: async () => {} };
 
 describe("Panadapter controller", () => {
   it("reflects state updates and issues commands", async () => {
-    const factory = new MockControlFactory();
+    const { factory, getChannel } = createMockControl();
     const client = createFlexClient({ control: factory });
     const session = await client.connect(descriptor, NO_HANDSHAKE);
-    const channel = factory.channel;
-    if (!channel) throw new Error("control channel not created");
+    const channel = getChannel();
+    
 
     channel.emit(
       makeStatus(
@@ -189,11 +189,11 @@ describe("Panadapter controller", () => {
   });
 
   it("creates a panadapter via createPanadapter", async () => {
-    const factory = new MockControlFactory();
+    const { factory, getChannel } = createMockControl();
     const client = createFlexClient({ control: factory });
     const session = await client.connect(descriptor, NO_HANDSHAKE);
-    const channel = factory.channel;
-    if (!channel) throw new Error("control channel not created");
+    const channel = getChannel();
+    
 
     channel.prepareResponse({ message: "0x50000000,0x52000000" });
     const creation = session.createPanadapter({
@@ -219,11 +219,11 @@ describe("Panadapter controller", () => {
   });
 
   it("rejects pending panadapter creation when the session closes", async () => {
-    const factory = new MockControlFactory();
+    const { factory, getChannel } = createMockControl();
     const client = createFlexClient({ control: factory });
     const session = await client.connect(descriptor, NO_HANDSHAKE);
-    const channel = factory.channel;
-    if (!channel) throw new Error("control channel not created");
+    const channel = getChannel();
+    
 
     channel.prepareResponse({ message: "0x50000001,0x52000001" });
     const creation = session.createPanadapter();

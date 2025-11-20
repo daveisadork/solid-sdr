@@ -6,7 +6,7 @@ import {
   FlexCommandRejectedError,
 } from "../../src/flex/errors.js";
 import type { RadioStateChange } from "../../src/flex/state/index.js";
-import { MockControlFactory, makeStatus } from "../helpers.js";
+import { createMockControl, makeStatus } from "../helpers.js";
 
 const descriptor: FlexRadioDescriptor = {
   serial: "1234-0001",
@@ -25,12 +25,12 @@ const NO_HANDSHAKE = { handshake: async () => {} };
 
 describe("FlexClient", () => {
   it("connects and updates slice state", async () => {
-    const factory = new MockControlFactory();
+    const { factory, getChannel } = createMockControl();
     const client = createFlexClient({ control: factory });
     const session = await client.connect(descriptor, NO_HANDSHAKE);
-    const channel = factory.channel;
+    const channel = getChannel();
     expect(channel).toBeDefined();
-    if (!channel) throw new Error("control channel not created");
+    
 
     const changes: RadioStateChange[] = [];
     session.on("change", (change) => {
@@ -206,11 +206,10 @@ describe("FlexClient", () => {
   });
 
   it("creates remote audio stream controllers", async () => {
-    const factory = new MockControlFactory();
+    const { factory, getChannel } = createMockControl();
     const client = createFlexClient({ control: factory });
     const session = await client.connect(descriptor, NO_HANDSHAKE);
-    const channel = factory.channel;
-    if (!channel) throw new Error("control channel not created");
+    const channel = getChannel();
 
     expect(session.getRemoteAudioRxStreams()).toHaveLength(0);
 
@@ -254,11 +253,11 @@ describe("FlexClient", () => {
   });
 
   it("creates remote audio tx stream controllers", async () => {
-    const factory = new MockControlFactory();
+    const { factory, getChannel } = createMockControl();
     const client = createFlexClient({ control: factory });
     const session = await client.connect(descriptor, NO_HANDSHAKE);
-    const channel = factory.channel;
-    if (!channel) throw new Error("control channel not created");
+    const channel = getChannel();
+    
 
     channel.prepareResponse({ message: "4000009" });
     const creationPromise = session.createRemoteAudioTxStream();
@@ -279,11 +278,11 @@ describe("FlexClient", () => {
   });
 
   it("creates dax rx audio stream controllers", async () => {
-    const factory = new MockControlFactory();
+    const { factory, getChannel } = createMockControl();
     const client = createFlexClient({ control: factory });
     const session = await client.connect(descriptor, NO_HANDSHAKE);
-    const channel = factory.channel;
-    if (!channel) throw new Error("control channel not created");
+    const channel = getChannel();
+    
 
     channel.prepareResponse({ message: "2000002" });
     const creationPromise = session.createDaxRxAudioStream({
@@ -307,11 +306,11 @@ describe("FlexClient", () => {
   });
 
   it("allows closing audio streams after they are removed from state", async () => {
-    const factory = new MockControlFactory();
+    const { factory, getChannel } = createMockControl();
     const client = createFlexClient({ control: factory });
     const session = await client.connect(descriptor, NO_HANDSHAKE);
-    const channel = factory.channel;
-    if (!channel) throw new Error("control channel not created");
+    const channel = getChannel();
+    
 
     channel.prepareResponse({ message: "400000A" });
     const creationPromise = session.createRemoteAudioRxStream();
@@ -331,11 +330,11 @@ describe("FlexClient", () => {
   });
 
   it("rejects pending audio stream creation when the session closes", async () => {
-    const factory = new MockControlFactory();
+    const { factory, getChannel } = createMockControl();
     const client = createFlexClient({ control: factory });
     const session = await client.connect(descriptor, NO_HANDSHAKE);
-    const channel = factory.channel;
-    if (!channel) throw new Error("control channel not created");
+    const channel = getChannel();
+    
 
     channel.prepareResponse({ message: "400000B" });
     const creationPromise = session.createRemoteAudioRxStream();
@@ -348,11 +347,11 @@ describe("FlexClient", () => {
   });
 
   it("surfaces command rejections", async () => {
-    const factory = new MockControlFactory();
+    const { factory, getChannel } = createMockControl();
     const client = createFlexClient({ control: factory });
     const session = await client.connect(descriptor, NO_HANDSHAKE);
-    const channel = factory.channel;
-    if (!channel) throw new Error("control channel not created");
+    const channel = getChannel();
+    
 
     channel.emit(makeStatus("S1|slice 1 freq=14.100000"));
 
@@ -381,12 +380,12 @@ describe("FlexClient", () => {
   });
 
   it("provides radio snapshots and gps convenience getters", async () => {
-    const factory = new MockControlFactory();
+    const { factory, getChannel } = createMockControl();
     const client = createFlexClient({ control: factory });
     const session = await client.connect(descriptor, NO_HANDSHAKE);
-    const channel = factory.channel;
+    const channel = getChannel();
     expect(channel).toBeDefined();
-    if (!channel) throw new Error("control channel not created");
+    
 
     const gpsStatus =
       "S0|gps lat=38.433731667#lon=-90.454651667#grid=EM48sk#altitude=235 m#tracked=10#visible=31#speed=0 kts#freq_error=0 ppb#status=Fine Lock#time=21:16:12Z#track=0.0";
@@ -528,12 +527,12 @@ describe("FlexClient", () => {
   });
 
   it("issues gps install and uninstall commands", async () => {
-    const factory = new MockControlFactory();
+    const { factory, getChannel } = createMockControl();
     const client = createFlexClient({ control: factory });
     const session = await client.connect(descriptor, NO_HANDSHAKE);
-    const channel = factory.channel;
+    const channel = getChannel();
     expect(channel).toBeDefined();
-    if (!channel) throw new Error("control channel not created");
+    
 
     await session.installGps();
     expect(channel.commands.at(-1)?.command).toBe("radio gps install");

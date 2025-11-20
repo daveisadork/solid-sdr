@@ -6,10 +6,10 @@ import type {
   AudioStreamStateChange,
 } from "./state/index.js";
 import type {
-  FlexUdpPacketEvent,
-  FlexUdpScope,
-  FlexUdpSession,
-} from "./udp.js";
+  UdpPacketEvent,
+  UdpScope,
+  UdpSession,
+} from "./udp-session.js";
 
 export interface AudioStreamControllerEvents extends Record<string, unknown> {
   readonly change: AudioStreamStateChange;
@@ -23,7 +23,7 @@ export interface AudioStreamSessionApi {
   ): Promise<FlexCommandResponse>;
   getAudioStream(id: string): AudioStreamSnapshot | undefined;
   patchAudioStream(id: string, attributes: Record<string, string>): void;
-  readonly udp: FlexUdpSession;
+  readonly udp: UdpSession;
 }
 
 export type AudioStreamDataKind =
@@ -35,7 +35,7 @@ export type AudioStreamDataKind =
   | "daxIq96"
   | "daxIq192";
 
-export type AudioStreamDataEvent = FlexUdpPacketEvent<AudioStreamDataKind>;
+export type AudioStreamDataEvent = UdpPacketEvent<AudioStreamDataKind>;
 
 export interface AudioStreamController {
   readonly id: string;
@@ -60,7 +60,7 @@ export class AudioStreamControllerImpl implements AudioStreamController {
     new TypedEventEmitter<AudioStreamControllerEvents>();
   private streamHandle?: string;
   private dataListeners = 0;
-  private dataScopes: FlexUdpScope<AudioStreamDataKind>[] = [];
+  private dataScopes: UdpScope<AudioStreamDataKind>[] = [];
   private dataSubscriptions: Subscription[] = [];
 
   constructor(
@@ -166,7 +166,7 @@ export class AudioStreamControllerImpl implements AudioStreamController {
     const streamNumericId = parseStreamIdentifier(this.streamId);
     if (!Number.isFinite(streamNumericId)) return;
     const kinds = resolveAudioStreamKinds(this.session.getAudioStream(this.id));
-    const scopes: FlexUdpScope<AudioStreamDataKind>[] = [];
+    const scopes: UdpScope<AudioStreamDataKind>[] = [];
     const subscriptions: Subscription[] = [];
     for (const kind of kinds) {
       const scope = this.session.udp.scope(

@@ -1,11 +1,11 @@
 import {
   type FlexControlFactory,
   type FlexRadioDescriptor,
-  type FlexUdpSession,
+  type UdpSession,
   type FlexWireTransport,
   type FlexWireTransportFactory,
   type Logger,
-  createFlexWireControlFactory,
+  createControlChannelFactory,
 } from "@repo/flexlib";
 
 export interface WebSocketControlConnectionParams {
@@ -16,14 +16,14 @@ export interface WebSocketFlexControlFactoryOptions {
   makeSocket(descriptor: FlexRadioDescriptor): WebSocket;
   logger?: Logger;
   commandTerminator?: string;
-  udpSession?: FlexUdpSession;
+  udpSession?: UdpSession;
 }
 
 export function createWebSocketFlexControlFactory(
   options: WebSocketFlexControlFactoryOptions,
 ): FlexControlFactory {
   const transportFactory = createWebSocketTransportFactory(options);
-  return createFlexWireControlFactory({
+  return createControlChannelFactory({
     transportFactory,
     logger: options.logger,
     commandTerminator: options.commandTerminator,

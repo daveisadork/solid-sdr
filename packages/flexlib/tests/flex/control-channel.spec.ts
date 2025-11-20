@@ -6,14 +6,10 @@ import {
   it,
   vi,
 } from "vitest";
-import type {
-  FlexRadioDescriptor,
-  FlexWireTransport,
-  FlexWireTransportFactory,
-  FlexWireTransportHandlers,
-} from "../../src/flex/adapters.js";
-import { createFlexWireControlFactory } from "../../src/flex/wire-control.js";
+import type { FlexRadioDescriptor } from "../../src/flex/adapters.js";
+import { createControlChannelFactory } from "../../src/flex/control-channel.js";
 import { FlexClientClosedError } from "../../src/flex/errors.js";
+import { MockWireTransportFactory } from "../helpers.js";
 
 const descriptor: FlexRadioDescriptor = {
   serial: "1234-0001",
@@ -28,59 +24,7 @@ const descriptor: FlexRadioDescriptor = {
   callsign: "",
 };
 
-class MockWireTransport implements FlexWireTransport {
-  readonly sent: string[] = [];
-  closed = false;
-
-  constructor(readonly handlers: FlexWireTransportHandlers) {}
-
-  async send(payload: string | Uint8Array): Promise<void> {
-    if (typeof payload === "string") {
-      this.sent.push(payload);
-    } else {
-      this.sent.push(new TextDecoder().decode(payload));
-    }
-  }
-
-  async close(): Promise<void> {
-    if (this.closed) return;
-    this.closed = true;
-    this.handlers.onClose?.();
-  }
-
-  emit(text: string) {
-    this.handlers.onData(text);
-  }
-
-  emitBinary(text: string) {
-    const bytes = new TextEncoder().encode(text);
-    this.handlers.onData(bytes);
-  }
-
-  emitClose(cause?: unknown) {
-    this.closed = true;
-    this.handlers.onClose?.(cause);
-  }
-
-  emitError(error: unknown) {
-    this.handlers.onError?.(error);
-  }
-}
-
-class MockWireTransportFactory implements FlexWireTransportFactory {
-  transport?: MockWireTransport;
-
-  async connect(
-    _radio: FlexRadioDescriptor,
-    handlers: FlexWireTransportHandlers,
-  ): Promise<FlexWireTransport> {
-    const transport = new MockWireTransport(handlers);
-    this.transport = transport;
-    return transport;
-  }
-}
-
-describe("createFlexWireControlFactory", () => {
+describe("createControlChannelFactory", () => {
   let factory: MockWireTransportFactory;
 
   beforeEach(() => {
@@ -92,12 +36,12 @@ describe("createFlexWireControlFactory", () => {
   });
 
   it("sends commands and parses responses", async () => {
-    const controlFactory = createFlexWireControlFactory({
+    const controlFactory = createControlChannelFactory({
       transportFactory: factory,
       clock: { now: () => 1700 },
     });
     const channel = await controlFactory.connect(descriptor);
-    const transport = factory.transport;
+    const transport = factory.transports.at(-1);
     if (!transport) throw new Error("transport not created");
 
     const messages: string[] = [];
@@ -121,12 +65,12 @@ describe("createFlexWireControlFactory", () => {
   });
 
   it("handles command rejection codes", async () => {
-    const controlFactory = createFlexWireControlFactory({
+    const controlFactory = createControlChannelFactory({
       transportFactory: factory,
       clock: { now: () => 4242 },
     });
     const channel = await controlFactory.connect(descriptor);
-    const transport = factory.transport;
+    const transport = factory.transports.at(-1);
     if (!transport) throw new Error("transport not created");
 
     const promise = channel.send("slice list");
@@ -143,13 +87,13 @@ describe("createFlexWireControlFactory", () => {
 
   it("times out commands", async () => {
     vi.useFakeTimers();
-    const controlFactory = createFlexWireControlFactory({
+    const controlFactory = createControlChannelFactory({
       transportFactory: factory,
       clock: { now: () => 1000 },
     });
     const channel = await controlFactory.connect(descriptor);
 
-    const transport = factory.transport;
+    const transport = factory.transports.at(-1);
     if (!transport) throw new Error("transport not created");
 
     const promise = channel.send("foo", { timeoutMs: 10 });
@@ -165,12 +109,12 @@ describe("createFlexWireControlFactory", () => {
   });
 
   it("rejects in-flight commands when the transport closes", async () => {
-    const controlFactory = createFlexWireControlFactory({
+    const controlFactory = createControlChannelFactory({
       transportFactory: factory,
       clock: { now: () => 2048 },
     });
     const channel = await controlFactory.connect(descriptor);
-    const transport = factory.transport;
+    const transport = factory.transports.at(-1);
     if (!transport) throw new Error("transport not created");
 
     const promise = channel.send("foo");

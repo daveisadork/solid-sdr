@@ -3,7 +3,7 @@ import type { FlexRadioDescriptor } from "../../src/flex/adapters.js";
 import { createFlexClient } from "../../src/flex/session.js";
 import { FlexStateUnavailableError } from "../../src/flex/errors.js";
 import { scaleMeterRawValue } from "../../src/flex/meter.js";
-import { MockControlFactory, makeStatus } from "../helpers.js";
+import { createMockControl, makeStatus } from "../helpers.js";
 import type { RadioStateChange } from "../../src/flex/state/index.js";
 
 const descriptor: FlexRadioDescriptor = {
@@ -23,11 +23,11 @@ const NO_HANDSHAKE = { handshake: async () => {} };
 
 describe("Meter controller", () => {
   it("tracks meter state and emits change events", async () => {
-    const factory = new MockControlFactory();
+    const { factory, getChannel } = createMockControl();
     const client = createFlexClient({ control: factory });
     const session = await client.connect(descriptor, NO_HANDSHAKE);
-    const channel = factory.channel;
-    if (!channel) throw new Error("control channel not created");
+    const channel = getChannel();
+    
 
     channel.emit(
       makeStatus(

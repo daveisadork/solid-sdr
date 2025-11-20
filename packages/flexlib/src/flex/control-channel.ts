@@ -27,7 +27,7 @@ interface PendingCommand {
   readonly reject: (reason: unknown) => void;
 }
 
-export interface FlexWireControlFactoryOptions {
+export interface ControlChannelFactoryOptions {
   readonly transportFactory: FlexWireTransportFactory;
   readonly clock?: Clock;
   readonly logger?: Logger;
@@ -46,8 +46,8 @@ interface WireTextDecoder {
   decode(input?: WireDecodeInput, options?: { stream?: boolean }): string;
 }
 
-export function createFlexWireControlFactory(
-  options: FlexWireControlFactoryOptions,
+export function createControlChannelFactory(
+  options: ControlChannelFactoryOptions,
 ): FlexControlFactory {
   const clock = options.clock ?? DEFAULT_CLOCK;
   const logger = options.logger;

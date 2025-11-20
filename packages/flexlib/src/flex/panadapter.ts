@@ -19,14 +19,14 @@ import {
   formatMegahertz,
 } from "./controller-helpers.js";
 import type {
-  FlexUdpPacketEvent,
-  FlexUdpScope,
-  FlexUdpSession,
-} from "./udp.js";
+  UdpPacketEvent,
+  UdpScope,
+  UdpSession,
+} from "./udp-session.js";
 
 export interface PanadapterControllerEvents extends Record<string, unknown> {
   readonly change: PanadapterStateChange;
-  readonly data: FlexUdpPacketEvent<"panadapter">;
+  readonly data: UdpPacketEvent<"panadapter">;
 }
 
 export interface PanadapterUpdateRequest {
@@ -70,7 +70,7 @@ export interface PanadapterSessionApi {
   getPanadapter(id: string): PanadapterSnapshot | undefined;
   patchPanadapter(id: string, attributes: Record<string, string>): void;
   applyPanadapterRfGainInfo(id: string, info: RfGainInfo): void;
-  readonly udp: FlexUdpSession;
+  readonly udp: UdpSession;
 }
 
 export interface PanadapterController {
@@ -178,7 +178,7 @@ export class PanadapterControllerImpl implements PanadapterController {
   private readonly events = new TypedEventEmitter<PanadapterControllerEvents>();
   private streamHandle?: string;
   private dataListeners = 0;
-  private dataScope?: FlexUdpScope<"panadapter">;
+  private dataScope?: UdpScope<"panadapter">;
   private dataSubscription?: Subscription;
 
   constructor(

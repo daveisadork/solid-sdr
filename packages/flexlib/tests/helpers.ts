@@ -3,6 +3,9 @@ import type {
   FlexCommandResponse,
   FlexControlChannel,
   FlexControlFactory,
+  FlexWireTransport,
+  FlexWireTransportFactory,
+  FlexWireTransportHandlers,
 } from "../src/flex/adapters.js";
 import type {
   FlexStatusMessage,
@@ -86,6 +89,17 @@ export class MockControlFactory implements FlexControlFactory {
   }
 }
 
+export function createMockControl() {
+  const factory = new MockControlFactory();
+  const getChannel = () => {
+    if (!factory.channel) {
+      throw new Error("control channel not created");
+    }
+    return factory.channel;
+  };
+  return { factory, getChannel };
+}
+
 export function makeStatus(raw: string): FlexStatusMessage {
   const parsed = parseFlexMessage(raw, Date.now());
   if (!parsed || parsed.kind !== "status")
@@ -106,4 +120,58 @@ export function hexToBytes(hex: string): Uint8Array {
     out[i / 2] = parseInt(clean.slice(i, i + 2), 16);
   }
   return out;
+}
+
+export class MockWireTransport implements FlexWireTransport {
+  readonly sent: string[] = [];
+  closed = false;
+
+  constructor(readonly handlers: FlexWireTransportHandlers) {}
+
+  async send(payload: string | Uint8Array): Promise<void> {
+    const data =
+      typeof payload === "string"
+        ? payload
+        : new TextDecoder().decode(payload);
+    this.sent.push(data);
+  }
+
+  close(): Promise<void> {
+    if (this.closed) return Promise.resolve();
+    this.closed = true;
+    this.handlers.onClose?.();
+    return Promise.resolve();
+  }
+
+  emit(text: string): void {
+    this.handlers.onData?.(text);
+  }
+
+  emitBinary(text: string): void {
+    const bytes = new TextEncoder().encode(text);
+    this.handlers.onData?.(bytes);
+  }
+
+  emitClose(cause?: unknown): void {
+    if (this.closed) return;
+    this.closed = true;
+    this.handlers.onClose?.(cause);
+  }
+
+  emitError(error: unknown): void {
+    this.handlers.onError?.(error);
+  }
+}
+
+export class MockWireTransportFactory implements FlexWireTransportFactory {
+  transports: MockWireTransport[] = [];
+
+  async connect(
+    _radio: unknown,
+    handlers: FlexWireTransportHandlers,
+  ): Promise<FlexWireTransport> {
+    const transport = new MockWireTransport(handlers);
+    this.transports.push(transport);
+    return transport;
+  }
 }

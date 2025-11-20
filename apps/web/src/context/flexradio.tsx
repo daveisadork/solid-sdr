@@ -18,16 +18,16 @@ import {
 import { showToast } from "~/components/ui/toast";
 import {
   createFlexClient,
-  createFlexUdpSession,
+  createUdpSession,
   createVitaDiscoveryAdapter,
-  attachRtcDataChannelToFlexUdp,
+  attachRtcDataChannel,
   FlexCommandRejectedError,
   scaleMeterRawValue,
   type AudioStreamSnapshot,
   type DiscoverySession,
   type FlexRadioDescriptor,
   type FlexRadioSession,
-  type FlexUdpSession,
+  type UdpSession,
   type FlexWireMessage,
   type MeterSnapshot,
   type PanadapterSnapshot,
@@ -321,7 +321,7 @@ const FlexRadioContext = createContext<{
     message: string;
     debugOutput?: string;
   }>;
-  events: FlexUdpSession;
+  events: UdpSession;
 }>();
 
 export const FlexRadioProvider: ParentComponent = (props) => {
@@ -339,7 +339,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
       console.error(message, meta);
     },
   };
-  const udpSession = createFlexUdpSession({ logger });
+  const udpSession = createUdpSession({ logger });
   const serialToHost = new Map<string, string>();
   const discoveryWs = createReconnectingWS("/ws/discovery");
   let discoverySession: DiscoverySession | null = null;
@@ -750,7 +750,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
           async connect({ handle, udp, logger }) {
             const rtc = await connectRTC(handle);
             rtcUdpCleanup?.();
-            rtcUdpCleanup = attachRtcDataChannelToFlexUdp(udp, rtc.data, {
+            rtcUdpCleanup = attachRtcDataChannel(udp, rtc.data, {
               onError(error) {
                 console.error("Error decoding UDP packet:", error);
                 disconnect();
@@ -909,4 +909,4 @@ export default function useFlexRadio() {
   return context;
 }
 
-export type { FlexUdpPacketEvent } from "@repo/flexlib";
+export type { UdpPacketEvent } from "@repo/flexlib";

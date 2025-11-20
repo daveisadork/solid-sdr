@@ -12,88 +12,88 @@ import {
   type VitaPacketMetadata,
 } from "../vita/parser.js";
 
-export type FlexUdpEventKey = VitaPacketKind;
+export type UdpEventKey = VitaPacketKind;
 
-export type FlexUdpPacketEvent<TKey extends FlexUdpEventKey> = {
+export type UdpPacketEvent<TKey extends UdpEventKey> = {
   readonly kind: TKey;
   readonly packet: Extract<VitaParsedPacket, { kind: TKey }>["packet"];
   readonly metadata: VitaPacketMetadata;
 };
 
-export type FlexUdpEvents = {
-  [K in FlexUdpEventKey]: FlexUdpPacketEvent<K>;
+export type UdpEvents = {
+  [K in UdpEventKey]: UdpPacketEvent<K>;
 };
 
-export type FlexUdpPayload = ArrayBuffer | ArrayBufferView | Uint8Array;
+export type UdpPayload = ArrayBuffer | ArrayBufferView | Uint8Array;
 
-export interface FlexUdpMessageEvent {
+export interface UdpMessageEvent {
   readonly data: unknown;
 }
 
-export interface FlexUdpSession {
-  on<TKey extends FlexUdpEventKey>(
+export interface UdpSession {
+  on<TKey extends UdpEventKey>(
     event: TKey,
-    listener: (payload: FlexUdpEvents[TKey]) => void,
+    listener: (payload: UdpEvents[TKey]) => void,
   ): Subscription;
-  once<TKey extends FlexUdpEventKey>(
+  once<TKey extends UdpEventKey>(
     event: TKey,
-    listener: (payload: FlexUdpEvents[TKey]) => void,
+    listener: (payload: UdpEvents[TKey]) => void,
   ): Subscription;
-  off<TKey extends FlexUdpEventKey>(
+  off<TKey extends UdpEventKey>(
     event: TKey,
-    listener: (payload: FlexUdpEvents[TKey]) => void,
+    listener: (payload: UdpEvents[TKey]) => void,
   ): void;
   removeAll(): void;
-  ingest(payload: FlexUdpPayload): void;
-  ingestMessageEvent(event: FlexUdpMessageEvent): void;
-  scope<TKey extends FlexUdpEventKey>(
+  ingest(payload: UdpPayload): void;
+  ingestMessageEvent(event: UdpMessageEvent): void;
+  scope<TKey extends UdpEventKey>(
     event: TKey,
-    filter?: FlexUdpScopeFilter<TKey>,
-  ): FlexUdpScope<TKey>;
+    filter?: UdpScopeFilter<TKey>,
+  ): UdpScope<TKey>;
 }
 
-export interface FlexUdpSessionOptions {
+export interface UdpSessionOptions {
   readonly logger?: Logger;
 }
 
-export interface FlexRtcDataChannel {
+export interface RtcDataChannel {
   addEventListener(
     type: "message",
-    listener: (event: FlexUdpMessageEvent) => void,
+    listener: (event: UdpMessageEvent) => void,
   ): void;
   removeEventListener(
     type: "message",
-    listener: (event: FlexUdpMessageEvent) => void,
+    listener: (event: UdpMessageEvent) => void,
   ): void;
 }
 
-export function createFlexUdpSession(
-  options: FlexUdpSessionOptions = {},
-): FlexUdpSession {
-  return new FlexUdpSessionImpl(options);
+export function createUdpSession(
+  options: UdpSessionOptions = {},
+): UdpSession {
+  return new UdpSessionImpl(options);
 }
 
 export interface AttachRtcDataChannelOptions {
   readonly onError?: (error: unknown) => void;
 }
 
-export type FlexUdpScopeFilter<TKey extends FlexUdpEventKey> = (
-  event: FlexUdpEvents[TKey],
+export type UdpScopeFilter<TKey extends UdpEventKey> = (
+  event: UdpEvents[TKey],
 ) => boolean;
 
-export interface FlexUdpScope<TKey extends FlexUdpEventKey> {
-  on(listener: Listener<FlexUdpEvents[TKey]>): Subscription;
-  once(listener: Listener<FlexUdpEvents[TKey]>): Subscription;
-  off(listener: Listener<FlexUdpEvents[TKey]>): void;
+export interface UdpScope<TKey extends UdpEventKey> {
+  on(listener: Listener<UdpEvents[TKey]>): Subscription;
+  once(listener: Listener<UdpEvents[TKey]>): Subscription;
+  off(listener: Listener<UdpEvents[TKey]>): void;
   removeAll(): void;
 }
 
-export function attachRtcDataChannelToFlexUdp(
-  udpSession: FlexUdpSession,
-  channel: FlexRtcDataChannel,
+export function attachRtcDataChannel(
+  udpSession: UdpSession,
+  channel: RtcDataChannel,
   options: AttachRtcDataChannelOptions = {},
 ): () => void {
-  const handler = (event: FlexUdpMessageEvent) => {
+  const handler = (event: UdpMessageEvent) => {
     try {
       udpSession.ingestMessageEvent(event);
     } catch (error) {
@@ -106,8 +106,8 @@ export function attachRtcDataChannelToFlexUdp(
   };
 }
 
-class FlexUdpSessionImpl implements FlexUdpSession {
-  private readonly events = new TypedEventEmitter<FlexUdpEvents>();
+class UdpSessionImpl implements UdpSession {
+  private readonly events = new TypedEventEmitter<UdpEvents>();
 
   private readonly scratch: Required<ParseVitaPacketOptions> = {
     meter: { ids: new Uint16Array(0), values: new Int16Array(0) },
@@ -115,25 +115,25 @@ class FlexUdpSessionImpl implements FlexUdpSession {
     waterfall: { data: new Uint16Array(0) },
   };
 
-  constructor(private readonly options: FlexUdpSessionOptions) {}
+  constructor(private readonly options: UdpSessionOptions) {}
 
-  on<TKey extends FlexUdpEventKey>(
+  on<TKey extends UdpEventKey>(
     event: TKey,
-    listener: (payload: FlexUdpEvents[TKey]) => void,
+    listener: (payload: UdpEvents[TKey]) => void,
   ): Subscription {
     return this.events.on(event, listener);
   }
 
-  once<TKey extends FlexUdpEventKey>(
+  once<TKey extends UdpEventKey>(
     event: TKey,
-    listener: (payload: FlexUdpEvents[TKey]) => void,
+    listener: (payload: UdpEvents[TKey]) => void,
   ): Subscription {
     return this.events.once(event, listener);
   }
 
-  off<TKey extends FlexUdpEventKey>(
+  off<TKey extends UdpEventKey>(
     event: TKey,
-    listener: (payload: FlexUdpEvents[TKey]) => void,
+    listener: (payload: UdpEvents[TKey]) => void,
   ): void {
     this.events.off(event, listener);
   }
@@ -142,12 +142,12 @@ class FlexUdpSessionImpl implements FlexUdpSession {
     this.events.removeAll();
   }
 
-  ingest(payload: FlexUdpPayload): void {
+  ingest(payload: UdpPayload): void {
     const bytes = this.normalizePayload(payload);
     this.dispatch(bytes);
   }
 
-  ingestMessageEvent(event: FlexUdpMessageEvent): void {
+  ingestMessageEvent(event: UdpMessageEvent): void {
     const { data } = event;
     if (typeof ArrayBuffer !== "undefined" && data instanceof ArrayBuffer) {
       this.dispatch(new Uint8Array(data));
@@ -183,10 +183,10 @@ class FlexUdpSessionImpl implements FlexUdpSession {
       timestampInt: parsed.timestampInt,
       timestampFrac: parsed.timestampFrac,
     };
-    this.events.emit(kind, { kind, packet, metadata } as FlexUdpEvents[typeof kind]);
+    this.events.emit(kind, { kind, packet, metadata } as UdpEvents[typeof kind]);
   }
 
-  private normalizePayload(payload: FlexUdpPayload): Uint8Array {
+  private normalizePayload(payload: UdpPayload): Uint8Array {
     if (payload instanceof Uint8Array) {
       return payload;
     }
@@ -203,27 +203,27 @@ class FlexUdpSessionImpl implements FlexUdpSession {
     throw new TypeError("Unsupported UDP payload");
   }
 
-  scope<TKey extends FlexUdpEventKey>(
+  scope<TKey extends UdpEventKey>(
     event: TKey,
-    filter: FlexUdpScopeFilter<TKey> = () => true,
-  ): FlexUdpScope<TKey> {
-    return new FlexUdpScopeImpl(this, event, filter);
+    filter: UdpScopeFilter<TKey> = () => true,
+  ): UdpScope<TKey> {
+    return new UdpScopeImpl(this, event, filter);
   }
 }
 
-class FlexUdpScopeImpl<TKey extends FlexUdpEventKey>
-  implements FlexUdpScope<TKey>
+class UdpScopeImpl<TKey extends UdpEventKey>
+  implements UdpScope<TKey>
 {
-  private readonly listeners = new Set<Listener<FlexUdpEvents[TKey]>>();
+  private readonly listeners = new Set<Listener<UdpEvents[TKey]>>();
   private parentSubscription?: Subscription;
 
   constructor(
-    private readonly parent: FlexUdpSessionImpl,
+    private readonly parent: UdpSessionImpl,
     private readonly event: TKey,
-    private readonly filter: FlexUdpScopeFilter<TKey>,
+    private readonly filter: UdpScopeFilter<TKey>,
   ) {}
 
-  on(listener: Listener<FlexUdpEvents[TKey]>): Subscription {
+  on(listener: Listener<UdpEvents[TKey]>): Subscription {
     this.listeners.add(listener);
     this.ensureParent();
     return {
@@ -231,15 +231,15 @@ class FlexUdpScopeImpl<TKey extends FlexUdpEventKey>
     };
   }
 
-  once(listener: Listener<FlexUdpEvents[TKey]>): Subscription {
-    const wrapper: Listener<FlexUdpEvents[TKey]> = (payload) => {
+  once(listener: Listener<UdpEvents[TKey]>): Subscription {
+    const wrapper: Listener<UdpEvents[TKey]> = (payload) => {
       this.off(wrapper);
       listener(payload);
     };
     return this.on(wrapper);
   }
 
-  off(listener: Listener<FlexUdpEvents[TKey]>): void {
+  off(listener: Listener<UdpEvents[TKey]>): void {
     const removed = this.listeners.delete(listener);
     if (!removed) return;
     if (this.listeners.size === 0) {
@@ -268,7 +268,7 @@ class FlexUdpScopeImpl<TKey extends FlexUdpEventKey>
     this.parentSubscription = undefined;
   }
 
-  private emit(payload: FlexUdpEvents[TKey]): void {
+  private emit(payload: UdpEvents[TKey]): void {
     for (const listener of this.listeners) {
       listener(payload);
     }

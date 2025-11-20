@@ -6,7 +6,7 @@ export interface BaseGuiClientInfo {
   readonly isAvailable: boolean;
 }
 
-export interface DiscoveredGuiClient extends BaseGuiClientInfo {}
+export type DiscoveredGuiClient = BaseGuiClientInfo;
 
 export interface ParseGuiClientLists {
   readonly programs?: readonly string[];

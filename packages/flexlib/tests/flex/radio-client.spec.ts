@@ -7,7 +7,7 @@ import type {
   FlexControlFactory,
   FlexRadioDescriptor,
 } from "../../src/flex/adapters.js";
-import { createFlexRadioClient } from "../../src/flex/client.js";
+import { createRadioClient } from "../../src/flex/client.js";
 
 function createStubDiscovery() {
   let handlers: DiscoveryCallbacks | undefined;
@@ -65,10 +65,10 @@ const baseDescriptor: FlexRadioDescriptor = {
   protocol: "tcp",
 };
 
-describe("createFlexRadioClient", () => {
+describe("createRadioClient", () => {
   it("emits discovery events and seeds snapshot data", async () => {
     const discovery = createStubDiscovery();
-    const client = createFlexRadioClient(
+    const client = createRadioClient(
       {
         discovery: discovery.adapter,
         control: noopControlFactory,
@@ -93,7 +93,7 @@ describe("createFlexRadioClient", () => {
 
   it("forwards descriptor updates as radioChange events", async () => {
     const discovery = createStubDiscovery();
-    const client = createFlexRadioClient(
+    const client = createRadioClient(
       {
         discovery: discovery.adapter,
         control: noopControlFactory,

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { FlexRadioDescriptor } from "../../src/flex/adapters.js";
 import { createFlexClient } from "../../src/flex/session.js";
 import { lineSpeedToDurationMs } from "../../src/flex/waterfall-line-speed.js";
-import { MockControlFactory, makeStatus } from "../helpers.js";
+import { createMockControl, makeStatus } from "../helpers.js";
 
 const descriptor: FlexRadioDescriptor = {
   serial: "1234-0001",
@@ -21,11 +21,11 @@ const NO_HANDSHAKE = { handshake: async () => {} };
 
 describe("Waterfall controller", () => {
   it("reflects state updates and issues commands", async () => {
-    const factory = new MockControlFactory();
+    const { factory, getChannel } = createMockControl();
     const client = createFlexClient({ control: factory });
     const session = await client.connect(descriptor, NO_HANDSHAKE);
-    const channel = factory.channel;
-    if (!channel) throw new Error("control channel not created");
+    const channel = getChannel();
+    
 
     channel.emit(
       makeStatus(

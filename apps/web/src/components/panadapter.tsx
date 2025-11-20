@@ -5,7 +5,7 @@ import {
   For,
   onCleanup,
 } from "solid-js";
-import useFlexRadio, { type FlexUdpPacketEvent } from "~/context/flexradio";
+import useFlexRadio, { type UdpPacketEvent } from "~/context/flexradio";
 import { DetachedSlices, Slice } from "./slice";
 import { debounce } from "@solid-primitives/scheduled";
 import { createElementSize } from "@solid-primitives/resize-observer";
@@ -177,7 +177,7 @@ export function Panadapter(props: { streamId: string }) {
       ctx.drawImage(offscreen, 0, 0, canvas.width, canvas.height);
     };
 
-    return ({ packet }: FlexUdpPacketEvent<"panadapter">) => {
+    return ({ packet }: UdpPacketEvent<"panadapter">) => {
       const startingBin = packet.startBinIndex;
       const binsInThisFrame = packet.numBins;
       const totalBins = packet.totalBinsInFrame;

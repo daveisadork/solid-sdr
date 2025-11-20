@@ -7,7 +7,7 @@ import {
   Show,
 } from "solid-js";
 import { Portal } from "solid-js/web";
-import useFlexRadio, { type FlexUdpPacketEvent } from "~/context/flexradio";
+import useFlexRadio, { type UdpPacketEvent } from "~/context/flexradio";
 import { LinearScale } from "./linear-scale";
 
 export function Waterfall(props: { streamId: string }) {
@@ -192,7 +192,7 @@ export function Waterfall(props: { streamId: string }) {
       screenCtx.drawImage(offscreen, 0, 0, canvas.width, canvas.height);
     };
 
-    return ({ packet }: FlexUdpPacketEvent<"waterfall">) => {
+    return ({ packet }: UdpPacketEvent<"waterfall">) => {
       const tile = packet.tile;
       const binBandwidth = tile.binBandwidth.freqHz;
       const firstBinFreq = tile.frameLowFreq.freqHz;

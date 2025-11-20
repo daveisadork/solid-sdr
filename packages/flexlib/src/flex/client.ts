@@ -32,16 +32,16 @@ export type RadioConnectionState =
   | "ready"
   | "disconnecting";
 
-export type FlexRadio = RadioController & FlexRadioExtras;
+export type RadioHandle = RadioController & RadioHandleExtras;
 
-export interface FlexRadioExtras {
+export interface RadioHandleExtras {
   readonly serial: string;
   readonly connectionState: RadioConnectionState;
   readonly descriptor?: FlexRadioDescriptor;
   readonly lastSeen?: Date;
   readonly available: boolean;
   readonly ready: Promise<void>;
-  connect(options?: FlexRadioConnectionOptions): Promise<void>;
+  connect(options?: RadioConnectionOptions): Promise<void>;
   disconnect(): Promise<void>;
   command(
     command: string,
@@ -54,42 +54,42 @@ export interface FlexRadioExtras {
   audioStream(id: string): AudioStreamController | undefined;
   guiClients(): readonly GuiClientSnapshot[];
   snapshot(): RadioSnapshot;
-  on<TKey extends FlexRadioHandleEventKey>(
+  on<TKey extends RadioHandleEventKey>(
     event: TKey,
-    listener: FlexRadioHandleEventListener<TKey>,
+    listener: RadioHandleEventListener<TKey>,
   ): Subscription;
-  off<TKey extends FlexRadioHandleEventKey>(
+  off<TKey extends RadioHandleEventKey>(
     event: TKey,
-    listener: FlexRadioHandleEventListener<TKey>,
+    listener: RadioHandleEventListener<TKey>,
   ): void;
 }
 
-export interface FlexRadioClient {
-  readonly options: FlexRadioClientOptions;
+export interface RadioClient {
+  readonly options: RadioClientOptions;
   startDiscovery(): Promise<void>;
   stopDiscovery(): Promise<void>;
-  getRadios(): readonly FlexRadio[];
-  radio(serial: string): FlexRadio | undefined;
-  on<TKey extends FlexRadioClientEventKey>(
+  getRadios(): readonly RadioHandle[];
+  radio(serial: string): RadioHandle | undefined;
+  on<TKey extends RadioClientEventKey>(
     event: TKey,
-    listener: FlexRadioClientEventListener<TKey>,
+    listener: RadioClientEventListener<TKey>,
   ): Subscription;
-  off<TKey extends FlexRadioClientEventKey>(
+  off<TKey extends RadioClientEventKey>(
     event: TKey,
-    listener: FlexRadioClientEventListener<TKey>,
+    listener: RadioClientEventListener<TKey>,
   ): void;
 }
 
-export interface FlexRadioClientOptions extends FlexClientOptions {}
+export type RadioClientOptions = FlexClientOptions;
 
-export type FlexRadioConnectionOptions = FlexConnectionOptions;
+export type RadioConnectionOptions = FlexConnectionOptions;
 
-export interface FlexRadioProgressEvent {
+export interface RadioProgressEvent {
   readonly serial: string;
   readonly progress: FlexConnectionProgress;
 }
 
-export interface FlexRadioErrorEvent {
+export interface RadioErrorEvent {
   readonly serial: string;
   readonly error: unknown;
 }
@@ -98,10 +98,10 @@ export type RadioStateChangeWithSerial = RadioStateChange & {
   readonly radioSerial: string;
 };
 
-export interface FlexRadioClientEvents extends Record<string, unknown> {
-  readonly radioDiscovered: FlexRadio;
+export interface RadioClientEvents extends Record<string, unknown> {
+  readonly radioDiscovered: RadioHandle;
   readonly radioLost: { serial: string };
-  readonly radioConnected: FlexRadio;
+  readonly radioConnected: RadioHandle;
   readonly radioDisconnected: { serial: string };
   readonly radioChange: RadioStateChangeWithSerial;
   readonly sliceChange: RadioStateChangeWithSerial;
@@ -110,16 +110,16 @@ export interface FlexRadioClientEvents extends Record<string, unknown> {
   readonly meterChange: RadioStateChangeWithSerial;
   readonly audioStreamChange: RadioStateChangeWithSerial;
   readonly guiClientChange: RadioStateChangeWithSerial;
-  readonly progress: FlexRadioProgressEvent;
-  readonly error: FlexRadioErrorEvent;
+  readonly progress: RadioProgressEvent;
+  readonly error: RadioErrorEvent;
 }
 
-export type FlexRadioClientEventKey = keyof FlexRadioClientEvents;
-export type FlexRadioClientEventListener<
-  TKey extends FlexRadioClientEventKey,
-> = (payload: FlexRadioClientEvents[TKey]) => void;
+export type RadioClientEventKey = keyof RadioClientEvents;
+export type RadioClientEventListener<
+  TKey extends RadioClientEventKey,
+> = (payload: RadioClientEvents[TKey]) => void;
 
-export interface FlexRadioHandleEvents extends Record<string, unknown> {
+export interface RadioHandleEvents extends Record<string, unknown> {
   readonly radioChange: RadioStateChangeWithSerial;
   readonly sliceChange: RadioStateChangeWithSerial;
   readonly panadapterChange: RadioStateChangeWithSerial;
@@ -133,14 +133,14 @@ export interface FlexRadioHandleEvents extends Record<string, unknown> {
   readonly error: unknown;
 }
 
-export type FlexRadioHandleEventKey = keyof FlexRadioHandleEvents;
-export type FlexRadioHandleEventListener<TKey extends FlexRadioHandleEventKey> = (
-  payload: FlexRadioHandleEvents[TKey],
+export type RadioHandleEventKey = keyof RadioHandleEvents;
+export type RadioHandleEventListener<TKey extends RadioHandleEventKey> = (
+  payload: RadioHandleEvents[TKey],
 ) => void;
 
-type ClientEventEmitter = <TKey extends FlexRadioClientEventKey>(
+type ClientEventEmitter = <TKey extends RadioClientEventKey>(
   event: TKey,
-  payload: FlexRadioClientEvents[TKey],
+  payload: RadioClientEvents[TKey],
 ) => void;
 
 interface Deferred<T> {
@@ -149,13 +149,13 @@ interface Deferred<T> {
   reject(reason?: unknown): void;
 }
 
-export function createFlexRadioClient(
+export function createRadioClient(
   adapters: FlexClientAdapters & { discovery: DiscoveryAdapter },
-  options: FlexRadioClientOptions = {},
-): FlexRadioClient {
+  options: RadioClientOptions = {},
+): RadioClient {
   const baseClient = createFlexClient(adapters, options);
-  const emitter = new TypedEventEmitter<FlexRadioClientEvents>();
-  const radios = new Map<string, FlexRadioCore>();
+  const emitter = new TypedEventEmitter<RadioClientEvents>();
+  const radios = new Map<string, RadioHandleCore>();
   let discoverySession: DiscoverySession | undefined;
 
   async function startDiscovery(): Promise<void> {
@@ -187,7 +187,7 @@ export function createFlexRadioClient(
   function handleDescriptor(descriptor: FlexRadioDescriptor): void {
     let radio = radios.get(descriptor.serial);
     if (!radio) {
-      radio = new FlexRadioCore(descriptor.serial, baseClient, (event, payload) =>
+      radio = new RadioHandleCore(descriptor.serial, baseClient, (event, payload) =>
         emitter.emit(event, payload),
       );
       radios.set(descriptor.serial, radio);
@@ -218,7 +218,7 @@ export function createFlexRadioClient(
   };
 }
 
-class FlexRadioCore extends TypedEventEmitter<FlexRadioHandleEvents> {
+class RadioHandleCore extends TypedEventEmitter<RadioHandleEvents> {
   readonly serial: string;
   private descriptorValue?: FlexRadioDescriptor;
   private _lastSeen?: Date;
@@ -228,9 +228,9 @@ class FlexRadioCore extends TypedEventEmitter<FlexRadioHandleEvents> {
   private cachedSnapshot: RadioSnapshot = createDefaultRadioSnapshot();
   private _connectionState: RadioConnectionState = "disconnected";
   private connectPromise?: Promise<void>;
-  private publicInstance?: FlexRadio;
-  private readonly clientConnected: (radio: FlexRadioCore) => void;
-  private readonly clientDisconnected: (radio: FlexRadioCore) => void;
+  private publicInstance?: RadioHandle;
+  private readonly clientConnected: (radio: RadioHandleCore) => void;
+  private readonly clientDisconnected: (radio: RadioHandleCore) => void;
   private hasSnapshot = false;
   private _available = false;
 
@@ -250,9 +250,9 @@ class FlexRadioCore extends TypedEventEmitter<FlexRadioHandleEvents> {
     };
   }
 
-  publicInterface(): FlexRadio {
+  publicInterface(): RadioHandle {
     if (!this.publicInstance) {
-      this.publicInstance = createFlexRadioProxy(this);
+      this.publicInstance = createRadioHandleProxy(this);
     }
     return this.publicInstance;
   }
@@ -300,7 +300,7 @@ class FlexRadioCore extends TypedEventEmitter<FlexRadioHandleEvents> {
     }
   }
 
-  async connect(options?: FlexRadioConnectionOptions): Promise<void> {
+  async connect(options?: RadioConnectionOptions): Promise<void> {
     if (this._connectionState === "ready" && this.session && !this.session.isClosed)
       return this.session.ready;
     if (this.connectPromise) return this.connectPromise;
@@ -364,16 +364,16 @@ class FlexRadioCore extends TypedEventEmitter<FlexRadioHandleEvents> {
     return this.session?.getGuiClients() ?? [];
   }
 
-  on<TKey extends FlexRadioHandleEventKey>(
+  on<TKey extends RadioHandleEventKey>(
     event: TKey,
-    listener: FlexRadioHandleEventListener<TKey>,
+    listener: RadioHandleEventListener<TKey>,
   ): Subscription {
     return super.on(event, listener);
   }
 
-  off<TKey extends FlexRadioHandleEventKey>(
+  off<TKey extends RadioHandleEventKey>(
     event: TKey,
-    listener: FlexRadioHandleEventListener<TKey>,
+    listener: RadioHandleEventListener<TKey>,
   ): void {
     super.off(event, listener);
   }
@@ -401,19 +401,22 @@ class FlexRadioCore extends TypedEventEmitter<FlexRadioHandleEvents> {
   private attachSession(session: FlexRadioSession): void {
     this.session = session;
     this._connectionState = "connecting";
-    const changeSub = session.on("change", (change) =>
+    const changeSub = session.on("change", (change: RadioStateChange) =>
       this.forwardChange(change),
     );
     const statusSub = session.on("status", () => {
       /* no-op placeholder */
     });
-    const progressSub = session.on("progress", (progress) => {
-      this.emit("progress", progress);
-      this.clientEventEmitter("progress", {
-        serial: this.serial,
-        progress,
-      });
-    });
+    const progressSub = session.on(
+      "progress",
+      (progress: FlexConnectionProgress) => {
+        this.emit("progress", progress);
+        this.clientEventEmitter("progress", {
+          serial: this.serial,
+          progress,
+        });
+      },
+    );
     const readySub = session.on("ready", () => {
       this._connectionState = "ready";
       this.readyDeferred.resolve(undefined);
@@ -426,7 +429,7 @@ class FlexRadioCore extends TypedEventEmitter<FlexRadioHandleEvents> {
       this.clientDisconnected(this);
       this.detachSession();
     });
-    const errorSub = session.on("error", (error) => {
+    const errorSub = session.on("error", (error: unknown) => {
       this.emit("error", error);
       this.clientEventEmitter("error", { serial: this.serial, error });
     });
@@ -540,10 +543,10 @@ class FlexRadioCore extends TypedEventEmitter<FlexRadioHandleEvents> {
   }
 }
 
-function createFlexRadioProxy(core: FlexRadioCore): FlexRadio {
+function createRadioHandleProxy(core: RadioHandleCore): RadioHandle {
   const handler: ProxyHandler<Record<string, unknown>> = {
     get(_, prop) {
-      if (prop === Symbol.toStringTag) return "FlexRadio";
+      if (prop === Symbol.toStringTag) return "RadioHandle";
 
       if (prop === "serial") return core.serial;
       if (prop === "connectionState") return core.connectionState;
@@ -562,9 +565,9 @@ function createFlexRadioProxy(core: FlexRadioCore): FlexRadio {
       if (prop === "guiClients") return core.guiClients.bind(core);
       if (prop === "snapshot") return core.snapshot.bind(core);
       if (prop === "on")
-        return core.on.bind(core) as FlexRadioExtras["on"];
+        return core.on.bind(core) as RadioHandleExtras["on"];
       if (prop === "off")
-        return core.off.bind(core) as FlexRadioExtras["off"];
+        return core.off.bind(core) as RadioHandleExtras["off"];
 
       const controller = core.currentRadioController();
       if (controller && Reflect.has(controller, prop)) {
@@ -607,7 +610,7 @@ function createFlexRadioProxy(core: FlexRadioCore): FlexRadio {
     },
   };
 
-  return new Proxy({}, handler) as unknown as FlexRadio;
+  return new Proxy({}, handler) as unknown as RadioHandle;
 }
 
 function createDeferred<T>(): Deferred<T> {

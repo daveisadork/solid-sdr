@@ -12,10 +12,12 @@ const descriptor: FlexRadioDescriptor = {
   model: "FLEX-6400",
   availableSlices: 2,
   availablePanadapters: 2,
-  firmware: "3.10.10",
+  version: "3.10.10",
   host: "192.0.2.42",
   port: 4992,
   protocol: "tcp",
+  nickname: "",
+  callsign: "",
 };
 
 const NO_HANDSHAKE = { handshake: async () => {} };

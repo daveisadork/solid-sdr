@@ -1,6 +1,7 @@
 import type { Subscription } from "./events.js";
 import type { FlexWireMessage } from "./protocol.js";
 import type { DiscoveredGuiClient } from "./gui-client.js";
+import type { RadioSnapshot } from "./radio-state/radio.js";
 
 export interface Clock {
   now(): number;
@@ -13,20 +14,22 @@ export interface Logger {
   error?(message: string, meta?: Record<string, unknown>): void;
 }
 
-export interface FlexRadioDescriptor {
-  readonly serial: string;
-  readonly model: string;
-  readonly nickname?: string;
-  readonly callsign?: string;
-  readonly availableSlices: number;
-  readonly availablePanadapters: number;
-  readonly firmware: string;
+type DescriptorKeys =
+  | "serial"
+  | "model"
+  | "nickname"
+  | "callsign"
+  | "availableSlices"
+  | "availablePanadapters"
+  | "version";
+
+export type FlexRadioDescriptor = Pick<RadioSnapshot, DescriptorKeys> & {
   readonly host: string;
   readonly port: number;
   readonly protocol: "tcp" | "tls";
   readonly discoveryMeta?: Record<string, string | number | boolean>;
   readonly guiClients?: readonly DiscoveredGuiClient[];
-}
+};
 
 export interface DiscoveryCallbacks {
   onOnline(radio: FlexRadioDescriptor): void;

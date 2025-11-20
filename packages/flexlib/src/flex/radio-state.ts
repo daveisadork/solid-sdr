@@ -61,6 +61,7 @@ export type { GuiClientSnapshot } from "./radio-state/gui-client.js";
 type ChangeMetadata<TSnapshot> = {
   readonly diff?: SnapshotDiff<TSnapshot>;
   readonly removed: boolean;
+  readonly kind?: "added" | "updated" | "removed";
 };
 
 export type RadioStateChange =

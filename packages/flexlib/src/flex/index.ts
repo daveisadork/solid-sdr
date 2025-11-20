@@ -17,3 +17,4 @@ export * from "./wire-control.js";
 export * from "./radio.js";
 export * from "./waterfall-line-speed.js";
 export * from "./udp.js";
+export * from "./radio-client.js";

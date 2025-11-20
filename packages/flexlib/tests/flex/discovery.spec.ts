@@ -87,7 +87,7 @@ describe("createVitaDiscoveryAdapter", () => {
     expect(descriptor.model).toBe("FLEX-8600");
     expect(descriptor.availableSlices).toBe(4);
     expect(descriptor.availablePanadapters).toBe(4);
-    expect(descriptor.firmware).toBe("3.10.15.38923");
+    expect(descriptor.version).toBe("3.10.15.38923");
     expect(descriptor.host).toBe("10.16.83.234");
     expect(descriptor.port).toBe(4992);
     expect(descriptor.protocol).toBe("tcp");
@@ -195,18 +195,18 @@ describe("createVitaDiscoveryAdapter", () => {
     expect(meta?.guiClientStations).toBe("MacBook Pro,LAPTOP-9V8U8FDA");
     expect(meta?.guiClientHandles).toBe("0x29DD2CDC,0x7D2D0108");
     expect(meta?.guiClientIps).toBe("10.16.83.154,10.16.83.60");
-    expect(descriptor.guiClients).toEqual([
-      expect.objectContaining({
-        handle: 0x29dd2cdc,
-        program: "SmartSDR-Mac",
-        station: "MacBook Pro",
-      }),
-      expect.objectContaining({
-        handle: 0x7d2d0108,
-        program: "SmartSDR-Win",
-        station: "LAPTOP-9V8U8FDA",
-      }),
-    ]);
+      expect(descriptor.guiClients).toEqual([
+        expect.objectContaining({
+          clientHandle: 0x29dd2cdc,
+          program: "SmartSDR-Mac",
+          station: "MacBook Pro",
+        }),
+        expect.objectContaining({
+          clientHandle: 0x7d2d0108,
+          program: "SmartSDR-Win",
+          station: "LAPTOP-9V8U8FDA",
+        }),
+      ]);
 
     await session.stop();
   });

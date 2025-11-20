@@ -141,9 +141,9 @@ export function decodeDiscoveryPayload(
 
   const serial = valueOrUndefined(fields.get("serial"));
   const model = valueOrUndefined(fields.get("model"));
-  const nickname = valueOrUndefined(fields.get("nickname"));
-  const callsign = valueOrUndefined(fields.get("callsign"));
-  const firmware = valueOrUndefined(fields.get("version"));
+  const nickname = valueOrUndefined(fields.get("nickname")) ?? "";
+  const callsign = valueOrUndefined(fields.get("callsign")) ?? "";
+  const version = valueOrUndefined(fields.get("version"));
   const host = valueOrUndefined(fields.get("ip"));
   const port = parseInteger(fields.get("port"), "port");
   const availableSlices =
@@ -154,7 +154,7 @@ export function decodeDiscoveryPayload(
 
   if (!serial) throw new Error("Discovery payload missing serial");
   if (!model) throw new Error("Discovery payload missing model");
-  if (!firmware) throw new Error("Discovery payload missing version");
+  if (!version) throw new Error("Discovery payload missing version");
   if (!host) throw new Error("Discovery payload missing ip");
   if (port === undefined) throw new Error("Discovery payload missing port");
 
@@ -165,7 +165,7 @@ export function decodeDiscoveryPayload(
     callsign,
     availableSlices,
     availablePanadapters,
-    firmware,
+    version,
     host,
     port,
     protocol: resolveProtocol(fields, defaultProtocol),

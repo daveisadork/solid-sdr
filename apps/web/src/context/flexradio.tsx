@@ -17,29 +17,30 @@ import {
 } from "solid-js/store";
 import { showToast } from "~/components/ui/toast";
 import {
-  createFlexClient,
+  attachRtcDataChannel,
+  createRadioStateStore,
+  createRadioClient,
   createUdpSession,
   createVitaDiscoveryAdapter,
-  attachRtcDataChannel,
   FlexCommandRejectedError,
   scaleMeterRawValue,
   type AudioStreamSnapshot,
-  type DiscoverySession,
+  type FlexConnectionProgress,
+  type FlexDataPlaneFactory,
   type FlexRadioDescriptor,
-  type FlexRadioSession,
-  type UdpSession,
   type FlexWireMessage,
+  type GuiClientSnapshot,
   type MeterSnapshot,
   type PanadapterSnapshot,
   type RadioSnapshot,
+  type RadioHandle,
   type RadioStateChange,
+  type RadioStateChangeWithSerial,
   type SliceSnapshot,
   type Subscription,
+  type UdpSession,
   type WaterfallSnapshot,
-  type FlexDataPlaneFactory,
-  type FlexConnectionProgress,
   type FeatureLicenseSnapshot,
-  type GuiClientSnapshot,
 } from "@repo/flexlib";
 import { createWebSocketFlexControlFactory } from "~/lib/flex-control";
 import { useRtc } from "./rtc";
@@ -142,7 +143,7 @@ export interface StatusState {
   radio: Radio;
   featureLicense: FeatureLicense;
   audioStream: Record<string, AudioStream>;
-  guiClients: Record<string, GuiClient>;
+  guiClient: Record<string, GuiClient>;
 }
 
 export interface AppState {
@@ -269,7 +270,7 @@ export const initialState = () =>
       interlock: {
         band: {},
       },
-      guiClients: {},
+      guiClient: {},
       radio: {
         // // slices: 4,
         // // panadapters: 4,
@@ -313,7 +314,7 @@ export const initialState = () =>
 const FlexRadioContext = createContext<{
   state: AppState;
   setState: SetStoreFunction<AppState>;
-  session: () => FlexRadioSession | null;
+  session: () => RadioHandle | null;
   connect: (addr: { host: string; port: number }) => void;
   disconnect: () => void;
   sendCommand: (command: string) => Promise<{
@@ -327,9 +328,7 @@ const FlexRadioContext = createContext<{
 export const FlexRadioProvider: ParentComponent = (props) => {
   const [state, setState] = createStore(initialState());
   const { connect: connectRTC, disconnect: disconnectRTC } = useRtc();
-  const [flexSession, setFlexSession] = createSignal<FlexRadioSession | null>(
-    null,
-  );
+  const [activeRadio, setActiveRadio] = createSignal<RadioHandle | null>(null);
 
   const logger = {
     warn(message: string, meta?: Record<string, unknown>) {
@@ -340,11 +339,10 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     },
   };
   const udpSession = createUdpSession({ logger });
-  const serialToHost = new Map<string, string>();
   const discoveryWs = createReconnectingWS("/ws/discovery");
-  let discoverySession: DiscoverySession | null = null;
-  let flexSessionSubscriptions: Subscription[] = [];
+  let radioSubscriptions: Subscription[] = [];
   let rtcUdpCleanup: (() => void) | undefined;
+  let featureLicenseStore = createRadioStateStore({ logger });
 
   discoveryWs.addEventListener("open", ({ target }) => {
     (target as WebSocket).binaryType = "arraybuffer";
@@ -415,7 +413,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     logger,
     udpSession,
   });
-  const flexClient = createFlexClient(
+  const radioClient = createRadioClient(
     {
       discovery: discoveryAdapter,
       control: controlFactory,
@@ -423,6 +421,53 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     },
     { defaultCommandTimeoutMs: 10_000 },
   );
+  const clientSubscriptions: Subscription[] = [];
+
+  const updateDiscoveryEntry = (
+    descriptor: FlexRadioDescriptor,
+    lastSeen: Date,
+  ) => {
+    setState("connectModal", "radios", descriptor.host, {
+      ...descriptor,
+      lastSeen,
+    });
+  };
+
+  const handleRadioDiscovered = (handle: RadioHandle) => {
+    const descriptor = handle.descriptor;
+    if (!descriptor) return;
+    updateDiscoveryEntry(descriptor, handle.lastSeen ?? new Date());
+  };
+
+  const handleRadioChangeForDiscovery = (
+    change: RadioStateChangeWithSerial,
+  ) => {
+    if (change.entity !== "radio") return;
+    const handle = radioClient.radio(change.radioSerial);
+    const descriptor = handle?.descriptor;
+    if (!descriptor) return;
+    updateDiscoveryEntry(descriptor, handle.lastSeen ?? new Date());
+  };
+
+  const handleRadioLost = (serial: string, host?: string) => {
+    setState("connectModal", "radios", (radios) => {
+      const next = { ...radios };
+      const removalKey =
+        host ??
+        Object.keys(next).find(
+          (existingHost) => next[existingHost]?.serial === serial,
+        );
+      if (removalKey) {
+        delete next[removalKey];
+      }
+      return next;
+    });
+  };
+
+  const cleanupRadioSubscriptions = () => {
+    for (const sub of radioSubscriptions) sub.unsubscribe();
+    radioSubscriptions = [];
+  };
 
   const applyPanadapterDiff = (diff: Partial<PanadapterSnapshot>) => {
     const key = diff.streamId || diff.id;
@@ -480,6 +525,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
       case "slice":
       case "meter":
       case "audioStream":
+      case "guiClient":
         if (change.removed) {
           setState(
             "status",
@@ -491,7 +537,6 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         } else {
           setState("status", change.entity, change.id, change.diff);
         }
-      default:
         break;
     }
   };
@@ -499,68 +544,39 @@ export const FlexRadioProvider: ParentComponent = (props) => {
   onMount(() => {
     let disposed = false;
 
-    discoveryAdapter
-      .start({
-        onOnline(descriptor) {
-          if (disposed) return;
-          const lastSeenRaw = descriptor.discoveryMeta?.lastSeen;
-          const lastSeen =
-            typeof lastSeenRaw === "number"
-              ? new Date(lastSeenRaw)
-              : new Date();
-          const previousHost = serialToHost.get(descriptor.serial);
-          if (previousHost && previousHost !== descriptor.host) {
-            setState("connectModal", "radios", (radios) => {
-              const next = { ...radios };
-              delete next[previousHost];
-              return next;
-            });
-          }
-          serialToHost.set(descriptor.serial, descriptor.host);
-          setState("connectModal", "radios", descriptor.host, {
-            ...descriptor,
-            lastSeen,
-          });
-        },
-        onOffline(serial) {
-          if (disposed) return;
-          const host = serialToHost.get(serial);
-          if (!host) return;
-          serialToHost.delete(serial);
-          setState("connectModal", "radios", (radios) => {
-            const next = { ...radios };
-            delete next[host];
-            return next;
-          });
-        },
-        onError(error) {
-          console.warn("Discovery adapter error", error);
-        },
-      })
-      .then(async (session) => {
-        if (disposed) {
-          try {
-            return await session.stop();
-          } catch (error) {
-            console.error("Failed to stop discovery session", error);
-          }
-        }
-        discoverySession = session;
-      })
-      .catch((error) => {
-        console.error("Failed to start discovery session", error);
-      });
+    clientSubscriptions.push(
+      radioClient.on("radioDiscovered", (handle) => {
+        if (disposed) return;
+        handleRadioDiscovered(handle);
+      }),
+    );
+    clientSubscriptions.push(
+      radioClient.on("radioChange", (change) => {
+        if (disposed) return;
+        handleRadioChangeForDiscovery(change);
+      }),
+    );
+    clientSubscriptions.push(
+      radioClient.on("radioLost", ({ serial, endpoint }) => {
+        if (disposed) return;
+        handleRadioLost(serial, endpoint?.host);
+      }),
+    );
+
+    radioClient.startDiscovery().catch((error) => {
+      console.error("Failed to start discovery session", error);
+    });
 
     onCleanup(() => {
       disposed = true;
-      if (discoverySession) {
-        discoverySession
-          .stop()
-          .catch((error) =>
-            console.error("Failed to stop discovery session", error),
-          );
-        discoverySession = null;
+      while (clientSubscriptions.length > 0) {
+        clientSubscriptions.pop()?.unsubscribe();
       }
+      radioClient
+        .stopDiscovery()
+        .catch((error) =>
+          console.error("Failed to stop discovery session", error),
+        );
     });
   });
 
@@ -578,20 +594,13 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     onCleanup(() => clearTimeout(handle));
   });
 
-  createEffect(() => {
-    setState(
-      "clientHandleInt",
-      state.clientHandle === null ? null : parseInt(state.clientHandle, 16),
-    );
-  });
-
   const sendCommand = async (command: string) => {
-    const currentSession = flexSession();
-    if (!currentSession) {
+    const currentRadio = activeRadio();
+    if (!currentRadio) {
       throw new Error("Not connected to a Flex radio");
     }
     try {
-      const response = await currentSession.command(command);
+      const response = await currentRadio.command(command);
       return {
         response: response.code ?? (response.accepted ? 0 : 1),
         message: response.message ?? "",
@@ -612,10 +621,9 @@ export const FlexRadioProvider: ParentComponent = (props) => {
   window.sendCommand = sendCommand; // Expose for debugging
 
   createEffect(() => {
-    if (!state.clientHandle) {
+    if (!state.clientHandleInt) {
       return;
     }
-    const clientHandle = parseInt(state.clientHandle, 16);
     const selectedPanadapter = state.selectedPanadapter;
     const panadapter = selectedPanadapter
       ? state.status.panadapter[selectedPanadapter]
@@ -628,7 +636,8 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     const firstOwnPan =
       Object.keys(state.status.panadapter).filter(
         (streamId) =>
-          state.status.panadapter[streamId]?.clientHandle === clientHandle,
+          state.status.panadapter[streamId]?.clientHandle ===
+          state.clientHandleInt,
       )[0] || null;
     setState("selectedPanadapter", firstOwnPan ?? null);
   });
@@ -637,6 +646,30 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     const [, description] = payload.split("|");
     if (description) {
       showToast({ description, variant: "info" });
+    }
+  };
+
+  const handleFlexMessage = (message: FlexWireMessage) => {
+    switch (message.kind) {
+      case "notice":
+        handleNoticePayload(message.raw);
+        break;
+      case "reply":
+        if (message.code !== 0) {
+          console.warn("Command reply", message.raw);
+        }
+        break;
+      case "status":
+        if (message.source === "license") {
+          featureLicenseStore ??= createRadioStateStore({ logger });
+          const changes = featureLicenseStore.apply(message);
+          for (const change of changes) {
+            if (change.entity === "featureLicense") {
+              handleStateChange(change);
+            }
+          }
+        }
+        break;
     }
   };
 
@@ -663,45 +696,78 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     onCleanup(unsubscribe);
   });
 
-  const teardownFlexSession = (options?: { resetState?: boolean }) => {
+  const teardownRadioConnection = (options?: { resetState?: boolean }) => {
     const { resetState = true } = options ?? {};
     disconnectRTC();
     if (rtcUdpCleanup) {
       rtcUdpCleanup();
       rtcUdpCleanup = undefined;
     }
-    const currentSession = flexSession();
-    setFlexSession(null);
-    for (const sub of flexSessionSubscriptions) sub.unsubscribe();
-    flexSessionSubscriptions = [];
-    if (currentSession) {
-      currentSession
-        .close()
-        .catch((error) => console.error("Error closing flex session", error));
+    cleanupRadioSubscriptions();
+    const currentRadio = activeRadio();
+    setActiveRadio(null);
+    if (currentRadio) {
+      currentRadio
+        .disconnect()
+        .catch((error) =>
+          console.error("Error closing flex radio session", error),
+        );
     }
+    featureLicenseStore = createRadioStateStore({ logger });
     if (resetState) {
       setState(reconcile(initialState()));
-      serialToHost.clear();
     }
   };
 
   const disconnect = () => {
-    teardownFlexSession();
+    teardownRadioConnection();
+  };
+
+  const attachRadioListeners = (
+    radio: RadioHandle,
+    handleProgress: (progress: FlexConnectionProgress) => void,
+  ) => {
+    cleanupRadioSubscriptions();
+    radioSubscriptions = [
+      radio.on("change", handleStateChange),
+      radio.on("message", ({ message }) => handleFlexMessage(message)),
+      radio.on("progress", handleProgress),
+      radio.on("ready", () => handleProgress({ stage: "ready" })),
+      radio.on("disconnected", disconnect),
+    ];
   };
 
   const connect = (addr: { host: string; port: number }) => {
     console.log("Connecting to", addr);
-    setState("connectModal", "status", ConnectionState.connecting);
-    setState("connectModal", "selectedRadio", addr.host);
-    setState("connectModal", "stage", ConnectionStage.TCP);
+    setState("connectModal", {
+      status: ConnectionState.connecting,
+      selectedRadio: addr.host,
+      stage: ConnectionStage.TCP,
+    });
     const descriptor = state.connectModal.radios[addr.host];
     if (!descriptor) {
       showToast({
         description: "Selected radio is unavailable",
         variant: "error",
       });
-      setState("connectModal", "status", ConnectionState.disconnected);
-      setState("connectModal", "selectedRadio", null);
+      setState("connectModal", {
+        status: ConnectionState.disconnected,
+        selectedRadio: null,
+        stage: ConnectionStage.TCP,
+      });
+      return;
+    }
+    const radio = radioClient.radio(descriptor.serial);
+    if (!radio) {
+      showToast({
+        description: "Selected radio handle is unavailable",
+        variant: "error",
+      });
+      setState("connectModal", {
+        status: ConnectionState.disconnected,
+        selectedRadio: null,
+        stage: ConnectionStage.TCP,
+      });
       return;
     }
 
@@ -710,41 +776,25 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         case "control":
           setState("connectModal", "stage", ConnectionStage.TCP);
           break;
-        case "handle":
         case "sync":
           setState("connectModal", "stage", ConnectionStage.Data);
-          if (progress.stage === "handle" && progress.handle) {
-            setState("clientHandle", progress.handle);
-          }
           break;
         case "data-plane":
           setState("connectModal", "stage", ConnectionStage.UDP);
           break;
         case "ready":
-          setState("connectModal", "stage", ConnectionStage.Done);
-          setState("connectModal", "status", ConnectionState.connected);
+          setState("connectModal", {
+            stage: ConnectionStage.Done,
+            status: ConnectionState.connected,
+          });
           break;
       }
     };
 
     void (async () => {
       try {
-        const currentSession = flexSession();
-        if (currentSession) {
-          setFlexSession(null);
-          for (const sub of flexSessionSubscriptions) sub.unsubscribe();
-          flexSessionSubscriptions = [];
-          try {
-            await currentSession.close();
-          } catch (error) {
-            console.error("Failed to close previous session", error);
-          }
-        }
-        disconnectRTC();
-        if (rtcUdpCleanup) {
-          rtcUdpCleanup();
-          rtcUdpCleanup = undefined;
-        }
+        teardownRadioConnection({ resetState: false });
+        featureLicenseStore = createRadioStateStore({ logger });
 
         const dataPlaneFactory: FlexDataPlaneFactory = {
           async connect({ handle, udp, logger }) {
@@ -773,83 +823,20 @@ export const FlexRadioProvider: ParentComponent = (props) => {
           },
         };
 
-        const newSession = await flexClient.connect(descriptor, {
+        setActiveRadio(radio);
+        attachRadioListeners(radio, handleProgress);
+        await radio.connect({
           udpSession,
           dataPlane: dataPlaneFactory,
           onProgress: handleProgress,
         });
-        setFlexSession(newSession);
-        const changeSubscription = newSession.on("change", handleStateChange);
-        const messageSubscription = newSession.on(
-          "message",
-          (message: FlexWireMessage) => {
-            switch (message.kind) {
-              case "notice":
-                handleNoticePayload(message.raw);
-                break;
-              case "reply":
-                if (message.code !== 0) {
-                  console.warn("Command reply", message.raw);
-                }
-                break;
-            }
-          },
-        );
-        const progressSubscription = newSession.on("progress", handleProgress);
-        const readySubscription = newSession.on("ready", () => {
-          batch(() => {
-            setState("clientHandle", newSession.clientHandle);
-            setState("clientId", newSession.clientId);
-          });
-          handleProgress({ stage: "ready" });
+        setState({
+          clientHandle: radio.clientHandle,
+          clientHandleInt: radio.clientHandle
+            ? parseInt(radio.clientHandle, 16)
+            : null,
+          clientId: radio.clientId,
         });
-        const disconnectedSubscription = newSession.on("disconnected", () => {
-          disconnect();
-        });
-        flexSessionSubscriptions = [
-          changeSubscription,
-          messageSubscription,
-          progressSubscription,
-          readySubscription,
-          disconnectedSubscription,
-        ];
-        const initial = newSession.snapshot();
-        batch(() => {
-          setState("status", "radio", withoutRaw(initial.radio));
-          setState(
-            "status",
-            "featureLicense",
-            withoutRaw(initial.featureLicense),
-          );
-          initial.guiClients.forEach((client) => {
-            setState("status", "guiClients", client.id, withoutRaw(client));
-          });
-          initial.slices.forEach((slice) =>
-            setState("status", "slice", slice.id, withoutRaw(slice)),
-          );
-          initial.panadapters.forEach((pan) => applyPanadapterDiff(pan));
-          initial.waterfalls.forEach((waterfall) =>
-            setState(
-              "status",
-              "waterfall",
-              waterfall.id,
-              withoutRaw(waterfall),
-            ),
-          );
-          initial.meters.forEach((meter) => {
-            setState("status", "meter", meter.id, withoutRaw(meter));
-          });
-          initial.audioStreams.forEach((stream) =>
-            setState("status", "audioStream", stream.id, withoutRaw(stream)),
-          );
-          setState("clientHandle", newSession.clientHandle);
-          setState("clientId", newSession.clientId);
-        });
-        handleProgress({ stage: "ready" });
-        setTimeout(
-          () => setState("connectModal", "status", ConnectionState.connected),
-          300,
-        );
       } catch (error) {
         console.error("Failed to connect to radio", error);
         showToast({
@@ -859,14 +846,15 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         setState("connectModal", "status", ConnectionState.disconnected);
         setState("connectModal", "selectedRadio", null);
         setState("connectModal", "stage", ConnectionStage.TCP);
-        const existing = flexSession();
-        if (existing) {
-          setFlexSession(null);
-          try {
-            await existing.close();
-          } catch (closeError) {
-            console.error("Error while closing failed session", closeError);
-          }
+        cleanupRadioSubscriptions();
+        if (activeRadio() === radio) {
+          setActiveRadio(null);
+        }
+        featureLicenseStore = createRadioStateStore({ logger });
+        try {
+          await radio.disconnect();
+        } catch (closeError) {
+          console.error("Error while closing failed session", closeError);
         }
         disconnectRTC();
         if (rtcUdpCleanup) {
@@ -878,7 +866,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
   };
 
   onCleanup(() => {
-    teardownFlexSession({ resetState: false });
+    teardownRadioConnection({ resetState: false });
   });
 
   return (
@@ -890,7 +878,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         sendCommand,
         connect,
         disconnect,
-        session: flexSession,
+        session: activeRadio,
       }}
     >
       {props.children}

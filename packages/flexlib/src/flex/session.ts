@@ -100,6 +100,7 @@ export interface FlexConnectionOptions {
   readonly dataPlane?: FlexDataPlaneFactory;
   readonly handshake?: FlexHandshake | null;
   readonly pingIntervalMs?: number | null;
+  readonly onSessionCreated?: (session: FlexRadioSession) => void;
   readonly onProgress?: (progress: FlexConnectionProgress) => void;
 }
 
@@ -291,6 +292,8 @@ export function createFlexClient(
           connectionOptions?.pingIntervalMs ??
           (connectionOptions?.pingIntervalMs === null ? null : 1_000),
       });
+      if (connectionOptions?.onSessionCreated)
+        connectionOptions.onSessionCreated(session);
       const handshake =
         connectionOptions?.handshake === undefined
           ? defaultFlexHandshake

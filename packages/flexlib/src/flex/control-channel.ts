@@ -36,11 +36,7 @@ export interface ControlChannelFactoryOptions {
   readonly textDecoderFactory?: () => WireTextDecoder;
 }
 
-type WireDecodeInput =
-  | Uint8Array
-  | ArrayBuffer
-  | ArrayBufferView
-  | undefined;
+type WireDecodeInput = Uint8Array | ArrayBuffer | ArrayBufferView | undefined;
 
 interface WireTextDecoder {
   decode(input?: WireDecodeInput, options?: { stream?: boolean }): string;
@@ -179,9 +175,7 @@ export function createControlChannelFactory(
         if (closed) return;
         if (cause) logger?.warn?.("Flex wire transport closed", { cause });
         handleChunk(decoder.decode());
-        finalize(
-          cause instanceof Error ? cause : new FlexClientClosedError(),
-        );
+        finalize(cause instanceof Error ? cause : new FlexClientClosedError());
       };
 
       const transportHandlers: FlexWireTransportHandlers = {
@@ -245,13 +239,11 @@ export function createControlChannelFactory(
             reject,
           });
 
-          transport
-            .send(payload)
-            .catch((error) => {
-              if (timeoutHandle) clearTimeout(timeoutHandle);
-              pending.delete(sequence);
-              reject(error);
-            });
+          transport.send(payload).catch((error) => {
+            if (timeoutHandle) clearTimeout(timeoutHandle);
+            pending.delete(sequence);
+            reject(error);
+          });
         });
       };
 
@@ -293,13 +285,13 @@ export function createControlChannelFactory(
   };
 }
 
-function createDecoder(
-  factory?: () => WireTextDecoder,
-): WireTextDecoder {
+function createDecoder(factory?: () => WireTextDecoder): WireTextDecoder {
   if (factory) return factory();
-  const Decoder = (globalThis as {
-    TextDecoder?: { new (): WireTextDecoder };
-  }).TextDecoder;
+  const Decoder = (
+    globalThis as {
+      TextDecoder?: { new (): WireTextDecoder };
+    }
+  ).TextDecoder;
   if (Decoder) {
     return new Decoder();
   }

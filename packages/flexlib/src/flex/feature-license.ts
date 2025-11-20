@@ -2,12 +2,9 @@ import type { FlexCommandOptions, FlexCommandResponse } from "./adapters.js";
 import type {
   FeatureLicenseFeature,
   FeatureLicenseSnapshot,
-} from "./radio-state/feature-license.js";
+} from "./state/feature-license.js";
 
-export type {
-  FeatureLicenseFeature,
-  FeatureLicenseSnapshot,
-} from "./radio-state/feature-license.js";
+export type { FeatureLicenseFeature } from "./state/feature-license.js";
 
 export interface FeatureLicenseController {
   snapshot(): FeatureLicenseSnapshot | undefined;

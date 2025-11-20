@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { FlexRadioDescriptor } from "../../src/flex/adapters.js";
-import { createFlexClient } from "../../src/flex/client.js";
+import { createFlexClient } from "../../src/flex/session.js";
 import {
   FlexClientClosedError,
   FlexCommandRejectedError,
 } from "../../src/flex/errors.js";
+import type { RadioStateChange } from "../../src/flex/state/index.js";
 import { MockControlFactory, makeStatus } from "../helpers.js";
 
 const descriptor: FlexRadioDescriptor = {
@@ -31,7 +32,7 @@ describe("FlexClient", () => {
     expect(channel).toBeDefined();
     if (!channel) throw new Error("control channel not created");
 
-    const changes: unknown[] = [];
+    const changes: RadioStateChange[] = [];
     session.on("change", (change) => {
       changes.push(change);
     });

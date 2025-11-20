@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { FlexRadioDescriptor } from "../../src/flex/adapters.js";
-import { createFlexClient } from "../../src/flex/client.js";
+import { createFlexClient } from "../../src/flex/session.js";
 import { FlexClientClosedError } from "../../src/flex/errors.js";
 import { MockControlFactory, makeStatus } from "../helpers.js";
 

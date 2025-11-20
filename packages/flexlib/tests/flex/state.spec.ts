@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createRadioStateStore } from "../../src/flex/radio-state.js";
+import { createRadioStateStore } from "../../src/flex/state/index.js";
 import {
   buildRadioListAttributes,
   parseRadioInfoReply,

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { createRadioStateStore } from "../../src/flex/radio-state.js";
+import { createRadioStateStore } from "../../src/flex/state/index.js";
 import { parseFlexMessage } from "../../src/flex/protocol.js";
 
 const messagesPath = fileURLToPath(

@@ -4,7 +4,7 @@ import { FlexStateUnavailableError } from "./errors.js";
 import type {
   AudioStreamSnapshot,
   AudioStreamStateChange,
-} from "./radio-state.js";
+} from "./state/index.js";
 import type {
   FlexUdpPacketEvent,
   FlexUdpScope,

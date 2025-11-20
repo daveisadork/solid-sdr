@@ -1,7 +1,7 @@
 import type { Subscription } from "./events.js";
 import type { FlexWireMessage } from "./protocol.js";
 import type { DiscoveredGuiClient } from "./gui-client.js";
-import type { RadioSnapshot } from "./radio-state/radio.js";
+import type { RadioSnapshot } from "./state/radio.js";
 
 export interface Clock {
   now(): number;

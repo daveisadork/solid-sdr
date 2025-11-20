@@ -5,7 +5,7 @@ import type {
   RadioSnapshot,
   RadioScreensaverMode,
   RadioStatusContext,
-} from "./radio-state.js";
+} from "./state/index.js";
 import { FlexError } from "./errors.js";
 import {
   buildRadioListAttributes,

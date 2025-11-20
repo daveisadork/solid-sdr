@@ -1,5 +1,5 @@
 import type { FlexCommandOptions, FlexCommandResponse } from "./adapters.js";
-import type { WaterfallSnapshot, WaterfallStateChange } from "./radio-state.js";
+import type { WaterfallSnapshot, WaterfallStateChange } from "./state/index.js";
 import { TypedEventEmitter, type Subscription } from "./events.js";
 import {
   FlexClientClosedError,

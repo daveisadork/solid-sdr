@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { FlexRadioDescriptor } from "../../src/flex/adapters.js";
-import { createFlexClient } from "../../src/flex/client.js";
+import { createFlexClient } from "../../src/flex/session.js";
 import { FlexStateUnavailableError } from "../../src/flex/errors.js";
 import { scaleMeterRawValue } from "../../src/flex/meter.js";
 import { MockControlFactory, makeStatus } from "../helpers.js";
+import type { RadioStateChange } from "../../src/flex/state/index.js";
 
 const descriptor: FlexRadioDescriptor = {
   serial: "1234-0001",
@@ -48,7 +49,7 @@ describe("Meter controller", () => {
     expect(controller.low).toBeCloseTo(1);
     expect(controller.high).toBeCloseTo(999);
     expect(controller.fps).toBeCloseTo(20);
-    const changes: unknown[] = [];
+    const changes: RadioStateChange[] = [];
     controller.on("change", (change) => {
       changes.push(change);
     });

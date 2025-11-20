@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { FlexRadioDescriptor } from "../../src/flex/adapters.js";
-import { createFlexClient } from "../../src/flex/client.js";
+import { createFlexClient } from "../../src/flex/session.js";
 import { lineSpeedToDurationMs } from "../../src/flex/waterfall-line-speed.js";
 import { MockControlFactory, makeStatus } from "../helpers.js";
 

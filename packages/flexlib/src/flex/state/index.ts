@@ -1,62 +1,62 @@
-import type { FlexStatusMessage } from "./protocol.js";
-import type { RfGainInfo } from "./rf-gain.js";
-import type { Logger } from "./adapters.js";
+import type { FlexStatusMessage } from "../protocol.js";
+import type { RfGainInfo } from "../rf-gain.js";
+import type { Logger } from "../adapters.js";
 import {
   isTruthy,
   parseIntegerMaybeHex,
   setRadioStateLogger,
-} from "./radio-state/common.js";
-import type { SnapshotDiff } from "./radio-state/common.js";
+} from "./common.js";
+import type { SnapshotDiff } from "./common.js";
 import {
   AUDIO_STREAM_TYPES,
   createAudioStreamSnapshot,
-} from "./radio-state/audio-stream.js";
+} from "./audio-stream.js";
 import type {
   AudioStreamKind,
   AudioStreamSnapshot,
-} from "./radio-state/audio-stream.js";
+} from "./audio-stream.js";
 import {
   createFeatureLicenseSnapshot,
   type FeatureLicenseSnapshot,
-} from "./radio-state/feature-license.js";
-import { createMeterSnapshot } from "./radio-state/meter.js";
-import type { MeterSnapshot } from "./radio-state/meter.js";
-import { createPanadapterSnapshot } from "./radio-state/panadapter.js";
-import type { PanadapterSnapshot } from "./radio-state/panadapter.js";
-import { createRadioSnapshot } from "./radio-state/radio.js";
-import type { RadioSnapshot, RadioStatusContext } from "./radio-state/radio.js";
-import { createSliceSnapshot } from "./radio-state/slice.js";
-import type { SliceSnapshot } from "./radio-state/slice.js";
-import { createWaterfallSnapshot } from "./radio-state/waterfall.js";
-import type { WaterfallSnapshot } from "./radio-state/waterfall.js";
+} from "./feature-license.js";
+import { createMeterSnapshot } from "./meter.js";
+import type { MeterSnapshot } from "./meter.js";
+import { createPanadapterSnapshot } from "./panadapter.js";
+import type { PanadapterSnapshot } from "./panadapter.js";
+import { createRadioSnapshot } from "./radio.js";
+import type { RadioSnapshot, RadioStatusContext } from "./radio.js";
+import { createSliceSnapshot } from "./slice.js";
+import type { SliceSnapshot } from "./slice.js";
+import { createWaterfallSnapshot } from "./waterfall.js";
+import type { WaterfallSnapshot } from "./waterfall.js";
 import {
   createGuiClientSnapshot,
   type GuiClientSnapshot,
-} from "./radio-state/gui-client.js";
+} from "./gui-client.js";
 
-export type { SnapshotDiff } from "./radio-state/common.js";
-export type { SliceSnapshot } from "./radio-state/slice.js";
-export type { PanadapterSnapshot } from "./radio-state/panadapter.js";
-export type { WaterfallSnapshot } from "./radio-state/waterfall.js";
+export type { SnapshotDiff } from "./common.js";
+export type { SliceSnapshot } from "./slice.js";
+export type { PanadapterSnapshot } from "./panadapter.js";
+export type { WaterfallSnapshot } from "./waterfall.js";
 export type {
   AudioStreamKind,
   AudioStreamSnapshot,
-} from "./radio-state/audio-stream.js";
-export type { FeatureLicenseSnapshot } from "./radio-state/feature-license.js";
+} from "./audio-stream.js";
+export type { FeatureLicenseSnapshot } from "./feature-license.js";
 export type {
   KnownMeterUnits,
   MeterSnapshot,
   MeterUnits,
-} from "./radio-state/meter.js";
+} from "./meter.js";
 export type {
   RadioFilterSharpnessMode,
   RadioOscillatorSetting,
   RadioScreensaverMode,
   RadioSnapshot as RadioSnapshot,
   RadioStatusContext,
-} from "./radio-state/radio.js";
-export { KNOWN_METER_UNITS } from "./radio-state/meter.js";
-export type { GuiClientSnapshot } from "./radio-state/gui-client.js";
+} from "./radio.js";
+export { KNOWN_METER_UNITS } from "./meter.js";
+export type { GuiClientSnapshot } from "./gui-client.js";
 
 type ChangeMetadata<TSnapshot> = {
   readonly diff?: SnapshotDiff<TSnapshot>;
@@ -692,7 +692,9 @@ export function createRadioStateStore(
     if (prevPan && prevPan !== nextPan) {
       const pan = panadapters.get(prevPan);
       if (pan && pan.attachedSlices.includes(sliceId)) {
-        const filtered = pan.attachedSlices.filter((id) => id !== sliceId);
+        const filtered = pan.attachedSlices.filter(
+          (attachedId: string) => attachedId !== sliceId,
+        );
         const updated = Object.freeze({
           ...pan,
           attachedSlices: Object.freeze(filtered),

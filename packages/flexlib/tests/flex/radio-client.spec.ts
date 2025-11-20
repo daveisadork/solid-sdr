@@ -7,7 +7,7 @@ import type {
   FlexControlFactory,
   FlexRadioDescriptor,
 } from "../../src/flex/adapters.js";
-import { createFlexRadioClient } from "../../src/flex/radio-client.js";
+import { createFlexRadioClient } from "../../src/flex/client.js";
 
 function createStubDiscovery() {
   let handlers: DiscoveryCallbacks | undefined;

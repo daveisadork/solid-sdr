@@ -2,9 +2,9 @@ import type {
   MeterSnapshot,
   MeterStateChange,
   MeterUnits,
-} from "./radio-state.js";
-export type { MeterUnits, KnownMeterUnits } from "./radio-state.js";
-export { KNOWN_METER_UNITS } from "./radio-state.js";
+} from "./state/index.js";
+export type { MeterUnits, KnownMeterUnits } from "./state/index.js";
+export { KNOWN_METER_UNITS } from "./state/index.js";
 import { TypedEventEmitter, type Subscription } from "./events.js";
 import { FlexStateUnavailableError } from "./errors.js";
 import type {

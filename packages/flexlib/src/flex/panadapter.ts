@@ -2,7 +2,7 @@ import type { FlexCommandOptions, FlexCommandResponse } from "./adapters.js";
 import type {
   PanadapterSnapshot,
   PanadapterStateChange,
-} from "./radio-state.js";
+} from "./state/index.js";
 import { TypedEventEmitter, type Subscription } from "./events.js";
 import {
   FlexClientClosedError,

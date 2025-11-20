@@ -12,7 +12,7 @@ import { LinearScale } from "./linear-scale";
 
 export function Waterfall(props: { streamId: string }) {
   const streamId = () => props.streamId;
-  const { events, session, state, setState } = useFlexRadio();
+  const { radio, state, setState } = useFlexRadio();
   const waterfall = () => state.status.waterfall[streamId()];
   const pan = () => state.status.panadapter[waterfall().panadapterStreamId];
 
@@ -29,7 +29,7 @@ export function Waterfall(props: { streamId: string }) {
     waterfall().lineDurationMs ?? 0,
   );
 
-  const waterfallController = () => session()?.waterfall(streamId());
+  const waterfallController = () => radio()?.waterfall(streamId());
 
   // 4096 colors to stay under canvas size limits on iOS
   const paletteCanvas = new OffscreenCanvas(4096, 1);

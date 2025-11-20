@@ -19,7 +19,7 @@ import type { FrequencyGridTick } from "./scale";
 
 export function Panadapter(props: { streamId: string }) {
   const streamId = () => props.streamId;
-  const { session, state, setState } = useFlexRadio();
+  const { radio, state, setState } = useFlexRadio();
   const [pan] = createKeyedSubstore(
     () => state.status.panadapter,
     streamId,
@@ -127,7 +127,7 @@ export function Panadapter(props: { streamId: string }) {
   });
 
   const resizeCallback = debounce(async (width: number, height: number) => {
-    const controller = session()?.panadapter(streamId());
+    const controller = radio()?.panadapter(streamId());
     setUpdating(true);
     await controller?.setSize({ width, height });
     setUpdating(false);
@@ -302,7 +302,7 @@ export function Panadapter(props: { streamId: string }) {
   createEffect(() => {
     const handler = onPanadapter();
     if (!handler) return;
-    const subscription = session()?.panadapter(streamId())?.on("data", handler);
+    const subscription = radio()?.panadapter(streamId())?.on("data", handler);
     if (!subscription) return;
     onCleanup(subscription.unsubscribe);
   });

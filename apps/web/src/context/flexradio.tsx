@@ -314,7 +314,7 @@ export const initialState = () =>
 const FlexRadioContext = createContext<{
   state: AppState;
   setState: SetStoreFunction<AppState>;
-  session: () => RadioHandle | null;
+  radio: () => RadioHandle | null;
   connect: (addr: { host: string; port: number }) => void;
   disconnect: () => void;
   sendCommand: (command: string) => Promise<{
@@ -878,7 +878,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         sendCommand,
         connect,
         disconnect,
-        session: activeRadio,
+        radio: activeRadio,
       }}
     >
       {props.children}

@@ -59,7 +59,7 @@ export function Panafall() {
     setModePreference(next);
   };
 
-  const { session, state } = useFlexRadio();
+  const { radio, state } = useFlexRadio();
   const [fs, setFullscreen] = createSignal(false);
   const fullscreen = createFullscreen(() => document.documentElement, fs);
   const [clickRef, setClickRef] = createSignal<HTMLElement>();
@@ -69,7 +69,7 @@ export function Panafall() {
     null,
   );
 
-  const panController = () => session()?.panadapter(panStreamId());
+  const panController = () => radio()?.panadapter(panStreamId());
   const [dragState, setDragState] = createStore({
     down: false,
     dragging: false,

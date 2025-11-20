@@ -159,7 +159,7 @@ const LevelMeter = (props: { sliceIndex?: string }) => {
 
 export function DetachedSlice(props: { sliceIndex: string }) {
   const sliceIndex = () => props.sliceIndex;
-  const { session, state } = useFlexRadio();
+  const { radio, state } = useFlexRadio();
   const slice = () => state.status.slice[props.sliceIndex];
   const pan = () => state.status.panadapter[slice()?.panadapterStreamId];
 
@@ -169,10 +169,10 @@ export function DetachedSlice(props: { sliceIndex: string }) {
       size="sm"
       class="font-black text-md font-mono z-10 pointer-events-auto text-shadow-md text-shadow-black"
       onClick={() => {
-        session()
+        radio()
           ?.panadapter(slice().panadapterStreamId)
           ?.setCenterFrequency(slice().frequencyMHz);
-        session()?.slice(sliceIndex())?.setActive(true);
+        radio()?.slice(sliceIndex())?.setActive(true);
       }}
     >
       <Show when={slice().frequencyMHz < pan().centerFrequencyMHz}>
@@ -229,7 +229,7 @@ export function DetachedSlices(props: { streamId: string }) {
 
 export function Slice(props: { sliceIndex: string }) {
   const sliceIndex = () => props.sliceIndex;
-  const { session, state } = useFlexRadio();
+  const { radio: session, state } = useFlexRadio();
   const [slice, setSlice] = createStore(state.status.slice[sliceIndex()]);
   const sliceController = () => session()?.slice(sliceIndex());
   const streamId = () => slice.panadapterStreamId;

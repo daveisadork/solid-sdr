@@ -50,11 +50,11 @@ const BANDS: { id: string; label: string }[] = [
 
 export function TuningPanel(props: { streamId: string }) {
   const streamId = () => props.streamId;
-  const { session, state, setState } = useFlexRadio();
+  const { radio, state, setState } = useFlexRadio();
   const [pan] = createStore(state.status.panadapter[streamId()]);
-  const panController = () => session()?.panadapter(streamId());
+  const panController = () => radio()?.panadapter(streamId());
   const waterfallId = () => pan.waterfallStreamId;
-  const wfController = () => session()?.waterfall(waterfallId());
+  const wfController = () => radio()?.waterfall(waterfallId());
   const [waterfall] = createStore(state.status.waterfall[waterfallId()]);
   const [gradients] = createStore(state.palette.gradients);
   const [rawFrequency, setRawFrequency] = createSignal(

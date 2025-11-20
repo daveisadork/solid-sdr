@@ -143,7 +143,7 @@ export const TabToSignal: Component<
   ComponentProps<"div"> & { streamId: string }
 > = (props) => {
   const [local, others] = splitProps(props, ["class"]);
-  const { events, state, session } = useFlexRadio();
+  const { events, state, radio } = useFlexRadio();
 
   const frames = new Map<number, FrameBins>();
   const [targets, setTargets] = createSignal<Target[]>([]);
@@ -151,7 +151,7 @@ export const TabToSignal: Component<
 
   const pan = () => state.status.panadapter[props.streamId];
 
-  const panController = () => session()?.panadapter(props.streamId);
+  const panController = () => radio()?.panadapter(props.streamId);
 
   const activeSlice = createMemo(() => {
     const sid = props.streamId;

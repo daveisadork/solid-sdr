@@ -25,6 +25,7 @@ import type { MeterController } from "./meter.js";
 import type { AudioStreamController } from "./audio-stream.js";
 import type { GuiClientSnapshot } from "./state/index.js";
 import { FlexClientClosedError } from "./errors.js";
+import type { FlexWireMessage } from "./protocol.js";
 
 export type RadioConnectionState =
   | "disconnected"
@@ -34,8 +35,14 @@ export type RadioConnectionState =
 
 export type RadioHandle = RadioController & RadioHandleExtras;
 
+export type RadioEndpoint = {
+  readonly host: string;
+  readonly port: number;
+};
+
 export interface RadioHandleExtras {
   readonly serial: string;
+  readonly endpoint: RadioEndpoint;
   readonly connectionState: RadioConnectionState;
   readonly descriptor?: FlexRadioDescriptor;
   readonly lastSeen?: Date;
@@ -70,6 +77,7 @@ export interface RadioClient {
   stopDiscovery(): Promise<void>;
   getRadios(): readonly RadioHandle[];
   radio(serial: string): RadioHandle | undefined;
+  radioByEndpoint(endpoint: RadioEndpoint): RadioHandle | undefined;
   on<TKey extends RadioClientEventKey>(
     event: TKey,
     listener: RadioClientEventListener<TKey>,
@@ -96,13 +104,20 @@ export interface RadioErrorEvent {
 
 export type RadioStateChangeWithSerial = RadioStateChange & {
   readonly radioSerial: string;
+  readonly endpoint: RadioEndpoint;
 };
+
+export interface RadioWireMessageEvent {
+  readonly radioSerial: string;
+  readonly endpoint: RadioEndpoint;
+  readonly message: FlexWireMessage;
+}
 
 export interface RadioClientEvents extends Record<string, unknown> {
   readonly radioDiscovered: RadioHandle;
-  readonly radioLost: { serial: string };
+  readonly radioLost: { serial: string; endpoint?: RadioEndpoint };
   readonly radioConnected: RadioHandle;
-  readonly radioDisconnected: { serial: string };
+  readonly radioDisconnected: { serial: string; endpoint?: RadioEndpoint };
   readonly radioChange: RadioStateChangeWithSerial;
   readonly sliceChange: RadioStateChangeWithSerial;
   readonly panadapterChange: RadioStateChangeWithSerial;
@@ -110,14 +125,15 @@ export interface RadioClientEvents extends Record<string, unknown> {
   readonly meterChange: RadioStateChangeWithSerial;
   readonly audioStreamChange: RadioStateChangeWithSerial;
   readonly guiClientChange: RadioStateChangeWithSerial;
+  readonly message: RadioWireMessageEvent;
   readonly progress: RadioProgressEvent;
   readonly error: RadioErrorEvent;
 }
 
 export type RadioClientEventKey = keyof RadioClientEvents;
-export type RadioClientEventListener<
-  TKey extends RadioClientEventKey,
-> = (payload: RadioClientEvents[TKey]) => void;
+export type RadioClientEventListener<TKey extends RadioClientEventKey> = (
+  payload: RadioClientEvents[TKey],
+) => void;
 
 export interface RadioHandleEvents extends Record<string, unknown> {
   readonly radioChange: RadioStateChangeWithSerial;
@@ -127,6 +143,7 @@ export interface RadioHandleEvents extends Record<string, unknown> {
   readonly meterChange: RadioStateChangeWithSerial;
   readonly audioStreamChange: RadioStateChangeWithSerial;
   readonly guiClientChange: RadioStateChangeWithSerial;
+  readonly message: RadioWireMessageEvent;
   readonly ready: undefined;
   readonly disconnected: undefined;
   readonly progress: FlexConnectionProgress;
@@ -149,14 +166,53 @@ interface Deferred<T> {
   reject(reason?: unknown): void;
 }
 
+const endpointFromDescriptor = (
+  descriptor: FlexRadioDescriptor,
+): RadioEndpoint => ({
+  host: descriptor.host,
+  port: descriptor.port,
+});
+
+const makeEndpointKey = (endpoint: RadioEndpoint): string =>
+  `${endpoint.host}:${endpoint.port}`;
+
 export function createRadioClient(
   adapters: FlexClientAdapters & { discovery: DiscoveryAdapter },
   options: RadioClientOptions = {},
 ): RadioClient {
   const baseClient = createFlexClient(adapters, options);
   const emitter = new TypedEventEmitter<RadioClientEvents>();
-  const radios = new Map<string, RadioHandleCore>();
+  const endpointHandles = new Map<string, RadioHandleCore>();
+  const serialEndpoints = new Map<string, Set<string>>();
   let discoverySession: DiscoverySession | undefined;
+
+  const recordEndpoint = (serial: string, endpointKey: string) => {
+    let set = serialEndpoints.get(serial);
+    if (!set) {
+      set = new Set<string>();
+      serialEndpoints.set(serial, set);
+    }
+    set.add(endpointKey);
+  };
+
+  const getFirstHandleForSerial = (serial: string): RadioHandle | undefined => {
+    const endpoints = serialEndpoints.get(serial);
+    if (!endpoints || endpoints.size === 0) return undefined;
+    const [first] = endpoints;
+    return endpointHandles.get(first)?.publicInterface();
+  };
+
+  const markSerialUnavailable = (serial: string) => {
+    const endpoints = serialEndpoints.get(serial);
+    if (!endpoints) return;
+    for (const key of endpoints) {
+      const handle = endpointHandles.get(key);
+      if (handle) {
+        handle.markUnavailable();
+        emitter.emit("radioLost", { serial, endpoint: handle.endpoint });
+      }
+    }
+  };
 
   async function startDiscovery(): Promise<void> {
     if (discoverySession) return;
@@ -165,11 +221,7 @@ export function createRadioClient(
         handleDescriptor(descriptor);
       },
       onOffline(serial) {
-        const radio = radios.get(serial);
-        if (radio) {
-          radio.setAvailable(false);
-          emitter.emit("radioLost", { serial });
-        }
+        markSerialUnavailable(serial);
       },
       onError(error) {
         emitter.emit("error", { serial: "", error });
@@ -185,18 +237,22 @@ export function createRadioClient(
   }
 
   function handleDescriptor(descriptor: FlexRadioDescriptor): void {
-    let radio = radios.get(descriptor.serial);
-    if (!radio) {
-      radio = new RadioHandleCore(descriptor.serial, baseClient, (event, payload) =>
-        emitter.emit(event, payload),
+    const endpoint = endpointFromDescriptor(descriptor);
+    const endpointKey = makeEndpointKey(endpoint);
+    let handle = endpointHandles.get(endpointKey);
+    if (!handle) {
+      handle = new RadioHandleCore(
+        descriptor.serial,
+        endpoint,
+        baseClient,
+        (event, payload) => emitter.emit(event, payload),
       );
-      radios.set(descriptor.serial, radio);
+      endpointHandles.set(endpointKey, handle);
+      recordEndpoint(descriptor.serial, endpointKey);
+      emitter.emit("radioDiscovered", handle.publicInterface());
     }
-    const firstDiscovery = !radio.descriptor;
-    radio.updateDescriptor(descriptor);
-    if (firstDiscovery) {
-      emitter.emit("radioDiscovered", radio.publicInterface());
-    }
+    handle.markAvailable();
+    handle.updateDescriptor(descriptor);
   }
 
   return {
@@ -204,10 +260,15 @@ export function createRadioClient(
     startDiscovery,
     stopDiscovery,
     getRadios() {
-      return Array.from(radios.values(), (radio) => radio.publicInterface());
+      return Array.from(endpointHandles.values(), (handle) =>
+        handle.publicInterface(),
+      );
     },
     radio(serial) {
-      return radios.get(serial)?.publicInterface();
+      return getFirstHandleForSerial(serial);
+    },
+    radioByEndpoint(endpoint) {
+      return endpointHandles.get(makeEndpointKey(endpoint))?.publicInterface();
     },
     on(event, listener) {
       return emitter.on(event, listener);
@@ -229,6 +290,7 @@ class RadioHandleCore extends TypedEventEmitter<RadioHandleEvents> {
   private _connectionState: RadioConnectionState = "disconnected";
   private connectPromise?: Promise<void>;
   private publicInstance?: RadioHandle;
+  private _endpoint: RadioEndpoint;
   private readonly clientConnected: (radio: RadioHandleCore) => void;
   private readonly clientDisconnected: (radio: RadioHandleCore) => void;
   private hasSnapshot = false;
@@ -236,17 +298,22 @@ class RadioHandleCore extends TypedEventEmitter<RadioHandleEvents> {
 
   constructor(
     serial: string,
+    endpoint: RadioEndpoint,
     private readonly client: FlexClient,
     private readonly clientEventEmitter: ClientEventEmitter,
   ) {
     super();
     this.serial = serial;
+    this._endpoint = endpoint;
     this.readyDeferred = createDeferred<void>();
     this.clientConnected = () => {
       this.clientEventEmitter("radioConnected", this.publicInterface());
     };
     this.clientDisconnected = () => {
-      this.clientEventEmitter("radioDisconnected", { serial: this.serial });
+      this.clientEventEmitter("radioDisconnected", {
+        serial: this.serial,
+        endpoint: this.endpoint,
+      });
     };
   }
 
@@ -259,6 +326,10 @@ class RadioHandleCore extends TypedEventEmitter<RadioHandleEvents> {
 
   get connectionState(): RadioConnectionState {
     return this._connectionState;
+  }
+
+  get endpoint(): RadioEndpoint {
+    return { ...this._endpoint };
   }
 
   get descriptor(): FlexRadioDescriptor | undefined {
@@ -285,8 +356,17 @@ class RadioHandleCore extends TypedEventEmitter<RadioHandleEvents> {
     this._available = next;
   }
 
+  markAvailable(): void {
+    this._available = true;
+  }
+
+  markUnavailable(): void {
+    this._available = false;
+  }
+
   updateDescriptor(descriptor: FlexRadioDescriptor): void {
     this.descriptorValue = descriptor;
+    this._endpoint = endpointFromDescriptor(descriptor);
     this._available = true;
     const lastSeenValue = descriptor.discoveryMeta?.lastSeen;
     this._lastSeen =
@@ -301,7 +381,11 @@ class RadioHandleCore extends TypedEventEmitter<RadioHandleEvents> {
   }
 
   async connect(options?: RadioConnectionOptions): Promise<void> {
-    if (this._connectionState === "ready" && this.session && !this.session.isClosed)
+    if (
+      this._connectionState === "ready" &&
+      this.session &&
+      !this.session.isClosed
+    )
       return this.session.ready;
     if (this.connectPromise) return this.connectPromise;
     const descriptor = this.descriptorValue;
@@ -407,6 +491,15 @@ class RadioHandleCore extends TypedEventEmitter<RadioHandleEvents> {
     const statusSub = session.on("status", () => {
       /* no-op placeholder */
     });
+    const messageSub = session.on("message", (message: FlexWireMessage) => {
+      const payload: RadioWireMessageEvent = {
+        radioSerial: this.serial,
+        endpoint: this.endpoint,
+        message,
+      };
+      this.emit("message", payload);
+      this.clientEventEmitter("message", payload);
+    });
     const progressSub = session.on(
       "progress",
       (progress: FlexConnectionProgress) => {
@@ -437,6 +530,7 @@ class RadioHandleCore extends TypedEventEmitter<RadioHandleEvents> {
     this.sessionSubscriptions = [
       changeSub,
       statusSub,
+      messageSub,
       progressSub,
       readySub,
       disconnectSub,
@@ -455,6 +549,7 @@ class RadioHandleCore extends TypedEventEmitter<RadioHandleEvents> {
     const payload: RadioStateChangeWithSerial = {
       ...change,
       radioSerial: this.serial,
+      endpoint: this.endpoint,
     };
 
     if (change.entity === "radio" && change.diff) {
@@ -498,10 +593,7 @@ class RadioHandleCore extends TypedEventEmitter<RadioHandleEvents> {
     }
   }
 
-  private emitRadioChange(
-    diff: Partial<RadioSnapshot>,
-    isNew: boolean,
-  ): void {
+  private emitRadioChange(diff: Partial<RadioSnapshot>, isNew: boolean): void {
     this.cachedSnapshot = Object.freeze({
       ...this.cachedSnapshot,
       ...diff,
@@ -512,6 +604,7 @@ class RadioHandleCore extends TypedEventEmitter<RadioHandleEvents> {
       removed: false,
       kind: isNew ? "added" : "updated",
       radioSerial: this.serial,
+      endpoint: this.endpoint,
     };
     this.emit("radioChange", change);
     this.clientEventEmitter("radioChange", change);
@@ -549,6 +642,7 @@ function createRadioHandleProxy(core: RadioHandleCore): RadioHandle {
       if (prop === Symbol.toStringTag) return "RadioHandle";
 
       if (prop === "serial") return core.serial;
+      if (prop === "endpoint") return core.endpoint;
       if (prop === "connectionState") return core.connectionState;
       if (prop === "descriptor") return core.descriptor;
       if (prop === "lastSeen") return core.lastSeen;
@@ -564,8 +658,7 @@ function createRadioHandleProxy(core: RadioHandleCore): RadioHandle {
       if (prop === "audioStream") return core.audioStream.bind(core);
       if (prop === "guiClients") return core.guiClients.bind(core);
       if (prop === "snapshot") return core.snapshot.bind(core);
-      if (prop === "on")
-        return core.on.bind(core) as RadioHandleExtras["on"];
+      if (prop === "on") return core.on.bind(core) as RadioHandleExtras["on"];
       if (prop === "off")
         return core.off.bind(core) as RadioHandleExtras["off"];
 
@@ -585,6 +678,7 @@ function createRadioHandleProxy(core: RadioHandleCore): RadioHandle {
       if (
         [
           "serial",
+          "endpoint",
           "connectionState",
           "descriptor",
           "lastSeen",

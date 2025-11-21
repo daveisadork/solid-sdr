@@ -514,7 +514,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         }
         break;
       case "unknown":
-        console.warn("Unknown state change", change.source);
+        console.warn("Unknown state change", change);
         break;
     }
   };

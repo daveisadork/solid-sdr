@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { TypedEventEmitter, type Subscription } from "../../src/util/events.js";
+import {
+  TypedEventEmitter,
+  type ListenerErrorInfo,
+  type Subscription,
+} from "../../src/util/events.js";
 
 interface TestEvents {
   foo: string;
@@ -69,8 +73,12 @@ describe("TypedEventEmitter", () => {
     ]);
   });
 
-  it("still calls all listeners even when one throws", () => {
-    const emitter = new TypedEventEmitter<TestEvents>();
+  it("still calls all listeners even when one throws and reports via callback", () => {
+    const errors: ListenerErrorInfo<TestEvents>[] = [];
+    const emitter = new TypedEventEmitter<TestEvents>({
+      onListenerError: (info) => errors.push(info),
+      rethrowStrategy: "none",
+    });
     const calls: string[] = [];
 
     emitter.on("foo", () => {
@@ -82,7 +90,41 @@ describe("TypedEventEmitter", () => {
       calls.push("second");
     });
 
-    expect(() => emitter.emit("foo", "payload")).toThrowError("boom");
+    expect(() => emitter.emit("foo", "payload")).not.toThrow();
     expect(calls).toEqual(["first", "second"]);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toMatchObject({
+      event: "foo",
+      payload: "payload",
+      listenerIndex: 0,
+      listenerCount: 2,
+    });
+    expect((errors[0].error as Error).message).toBe("boom");
+  });
+
+  it("rethrows listener errors on a future tick by default", () => {
+    const captured: Array<() => void> = [];
+    const originalQueueMicrotask = globalThis.queueMicrotask;
+    (globalThis as { queueMicrotask?: typeof queueMicrotask }).queueMicrotask =
+      (fn: () => void) => {
+        captured.push(fn);
+      };
+
+    try {
+      const emitter = new TypedEventEmitter<TestEvents>();
+      emitter.on("foo", () => {
+        throw new Error("later");
+      });
+      expect(() => emitter.emit("foo", "payload")).not.toThrow();
+      expect(captured).toHaveLength(1);
+      expect(() => captured[0]()).toThrowError("later");
+    } finally {
+      if (originalQueueMicrotask) {
+        globalThis.queueMicrotask = originalQueueMicrotask;
+      } else {
+        delete (globalThis as { queueMicrotask?: typeof queueMicrotask })
+          .queueMicrotask;
+      }
+    }
   });
 });

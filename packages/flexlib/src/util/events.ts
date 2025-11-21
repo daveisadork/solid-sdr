@@ -4,8 +4,33 @@ export interface Subscription {
   unsubscribe(): void;
 }
 
+export interface ListenerErrorInfo<
+  TEvents extends Record<string, unknown>,
+  TKey extends keyof TEvents = keyof TEvents,
+> {
+  readonly event: TKey;
+  readonly payload: TEvents[TKey];
+  readonly listenerIndex: number;
+  readonly listenerCount: number;
+  readonly error: unknown;
+}
+
+export interface TypedEventEmitterOptions<
+  TEvents extends Record<string, unknown>,
+> {
+  readonly onListenerError?: (
+    info: ListenerErrorInfo<TEvents>,
+  ) => void;
+  readonly rethrowStrategy?: "async" | "none";
+}
+
 export class TypedEventEmitter<TEvents extends Record<string, unknown>> {
   private readonly listeners = new Map<keyof TEvents, Set<Listener<unknown>>>();
+  private readonly options: TypedEventEmitterOptions<TEvents>;
+
+  constructor(options: TypedEventEmitterOptions<TEvents> = {}) {
+    this.options = options;
+  }
 
   on<TKey extends keyof TEvents>(
     event: TKey,
@@ -45,18 +70,25 @@ export class TypedEventEmitter<TEvents extends Record<string, unknown>> {
     const bucket = this.getBucket(event);
     if (!bucket) return;
     const errors: unknown[] = [];
+    const total = bucket.size;
+    let index = 0;
     for (const listener of bucket) {
       try {
         listener(payload);
       } catch (error) {
         errors.push(error);
+        this.options.onListenerError?.({
+          event,
+          payload,
+          listenerIndex: index,
+          listenerCount: total,
+          error,
+        });
       }
+      index += 1;
     }
-    if (errors.length === 1) {
-      throw errors[0];
-    }
-    if (errors.length > 1) {
-      throw new AggregateError(errors, "Multiple TypedEventEmitter listeners failed");
+    if (errors.length > 0) {
+      this.scheduleAsyncRethrow(event, errors);
     }
   }
 
@@ -83,5 +115,27 @@ export class TypedEventEmitter<TEvents extends Record<string, unknown>> {
     return this.listeners.get(event) as
       | Set<Listener<TEvents[TKey]>>
       | undefined;
+  }
+
+  private scheduleAsyncRethrow(
+    event: keyof TEvents,
+    errors: readonly unknown[],
+  ): void {
+    const strategy = this.options.rethrowStrategy ?? "async";
+    if (strategy === "none") return;
+    const throwErrors = () => {
+      if (errors.length === 1) {
+        throw errors[0];
+      }
+      throw new AggregateError(
+        errors,
+        `TypedEventEmitter listener failure | event=${String(event)} | count=${errors.length}`,
+      );
+    };
+    if (typeof queueMicrotask === "function") {
+      queueMicrotask(throwErrors);
+    } else {
+      Promise.resolve().then(throwErrors);
+    }
   }
 }

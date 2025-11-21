@@ -209,6 +209,69 @@ describe("createRadioStateStore", () => {
     expect(waterfall?.clientHandle).toBe(977_344_129);
   });
 
+  it("tracks equalizer states", () => {
+    const store = createRadioStateStore();
+    store.apply(
+      makeStatus(
+        "S1|eq rxsc mode=0 63Hz=0 125Hz=0 250Hz=0 500Hz=0 1000Hz=0 2000Hz=0 4000Hz=0 8000Hz=0",
+      ),
+    );
+    let rx = store.getEqualizer("rx");
+    expect(rx).toBeDefined();
+    expect(rx?.enabled).toBe(false);
+    expect(rx?.bands["63Hz"]).toBe(0);
+    expect(rx?.bands["1000Hz"]).toBe(0);
+
+    store.apply(
+      makeStatus(
+        "S1|eq txsc mode=1 63Hz=0 125Hz=-4 250Hz=-4 500Hz=1 1000Hz=4 2000Hz=6 4000Hz=5 8000Hz=2",
+      ),
+    );
+    const tx = store.getEqualizer("tx");
+    expect(tx).toBeDefined();
+    expect(tx?.enabled).toBe(true);
+    expect(tx?.bands["125Hz"]).toBe(-4);
+    expect(tx?.bands["4000Hz"]).toBe(5);
+
+    store.apply(
+      makeStatus(
+        "S1|eq rxsc mode=1 63Hz=4 125Hz=2 250Hz=1 500Hz=0 1000Hz=-1 2000Hz=-2 4000Hz=-3 8000Hz=-4",
+      ),
+    );
+    rx = store.getEqualizer("rx");
+    expect(rx?.enabled).toBe(true);
+    expect(rx?.bands["63Hz"]).toBe(4);
+    expect(rx?.bands["8000Hz"]).toBe(-4);
+
+    expect(store.snapshot().equalizers).toHaveLength(2);
+  });
+
+  it("tracks APD status", () => {
+    const store = createRadioStateStore();
+    store.apply(makeStatus("S1|apd enable=1 configurable=1"));
+    store.apply(makeStatus("S1|apd freq=0.000000 tx_error_mHz=0.500000"));
+    store.apply(
+      makeStatus(
+        "S1|apd slice=0 mmx=0 client_handle=0x7F7C21E0 ant=ANT1 freq=14.100000 rx_error_mHz=0.000000 equalizer_active=1 configurable=1",
+      ),
+    );
+
+    let apd = store.getApd();
+    expect(apd).toBeDefined();
+    expect(apd?.enabled).toBe(true);
+    expect(apd?.configurable).toBe(true);
+    expect(apd?.equalizerActive).toBe(true);
+    expect(apd?.antenna).toBe("ANT1");
+    expect(apd?.frequencyMHz).toBeCloseTo(14.1, 6);
+    expect(apd?.sliceId).toBe("0");
+    expect(apd?.clientHandle).toBe(0x7f7c21e0);
+    expect(apd?.txErrorMilliHz).toBeCloseTo(0.5, 6);
+
+    store.apply(makeStatus("S1|apd equalizer_reset"));
+    apd = store.getApd();
+    expect(apd?.equalizerActive).toBe(false);
+  });
+
   it("updates radio gps properties from gps status messages", () => {
     const store = createRadioStateStore();
     const gpsStatus =

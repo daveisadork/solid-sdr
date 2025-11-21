@@ -11,14 +11,17 @@ import {
   AUDIO_STREAM_TYPES,
   createAudioStreamSnapshot,
 } from "./audio-stream.js";
-import type {
-  AudioStreamKind,
-  AudioStreamSnapshot,
-} from "./audio-stream.js";
+import type { AudioStreamKind, AudioStreamSnapshot } from "./audio-stream.js";
 import {
   createFeatureLicenseSnapshot,
   type FeatureLicenseSnapshot,
 } from "./feature-license.js";
+import { createApdSnapshot, type ApdSnapshot } from "./apd.js";
+import {
+  createEqualizerSnapshot,
+  type EqualizerId,
+  type EqualizerSnapshot,
+} from "./equalizer.js";
 import { createMeterSnapshot } from "./meter.js";
 import type { MeterSnapshot } from "./meter.js";
 import { createPanadapterSnapshot } from "./panadapter.js";
@@ -38,16 +41,11 @@ export type { SnapshotDiff } from "./common.js";
 export type { SliceSnapshot } from "./slice.js";
 export type { PanadapterSnapshot } from "./panadapter.js";
 export type { WaterfallSnapshot } from "./waterfall.js";
-export type {
-  AudioStreamKind,
-  AudioStreamSnapshot,
-} from "./audio-stream.js";
+export type { AudioStreamKind, AudioStreamSnapshot } from "./audio-stream.js";
 export type { FeatureLicenseSnapshot } from "./feature-license.js";
-export type {
-  KnownMeterUnits,
-  MeterSnapshot,
-  MeterUnits,
-} from "./meter.js";
+export type { ApdSnapshot } from "./apd.js";
+export type { EqualizerSnapshot, EqualizerId } from "./equalizer.js";
+export type { KnownMeterUnits, MeterSnapshot, MeterUnits } from "./meter.js";
 export type {
   RadioFilterSharpnessMode,
   RadioOscillatorSetting,
@@ -70,12 +68,17 @@ export type RadioStateChange =
   | ({ entity: "waterfall"; id: string } & ChangeMetadata<WaterfallSnapshot>)
   | ({ entity: "meter"; id: string } & ChangeMetadata<MeterSnapshot>)
   | ({
+      entity: "equalizer";
+      id: EqualizerId;
+    } & ChangeMetadata<EqualizerSnapshot>)
+  | ({
       entity: "audioStream";
       id: string;
     } & ChangeMetadata<AudioStreamSnapshot>)
   | ({ entity: "guiClient"; id: string } & ChangeMetadata<GuiClientSnapshot>)
   | ({ entity: "radio" } & ChangeMetadata<RadioSnapshot>)
   | ({ entity: "featureLicense" } & ChangeMetadata<FeatureLicenseSnapshot>)
+  | ({ entity: "apd" } & ChangeMetadata<ApdSnapshot>)
   | {
       entity: "unknown";
       source: string;
@@ -93,6 +96,11 @@ export type WaterfallStateChange = Extract<
   { entity: "waterfall" }
 >;
 export type MeterStateChange = Extract<RadioStateChange, { entity: "meter" }>;
+export type ApdStateChange = Extract<RadioStateChange, { entity: "apd" }>;
+export type EqualizerStateChange = Extract<
+  RadioStateChange,
+  { entity: "equalizer" }
+>;
 export type AudioStreamStateChange = Extract<
   RadioStateChange,
   { entity: "audioStream" }
@@ -109,8 +117,10 @@ export interface RadioStateSnapshot {
   readonly meters: readonly MeterSnapshot[];
   readonly audioStreams: readonly AudioStreamSnapshot[];
   readonly guiClients: readonly GuiClientSnapshot[];
+  readonly equalizers: readonly EqualizerSnapshot[];
   readonly radio: RadioSnapshot;
   readonly featureLicense?: FeatureLicenseSnapshot;
+  readonly apd?: ApdSnapshot;
 }
 
 export interface RadioStateStore {
@@ -123,6 +133,9 @@ export interface RadioStateStore {
   getAudioStream(id: string): AudioStreamSnapshot | undefined;
   getGuiClient(id: string): GuiClientSnapshot | undefined;
   getGuiClients(): readonly GuiClientSnapshot[];
+  getEqualizer(id: EqualizerId): EqualizerSnapshot | undefined;
+  getEqualizers(): readonly EqualizerSnapshot[];
+  getApd(): ApdSnapshot | undefined;
   getRadio(): RadioSnapshot | undefined;
   getFeatureLicense(): FeatureLicenseSnapshot | undefined;
   patchRadio(
@@ -145,6 +158,11 @@ export interface RadioStateStore {
     id: string,
     attributes: Record<string, string>,
   ): AudioStreamStateChange | undefined;
+  patchEqualizer(
+    id: EqualizerId,
+    attributes: Record<string, string>,
+  ): EqualizerStateChange | undefined;
+  patchApd(attributes: Record<string, string>): ApdStateChange | undefined;
   applyPanadapterRfGainInfo(
     id: string,
     info: RfGainInfo,
@@ -173,8 +191,10 @@ export function createRadioStateStore(
   const audioStreams = new Map<string, AudioStreamSnapshot>();
   const guiClients = new Map<string, GuiClientSnapshot>();
   const guiClientsByHandle = new Map<number, string>();
+  const equalizers = new Map<EqualizerId, EqualizerSnapshot>();
   let radio: RadioSnapshot;
   let featureLicense: FeatureLicenseSnapshot | undefined;
+  let apd: ApdSnapshot | undefined;
   let localClientHandle: number | undefined;
 
   return {
@@ -193,6 +213,16 @@ export function createRadioStateStore(
           return [handleRadio(message)];
         case "client":
           return handleClient(message);
+        case "eq": {
+          const change = handleEqualizer(message);
+          if (change) return [change];
+          return [];
+        }
+        case "apd": {
+          const change = handleApd(message);
+          if (change) return [change];
+          return [];
+        }
         case "license": {
           const change = handleLicense(message);
           if (change) return [change];
@@ -224,8 +254,10 @@ export function createRadioStateStore(
         meters: Array.from(meters.values()),
         audioStreams: Array.from(audioStreams.values()),
         guiClients: Array.from(guiClients.values()),
+        equalizers: Array.from(equalizers.values()),
         radio,
         featureLicense,
+        apd,
       };
     },
     getSlice(id) {
@@ -249,6 +281,15 @@ export function createRadioStateStore(
     getGuiClients() {
       return Array.from(guiClients.values());
     },
+    getEqualizer(id) {
+      return equalizers.get(id);
+    },
+    getEqualizers() {
+      return Array.from(equalizers.values());
+    },
+    getApd() {
+      return apd;
+    },
     getRadio() {
       return radio;
     },
@@ -269,6 +310,12 @@ export function createRadioStateStore(
     },
     patchAudioStream(id, attributes) {
       return patchAudioStream(id, attributes);
+    },
+    patchEqualizer(id, attributes) {
+      return patchEqualizer(id, attributes);
+    },
+    patchApd(attributes) {
+      return patchApd(attributes);
     },
     applyPanadapterRfGainInfo(id, info) {
       return applyPanadapterRfGainInfo(id, info);
@@ -343,16 +390,56 @@ export function createRadioStateStore(
     return changes;
   }
 
+  function handleEqualizer(
+    message: FlexStatusMessage,
+  ): RadioStateChange | undefined {
+    const id = resolveEqualizerId(message.identifier, message.positional);
+    if (!id) return undefined;
+    const previous = equalizers.get(id);
+    const { snapshot, diff } = createEqualizerSnapshot(
+      id,
+      message.attributes,
+      previous,
+    );
+    equalizers.set(id, snapshot);
+    const diffKeys = Object.keys(diff as Record<string, unknown>);
+    if (diffKeys.length === 0) return undefined;
+    return {
+      entity: "equalizer",
+      id,
+      removed: false,
+      diff,
+    };
+  }
+
+  function handleApd(message: FlexStatusMessage): RadioStateChange | undefined {
+    const attributes: Record<string, string> = {
+      ...message.attributes,
+    };
+    const hasResetToken =
+      "equalizer_reset" in attributes ||
+      message.positional.some((token) => token === "equalizer_reset") ||
+      message.identifier === "equalizer_reset";
+    if (hasResetToken && !("equalizer_reset" in attributes)) {
+      attributes["equalizer_reset"] = "";
+    }
+    const { snapshot, diff } = createApdSnapshot(attributes, apd);
+    const diffKeys = Object.keys(diff as Record<string, unknown>);
+    apd = snapshot;
+    if (diffKeys.length === 0) return undefined;
+    return {
+      entity: "apd",
+      removed: false,
+      diff,
+    };
+  }
+
   function patchRadio(
     attributes: Record<string, string>,
     context?: RadioStatusContext,
   ): RadioStateChange | undefined {
     if (Object.keys(attributes).length === 0) return undefined;
-    const { snapshot, diff } = createRadioSnapshot(
-      attributes,
-      radio,
-      context,
-    );
+    const { snapshot, diff } = createRadioSnapshot(attributes, radio, context);
     const diffKeys = Object.keys(diff as Record<string, unknown>);
     if (diffKeys.length === 0) {
       radio = snapshot;
@@ -667,15 +754,11 @@ export function createRadioStateStore(
   }
 
   function handleRadio(message: FlexStatusMessage): RadioStateChange {
-    const { snapshot, diff } = createRadioSnapshot(
-      message.attributes,
-      radio,
-      {
-        source: message.source,
-        identifier: message.identifier,
-        positional: message.positional,
-      },
-    );
+    const { snapshot, diff } = createRadioSnapshot(message.attributes, radio, {
+      source: message.source,
+      identifier: message.identifier,
+      positional: message.positional,
+    });
     radio = snapshot;
     return {
       entity: "radio",
@@ -865,6 +948,43 @@ export function createRadioStateStore(
     };
   }
 
+  function patchEqualizer(
+    id: EqualizerId,
+    attributes: Record<string, string>,
+  ): EqualizerStateChange | undefined {
+    if (Object.keys(attributes).length === 0) return undefined;
+    const previous = equalizers.get(id);
+    const { snapshot, diff } = createEqualizerSnapshot(
+      id,
+      attributes,
+      previous,
+    );
+    const diffKeys = Object.keys(diff as Record<string, unknown>);
+    equalizers.set(id, snapshot);
+    if (diffKeys.length === 0) return undefined;
+    return {
+      entity: "equalizer",
+      id,
+      diff,
+      removed: false,
+    };
+  }
+
+  function patchApd(
+    attributes: Record<string, string>,
+  ): ApdStateChange | undefined {
+    if (Object.keys(attributes).length === 0) return undefined;
+    const { snapshot, diff } = createApdSnapshot(attributes, apd);
+    const diffKeys = Object.keys(diff as Record<string, unknown>);
+    apd = snapshot;
+    if (diffKeys.length === 0) return undefined;
+    return {
+      entity: "apd",
+      removed: false,
+      diff,
+    };
+  }
+
   function updateLocalClientHandle(
     handle: string | number | undefined,
   ): RadioStateChange[] {
@@ -938,6 +1058,18 @@ function resolveIdentifier(
     return message.identifier;
   if (message.positional.length > 0 && message.positional[0] !== "")
     return message.positional[0];
+  return undefined;
+}
+
+function resolveEqualizerId(
+  identifier?: string,
+  positional?: readonly string[],
+): EqualizerId | undefined {
+  const token = identifier ?? positional?.[0];
+  if (!token) return undefined;
+  const normalized = token.trim().toLowerCase();
+  if (normalized === "rxsc") return "rx";
+  if (normalized === "txsc") return "tx";
   return undefined;
 }
 

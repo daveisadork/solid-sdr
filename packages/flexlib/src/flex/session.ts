@@ -28,6 +28,11 @@ import {
   type RadioStatusContext,
   type FeatureLicenseSnapshot,
   type GuiClientSnapshot,
+  type EqualizerSnapshot,
+  type EqualizerStateChange,
+  type EqualizerId,
+  type ApdSnapshot,
+  type ApdStateChange,
 } from "./state/index.js";
 import {
   FlexClientClosedError,
@@ -52,6 +57,11 @@ import {
   type RemoteAudioRxStreamController,
   AudioStreamControllerImpl,
 } from "./audio-stream.js";
+import {
+  type EqualizerController,
+  EqualizerControllerImpl,
+} from "./equalizer.js";
+import { type ApdController, ApdControllerImpl } from "./apd.js";
 import {
   FeatureLicenseControllerImpl,
   type FeatureLicenseController,
@@ -186,18 +196,23 @@ export interface FlexRadioSession {
   getAudioStreams(): readonly AudioStreamSnapshot[];
   getGuiClient(id: string): GuiClientSnapshot | undefined;
   getGuiClients(): readonly GuiClientSnapshot[];
+  getApd(): ApdSnapshot | undefined;
+  getEqualizer(id: EqualizerId): EqualizerSnapshot | undefined;
+  getEqualizers(): readonly EqualizerSnapshot[];
   getRemoteAudioRxStream(id: string): AudioStreamSnapshot | undefined;
   getRemoteAudioRxStreams(): readonly AudioStreamSnapshot[];
   getRadio(): RadioSnapshot | undefined;
   getFeatureLicense(): FeatureLicenseSnapshot | undefined;
   radio(): RadioController;
   featureLicense(): FeatureLicenseController;
+  apd(): ApdController;
   slice(id: string): SliceController | undefined;
   panadapter(id: string): PanadapterController | undefined;
   waterfall(id: string): WaterfallController | undefined;
   meter(id: string): MeterController | undefined;
   audioStream(id: string): AudioStreamController | undefined;
   remoteAudioRxStream(id: string): RemoteAudioRxStreamController | undefined;
+  equalizer(id: EqualizerId): EqualizerController;
   createPanadapter(
     options?: PanadapterCreateOptions,
   ): Promise<PanadapterController>;
@@ -346,6 +361,11 @@ class FlexRadioSessionImpl implements FlexRadioSession {
     string,
     AudioStreamControllerImpl
   >();
+  private readonly equalizerControllers = new Map<
+    EqualizerId,
+    EqualizerControllerImpl
+  >();
+  private readonly apdController: ApdController;
   private readonly radioController: RadioController;
   private readonly featureLicenseController: FeatureLicenseController;
   private readonly messageSub: Subscription;
@@ -388,6 +408,7 @@ class FlexRadioSessionImpl implements FlexRadioSession {
       },
       () => this.store.getFeatureLicense(),
     );
+    this.apdController = new ApdControllerImpl(this);
     this.readyPromise = new Promise<void>((resolve, reject) => {
       this.readyResolve = resolve;
       this.readyReject = reject;
@@ -472,6 +493,18 @@ class FlexRadioSessionImpl implements FlexRadioSession {
 
   getGuiClients(): readonly GuiClientSnapshot[] {
     return this.store.snapshot().guiClients;
+  }
+
+  getApd(): ApdSnapshot | undefined {
+    return this.store.getApd();
+  }
+
+  getEqualizer(id: EqualizerId): EqualizerSnapshot | undefined {
+    return this.store.getEqualizer(id);
+  }
+
+  getEqualizers(): readonly EqualizerSnapshot[] {
+    return this.store.snapshot().equalizers;
   }
 
   getRemoteAudioRxStream(id: string): AudioStreamSnapshot | undefined {
@@ -734,6 +767,10 @@ class FlexRadioSessionImpl implements FlexRadioSession {
     return this.featureLicenseController;
   }
 
+  apd(): ApdController {
+    return this.apdController;
+  }
+
   slice(id: string): SliceController | undefined {
     if (this.closed) return undefined;
     let controller = this.slices.get(id);
@@ -798,6 +835,15 @@ class FlexRadioSessionImpl implements FlexRadioSession {
     const snapshot = this.getRemoteAudioRxStream(id);
     if (!snapshot) return undefined;
     return this.audioStream(id);
+  }
+
+  equalizer(id: EqualizerId): EqualizerController {
+    let controller = this.equalizerControllers.get(id);
+    if (!controller) {
+      controller = new EqualizerControllerImpl(this, id);
+      this.equalizerControllers.set(id, controller);
+    }
+    return controller;
   }
 
   private async createAudioStream(
@@ -914,6 +960,16 @@ class FlexRadioSessionImpl implements FlexRadioSession {
     if (change) this.handleStateChange(change);
   }
 
+  patchEqualizer(id: EqualizerId, attributes: Record<string, string>): void {
+    const change = this.store.patchEqualizer(id, attributes);
+    if (change) this.handleStateChange(change);
+  }
+
+  patchApd(attributes: Record<string, string>): void {
+    const change = this.store.patchApd(attributes);
+    if (change) this.handleStateChange(change);
+  }
+
   applyPanadapterRfGainInfo(id: string, info: RfGainInfo): void {
     const change = this.store.applyPanadapterRfGainInfo(id, info);
     if (change) this.handleStateChange(change);
@@ -1003,6 +1059,7 @@ class FlexRadioSessionImpl implements FlexRadioSession {
     this.waterfallControllers.clear();
     this.meterControllers.clear();
     this.audioControllers.clear();
+    this.equalizerControllers.clear();
   }
 
   private handleWireMessage(message: FlexWireMessage): void {
@@ -1070,6 +1127,16 @@ class FlexRadioSessionImpl implements FlexRadioSession {
           if (!snapshot) return undefined;
           return new MeterControllerImpl(this, change.id);
         });
+        break;
+      case "equalizer":
+        this.updateController(
+          change as IdentifiedRadioStateChange & EqualizerStateChange,
+          this.equalizerControllers,
+          () => new EqualizerControllerImpl(this, change.id as EqualizerId),
+        );
+        break;
+      case "apd":
+        this.apdController.onStateChange(change as ApdStateChange);
         break;
     }
     this.events.emit("change", change);

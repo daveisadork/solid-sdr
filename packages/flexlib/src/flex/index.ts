@@ -10,6 +10,8 @@ export * from "./panadapter.js";
 export * from "./meter.js";
 export * from "./waterfall.js";
 export * from "./audio-stream.js";
+export * from "./equalizer.js";
+export * from "./apd.js";
 export * from "./discovery.js";
 export * from "./gui-client.js";
 export * from "./control-channel.js";

@@ -41,6 +41,8 @@ import {
   type UdpSession,
   type WaterfallSnapshot,
   type FeatureLicenseSnapshot,
+  EqualizerSnapshot,
+  ApdSnapshot,
 } from "@repo/flexlib";
 import { createWebSocketFlexControlFactory } from "~/lib/flex-control";
 import { useRtc } from "./rtc";
@@ -100,6 +102,8 @@ export type Waterfall = Omit<MutableProps<WaterfallSnapshot>, "raw">;
 export type AudioStream = Omit<MutableProps<AudioStreamSnapshot>, "raw">;
 export type FeatureLicense = Omit<MutableProps<FeatureLicenseSnapshot>, "raw">;
 export type GuiClient = Omit<MutableProps<GuiClientSnapshot>, "raw">;
+export type Equalizer = Omit<MutableProps<EqualizerSnapshot>, "raw">;
+export type APD = Omit<MutableProps<ApdSnapshot>, "raw">;
 
 export interface Gradient {
   name: string;
@@ -129,11 +133,9 @@ export interface ConnectModalState {
 }
 
 export interface StatusState {
+  apd: APD;
   meter: Record<string, Meter>;
-  eq: {
-    rx: Record<string, unknown>;
-    rxsc: Record<string, unknown>;
-  };
+  equalizer: Record<string, Equalizer>;
   slice: Record<string, Slice>;
   panadapter: Record<string, Panadapter>;
   waterfall: Record<string, Waterfall>;
@@ -259,11 +261,9 @@ export const initialState = () =>
       panPendingCenterMHz: {},
     },
     status: {
+      apd: {},
       meter: {},
-      eq: {
-        rx: {},
-        rxsc: {},
-      },
+      equalizer: {},
       slice: {},
       panadapter: {},
       waterfall: {},
@@ -492,15 +492,17 @@ export const FlexRadioProvider: ParentComponent = (props) => {
       case "panadapter":
         handlePanadapterChange(change);
         break;
+      case "apd":
       case "radio":
       case "featureLicense":
         setState("status", change.entity, change.diff);
         break;
-      case "waterfall":
-      case "slice":
-      case "meter":
-      case "audioStream":
-      case "guiClient":
+      case "unknown":
+        // console.warn("Unknown state change", change);
+        break;
+      case "equalizer":
+        console.log("Equalizer change", change);
+      default:
         if (change.removed) {
           setState(
             "status",
@@ -512,9 +514,6 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         } else {
           setState("status", change.entity, change.id, change.diff);
         }
-        break;
-      case "unknown":
-        console.warn("Unknown state change", change);
         break;
     }
   };

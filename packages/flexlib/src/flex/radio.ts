@@ -1,6 +1,7 @@
 import type { FlexCommandOptions, FlexCommandResponse } from "./adapters.js";
 import type {
   RadioFilterSharpnessMode,
+  RadioLogModule,
   RadioOscillatorSetting,
   RadioSnapshot,
   RadioScreensaverMode,
@@ -25,6 +26,7 @@ interface RadioControllerSession {
 }
 
 const EMPTY_STRING_LIST = Object.freeze([]) as readonly string[];
+const EMPTY_LOG_MODULES = Object.freeze([]) as readonly RadioLogModule[];
 
 export interface RadioController {
   snapshot(): RadioSnapshot | undefined;
@@ -53,6 +55,9 @@ export interface RadioController {
   get profileTxList(): readonly string[];
   get profileDisplayList(): readonly string[];
   get profileGlobalList(): readonly string[];
+  get logLevels(): readonly string[];
+  get logModules(): readonly RadioLogModule[];
+  getLogModule(name: string): RadioLogModule | undefined;
   get profileMicSelection(): string | undefined;
   get profileTxSelection(): string | undefined;
   get profileDisplaySelection(): string | undefined;
@@ -157,6 +162,7 @@ export interface RadioController {
   }): Promise<void>;
   resetStaticNetworkParams(): Promise<void>;
   setOscillatorSetting(setting: RadioOscillatorSetting): Promise<void>;
+  setLogModuleLevel(module: string, level: string): Promise<void>;
   loadMicProfile(name: string): Promise<void>;
   loadTxProfile(name: string): Promise<void>;
   loadDisplayProfile(name: string): Promise<void>;
@@ -283,6 +289,20 @@ export class RadioControllerImpl implements RadioController {
 
   get profileGlobalList(): readonly string[] {
     return this.current()?.profileGlobalList ?? EMPTY_STRING_LIST;
+  }
+
+  get logLevels(): readonly string[] {
+    return this.current()?.logLevels ?? EMPTY_STRING_LIST;
+  }
+
+  get logModules(): readonly RadioLogModule[] {
+    return this.current()?.logModules ?? EMPTY_LOG_MODULES;
+  }
+
+  getLogModule(name: string): RadioLogModule | undefined {
+    const normalized = name.trim();
+    if (!normalized) return undefined;
+    return this.logModules.find((module) => module.name === normalized);
   }
 
   get profileMicSelection(): string | undefined {
@@ -816,6 +836,16 @@ export class RadioControllerImpl implements RadioController {
     );
   }
 
+  async setLogModuleLevel(module: string, level: string): Promise<void> {
+    const moduleName = normalizeLogModuleName(module);
+    const moduleLevel = normalizeLogLevel(level);
+    await this.commandAndPatch(
+      `log module=${moduleName} level=${moduleLevel}`,
+      { module: moduleName, level: moduleLevel },
+      { source: "log", identifier: moduleName },
+    );
+  }
+
   async loadMicProfile(name: string): Promise<void> {
     await this.loadProfileSelection("mic", name);
   }
@@ -907,6 +937,22 @@ function sanitizeNickname(value: string): string {
 
 function sanitizeCallsign(value: string): string {
   return value.toUpperCase().replace(/[^0-9A-Z]/g, "");
+}
+
+function normalizeLogModuleName(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    throw new FlexError("Log module name cannot be empty");
+  }
+  return trimmed;
+}
+
+function normalizeLogLevel(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    throw new FlexError("Log level cannot be empty");
+  }
+  return trimmed;
 }
 
 const FILTER_SHARPNESS_MIN_LEVEL = 0;

@@ -46,6 +46,7 @@ export type {
   RadioFilterSharpnessMode,
   RadioOscillatorSetting,
   RadioScreensaverMode,
+  RadioLogModule,
   RadioSnapshot as RadioSnapshot,
   RadioStatusContext,
 } from "./radio.js";
@@ -221,6 +222,11 @@ export function createRadioStateStore(
         }
         case "license": {
           const change = handleLicense(message);
+          if (change) return [change];
+          return [];
+        }
+        case "log": {
+          const change = handleLog(message);
           if (change) return [change];
           return [];
         }
@@ -758,6 +764,14 @@ export function createRadioStateStore(
       diff: update.diff,
       removed: false,
     };
+  }
+
+  function handleLog(message: FlexStatusMessage): RadioStateChange | undefined {
+    return patchRadio(message.attributes, {
+      source: message.source,
+      identifier: message.identifier,
+      positional: message.positional,
+    });
   }
 
   function handleRadio(message: FlexStatusMessage): RadioStateChange {

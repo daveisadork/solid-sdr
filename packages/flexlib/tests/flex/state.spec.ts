@@ -465,4 +465,23 @@ describe("createRadioStateStore", () => {
     store.apply(makeStatus("S3|client 0x29DD2CDC disconnected forced=0"));
     expect(store.getGuiClient("0x29DD2CDC")).toBeUndefined();
   });
+
+  it("tracks log available levels and modules", () => {
+    const store = createRadioStateStore();
+    store.apply(makeStatus("S1|log available_levels=INFO,WARN,ERROR"));
+    let radio = store.getRadio();
+    expect(radio?.logLevels).toEqual(["INFO", "WARN", "ERROR"]);
+
+    store.apply(makeStatus("S1|log module=amp level=WARN"));
+    radio = store.getRadio();
+    expect(radio?.logModules).toEqual([
+      { name: "amp", level: "WARN" },
+    ]);
+
+    store.apply(makeStatus("S1|log module=amp level=INFO"));
+    radio = store.getRadio();
+    expect(radio?.logModules).toEqual([
+      { name: "amp", level: "INFO" },
+    ]);
+  });
 });

@@ -10,7 +10,17 @@ import {
   parseInteger,
 } from "./common.js";
 
-const EMPTY_PROFILE_LIST = Object.freeze([]) as readonly string[];
+const EMPTY_STRING_LIST = Object.freeze([]) as readonly string[];
+const EMPTY_PROFILE_LIST = EMPTY_STRING_LIST;
+
+export interface RadioLogModule {
+  readonly name: string;
+  readonly level: string;
+}
+
+const EMPTY_LOG_MODULES = Object.freeze(
+  [],
+) as readonly RadioLogModule[];
 
 export type RadioFilterSharpnessMode = "voice" | "cw" | "digital";
 
@@ -119,6 +129,8 @@ export interface RadioSnapshot {
   readonly oscillatorGnssPresent: boolean;
   readonly oscillatorGpsdoPresent: boolean;
   readonly oscillatorTcxoPresent: boolean;
+  readonly logLevels: readonly string[];
+  readonly logModules: readonly RadioLogModule[];
   readonly raw: Readonly<Record<string, string>>;
 }
 
@@ -150,6 +162,9 @@ export function createRadioSnapshot(
       } else {
         logParseError("profile", "context", "");
       }
+      break;
+    case "log":
+      applyLogAttributes(attributes, partial, previous);
       break;
     default:
       applyRadioSourceAttributes(attributes, partial, previous);
@@ -413,6 +428,66 @@ function applyRadioSourceAttributes(
   }
 }
 
+function applyLogAttributes(
+  attributes: Record<string, string>,
+  partial: Mutable<Partial<RadioSnapshot>>,
+  previous?: RadioSnapshot,
+): void {
+  if ("available_levels" in attributes) {
+    const parsed = parseCsv(attributes["available_levels"]) ?? [];
+    if (!arraysShallowEqual(previous?.logLevels, parsed)) {
+      partial.logLevels = Object.freeze(parsed);
+    }
+  }
+
+  if ("module" in attributes) {
+    assignLogModule(
+      attributes["module"] ?? "",
+      attributes["level"],
+      partial,
+      previous,
+    );
+  }
+
+  for (const [key, value] of Object.entries(attributes)) {
+    if (key === "available_levels" || key === "module" || key === "level") {
+      continue;
+    }
+    logUnknownAttribute("log", key, value);
+  }
+}
+
+function assignLogModule(
+  moduleName: string,
+  levelValue: string | undefined,
+  partial: Mutable<Partial<RadioSnapshot>>,
+  previous?: RadioSnapshot,
+): void {
+  const trimmed = moduleName.trim();
+  if (!trimmed) {
+    logParseError("log", "module", moduleName);
+    return;
+  }
+  if (levelValue === undefined) {
+    logParseError("log", "level", "");
+  }
+  const level = levelValue ?? "";
+  const existing =
+    partial.logModules ?? previous?.logModules ?? EMPTY_LOG_MODULES;
+  const index = existing.findIndex((module) => module.name === trimmed);
+  if (index >= 0 && existing[index]?.level === level) {
+    return;
+  }
+  const updated = existing.slice();
+  const snapshot = Object.freeze({
+    name: trimmed,
+    level,
+  }) as RadioLogModule;
+  if (index >= 0) updated[index] = snapshot;
+  else updated.push(snapshot);
+  partial.logModules = Object.freeze(updated);
+}
+
 function parseScreensaverMode(value: string | undefined): RadioScreensaverMode {
   if (!value) return "none";
   const normalized = value.trim().toLowerCase();
@@ -610,7 +685,8 @@ type RadioContextKind =
   | "filter_sharpness"
   | "static_net_params"
   | "oscillator"
-  | "profile";
+  | "profile"
+  | "log";
 
 function resolveRadioContext(context?: RadioStatusContext): RadioContextKind {
   const identifier = context?.identifier?.toLowerCase();
@@ -622,6 +698,7 @@ function resolveRadioContext(context?: RadioStatusContext): RadioContextKind {
   const source = context?.source?.toLowerCase();
   if (source === "gps") return "gps";
   if (source === "profile") return "profile";
+  if (source === "log") return "log";
 
   return "radio";
 }

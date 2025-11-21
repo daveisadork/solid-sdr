@@ -24,7 +24,7 @@ describe("APD controller", () => {
     const client = createFlexClient({ control: factory });
     const session = await client.connect(descriptor, NO_HANDSHAKE);
     const channel = getChannel();
-    channel.emitRaw("H0x7F7C21E0");
+    channel.emitRaw("H7F7C21E0");
     channel.emit(
       makeStatus(
         "S1|slice 0 in_use=1 sample_rate=48000 RF_frequency=14.100000 client_handle=0x7F7C21E0 index_letter=A rit_on=0 rit_freq=0 xit_on=0 xit_freq=0 rxant=ANT1 mode=USB wide=1 filter_lo=100 filter_hi=2800 step=100 txant=ANT1 tx=1 active=1 audio_level=49 audio_pan=50",

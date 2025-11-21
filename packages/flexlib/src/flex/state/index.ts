@@ -432,7 +432,8 @@ export function createRadioStateStore(
   }
 
   function shouldAcceptApdStatus(attributes: Record<string, string>): boolean {
-    return localClientHandle === parseIntegerHex(attributes["client_handle"]);
+    const parsed = parseIntegerHex(attributes["client_handle"]);
+    return parsed ? localClientHandle === parsed : true;
   }
 
   function patchRadio(

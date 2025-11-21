@@ -355,32 +355,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
 
         const handleMessage = (event: MessageEvent) => {
           if (closed) return;
-          const { data } = event;
-          if (typeof data === "string") return;
-
-          if (data instanceof ArrayBuffer) {
-            handlers.onMessage(new Uint8Array(data));
-            return;
-          }
-
-          if (data instanceof Blob) {
-            data
-              .arrayBuffer()
-              .then((buffer) => {
-                if (!closed) handlers.onMessage(new Uint8Array(buffer));
-              })
-              .catch((error) => handlers.onError?.(error));
-            return;
-          }
-
-          if (data instanceof Uint8Array) {
-            handlers.onMessage(data);
-            return;
-          }
-
-          handlers.onError?.(
-            new Error(`Unsupported discovery payload type: ${typeof data}`),
-          );
+          handlers.onMessage(new Uint8Array(event.data));
         };
 
         const handleError = (error: Event) => {
@@ -537,6 +512,9 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         } else {
           setState("status", change.entity, change.id, change.diff);
         }
+        break;
+      case "unknown":
+        console.warn("Unknown state change", change.source);
         break;
     }
   };

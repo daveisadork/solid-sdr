@@ -5,10 +5,7 @@ export interface Subscription {
 }
 
 export class TypedEventEmitter<TEvents extends Record<string, unknown>> {
-  private readonly listeners = new Map<
-    keyof TEvents,
-    Set<Listener<unknown>>
-  >();
+  private readonly listeners = new Map<keyof TEvents, Set<Listener<unknown>>>();
 
   on<TKey extends keyof TEvents>(
     event: TKey,

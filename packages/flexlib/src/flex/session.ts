@@ -330,6 +330,8 @@ interface SessionPrepareOptions {
   readonly onProgress?: (progress: FlexConnectionProgress) => void;
 }
 
+type IdentifiedRadioStateChange = Extract<RadioStateChange, { id: string }>;
+
 class FlexRadioSessionImpl implements FlexRadioSession {
   private readonly events = new TypedEventEmitter<FlexRadioEvents>();
   private readonly store: RadioStateStore;
@@ -1025,69 +1027,73 @@ class FlexRadioSessionImpl implements FlexRadioSession {
   }
 
   private handleStateChange(change: RadioStateChange): void {
+    switch (change.entity) {
+      case "audioStream":
+        this.updateController(change, this.audioControllers, () => {
+          const snapshot = this.store.getAudioStream(change.id);
+          if (!snapshot) return undefined;
+          return new AudioStreamControllerImpl(this, change.id);
+        });
+        break;
+      case "slice":
+        this.updateController(change, this.slices, () => {
+          const snapshot = this.store.getSlice(change.id);
+          if (!snapshot) return undefined;
+          return new SliceControllerImpl(this, change.id);
+        });
+        break;
+      case "panadapter":
+        this.updateController(change, this.panControllers, () => {
+          const snapshot = this.store.getPanadapter(change.id);
+          if (!snapshot) return undefined;
+          return new PanadapterControllerImpl(
+            this,
+            change.id,
+            snapshot.streamId,
+          );
+        });
+        break;
+      case "waterfall":
+        this.updateController(change, this.waterfallControllers, () => {
+          const snapshot = this.store.getWaterfall(change.id);
+          if (!snapshot) return undefined;
+          return new WaterfallControllerImpl(
+            this,
+            change.id,
+            snapshot.streamId,
+          );
+        });
+        break;
+      case "meter":
+        this.updateController(change, this.meterControllers, () => {
+          const snapshot = this.store.getMeter(change.id);
+          if (!snapshot) return undefined;
+          return new MeterControllerImpl(this, change.id);
+        });
+        break;
+    }
     this.events.emit("change", change);
-    if (change.entity === "audioStream") {
-      const controller = this.audioControllers.get(change.id);
-      if (controller) {
-        controller.onStateChange(change);
-        if (change.removed) this.audioControllers.delete(change.id);
-      } else {
-        this.audioControllers.set(
-          change.id,
-          new AudioStreamControllerImpl(this, change.id),
-        );
+  }
+
+  private updateController<
+    TChange extends IdentifiedRadioStateChange,
+    TController extends { onStateChange(change: TChange): void },
+  >(
+    change: TChange,
+    cache: Map<string, TController>,
+    create: () => TController | undefined,
+  ): void {
+    const existing = cache.get(change.id);
+    if (existing) {
+      existing.onStateChange(change);
+      if (change.removed) {
+        cache.delete(change.id);
       }
       return;
     }
-    if (change.entity === "slice") {
-      const controller = this.slices.get(change.id);
-      if (controller) {
-        controller.onStateChange(change);
-        if (change.removed) this.slices.delete(change.id);
-      } else {
-        // lazily populate controller cache to accelerate future access
-        this.slices.set(change.id, new SliceControllerImpl(this, change.id));
-      }
-      return;
-    }
-    if (change.entity === "panadapter") {
-      const controller = this.panControllers.get(change.id);
-      if (controller) {
-        controller.onStateChange(change);
-        if (change.removed) this.panControllers.delete(change.id);
-      } else {
-        this.panControllers.set(
-          change.id,
-          new PanadapterControllerImpl(this, change.id, change.diff?.streamId),
-        );
-      }
-      return;
-    }
-    if (change.entity === "waterfall") {
-      const controller = this.waterfallControllers.get(change.id);
-      if (controller) {
-        controller.onStateChange(change);
-        if (change.removed) this.waterfallControllers.delete(change.id);
-      } else {
-        this.waterfallControllers.set(
-          change.id,
-          new WaterfallControllerImpl(this, change.id, change.diff?.streamId),
-        );
-      }
-      return;
-    }
-    if (change.entity === "meter") {
-      const controller = this.meterControllers.get(change.id);
-      if (controller) {
-        controller.onStateChange(change);
-        if (change.removed) this.meterControllers.delete(change.id);
-      } else {
-        this.meterControllers.set(
-          change.id,
-          new MeterControllerImpl(this, change.id),
-        );
-      }
-      return;
+    const controller = create();
+    if (controller) {
+      cache.set(change.id, controller);
     }
   }
 }

@@ -88,7 +88,7 @@ export function createEqualizerSnapshot(
     ...(previous ?? { id }),
     ...partial,
     raw: Object.freeze({
-      ...(previous?.raw ?? EMPTY_ATTRIBUTES),
+      ...previous?.raw,
       ...attributes,
     }),
   }) as EqualizerSnapshot;

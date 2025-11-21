@@ -1,7 +1,6 @@
 import type { Mutable, SnapshotUpdate } from "./common.js";
 import {
   arraysShallowEqual,
-  EMPTY_ATTRIBUTES,
   freezeAttributes,
   isTruthy,
   logParseError,
@@ -16,8 +15,6 @@ export type RadioFilterSharpnessMode = "voice" | "cw" | "digital";
 export type RadioOscillatorSetting = "auto" | "external" | "gpsdo" | "tcxo";
 
 export type RadioScreensaverMode = "model" | "name" | "callsign" | "none";
-
-const EMPTY_STRING_LIST: readonly string[] = Object.freeze([]);
 
 export interface RadioStatusContext {
   readonly source?: string;
@@ -111,94 +108,6 @@ export interface RadioSnapshot {
   readonly raw: Readonly<Record<string, string>>;
 }
 
-export function createDefaultRadioSnapshot(): RadioSnapshot {
-  return {
-    model: "",
-    serial: "",
-    nickname: "",
-    callsign: "",
-    version: "",
-    macAddress: "",
-    ipAddress: "",
-    netmask: "",
-    gateway: "",
-    location: "",
-    region: "",
-    screensaverMode: "none",
-    radioOptions: "",
-    tx1750ToneBurst: false,
-    diversityAllowed: false,
-    atuPresent: false,
-    scuCount: 0,
-    sliceCount: 0,
-    txCount: 0,
-    rxAntennaList: EMPTY_STRING_LIST,
-    micInputList: EMPTY_STRING_LIST,
-    versionsRaw: "",
-    trxPsocVersion: "",
-    paPsocVersion: "",
-    fpgaVersion: "",
-    availableSlices: 0,
-    availablePanadapters: 0,
-    availableDaxIq: 0,
-    availableDaxAudio: 0,
-    gpsLock: false,
-    fullDuplexEnabled: false,
-    enforcePrivateIpConnections: false,
-    bandPersistenceEnabled: false,
-    lowLatencyDigitalModes: false,
-    mfEnabled: false,
-    profileAutoSave: false,
-    maxInternalPaPower: 0,
-    externalPaAllowed: false,
-    lineoutGain: 0,
-    lineoutMute: false,
-    headphoneGain: 0,
-    headphoneMute: false,
-    backlightLevel: 0,
-    remoteOnEnabled: false,
-    pllDone: false,
-    tnfEnabled: false,
-    binauralRx: false,
-    muteLocalAudioWhenRemote: false,
-    rttyMarkDefaultHz: 0,
-    alpha: 0,
-    calibrationFrequencyMhz: 0,
-    frequencyErrorPpb: 0,
-    daxIqCapacity: 0,
-    gpsInstalled: false,
-    gpsLatitude: undefined,
-    gpsLongitude: undefined,
-    gpsGrid: undefined,
-    gpsAltitude: undefined,
-    gpsSatellitesTracked: undefined,
-    gpsSatellitesVisible: undefined,
-    gpsSpeed: undefined,
-    gpsFreqError: undefined,
-    gpsStatus: undefined,
-    gpsUtcTime: undefined,
-    gpsTrack: undefined,
-    gpsGnssPoweredAntenna: undefined,
-    filterSharpnessVoice: 0,
-    filterSharpnessVoiceAuto: false,
-    filterSharpnessCw: 0,
-    filterSharpnessCwAuto: false,
-    filterSharpnessDigital: 0,
-    filterSharpnessDigitalAuto: false,
-    staticIp: undefined,
-    staticGateway: undefined,
-    staticNetmask: undefined,
-    oscillatorState: undefined,
-    oscillatorSetting: undefined,
-    oscillatorLocked: false,
-    oscillatorExternalPresent: false,
-    oscillatorGnssPresent: false,
-    oscillatorGpsdoPresent: false,
-    oscillatorTcxoPresent: false,
-    raw: EMPTY_ATTRIBUTES,
-  };
-}
-
 export function createRadioSnapshot(
   attributes: Record<string, string>,
   previous?: RadioSnapshot,
@@ -226,12 +135,11 @@ export function createRadioSnapshot(
       break;
   }
 
-  const base = previous ?? createDefaultRadioSnapshot();
   const snapshot = Object.freeze({
-    ...base,
+    ...(previous ?? {}),
     ...partial,
     raw: Object.freeze({
-      ...base.raw,
+      ...previous?.raw,
       ...attributes,
     }),
   }) as RadioSnapshot;

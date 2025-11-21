@@ -45,20 +45,6 @@ export interface FeatureLicenseUpdateContext {
   readonly identifier?: string;
 }
 
-const EMPTY_FEATURES: Readonly<Record<string, FeatureLicenseFeature>> =
-  Object.freeze({});
-const EMPTY_SUBSCRIPTIONS: Readonly<
-  Record<string, FeatureLicenseSubscription>
-> = Object.freeze({});
-
-const DEFAULT_SNAPSHOT: FeatureLicenseSnapshot = Object.freeze({
-  features: EMPTY_FEATURES,
-  subscriptions: EMPTY_SUBSCRIPTIONS,
-  smartSdrPlusActive: false,
-  smartSdrPlusEarlyAccessActive: false,
-  raw: Object.freeze({}),
-});
-
 export function createFeatureLicenseSnapshot(
   attributes: Record<string, string>,
   context: FeatureLicenseUpdateContext,
@@ -68,16 +54,15 @@ export function createFeatureLicenseSnapshot(
     return undefined;
   }
 
-  const snapshot = previous ?? DEFAULT_SNAPSHOT;
   const rawDiff = freezeAttributes(attributes);
   const partial: Mutable<Partial<FeatureLicenseSnapshot>> = {};
 
   switch (context.identifier) {
     case "feature":
-      applyFeatureAttributes(attributes, partial, snapshot);
+      applyFeatureAttributes(attributes, partial, previous);
       break;
     case "subscription":
-      applySubscriptionAttributes(attributes, partial, snapshot);
+      applySubscriptionAttributes(attributes, partial, previous);
       break;
     default:
       applyLicenseMetadata(attributes, partial);
@@ -89,10 +74,10 @@ export function createFeatureLicenseSnapshot(
   }
 
   const nextSnapshot = Object.freeze({
-    ...snapshot,
+    ...(previous ?? {}),
     ...partial,
     raw: Object.freeze({
-      ...snapshot.raw,
+      ...previous?.raw,
       ...attributes,
     }),
   }) as FeatureLicenseSnapshot;
@@ -109,7 +94,7 @@ export function createFeatureLicenseSnapshot(
 function applyFeatureAttributes(
   attributes: Record<string, string>,
   partial: Mutable<Partial<FeatureLicenseSnapshot>>,
-  previous: FeatureLicenseSnapshot,
+  previous?: FeatureLicenseSnapshot,
 ): void {
   const name = attributes["name"];
   const enabledValue = attributes["enabled"];
@@ -138,7 +123,7 @@ function applyFeatureAttributes(
   });
 
   partial.features = Object.freeze({
-    ...previous.features,
+    ...previous?.features,
     [feature.name]: feature,
   });
 }
@@ -146,7 +131,7 @@ function applyFeatureAttributes(
 function applySubscriptionAttributes(
   attributes: Record<string, string>,
   partial: Mutable<Partial<FeatureLicenseSnapshot>>,
-  previous: FeatureLicenseSnapshot,
+  previous?: FeatureLicenseSnapshot,
 ): void {
   const name = attributes["name"]?.trim().toLowerCase();
   if (!name) {
@@ -161,7 +146,7 @@ function applySubscriptionAttributes(
   });
 
   partial.subscriptions = Object.freeze({
-    ...previous.subscriptions,
+    ...previous?.subscriptions,
     [name]: subscription,
   });
 

@@ -16,7 +16,6 @@ import type {
 } from "./adapters.js";
 import { TypedEventEmitter, type Subscription } from "../util/events.js";
 import type { RadioSnapshot, RadioStateChange } from "./state/index.js";
-import { createDefaultRadioSnapshot } from "./state/radio.js";
 import type { RadioController } from "./radio.js";
 import type { SliceController } from "./slice.js";
 import type { PanadapterController } from "./panadapter.js";
@@ -336,7 +335,7 @@ class RadioHandleCore extends TypedEventEmitter<RadioHandleEvents> {
   private session?: FlexRadioSession;
   private sessionSubscriptions: Subscription[] = [];
   private readyDeferred: Deferred<void>;
-  private cachedSnapshot: RadioSnapshot = createDefaultRadioSnapshot();
+  private cachedSnapshot: RadioSnapshot = Object.freeze({} as RadioSnapshot);
   private _connectionState: RadioConnectionState = "disconnected";
   private connectPromise?: Promise<void>;
   private publicInstance?: RadioHandle;

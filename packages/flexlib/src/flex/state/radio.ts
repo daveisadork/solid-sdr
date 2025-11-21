@@ -10,6 +10,8 @@ import {
   parseInteger,
 } from "./common.js";
 
+const EMPTY_PROFILE_LIST = Object.freeze([]) as readonly string[];
+
 export type RadioFilterSharpnessMode = "voice" | "cw" | "digital";
 
 export type RadioOscillatorSetting = "auto" | "external" | "gpsdo" | "tcxo";
@@ -44,6 +46,18 @@ export interface RadioSnapshot {
   readonly txCount: number;
   readonly rxAntennaList: readonly string[];
   readonly micInputList: readonly string[];
+  readonly profileMicList: readonly string[];
+  readonly profileTxList: readonly string[];
+  readonly profileDisplayList: readonly string[];
+  readonly profileGlobalList: readonly string[];
+  readonly profileMicSelection?: string;
+  readonly profileTxSelection?: string;
+  readonly profileDisplaySelection?: string;
+  readonly profileGlobalSelection?: string;
+  readonly profileImportInProgress: boolean;
+  readonly profileExportInProgress: boolean;
+  readonly profileUnsavedChangesTx: boolean;
+  readonly profileUnsavedChangesMic: boolean;
   readonly versionsRaw: string;
   readonly trxPsocVersion: string;
   readonly paPsocVersion: string;
@@ -129,6 +143,13 @@ export function createRadioSnapshot(
       break;
     case "oscillator":
       applyOscillatorAttributes(attributes, partial);
+      break;
+    case "profile":
+      if (context) {
+        applyProfileAttributes(attributes, partial, context);
+      } else {
+        logParseError("profile", "context", "");
+      }
       break;
     default:
       applyRadioSourceAttributes(attributes, partial, previous);
@@ -588,7 +609,8 @@ type RadioContextKind =
   | "gps"
   | "filter_sharpness"
   | "static_net_params"
-  | "oscillator";
+  | "oscillator"
+  | "profile";
 
 function resolveRadioContext(context?: RadioStatusContext): RadioContextKind {
   const identifier = context?.identifier?.toLowerCase();
@@ -599,8 +621,134 @@ function resolveRadioContext(context?: RadioStatusContext): RadioContextKind {
 
   const source = context?.source?.toLowerCase();
   if (source === "gps") return "gps";
+  if (source === "profile") return "profile";
 
   return "radio";
+}
+
+type ProfileDomain = "global" | "tx" | "mic" | "display";
+
+function applyProfileAttributes(
+  attributes: Record<string, string>,
+  partial: Mutable<Partial<RadioSnapshot>>,
+  context: RadioStatusContext,
+): void {
+  const domain = parseProfileDomain(context.identifier);
+  for (const [key, value] of Object.entries(attributes)) {
+    switch (key) {
+      case "list": {
+        if (!domain) {
+          logParseError("profile", "type", context.identifier ?? "");
+          break;
+        }
+        assignProfileList(partial, domain, parseProfileList(value));
+        break;
+      }
+      case "current": {
+        if (!domain) {
+          logParseError("profile", "type", context.identifier ?? "");
+          break;
+        }
+        assignProfileSelection(
+          partial,
+          domain,
+          normalizeProfileSelection(value),
+        );
+        break;
+      }
+      case "importing":
+        partial.profileImportInProgress = isTruthy(value);
+        break;
+      case "exporting":
+        partial.profileExportInProgress = isTruthy(value);
+        break;
+      case "unsaved_changes_tx":
+        partial.profileUnsavedChangesTx = isTruthy(value);
+        break;
+      case "unsaved_changes_mic":
+        partial.profileUnsavedChangesMic = isTruthy(value);
+        break;
+      default:
+        logUnknownAttribute("profile", key, value);
+        break;
+    }
+  }
+}
+
+function parseProfileDomain(identifier?: string): ProfileDomain | undefined {
+  if (!identifier) return undefined;
+  const normalized = identifier.trim().toLowerCase();
+  if (!normalized) return undefined;
+  if (normalized === "displays") return "display";
+  if (
+    normalized === "global" ||
+    normalized === "tx" ||
+    normalized === "mic" ||
+    normalized === "display"
+  ) {
+    return normalized;
+  }
+  return undefined;
+}
+
+function parseProfileList(value: string | undefined): readonly string[] {
+  if (!value) return EMPTY_PROFILE_LIST;
+  const entries = value
+    .split("^")
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
+  if (entries.length === 0) return EMPTY_PROFILE_LIST;
+  return Object.freeze(entries);
+}
+
+function assignProfileList(
+  partial: Mutable<Partial<RadioSnapshot>>,
+  domain: ProfileDomain,
+  list: readonly string[],
+): void {
+  switch (domain) {
+    case "mic":
+      partial.profileMicList = list;
+      break;
+    case "tx":
+      partial.profileTxList = list;
+      break;
+    case "display":
+      partial.profileDisplayList = list;
+      break;
+    case "global":
+      partial.profileGlobalList = list;
+      break;
+  }
+}
+
+function assignProfileSelection(
+  partial: Mutable<Partial<RadioSnapshot>>,
+  domain: ProfileDomain,
+  selection: string | undefined,
+): void {
+  switch (domain) {
+    case "mic":
+      partial.profileMicSelection = selection;
+      break;
+    case "tx":
+      partial.profileTxSelection = selection;
+      break;
+    case "display":
+      partial.profileDisplaySelection = selection;
+      break;
+    case "global":
+      partial.profileGlobalSelection = selection;
+      break;
+  }
+}
+
+function normalizeProfileSelection(
+  value: string | undefined,
+): string | undefined {
+  if (value === undefined) return undefined;
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : undefined;
 }
 
 function clamp(value: number, min: number, max: number): number {

@@ -224,6 +224,11 @@ export function createRadioStateStore(
           if (change) return [change];
           return [];
         }
+        case "profile": {
+          const change = handleProfile(message);
+          if (change) return [change];
+          return [];
+        }
         case "display": {
           switch (message.identifier) {
             case "pan":
@@ -761,6 +766,27 @@ export function createRadioStateStore(
       identifier: message.identifier,
       positional: message.positional,
     });
+    radio = snapshot;
+    return {
+      entity: "radio",
+      diff,
+      removed: false,
+    };
+  }
+
+  function handleProfile(
+    message: FlexStatusMessage,
+  ): RadioStateChange | undefined {
+    const context: RadioStatusContext = {
+      source: message.source,
+      identifier: message.identifier,
+      positional: message.positional,
+    };
+    const { snapshot, diff } = createRadioSnapshot(
+      message.attributes,
+      radio,
+      context,
+    );
     radio = snapshot;
     return {
       entity: "radio",

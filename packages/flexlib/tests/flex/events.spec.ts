@@ -5,7 +5,7 @@ import {
   type Subscription,
 } from "../../src/util/events.js";
 
-interface TestEvents {
+interface TestEvents extends Record<string, unknown> {
   foo: string;
   bar: number;
 }

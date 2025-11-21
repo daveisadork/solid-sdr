@@ -1,6 +1,5 @@
 import type { Mutable, SnapshotUpdate } from "./common.js";
 import {
-  EMPTY_ATTRIBUTES,
   freezeAttributes,
   logParseError,
   logUnknownAttribute,

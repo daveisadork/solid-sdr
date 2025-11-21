@@ -49,6 +49,18 @@ export interface RadioController {
   get txCount(): number;
   get rxAntennaList(): readonly string[];
   get micInputList(): readonly string[];
+  get profileMicList(): readonly string[];
+  get profileTxList(): readonly string[];
+  get profileDisplayList(): readonly string[];
+  get profileGlobalList(): readonly string[];
+  get profileMicSelection(): string | undefined;
+  get profileTxSelection(): string | undefined;
+  get profileDisplaySelection(): string | undefined;
+  get profileGlobalSelection(): string | undefined;
+  get profileImportInProgress(): boolean;
+  get profileExportInProgress(): boolean;
+  get profileUnsavedChangesTx(): boolean;
+  get profileUnsavedChangesMic(): boolean;
   get versionsRaw(): string;
   get trxPsocVersion(): string;
   get paPsocVersion(): string;
@@ -110,6 +122,7 @@ export interface RadioController {
   refreshVersions(): Promise<void>;
   refreshRxAntennaList(): Promise<void>;
   refreshMicList(): Promise<void>;
+  refreshProfileLists(): Promise<void>;
   setNickname(nickname: string): Promise<void>;
   setCallsign(callsign: string): Promise<void>;
   setFullDuplexEnabled(enabled: boolean): Promise<void>;
@@ -144,6 +157,18 @@ export interface RadioController {
   }): Promise<void>;
   resetStaticNetworkParams(): Promise<void>;
   setOscillatorSetting(setting: RadioOscillatorSetting): Promise<void>;
+  loadMicProfile(name: string): Promise<void>;
+  loadTxProfile(name: string): Promise<void>;
+  loadDisplayProfile(name: string): Promise<void>;
+  loadGlobalProfile(name: string): Promise<void>;
+  createTxProfile(name: string): Promise<void>;
+  resetTxProfile(name: string): Promise<void>;
+  deleteTxProfile(name: string): Promise<void>;
+  createMicProfile(name: string): Promise<void>;
+  resetMicProfile(name: string): Promise<void>;
+  deleteMicProfile(name: string): Promise<void>;
+  saveGlobalProfile(name: string): Promise<void>;
+  deleteGlobalProfile(name: string): Promise<void>;
 }
 
 export class RadioControllerImpl implements RadioController {
@@ -242,6 +267,54 @@ export class RadioControllerImpl implements RadioController {
 
   get micInputList(): readonly string[] {
     return this.current()?.micInputList ?? EMPTY_STRING_LIST;
+  }
+
+  get profileMicList(): readonly string[] {
+    return this.current()?.profileMicList ?? EMPTY_STRING_LIST;
+  }
+
+  get profileTxList(): readonly string[] {
+    return this.current()?.profileTxList ?? EMPTY_STRING_LIST;
+  }
+
+  get profileDisplayList(): readonly string[] {
+    return this.current()?.profileDisplayList ?? EMPTY_STRING_LIST;
+  }
+
+  get profileGlobalList(): readonly string[] {
+    return this.current()?.profileGlobalList ?? EMPTY_STRING_LIST;
+  }
+
+  get profileMicSelection(): string | undefined {
+    return this.current()?.profileMicSelection;
+  }
+
+  get profileTxSelection(): string | undefined {
+    return this.current()?.profileTxSelection;
+  }
+
+  get profileDisplaySelection(): string | undefined {
+    return this.current()?.profileDisplaySelection;
+  }
+
+  get profileGlobalSelection(): string | undefined {
+    return this.current()?.profileGlobalSelection;
+  }
+
+  get profileImportInProgress(): boolean {
+    return this.current()?.profileImportInProgress ?? false;
+  }
+
+  get profileExportInProgress(): boolean {
+    return this.current()?.profileExportInProgress ?? false;
+  }
+
+  get profileUnsavedChangesTx(): boolean {
+    return this.current()?.profileUnsavedChangesTx ?? false;
+  }
+
+  get profileUnsavedChangesMic(): boolean {
+    return this.current()?.profileUnsavedChangesMic ?? false;
   }
 
   get versionsRaw(): string {
@@ -515,6 +588,15 @@ export class RadioControllerImpl implements RadioController {
     this.session.patchRadio(attributes);
   }
 
+  async refreshProfileLists(): Promise<void> {
+    await Promise.all([
+      this.session.command("profile global info"),
+      this.session.command("profile tx info"),
+      this.session.command("profile mic info"),
+      this.session.command("profile display info"),
+    ]);
+  }
+
   async setNickname(nickname: string): Promise<void> {
     const sanitized = sanitizeNickname(nickname);
     await this.session.command(`radio name ${sanitized}`);
@@ -734,6 +816,54 @@ export class RadioControllerImpl implements RadioController {
     );
   }
 
+  async loadMicProfile(name: string): Promise<void> {
+    await this.loadProfileSelection("mic", name);
+  }
+
+  async loadTxProfile(name: string): Promise<void> {
+    await this.loadProfileSelection("tx", name);
+  }
+
+  async loadDisplayProfile(name: string): Promise<void> {
+    await this.loadProfileSelection("display", name);
+  }
+
+  async loadGlobalProfile(name: string): Promise<void> {
+    await this.loadProfileSelection("global", name);
+  }
+
+  async createTxProfile(name: string): Promise<void> {
+    await this.sendProfileCommand("profile transmit create", name);
+  }
+
+  async resetTxProfile(name: string): Promise<void> {
+    await this.sendProfileCommand("profile transmit reset", name);
+  }
+
+  async deleteTxProfile(name: string): Promise<void> {
+    await this.sendProfileCommand("profile transmit delete", name);
+  }
+
+  async createMicProfile(name: string): Promise<void> {
+    await this.sendProfileCommand("profile mic create", name);
+  }
+
+  async resetMicProfile(name: string): Promise<void> {
+    await this.sendProfileCommand("profile mic reset", name);
+  }
+
+  async deleteMicProfile(name: string): Promise<void> {
+    await this.sendProfileCommand("profile mic delete", name);
+  }
+
+  async saveGlobalProfile(name: string): Promise<void> {
+    await this.sendProfileCommand("profile global save", name);
+  }
+
+  async deleteGlobalProfile(name: string): Promise<void> {
+    await this.sendProfileCommand("profile global delete", name);
+  }
+
   private async commandAndPatch(
     command: string,
     attributes: Record<string, string>,
@@ -741,6 +871,28 @@ export class RadioControllerImpl implements RadioController {
   ): Promise<void> {
     await this.session.command(command);
     this.session.patchRadio(attributes, context);
+  }
+
+  private async loadProfileSelection(
+    domain: ProfileLoadDomain,
+    name: string,
+  ): Promise<void> {
+    const prepared = prepareProfileNameInput(name);
+    await this.session.command(
+      `profile ${domain} load ${prepared.encoded}`,
+    );
+    this.session.patchRadio(
+      { current: prepared.normalized },
+      { source: "profile", identifier: domain },
+    );
+  }
+
+  private async sendProfileCommand(
+    command: string,
+    name: string,
+  ): Promise<void> {
+    const { encoded } = prepareProfileNameInput(name);
+    await this.session.command(`${command} ${encoded}`);
   }
 }
 
@@ -779,4 +931,32 @@ function ensureFinite(value: number, label: string): number {
     throw new Error(`${label} must be a finite number`);
   }
   return value;
+}
+
+type ProfileLoadDomain = "global" | "tx" | "mic" | "display";
+
+type PreparedProfileName = {
+  readonly normalized: string;
+  readonly encoded: string;
+};
+
+function prepareProfileNameInput(raw: string): PreparedProfileName {
+  const normalized = normalizeProfileName(raw);
+  return {
+    normalized,
+    encoded: `"${escapeProfileName(normalized)}"`,
+  };
+}
+
+function normalizeProfileName(raw: string): string {
+  const trimmed = raw.trim();
+  const withoutMarker = trimmed.replace(/\*/g, "").trim();
+  if (!withoutMarker) {
+    throw new FlexError("Profile name cannot be empty");
+  }
+  return withoutMarker;
+}
+
+function escapeProfileName(value: string): string {
+  return value.replace(/(["\\])/g, "\\$1");
 }

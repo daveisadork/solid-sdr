@@ -31,6 +31,7 @@ export interface ApdController {
     event: TKey,
     listener: (payload: ApdControllerEvents[TKey]) => void,
   ): Subscription;
+  onStateChange(change: ApdStateChange): void;
 }
 
 export interface ApdSessionApi {

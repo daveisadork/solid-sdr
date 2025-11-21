@@ -9,7 +9,7 @@ import {
   parseFloatSafe,
   parseInteger,
   parseIntegerList,
-  parseIntegerMaybeHex,
+  parseIntegerHex,
   parseMegahertz,
 } from "./common.js";
 
@@ -604,7 +604,7 @@ export function createSliceSnapshot(
         partial.owner = value;
         break;
       case "client_handle": {
-        const parsed = parseIntegerMaybeHex(value);
+        const parsed = parseIntegerHex(value);
         if (parsed !== undefined) partial.clientHandle = parsed;
         else logParseError("slice", key, value);
         break;

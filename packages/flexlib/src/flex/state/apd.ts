@@ -7,7 +7,7 @@ import {
   logUnknownAttribute,
   parseFloatSafe,
   parseInteger,
-  parseIntegerMaybeHex,
+  parseIntegerHex,
 } from "./common.js";
 
 export interface ApdSnapshot {
@@ -78,7 +78,7 @@ export function createApdSnapshot(
         break;
       }
       case "client_handle": {
-        const parsed = parseIntegerMaybeHex(value);
+        const parsed = parseIntegerHex(value);
         if (parsed !== undefined) partial.clientHandle = parsed;
         else if (value) logParseError("apd", key, value);
         break;

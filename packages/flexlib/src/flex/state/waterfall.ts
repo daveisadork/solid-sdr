@@ -9,7 +9,7 @@ import {
   parseFloatSafe,
   parseInteger,
   parseIntegerList,
-  parseIntegerMaybeHex,
+  parseIntegerHex,
   parseMegahertz,
 } from "./common.js";
 
@@ -170,7 +170,7 @@ export function createWaterfallSnapshot(
         partial.band = value;
         break;
       case "client_handle": {
-        const parsed = parseIntegerMaybeHex(value);
+        const parsed = parseIntegerHex(value);
         if (parsed !== undefined) partial.clientHandle = parsed;
         else logParseError("waterfall", key, value);
         break;

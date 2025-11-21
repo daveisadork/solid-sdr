@@ -4,7 +4,7 @@ import {
   logParseError,
   logUnknownAttribute,
   parseInteger,
-  parseIntegerMaybeHex,
+  parseIntegerHex,
 } from "./common.js";
 
 export type AudioStreamKind =
@@ -55,7 +55,7 @@ export function createAudioStreamSnapshot(
         partial.compression = value;
         break;
       case "client_handle": {
-        const parsed = parseIntegerMaybeHex(value);
+        const parsed = parseIntegerHex(value);
         if (parsed !== undefined) partial.clientHandle = parsed;
         else logParseError("audio_stream", key, value);
         break;

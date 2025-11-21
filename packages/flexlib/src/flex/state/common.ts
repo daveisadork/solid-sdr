@@ -88,16 +88,17 @@ export function parseInteger(value: string | undefined): number | undefined {
   return parsed;
 }
 
-export function parseIntegerMaybeHex(
-  value: string | undefined,
-): number | undefined {
+export function parseIntegerHex(value: string | undefined): number | undefined {
   if (!value) return undefined;
-  if (value.startsWith("0x")) {
-    const parsed = Number.parseInt(value, 16);
-    if (!Number.isFinite(parsed)) return undefined;
-    return parsed;
-  }
-  return parseInteger(value);
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  const normalized =
+    trimmed.startsWith("0x") || trimmed.startsWith("0X")
+      ? trimmed.slice(2)
+      : trimmed;
+  const parsed = Number.parseInt(normalized, 16);
+  if (!Number.isFinite(parsed)) return undefined;
+  return parsed;
 }
 
 export function parseCsv(value: string | undefined): string[] | undefined {

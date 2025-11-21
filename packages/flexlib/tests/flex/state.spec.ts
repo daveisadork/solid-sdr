@@ -20,6 +20,9 @@ const WATERFALL_STATUS =
 const METER_STATUS =
   "S3A411681|meter 1.src=TX-#1.num=5#1.nam=HWALC#1.low=-150.0#1.hi=20.0#1.desc=Voltage present at the Hardware ALC RCA Plug#1.unit=dBFS#1.fps=20#";
 
+const APD_SLICE_STATUS =
+  "S1|slice 0 in_use=1 sample_rate=48000 RF_frequency=14.100000 client_handle=0x7F7C21E0 index_letter=A rit_on=0 rit_freq=0 xit_on=0 xit_freq=0 rxant=ANT1 mode=USB wide=1 filter_lo=100 filter_hi=2800 step=100 txant=ANT1 tx=1 active=1 audio_level=49 audio_pan=50 audio_mute=0 lock=0";
+
 describe("createRadioStateStore", () => {
   it("tracks slices and panadapters from real messages", () => {
     const store = createRadioStateStore();
@@ -248,6 +251,8 @@ describe("createRadioStateStore", () => {
 
   it("tracks APD status", () => {
     const store = createRadioStateStore();
+    store.apply(makeStatus(APD_SLICE_STATUS));
+    store.setLocalClientHandle(parseInt("7F7C21E0", 16));
     store.apply(makeStatus("S1|apd enable=1 configurable=1"));
     store.apply(makeStatus("S1|apd freq=0.000000 tx_error_mHz=0.500000"));
     store.apply(

@@ -1,10 +1,6 @@
 import type { BaseGuiClientInfo } from "../gui-client.js";
 import type { Mutable, SnapshotUpdate } from "./common.js";
-import {
-  freezeAttributes,
-  isTruthy,
-  parseIntegerMaybeHex,
-} from "./common.js";
+import { freezeAttributes, isTruthy, parseIntegerHex } from "./common.js";
 
 export interface GuiClientSnapshot extends BaseGuiClientInfo {
   readonly id: string;
@@ -27,8 +23,7 @@ export function createGuiClientSnapshot(
 ): SnapshotUpdate<GuiClientSnapshot> {
   const rawDiff = freezeAttributes(attributes);
   const partial: Mutable<Partial<GuiClientSnapshot>> = {};
-  const clientHandle =
-    parseIntegerMaybeHex(id) ?? previous?.clientHandle ?? 0;
+  const clientHandle = parseIntegerHex(id) ?? previous?.clientHandle ?? 0;
   const clientIdToken = attributes["client_id"];
   if (clientIdToken !== undefined) {
     const trimmed = clientIdToken.trim();

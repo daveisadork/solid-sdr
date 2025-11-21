@@ -1,11 +1,7 @@
 import type { FlexStatusMessage } from "../protocol.js";
 import type { RfGainInfo } from "../rf-gain.js";
 import type { Logger } from "../adapters.js";
-import {
-  isTruthy,
-  parseIntegerMaybeHex,
-  setRadioStateLogger,
-} from "./common.js";
+import { isTruthy, parseIntegerHex, setRadioStateLogger } from "./common.js";
 import type { SnapshotDiff } from "./common.js";
 import {
   AUDIO_STREAM_TYPES,
@@ -413,6 +409,7 @@ export function createRadioStateStore(
   }
 
   function handleApd(message: FlexStatusMessage): RadioStateChange | undefined {
+    if (!shouldAcceptApdStatus(message.attributes)) return undefined;
     const attributes: Record<string, string> = {
       ...message.attributes,
     };
@@ -432,6 +429,10 @@ export function createRadioStateStore(
       removed: false,
       diff,
     };
+  }
+
+  function shouldAcceptApdStatus(attributes: Record<string, string>): boolean {
+    return localClientHandle === parseIntegerHex(attributes["client_handle"]);
   }
 
   function patchRadio(
@@ -994,7 +995,7 @@ export function createRadioStateStore(
           ? handle
           : undefined
         : typeof handle === "string"
-          ? parseIntegerMaybeHex(handle)
+          ? parseIntegerHex(handle)
           : undefined;
     if (normalized === localClientHandle) return [];
     localClientHandle = normalized;

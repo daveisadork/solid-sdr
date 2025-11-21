@@ -1,6 +1,6 @@
 import type { FlexCommandOptions, FlexCommandResponse } from "./adapters.js";
 import type { SliceSnapshot, SliceStateChange } from "./state/index.js";
-import { TypedEventEmitter, type Subscription } from "./events.js";
+import { TypedEventEmitter, type Subscription } from "../util/events.js";
 import { FlexStateUnavailableError } from "./errors.js";
 import {
   formatBooleanFlag,

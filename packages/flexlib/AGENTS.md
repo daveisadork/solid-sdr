@@ -7,6 +7,8 @@
 - Provide the absolute best developer experience so complex radio interactions stay approachable without losing flexibility.
 - Treat performance as a first-class concern to keep GUI clients responsive on lower-power hardware such as Raspberry Pi.
 - Design APIs that drop cleanly into reactive UI frameworks (SolidJS, React/Redux, etc.) with minimal glue code.
+- Operate with a zero-backward-compatibility mindset: remove aliases, shims, and transitional baggage—breaking changes are not only acceptable, but encouraged if they keep the surface clean.
+- Favor elegant, compact implementations: avoid verbose boilerplate or over-engineered abstraction layers so both concepts and data flow remain immediately understandable.
 
 ## Project Structure & Module Organization
 
@@ -32,6 +34,7 @@
 - TypeScript modules use ESNext syntax with 2-space indentation and trailing commas; prefer named exports over defaults.
 - Use `camelCase` for variables/functions, `PascalCase` for classes, controllers, and types, and `UPPER_SNAKE_CASE` for protocol constants.
 - Derive discriminated unions and event payload typings from existing patterns in `events.ts` and `protocol.ts`.
+- Every public interface, class, method, and property must carry concise JSDoc comments explaining both library-specific behavior and the corresponding radio concept (mirror the detail level of the official C# docs whenever possible).
 - Run `pnpm run build` before submitting to ensure emitted declarations stay in sync.
 
 ## Testing Guidelines

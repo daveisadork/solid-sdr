@@ -44,8 +44,19 @@ export class TypedEventEmitter<TEvents extends Record<string, unknown>> {
   emit<TKey extends keyof TEvents>(event: TKey, payload: TEvents[TKey]): void {
     const bucket = this.getBucket(event);
     if (!bucket) return;
+    const errors: unknown[] = [];
     for (const listener of bucket) {
-      listener(payload);
+      try {
+        listener(payload);
+      } catch (error) {
+        errors.push(error);
+      }
+    }
+    if (errors.length === 1) {
+      throw errors[0];
+    }
+    if (errors.length > 1) {
+      throw new AggregateError(errors, "Multiple TypedEventEmitter listeners failed");
     }
   }
 

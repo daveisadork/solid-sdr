@@ -14,7 +14,7 @@ import type {
   FlexClientAdapters,
   FlexRadioDescriptor,
 } from "./adapters.js";
-import { TypedEventEmitter, type Subscription } from "./events.js";
+import { TypedEventEmitter, type Subscription } from "../util/events.js";
 import type { RadioSnapshot, RadioStateChange } from "./state/index.js";
 import { createDefaultRadioSnapshot } from "./state/radio.js";
 import type { RadioController } from "./radio.js";

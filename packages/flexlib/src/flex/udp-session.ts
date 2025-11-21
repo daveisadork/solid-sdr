@@ -3,7 +3,7 @@ import {
   TypedEventEmitter,
   type Listener,
   type Subscription,
-} from "./events.js";
+} from "../util/events.js";
 import {
   parseVitaPacket,
   type ParseVitaPacketOptions,

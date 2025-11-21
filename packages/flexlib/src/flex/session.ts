@@ -6,7 +6,7 @@ import type {
   FlexRadioDescriptor,
   Logger,
 } from "./adapters.js";
-import { TypedEventEmitter, type Subscription } from "./events.js";
+import { TypedEventEmitter, type Subscription } from "../util/events.js";
 import type {
   FlexWireMessage,
   FlexStatusMessage,

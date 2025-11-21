@@ -1,7 +1,6 @@
 export * from "./adapters.js";
 export * from "./session.js";
 export * from "./errors.js";
-export * from "./events.js";
 export * from "./feature-license.js";
 export * from "./protocol.js";
 export * from "./state/index.js";

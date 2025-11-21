@@ -11,7 +11,7 @@ import type {
   FlexWireTransportHandlers,
   Logger,
 } from "./adapters.js";
-import type { Subscription } from "./events.js";
+import type { Subscription } from "../util/events.js";
 import { FlexClientClosedError } from "./errors.js";
 import type { FlexWireMessage, FlexReplyMessage } from "./protocol.js";
 import { parseFlexMessage } from "./protocol.js";

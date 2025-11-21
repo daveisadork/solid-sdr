@@ -3,7 +3,7 @@ import type {
   PanadapterSnapshot,
   PanadapterStateChange,
 } from "./state/index.js";
-import { TypedEventEmitter, type Subscription } from "./events.js";
+import { TypedEventEmitter, type Subscription } from "../util/events.js";
 import {
   FlexClientClosedError,
   FlexError,

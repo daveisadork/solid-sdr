@@ -5,7 +5,7 @@ import type {
 } from "./state/index.js";
 export type { MeterUnits, KnownMeterUnits } from "./state/index.js";
 export { KNOWN_METER_UNITS } from "./state/index.js";
-import { TypedEventEmitter, type Subscription } from "./events.js";
+import { TypedEventEmitter, type Subscription } from "../util/events.js";
 import { FlexStateUnavailableError } from "./errors.js";
 import type {
   UdpPacketEvent,

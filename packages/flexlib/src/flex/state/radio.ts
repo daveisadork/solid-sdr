@@ -28,6 +28,21 @@ export type RadioOscillatorSetting = "auto" | "external" | "gpsdo" | "tcxo";
 
 export type RadioScreensaverMode = "model" | "name" | "callsign" | "none";
 
+export type RadioAtuTuneStatus =
+  | "NONE"
+  | "TUNE_NOT_STARTED"
+  | "TUNE_IN_PROGRESS"
+  | "TUNE_BYPASS"
+  | "TUNE_SUCCESSFUL"
+  | "TUNE_OK"
+  | "TUNE_FAIL_BYPASS"
+  | "TUNE_FAIL"
+  | "TUNE_ABORTED"
+  | "TUNE_MANUAL_BYPASS"
+  | "TGXL_IN_PROGRESS"
+  | "TGXL_OK"
+  | "TGXL_ABORTED";
+
 export interface RadioStatusContext {
   readonly source?: string;
   readonly identifier?: string;
@@ -51,6 +66,10 @@ export interface RadioSnapshot {
   readonly tx1750ToneBurst: boolean;
   readonly diversityAllowed: boolean;
   readonly atuPresent: boolean;
+  readonly atuEnabled: boolean;
+  readonly atuMemoriesEnabled: boolean;
+  readonly atuUsingMemory: boolean;
+  readonly atuTuneStatus: RadioAtuTuneStatus;
   readonly scuCount: number;
   readonly sliceCount: number;
   readonly txCount: number;
@@ -165,6 +184,9 @@ export function createRadioSnapshot(
       break;
     case "log":
       applyLogAttributes(attributes, partial, previous);
+      break;
+    case "atu":
+      applyAtuStatusAttributes(attributes, partial);
       break;
     default:
       applyRadioSourceAttributes(attributes, partial, previous);
@@ -428,6 +450,34 @@ function applyRadioSourceAttributes(
   }
 }
 
+function applyAtuStatusAttributes(
+  attributes: Record<string, string>,
+  partial: Mutable<Partial<RadioSnapshot>>,
+): void {
+  for (const [key, value] of Object.entries(attributes)) {
+    switch (key) {
+      case "status": {
+        const parsed = parseAtuTuneStatus(value);
+        if (parsed) partial.atuTuneStatus = parsed;
+        else logParseError("atu", key, value ?? "");
+        break;
+      }
+      case "atu_enabled":
+        partial.atuEnabled = isTruthy(value);
+        break;
+      case "memories_enabled":
+        partial.atuMemoriesEnabled = isTruthy(value);
+        break;
+      case "using_mem":
+        partial.atuUsingMemory = isTruthy(value);
+        break;
+      default:
+        logUnknownAttribute("atu", key, value);
+        break;
+    }
+  }
+}
+
 function applyLogAttributes(
   attributes: Record<string, string>,
   partial: Mutable<Partial<RadioSnapshot>>,
@@ -495,6 +545,31 @@ function parseScreensaverMode(value: string | undefined): RadioScreensaverMode {
   if (normalized === "name") return "name";
   if (normalized === "callsign") return "callsign";
   return "none";
+}
+
+const ATU_TUNE_STATUS_BY_TOKEN: Record<string, RadioAtuTuneStatus> = {
+  NONE: "NONE",
+  TUNE_NOT_STARTED: "TUNE_NOT_STARTED",
+  TUNE_IN_PROGRESS: "TUNE_IN_PROGRESS",
+  TUNE_BYPASS: "TUNE_BYPASS",
+  TUNE_SUCCESSFUL: "TUNE_SUCCESSFUL",
+  TUNE_OK: "TUNE_OK",
+  TUNE_FAIL_BYPASS: "TUNE_FAIL_BYPASS",
+  TUNE_FAIL: "TUNE_FAIL",
+  TUNE_ABORTED: "TUNE_ABORTED",
+  TUNE_MANUAL_BYPASS: "TUNE_MANUAL_BYPASS",
+  TGXL_IN_PROGRESS: "TGXL_IN_PROGRESS",
+  TGXL_OK: "TGXL_OK",
+  TGXL_ABORTED: "TGXL_ABORTED",
+};
+
+function parseAtuTuneStatus(
+  value: string | undefined,
+): RadioAtuTuneStatus | undefined {
+  if (!value) return undefined;
+  const normalized = value.trim().toUpperCase();
+  if (!normalized) return undefined;
+  return ATU_TUNE_STATUS_BY_TOKEN[normalized];
 }
 
 function applyFilterSharpnessAttributes(
@@ -686,7 +761,8 @@ type RadioContextKind =
   | "static_net_params"
   | "oscillator"
   | "profile"
-  | "log";
+  | "log"
+  | "atu";
 
 function resolveRadioContext(context?: RadioStatusContext): RadioContextKind {
   const identifier = context?.identifier?.toLowerCase();
@@ -699,6 +775,7 @@ function resolveRadioContext(context?: RadioStatusContext): RadioContextKind {
   if (source === "gps") return "gps";
   if (source === "profile") return "profile";
   if (source === "log") return "log";
+  if (source === "atu") return "atu";
 
   return "radio";
 }

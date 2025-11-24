@@ -369,6 +369,32 @@ describe("createRadioStateStore", () => {
     expect(radio?.raw["netmask"]).toBe("");
   });
 
+  it("tracks ATU status updates", () => {
+    const store = createRadioStateStore();
+    const firstStatus =
+      "S7F7C21E0|atu status=TUNE_SUCCESSFUL atu_enabled=1 memories_enabled=1 using_mem=1";
+    const secondStatus =
+      "S0|atu status=TUNE_FAIL atu_enabled=0 memories_enabled=0 using_mem=0";
+
+    const [initialChange] = store.apply(makeStatus(firstStatus));
+    expect(initialChange?.entity).toBe("radio");
+
+    let radio = store.getRadio();
+    expect(radio).toBeDefined();
+    expect(radio?.atuTuneStatus).toBe("TUNE_SUCCESSFUL");
+    expect(radio?.atuEnabled).toBe(true);
+    expect(radio?.atuMemoriesEnabled).toBe(true);
+    expect(radio?.atuUsingMemory).toBe(true);
+    expect(radio?.raw["status"]).toBe("TUNE_SUCCESSFUL");
+
+    store.apply(makeStatus(secondStatus));
+    radio = store.getRadio();
+    expect(radio?.atuTuneStatus).toBe("TUNE_FAIL");
+    expect(radio?.atuEnabled).toBe(false);
+    expect(radio?.atuMemoriesEnabled).toBe(false);
+    expect(radio?.atuUsingMemory).toBe(false);
+  });
+
   it("applies info, version, and list replies to radio properties", () => {
     const store = createRadioStateStore();
     const infoMessage =

@@ -43,6 +43,7 @@ export type { ApdSnapshot } from "./apd.js";
 export type { EqualizerSnapshot, EqualizerId } from "./equalizer.js";
 export type { KnownMeterUnits, MeterSnapshot, MeterUnits } from "./meter.js";
 export type {
+  RadioAtuTuneStatus,
   RadioFilterSharpnessMode,
   RadioOscillatorSetting,
   RadioScreensaverMode,
@@ -232,6 +233,11 @@ export function createRadioStateStore(
         }
         case "profile": {
           const change = handleProfile(message);
+          if (change) return [change];
+          return [];
+        }
+        case "atu": {
+          const change = handleAtu(message);
           if (change) return [change];
           return [];
         }
@@ -764,6 +770,16 @@ export function createRadioStateStore(
       diff: update.diff,
       removed: false,
     };
+  }
+
+  function handleAtu(
+    message: FlexStatusMessage,
+  ): RadioStateChange | undefined {
+    return patchRadio(message.attributes, {
+      source: message.source,
+      identifier: message.identifier,
+      positional: message.positional,
+    });
   }
 
   function handleLog(message: FlexStatusMessage): RadioStateChange | undefined {

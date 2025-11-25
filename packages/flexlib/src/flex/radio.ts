@@ -1,5 +1,6 @@
 import type { FlexCommandOptions, FlexCommandResponse } from "./adapters.js";
 import type {
+  RadioAtuTuneStatus,
   RadioFilterSharpnessMode,
   RadioLogModule,
   RadioOscillatorSetting,
@@ -13,6 +14,7 @@ import {
   parseRadioInfoReply,
   parseRadioVersionReply,
 } from "./radio-replies.js";
+import { formatBooleanFlag } from "./controller-helpers.js";
 
 interface RadioControllerSession {
   command(
@@ -46,6 +48,10 @@ export interface RadioController {
   get tx1750ToneBurst(): boolean;
   get diversityAllowed(): boolean;
   get atuPresent(): boolean;
+  get atuEnabled(): boolean;
+  get atuMemoriesEnabled(): boolean;
+  get atuUsingMemory(): boolean;
+  get atuTuneStatus(): RadioAtuTuneStatus;
   get scuCount(): number;
   get sliceCount(): number;
   get txCount(): number;
@@ -135,6 +141,10 @@ export interface RadioController {
   setLowLatencyDigitalModes(enabled: boolean): Promise<void>;
   setMfEnabled(enabled: boolean): Promise<void>;
   setProfileAutoSave(enabled: boolean): Promise<void>;
+  setAtuMemoriesEnabled(enabled: boolean): Promise<void>;
+  startAtuTune(): Promise<void>;
+  bypassAtu(): Promise<void>;
+  clearAtuMemories(): Promise<void>;
   setLineoutGain(gain: number): Promise<void>;
   setLineoutMute(muted: boolean): Promise<void>;
   setHeadphoneGain(gain: number): Promise<void>;
@@ -253,6 +263,22 @@ export class RadioControllerImpl implements RadioController {
 
   get atuPresent(): boolean {
     return this.current()?.atuPresent ?? false;
+  }
+
+  get atuEnabled(): boolean {
+    return this.current()?.atuEnabled ?? false;
+  }
+
+  get atuMemoriesEnabled(): boolean {
+    return this.current()?.atuMemoriesEnabled ?? false;
+  }
+
+  get atuUsingMemory(): boolean {
+    return this.current()?.atuUsingMemory ?? false;
+  }
+
+  get atuTuneStatus(): RadioAtuTuneStatus {
+    return this.current()?.atuTuneStatus ?? "NONE";
   }
 
   get scuCount(): number {
@@ -631,36 +657,57 @@ export class RadioControllerImpl implements RadioController {
 
   async setFullDuplexEnabled(enabled: boolean): Promise<void> {
     await this.commandAndPatch(
-      `radio set full_duplex_enabled=${booleanToNumeric(enabled)}`,
-      { full_duplex_enabled: booleanToNumeric(enabled) },
+      `radio set full_duplex_enabled=${formatBooleanFlag(enabled)}`,
+      { full_duplex_enabled: formatBooleanFlag(enabled) },
     );
   }
 
   async setEnforcePrivateIpConnections(enabled: boolean): Promise<void> {
     await this.commandAndPatch(
-      `radio set enforce_private_ip_connections=${booleanToNumeric(enabled)}`,
-      { enforce_private_ip_connections: booleanToNumeric(enabled) },
+      `radio set enforce_private_ip_connections=${formatBooleanFlag(enabled)}`,
+      { enforce_private_ip_connections: formatBooleanFlag(enabled) },
     );
   }
 
   async setLowLatencyDigitalModes(enabled: boolean): Promise<void> {
     await this.commandAndPatch(
-      `radio set low_latency_digital_modes=${booleanToNumeric(enabled)}`,
-      { low_latency_digital_modes: booleanToNumeric(enabled) },
+      `radio set low_latency_digital_modes=${formatBooleanFlag(enabled)}`,
+      { low_latency_digital_modes: formatBooleanFlag(enabled) },
     );
   }
 
   async setMfEnabled(enabled: boolean): Promise<void> {
     await this.commandAndPatch(
-      `radio set mf_enable=${booleanToNumeric(enabled)}`,
-      { mf_enable: booleanToNumeric(enabled) },
+      `radio set mf_enable=${formatBooleanFlag(enabled)}`,
+      { mf_enable: formatBooleanFlag(enabled) },
     );
   }
 
   async setProfileAutoSave(enabled: boolean): Promise<void> {
     await this.commandAndPatch(`profile autosave ${enabled ? "on" : "off"}`, {
-      auto_save: booleanToNumeric(enabled),
+      auto_save: formatBooleanFlag(enabled),
     });
+  }
+
+  async setAtuMemoriesEnabled(enabled: boolean): Promise<void> {
+    const encoded = formatBooleanFlag(enabled);
+    await this.commandAndPatch(
+      `atu set memories_enabled=${encoded}`,
+      { memories_enabled: encoded },
+      { source: "atu" },
+    );
+  }
+
+  async startAtuTune(): Promise<void> {
+    await this.session.command("atu start");
+  }
+
+  async bypassAtu(): Promise<void> {
+    await this.session.command("atu bypass");
+  }
+
+  async clearAtuMemories(): Promise<void> {
+    await this.session.command("atu clear");
   }
 
   async setLineoutGain(gain: number): Promise<void> {
@@ -671,7 +718,7 @@ export class RadioControllerImpl implements RadioController {
   }
 
   async setLineoutMute(muted: boolean): Promise<void> {
-    const encoded = booleanToNumeric(muted);
+    const encoded = formatBooleanFlag(muted);
     await this.commandAndPatch(`mixer lineout mute ${encoded}`, {
       lineout_mute: encoded,
     });
@@ -685,7 +732,7 @@ export class RadioControllerImpl implements RadioController {
   }
 
   async setHeadphoneMute(muted: boolean): Promise<void> {
-    const encoded = booleanToNumeric(muted);
+    const encoded = formatBooleanFlag(muted);
     await this.commandAndPatch(`mixer headphone mute ${encoded}`, {
       headphone_mute: encoded,
     });
@@ -699,28 +746,28 @@ export class RadioControllerImpl implements RadioController {
   }
 
   async setRemoteOnEnabled(enabled: boolean): Promise<void> {
-    const encoded = booleanToNumeric(enabled);
+    const encoded = formatBooleanFlag(enabled);
     await this.commandAndPatch(`radio set remote_on_enabled=${encoded}`, {
       remote_on_enabled: encoded,
     });
   }
 
   async setTnfEnabled(enabled: boolean): Promise<void> {
-    const encoded = booleanToNumeric(enabled);
+    const encoded = formatBooleanFlag(enabled);
     await this.commandAndPatch(`radio set tnf_enabled=${encoded}`, {
       tnf_enabled: encoded,
     });
   }
 
   async setBinauralRx(enabled: boolean): Promise<void> {
-    const encoded = booleanToNumeric(enabled);
+    const encoded = formatBooleanFlag(enabled);
     await this.commandAndPatch(`radio set binaural_rx=${encoded}`, {
       binaural_rx: encoded,
     });
   }
 
   async setMuteLocalAudioWhenRemote(enabled: boolean): Promise<void> {
-    const encoded = booleanToNumeric(enabled);
+    const encoded = formatBooleanFlag(enabled);
     await this.commandAndPatch(
       `radio set mute_local_audio_when_remote=${encoded}`,
       { mute_local_audio_when_remote: encoded },
@@ -777,7 +824,7 @@ export class RadioControllerImpl implements RadioController {
     enabled: boolean,
   ): Promise<void> {
     const normalizedMode = mode;
-    const encoded = booleanToNumeric(enabled);
+    const encoded = formatBooleanFlag(enabled);
     const context: RadioStatusContext = {
       source: "radio",
       identifier: "filter_sharpness",
@@ -908,9 +955,7 @@ export class RadioControllerImpl implements RadioController {
     name: string,
   ): Promise<void> {
     const prepared = prepareProfileNameInput(name);
-    await this.session.command(
-      `profile ${domain} load ${prepared.encoded}`,
-    );
+    await this.session.command(`profile ${domain} load ${prepared.encoded}`);
     this.session.patchRadio(
       { current: prepared.normalized },
       { source: "profile", identifier: domain },
@@ -957,10 +1002,6 @@ function normalizeLogLevel(value: string): string {
 
 const FILTER_SHARPNESS_MIN_LEVEL = 0;
 const FILTER_SHARPNESS_MAX_LEVEL = 3;
-
-function booleanToNumeric(value: boolean): string {
-  return value ? "1" : "0";
-}
 
 function clampInteger(value: number, min: number, max: number): number {
   const normalized = ensureFinite(value, "value");

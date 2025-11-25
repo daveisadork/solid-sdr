@@ -391,9 +391,12 @@ describe("FlexClient", () => {
       "S0|gps lat=38.433731667#lon=-90.454651667#grid=EM48sk#altitude=235 m#tracked=10#visible=31#speed=0 kts#freq_error=0 ppb#status=Fine Lock#time=21:16:12Z#track=0.0";
     const radioStatus =
       "S4E48881B|radio slices=4 panadapters=4 lineout_gain=49 lineout_mute=0 headphone_gain=50 headphone_mute=0 remote_on_enabled=0 pll_done=0 freq_error_ppb=0 cal_freq=15.000000 tnf_enabled=1 nickname=FLEX-8600 callsign=KF0SMY binaural_rx=0 full_duplex_enabled=1 band_persistence_enabled=1 rtty_mark_default=2125 enforce_private_ip_connections=1 backlight=50 mute_local_audio_when_remote=1 daxiq_capacity=16 daxiq_available=16 alpha=0 low_latency_digital_modes=0 mf_enable=1 auto_save=1 max_internal_pa_power=100 external_pa_allowed=1";
+    const atuStatus =
+      "S0|atu status=TUNE_SUCCESSFUL atu_enabled=1 memories_enabled=1 using_mem=1";
 
     channel.emit(makeStatus(gpsStatus));
     channel.emit(makeStatus(radioStatus));
+    channel.emit(makeStatus(atuStatus));
 
     const radioSnapshot = session.getRadio();
     expect(radioSnapshot?.gpsLatitude).toBeCloseTo(38.433731667, 9);
@@ -411,6 +414,10 @@ describe("FlexClient", () => {
     expect(radioSnapshot?.externalPaAllowed).toBe(true);
     expect(radioSnapshot?.daxIqCapacity).toBe(16);
     expect(radioSnapshot?.frequencyErrorPpb).toBe(0);
+    expect(radioSnapshot?.atuEnabled).toBe(true);
+    expect(radioSnapshot?.atuMemoriesEnabled).toBe(true);
+    expect(radioSnapshot?.atuUsingMemory).toBe(true);
+    expect(radioSnapshot?.atuTuneStatus).toBe("TUNE_SUCCESSFUL");
 
     const radio = session.radio();
     expect(radio.gpsLatitude).toBeCloseTo(38.433731667, 9);
@@ -432,6 +439,10 @@ describe("FlexClient", () => {
     expect(radio.muteLocalAudioWhenRemote).toBe(true);
     expect(radio.maxInternalPaPower).toBe(100);
     expect(radio.externalPaAllowed).toBe(true);
+    expect(radio.atuEnabled).toBe(true);
+    expect(radio.atuMemoriesEnabled).toBe(true);
+    expect(radio.atuUsingMemory).toBe(true);
+    expect(radio.atuTuneStatus).toBe("TUNE_SUCCESSFUL");
 
     await radio.setNickname("New Nick!");
     expect(channel.commands.at(-1)?.command).toBe("radio name New Nick");
@@ -466,6 +477,19 @@ describe("FlexClient", () => {
     await radio.setProfileAutoSave(false);
     expect(channel.commands.at(-1)?.command).toBe("profile autosave off");
     expect(radio.profileAutoSave).toBe(false);
+
+    await radio.setAtuMemoriesEnabled(false);
+    expect(channel.commands.at(-1)?.command).toBe("atu set memories_enabled=0");
+    expect(radio.atuMemoriesEnabled).toBe(false);
+
+    await radio.startAtuTune();
+    expect(channel.commands.at(-1)?.command).toBe("atu start");
+
+    await radio.bypassAtu();
+    expect(channel.commands.at(-1)?.command).toBe("atu bypass");
+
+    await radio.clearAtuMemories();
+    expect(channel.commands.at(-1)?.command).toBe("atu clear");
 
     await radio.setLineoutGain(105);
     expect(channel.commands.at(-1)?.command).toBe("mixer lineout gain 100");

@@ -953,10 +953,10 @@ export class SliceControllerImpl implements SliceController {
 
   async setFrequency(frequencyMHz: number): Promise<void> {
     const formattedFrequency = formatMegahertz(frequencyMHz);
-    await this.session.command(`slice tune ${this.id} ${formattedFrequency}`);
     this.session.patchSlice(this.id, {
       freq: formattedFrequency,
     });
+    await this.session.command(`slice tune ${this.id} ${formattedFrequency}`);
   }
 
   async nudge(deltaHz: number): Promise<void> {
@@ -984,10 +984,10 @@ export class SliceControllerImpl implements SliceController {
     const command = locked
       ? `slice lock ${this.id}`
       : `slice unlock ${this.id}`;
-    await this.session.command(command);
     this.session.patchSlice(this.id, {
       lock: formatBooleanFlag(locked),
     });
+    await this.session.command(command);
   }
 
   async enableTransmit(enabled: boolean): Promise<void> {

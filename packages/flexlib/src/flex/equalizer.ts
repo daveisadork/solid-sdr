@@ -129,8 +129,8 @@ export class EqualizerControllerImpl implements EqualizerController {
     if (keys.length === 0) return;
     const commandParts = keys.map((key) => `${key}=${entries[key]}`);
     const command = `eq ${this.commandTarget} ${commandParts.join(" ")}`;
-    await this.session.command(command);
     this.session.patchEqualizer(this.id, entries);
+    await this.session.command(command);
   }
 
   private get commandTarget(): string {

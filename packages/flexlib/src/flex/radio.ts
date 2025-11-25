@@ -650,14 +650,14 @@ export class RadioControllerImpl implements RadioController {
 
   async setNickname(nickname: string): Promise<void> {
     const sanitized = sanitizeNickname(nickname);
-    await this.session.command(`radio name ${sanitized}`);
     this.session.patchRadio({ nickname: sanitized });
+    await this.session.command(`radio name ${sanitized}`);
   }
 
   async setCallsign(callsign: string): Promise<void> {
     const sanitized = sanitizeCallsign(callsign);
-    await this.session.command(`radio callsign ${sanitized}`);
     this.session.patchRadio({ callsign: sanitized });
+    await this.session.command(`radio callsign ${sanitized}`);
   }
 
   async setFullDuplexEnabled(enabled: boolean): Promise<void> {
@@ -951,8 +951,8 @@ export class RadioControllerImpl implements RadioController {
     attributes: Record<string, string>,
     context?: RadioStatusContext,
   ): Promise<void> {
-    await this.session.command(command);
     this.session.patchRadio(attributes, context);
+    await this.session.command(command);
   }
 
   private async loadProfileSelection(
@@ -960,11 +960,11 @@ export class RadioControllerImpl implements RadioController {
     name: string,
   ): Promise<void> {
     const prepared = prepareProfileNameInput(name);
-    await this.session.command(`profile ${domain} load ${prepared.encoded}`);
     this.session.patchRadio(
       { current: prepared.normalized },
       { source: "profile", identifier: domain },
     );
+    await this.session.command(`profile ${domain} load ${prepared.encoded}`);
   }
 
   private async sendProfileCommand(

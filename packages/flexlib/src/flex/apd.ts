@@ -110,8 +110,8 @@ export class ApdControllerImpl implements ApdController {
 
   async setEnabled(enabled: boolean): Promise<void> {
     const flag = formatBooleanFlag(enabled);
-    await this.session.command(`apd enable=${flag}`);
     this.session.patchApd({ enable: flag });
+    await this.session.command(`apd enable=${flag}`);
   }
 
   on<TKey extends keyof ApdControllerEvents>(

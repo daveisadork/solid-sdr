@@ -478,8 +478,8 @@ export class WaterfallControllerImpl implements WaterfallController {
       entries,
       extras,
     );
-    await this.session.command(command);
     this.session.patchWaterfall(this.id, { stream_id: stream, ...entries });
+    await this.session.command(command);
   }
 
   private requireStreamHandle(): string {

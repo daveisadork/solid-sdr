@@ -434,6 +434,7 @@ describe("FlexClient", () => {
     expect(radio.headphoneMute).toBe(false);
     expect(radio.fullDuplexEnabled).toBe(true);
     expect(radio.enforcePrivateIpConnections).toBe(true);
+    expect(radio.networkMtu).toBe(1500);
     expect(radio.bandPersistenceEnabled).toBe(true);
     expect(radio.tnfEnabled).toBe(true);
     expect(radio.muteLocalAudioWhenRemote).toBe(true);
@@ -463,6 +464,12 @@ describe("FlexClient", () => {
       "radio set enforce_private_ip_connections=0",
     );
     expect(radio.enforcePrivateIpConnections).toBe(false);
+
+    await radio.setNetworkMtu(1428);
+    expect(channel.commands.at(-1)?.command).toBe(
+      "client set enforce_network_mtu=1 network_mtu=1428",
+    );
+    expect(radio.networkMtu).toBe(1428);
 
     await radio.setLowLatencyDigitalModes(true);
     expect(channel.commands.at(-1)?.command).toBe(

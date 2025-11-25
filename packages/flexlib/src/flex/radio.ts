@@ -34,6 +34,7 @@ interface RadioControllerSession {
 
 const EMPTY_STRING_LIST = Object.freeze([]) as readonly string[];
 const EMPTY_LOG_MODULES = Object.freeze([]) as readonly RadioLogModule[];
+const DEFAULT_NETWORK_MTU = 1_500;
 
 export interface RadioController {
   snapshot(): RadioSnapshot | undefined;
@@ -46,6 +47,7 @@ export interface RadioController {
   get ipAddress(): string;
   get netmask(): string;
   get gateway(): string;
+  get networkMtu(): number;
   get location(): string;
   get region(): string;
   get screensaverMode(): RadioScreensaverMode;
@@ -143,6 +145,7 @@ export interface RadioController {
   setCallsign(callsign: string): Promise<void>;
   setFullDuplexEnabled(enabled: boolean): Promise<void>;
   setEnforcePrivateIpConnections(enabled: boolean): Promise<void>;
+  setNetworkMtu(value: number): Promise<void>;
   setLowLatencyDigitalModes(enabled: boolean): Promise<void>;
   setMfEnabled(enabled: boolean): Promise<void>;
   setProfileAutoSave(enabled: boolean): Promise<void>;
@@ -240,6 +243,10 @@ export class RadioControllerImpl implements RadioController {
 
   get gateway(): string {
     return this.current()?.gateway ?? "";
+  }
+
+  get networkMtu(): number {
+    return this.current()?.networkMtu ?? DEFAULT_NETWORK_MTU;
   }
 
   get location(): string {
@@ -673,6 +680,15 @@ export class RadioControllerImpl implements RadioController {
     await this.commandAndPatch(
       `radio set enforce_private_ip_connections=${formatBooleanFlag(enabled)}`,
       { enforce_private_ip_connections: formatBooleanFlag(enabled) },
+    );
+  }
+
+  async setNetworkMtu(value: number): Promise<void> {
+    const mtu = toInteger(value, "network MTU");
+    const encodedMtu = mtu.toString(10);
+    await this.commandAndPatch(
+      `client set enforce_network_mtu=1 network_mtu=${encodedMtu}`,
+      { network_mtu: encodedMtu },
     );
   }
 

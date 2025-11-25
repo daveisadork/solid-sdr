@@ -1258,6 +1258,9 @@ export async function defaultFlexHandshake(
     DEFAULT_HANDSHAKE_COMMANDS.map((command) => context.command(command)),
   );
 
+  context.emitProgress({ stage: "sync", detail: "network-mtu" });
+  await context.radio.setNetworkMtu(context.radio.networkMtu);
+
   if (context.dataPlaneFactory) {
     context.emitProgress({ stage: "data-plane" });
     await context.attachDataPlane(context.dataPlaneFactory);

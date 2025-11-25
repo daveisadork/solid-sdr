@@ -369,6 +369,16 @@ describe("createRadioStateStore", () => {
     expect(radio?.raw["netmask"]).toBe("");
   });
 
+  it("tracks network MTU updates from radio status", () => {
+    const store = createRadioStateStore();
+    const status = "S0|radio network_mtu=1472";
+    store.apply(makeStatus(status));
+
+    const radio = store.getRadio();
+    expect(radio?.networkMtu).toBe(1472);
+    expect(radio?.raw["network_mtu"]).toBe("1472");
+  });
+
   it("tracks ATU status updates", () => {
     const store = createRadioStateStore();
     const firstStatus =

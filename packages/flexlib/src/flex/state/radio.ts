@@ -60,6 +60,7 @@ export interface RadioSnapshot {
   readonly ipAddress: string;
   readonly netmask: string;
   readonly gateway: string;
+  readonly networkMtu: number;
   readonly location: string;
   readonly region: string;
   readonly screensaverMode: RadioScreensaverMode;
@@ -245,6 +246,12 @@ function applyRadioSourceAttributes(
       case "gateway":
         partial.gateway = value;
         break;
+      case "network_mtu": {
+        const parsed = parseInteger(value);
+        if (parsed !== undefined) partial.networkMtu = parsed;
+        else logParseError("radio", key, value);
+        break;
+      }
       case "location":
         partial.location = value;
         break;

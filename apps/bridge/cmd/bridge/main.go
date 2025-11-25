@@ -40,7 +40,17 @@ func main() {
 	})
 
 	// ---- HTTP mux ----
-	wsHandler := radio.NewWSHandler(sessions, rtcServer)
+	wsHandler, err := radio.NewWSHandler(sessions, rtcServer, radio.WSOptions{
+		APILogFile: cfg.APILogFile,
+	})
+	if err != nil {
+		log.Fatalf("ws handler: %v", err)
+	}
+	defer func() {
+		if err := wsHandler.Close(); err != nil {
+			log.Printf("ws handler close: %v", err)
+		}
+	}()
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ws/discovery", disco.WSHandler)

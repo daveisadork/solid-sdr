@@ -18,10 +18,19 @@ type WSHandler struct {
 	Sessions *core.SessionManager
 	RTC      *rtc.Server
 
-	Upgrader websocket.Upgrader
+	Upgrader  websocket.Upgrader
+	apiLogger *apiLogger
 }
 
-func NewWSHandler(sessions *core.SessionManager, rtcServer *rtc.Server) *WSHandler {
+type WSOptions struct {
+	APILogFile string
+}
+
+func NewWSHandler(sessions *core.SessionManager, rtcServer *rtc.Server, opts WSOptions) (*WSHandler, error) {
+	logger, err := newAPILogger(opts.APILogFile)
+	if err != nil {
+		return nil, err
+	}
 	return &WSHandler{
 		Sessions: sessions,
 		RTC:      rtcServer,
@@ -31,7 +40,15 @@ func NewWSHandler(sessions *core.SessionManager, rtcServer *rtc.Server) *WSHandl
 			CheckOrigin:       func(*http.Request) bool { return true },
 			EnableCompression: false, // avoid permessage-deflate
 		},
+		apiLogger: logger,
+	}, nil
+}
+
+func (h *WSHandler) Close() error {
+	if h == nil || h.apiLogger == nil {
+		return nil
 	}
+	return h.apiLogger.Close()
 }
 
 // /ws/radio?host=X&port=Y
@@ -103,7 +120,11 @@ func (h *WSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		rs.HandleU32 = uint32(u)
 	}
 
+	connLog := h.apiLogger.NewConnection(handleHex, host, basePort)
+
 	// Forward the first two lines TRIMMED to the frontend
+	connLog.LogInbound(l1)
+	connLog.LogInbound(l2)
 	_ = ws.WriteMessage(websocket.TextMessage, []byte(versionLine))
 	_ = ws.WriteMessage(websocket.TextMessage, []byte(handleLine))
 
@@ -118,6 +139,7 @@ func (h *WSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 			line := strings.TrimSpace(b)
 			log.Printf("[ws] %s:%d <%s", host, basePort, line)
+			connLog.LogInbound(line)
 
 			// Forward trimmed line to UI
 			if err := ws.WriteMessage(websocket.TextMessage, []byte(line)); err != nil {
@@ -144,6 +166,7 @@ func (h *WSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		if mt == websocket.TextMessage || mt == websocket.BinaryMessage {
 			log.Printf("[ws] %s:%d >%s", host, basePort, strings.TrimSpace(string(msg)))
+			connLog.LogOutbound(strings.TrimSpace(string(msg)))
 			// Pass through as-is; UI includes newline when needed.
 			if _, err := tcp.Write(msg); err != nil {
 				break

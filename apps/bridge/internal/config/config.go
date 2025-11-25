@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/pflag"
@@ -24,8 +25,18 @@ type Config struct {
 	StunURLs     []string `mapstructure:"stun"`
 	NAT1To1IPs   []string `mapstructure:"nat-1to1-ips"`
 
+	// Diagnostics
+	APILogFile string `mapstructure:"api-log-file"`
+
 	// Config file path (optional)
 	ConfigFile string `mapstructure:"-"`
+}
+
+func defaultAPILogPath() string {
+	if _, err := os.Stat(filepath.Join("apps", "bridge")); err == nil {
+		return filepath.Join("apps", "bridge", "messages.txt")
+	}
+	return "messages.txt"
 }
 
 func Load() (Config, error) {
@@ -48,6 +59,7 @@ func Load() (Config, error) {
 		"stun:stun.cloudflare.com:3478",
 	}, "Comma-separated STUN URLs")
 	fs.StringSlice("nat-1to1-ips", nil, "Optional public IPs for NAT 1:1 mapping (e.g. 203.0.113.2,2001:db8::2)")
+	fs.String("api-log-file", defaultAPILogPath(), "Path to write raw TCP API messages (set empty to disable)")
 	fs.String("config", "", "Path to optional config file")
 
 	// Usage
@@ -109,8 +121,8 @@ Config file:
 		return cfg, fmt.Errorf("unmarshal: %w", err)
 	}
 	cfg.ConfigFile = v.ConfigFileUsed()
-	log.Printf("[config] http=:%d static=%q ice=%d..%d file=%q\n",
-		cfg.HTTPPort, cfg.StaticDir, cfg.ICEPortStart, cfg.ICEPortEnd, cfg.ConfigFile)
+	log.Printf("[config] http=:%d static=%q ice=%d..%d api-log=%q file=%q\n",
+		cfg.HTTPPort, cfg.StaticDir, cfg.ICEPortStart, cfg.ICEPortEnd, cfg.APILogFile, cfg.ConfigFile)
 
 	// Sanity checks
 	if cfg.ICEPortEnd < cfg.ICEPortStart {

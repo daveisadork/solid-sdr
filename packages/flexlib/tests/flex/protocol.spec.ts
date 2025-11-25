@@ -61,4 +61,18 @@ describe("parseFlexMessage", () => {
     expect(message.attributes["time"]).toBe("11:22:37Z");
     expect(message.attributes["track"]).toBe("0.0");
   });
+
+  it("parses profile list values with embedded spaces", () => {
+    const raw =
+      "S42|profile mic list=Default^Default FHM-1^Default FHM-1 DX^";
+    const message = parseFlexMessage(raw, Date.now());
+    expect(message).toBeDefined();
+    if (!message || message.kind !== "status")
+      throw new Error("expected status");
+    expect(message.source).toBe("profile");
+    expect(message.identifier).toBe("mic");
+    expect(message.attributes["list"]).toBe(
+      "Default^Default FHM-1^Default FHM-1 DX^",
+    );
+  });
 });

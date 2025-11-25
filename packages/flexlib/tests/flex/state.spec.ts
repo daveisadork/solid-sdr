@@ -121,6 +121,84 @@ describe("createRadioStateStore", () => {
     expect(pan?.attachedSlices).toEqual(["0"]);
   });
 
+  it("parses interlock status and tx band settings", () => {
+    const store = createRadioStateStore();
+    store.apply(
+      makeStatus(
+        "S1|interlock tx_allowed=0 tx_client_handle=0x7F7C21E0 state=PTT_REQUESTED reason=RCA_TXREQ timeout=5000 source=MIC amplifier=AA,BB acc_txreq_enable=1 acc_txreq_polarity=1 rca_txreq_enable=0 tx1_enabled=1 tx1_delay=35 tx_delay=10",
+      ),
+    );
+    const radio = store.getRadio();
+    expect(radio?.interlockState).toBe("PTT_REQUESTED");
+    expect(radio?.interlockReason).toBe("RCA_TXREQ");
+    expect(radio?.interlockTimeoutMs).toBe(5000);
+    expect(radio?.interlockTx1Enabled).toBe(true);
+    expect(radio?.interlockTx1DelayMs).toBe(35);
+    expect(radio?.interlockTxDelayMs).toBe(10);
+    expect(radio?.interlockAmplifierHandles).toEqual(["AA", "BB"]);
+    expect(radio?.txAllowed).toBe(false);
+    expect(radio?.mox).toBe(true);
+
+    store.apply(
+      makeStatus(
+        "S1|interlock band 1 band_name=160m rfpower=25 tunepower=10 hwalc_enabled=1 inhibit=0 acc_txreq_enable=1 rca_txreq_enable=0 acc_tx_enabled=1 tx1_enabled=1 tx2_enabled=0 tx3_enabled=0",
+      ),
+    );
+    const band = store.getTxBandSetting("1");
+    expect(band).toBeDefined();
+    expect(band?.bandName).toBe("160m");
+    expect(band?.rfPower).toBe(25);
+    expect(band?.tunePower).toBe(10);
+    expect(band?.hwAlcEnabled).toBe(true);
+    expect(band?.pttInhibit).toBe(false);
+    expect(band?.accTxReqEnabled).toBe(true);
+    expect(band?.rcaTxReqEnabled).toBe(false);
+    expect(band?.accTxEnabled).toBe(true);
+    expect(band?.rcaTx1Enabled).toBe(true);
+
+    store.apply(makeStatus("S1|interlock band 1 removed"));
+    expect(store.getTxBandSetting("1")).toBeUndefined();
+  });
+
+  it("parses transmit status fields", () => {
+    const store = createRadioStateStore();
+    store.apply(
+      makeStatus(
+        "S1|transmit max_power_level=90 rfpower=40 tunepower=15 lo=100 hi=3200 tx_filter_changes_allowed=1 tx_rf_power_changes_allowed=0 am_carrier_level=30 mic_level=55 mic_boost=1 mon_available=1 hwalc_enabled=1 inhibit=0 mic_bias=1 mic_acc=0 dax=1 compander=1 compander_level=25 pitch=500 speed=28 synccwx=1 iambic=1 iambic_mode=1 swap_paddles=0 break_in=1 sidetone=1 cwl_enabled=1 break_in_delay=200 sb_monitor=1 mon_gain_cw=30 mon_gain_sb=40 mon_pan_cw=60 mon_pan_sb=45 speech_processor_enable=1 speech_processor_level=50 vox_enable=1 vox_level=40 vox_delay=20 tune=1 tune_mode=two_tone met_in_rx=1 show_tx_in_waterfall=1 raw_iq_enable=0",
+      ),
+    );
+    const radio = store.getRadio();
+    expect(radio?.maxPowerLevel).toBe(90);
+    expect(radio?.rfPower).toBe(40);
+    expect(radio?.tunePower).toBe(15);
+    expect(radio?.txFilterLowHz).toBe(100);
+    expect(radio?.txFilterHighHz).toBe(3200);
+    expect(radio?.amCarrierLevel).toBe(30);
+    expect(radio?.micLevel).toBe(55);
+    expect(radio?.micBoost).toBe(true);
+    expect(radio?.hwAlcEnabled).toBe(true);
+    expect(radio?.txInhibit).toBe(false);
+    expect(radio?.micBias).toBe(true);
+    expect(radio?.daxEnabled).toBe(true);
+    expect(radio?.companderEnabled).toBe(true);
+    expect(radio?.companderLevel).toBe(25);
+    expect(radio?.speechProcessorEnabled).toBe(true);
+    expect(radio?.speechProcessorLevel).toBe(50);
+    expect(radio?.voxEnabled).toBe(true);
+    expect(radio?.voxLevel).toBe(40);
+    expect(radio?.voxDelay).toBe(20);
+    expect(radio?.txTune).toBe(true);
+    expect(radio?.tuneMode).toBe("two_tone");
+    expect(radio?.meterInRx).toBe(true);
+    expect(radio?.showTxInWaterfall).toBe(true);
+    expect(radio?.txRawIqEnabled).toBe(false);
+    expect(radio?.txMonitorEnabled).toBe(true);
+    expect(radio?.txCwMonitorGain).toBe(30);
+    expect(radio?.txSbMonitorGain).toBe(40);
+    expect(radio?.txCwMonitorPan).toBe(60);
+    expect(radio?.txSbMonitorPan).toBe(45);
+  });
+
   it("handles real meter metadata and removal", () => {
     const store = createRadioStateStore();
     store.apply(makeStatus(METER_STATUS));

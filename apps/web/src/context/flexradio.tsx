@@ -43,6 +43,7 @@ import {
   type FeatureLicenseSnapshot,
   EqualizerSnapshot,
   ApdSnapshot,
+  TxBandSettingSnapshot,
 } from "@repo/flexlib";
 import { createWebSocketFlexControlFactory } from "~/lib/flex-control";
 import { useRtc } from "./rtc";
@@ -81,16 +82,6 @@ export interface Gradient {
   colors: string[];
 }
 
-export interface IterlockBand {
-  acc_tx_enabled: boolean; // "0"
-  acc_txreq_enable: boolean; //  "0"
-  band_name: string; // "630"
-  rca_txreq_enable: boolean; // "0"
-  tx1_enabled: boolean; // "0"
-  tx2_enabled: boolean; // "0"
-  tx3_enabled: boolean; // "0"
-}
-
 type MutableProps<T> = {
   -readonly [P in keyof T]: T[P];
 };
@@ -104,6 +95,7 @@ export type FeatureLicense = Omit<MutableProps<FeatureLicenseSnapshot>, "raw">;
 export type GuiClient = Omit<MutableProps<GuiClientSnapshot>, "raw">;
 export type Equalizer = Omit<MutableProps<EqualizerSnapshot>, "raw">;
 export type APD = Omit<MutableProps<ApdSnapshot>, "raw">;
+export type TxBandSetting = Omit<MutableProps<TxBandSettingSnapshot>, "raw">;
 
 export interface Gradient {
   name: string;
@@ -139,13 +131,11 @@ export interface StatusState {
   slice: Record<string, Slice>;
   panadapter: Record<string, Panadapter>;
   waterfall: Record<string, Waterfall>;
-  interlock: {
-    band: Record<string, IterlockBand>;
-  };
   radio: Radio;
   featureLicense: FeatureLicense;
   audioStream: Record<string, AudioStream>;
   guiClient: Record<string, GuiClient>;
+  txBandSetting: Record<string, TxBandSetting>;
 }
 
 export interface AppState {
@@ -267,9 +257,6 @@ export const initialState = () =>
       slice: {},
       panadapter: {},
       waterfall: {},
-      interlock: {
-        band: {},
-      },
       guiClient: {},
       radio: {
         // // slices: 4,
@@ -308,6 +295,7 @@ export const initialState = () =>
       },
       featureLicense: {},
       audioStream: {},
+      txBandSetting: {},
     },
   }) as AppState;
 
@@ -498,7 +486,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         setState("status", change.entity, change.diff);
         break;
       case "unknown":
-        console.warn("Unknown state change", change);
+        // console.warn("Unknown state change", change);
         break;
       default:
         if (change.removed) {

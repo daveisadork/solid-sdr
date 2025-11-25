@@ -299,6 +299,20 @@ function parseAttributes(
     return { attributes, identifier: identifier ?? "gps" };
   }
 
+  if (source === "profile") {
+    if (!segment) return { attributes, identifier };
+    const equals = segment.indexOf("=");
+    if (equals === -1) {
+      const key = segment.trim();
+      if (key) attributes[key] = "";
+    } else {
+      const key = segment.slice(0, equals).trim();
+      const value = segment.slice(equals + 1);
+      if (key) attributes[key] = value;
+    }
+    return { attributes, identifier };
+  }
+
   if (!segment) return { attributes, identifier };
 
   parseSpaceSeparatedAttributes(segment, attributes);

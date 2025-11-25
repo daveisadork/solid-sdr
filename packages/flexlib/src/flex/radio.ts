@@ -650,14 +650,16 @@ export class RadioControllerImpl implements RadioController {
 
   async setNickname(nickname: string): Promise<void> {
     const sanitized = sanitizeNickname(nickname);
-    this.session.patchRadio({ nickname: sanitized });
-    await this.session.command(`radio name ${sanitized}`);
+    await this.commandAndPatch(`radio name ${sanitized}`, {
+      nickname: sanitized,
+    });
   }
 
   async setCallsign(callsign: string): Promise<void> {
     const sanitized = sanitizeCallsign(callsign);
-    this.session.patchRadio({ callsign: sanitized });
-    await this.session.command(`radio callsign ${sanitized}`);
+    await this.commandAndPatch(`radio callsign ${sanitized}`, {
+      callsign: sanitized,
+    });
   }
 
   async setFullDuplexEnabled(enabled: boolean): Promise<void> {
@@ -952,7 +954,16 @@ export class RadioControllerImpl implements RadioController {
     context?: RadioStatusContext,
   ): Promise<void> {
     this.session.patchRadio(attributes, context);
-    await this.session.command(command);
+    try {
+      await this.session.command(command);
+    } catch (error) {
+      try {
+        await this.refreshInfo();
+      } catch {
+        // ignore refresh failures; original rejection is what matters
+      }
+      throw error;
+    }
   }
 
   private async loadProfileSelection(
@@ -960,11 +971,11 @@ export class RadioControllerImpl implements RadioController {
     name: string,
   ): Promise<void> {
     const prepared = prepareProfileNameInput(name);
-    this.session.patchRadio(
+    await this.commandAndPatch(
+      `profile ${domain} load ${prepared.encoded}`,
       { current: prepared.normalized },
       { source: "profile", identifier: domain },
     );
-    await this.session.command(`profile ${domain} load ${prepared.encoded}`);
   }
 
   private async sendProfileCommand(

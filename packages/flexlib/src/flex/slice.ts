@@ -956,7 +956,12 @@ export class SliceControllerImpl implements SliceController {
     this.session.patchSlice(this.id, {
       freq: formattedFrequency,
     });
-    await this.session.command(`slice tune ${this.id} ${formattedFrequency}`);
+    try {
+      await this.session.command(`slice tune ${this.id} ${formattedFrequency}`);
+    } catch (error) {
+      await this.session.command(`sub slice ${this.id}`);
+      throw error;
+    }
   }
 
   async nudge(deltaHz: number): Promise<void> {
@@ -987,7 +992,12 @@ export class SliceControllerImpl implements SliceController {
     this.session.patchSlice(this.id, {
       lock: formatBooleanFlag(locked),
     });
-    await this.session.command(command);
+    try {
+      await this.session.command(command);
+    } catch (error) {
+      await this.session.command(`sub slice ${this.id}`);
+      throw error;
+    }
   }
 
   async enableTransmit(enabled: boolean): Promise<void> {
@@ -1280,7 +1290,12 @@ export class SliceControllerImpl implements SliceController {
     );
     const command = `slice set ${this.id} ${parts.join(" ")}`;
     this.session.patchSlice(this.id, { index: this.id, ...entries });
-    await this.session.command(command);
+    try {
+      await this.session.command(command);
+    } catch (error) {
+      await this.session.command(`sub slice ${this.id}`);
+      throw error;
+    }
   }
 
   private buildSetEntries(

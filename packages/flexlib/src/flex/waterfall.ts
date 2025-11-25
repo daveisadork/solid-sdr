@@ -1,29 +1,18 @@
 import type { FlexCommandOptions, FlexCommandResponse } from "./adapters.js";
 import type { WaterfallSnapshot, WaterfallStateChange } from "./state/index.js";
 import { TypedEventEmitter, type Subscription } from "../util/events.js";
-import {
-  FlexClientClosedError,
-  FlexError,
-  FlexStateUnavailableError,
-} from "./errors.js";
-import { parseRfGainInfo } from "./rf-gain.js";
+import { FlexClientClosedError, FlexStateUnavailableError } from "./errors.js";
 import type { RfGainInfo } from "./rf-gain.js";
 import {
   buildDisplaySetCommand,
   formatBooleanFlag,
-  formatDbm,
   formatInteger,
-  formatMegahertz,
 } from "./controller-helpers.js";
 import {
   clampLineSpeed,
   lineSpeedToDurationMs,
 } from "./waterfall-line-speed.js";
-import type {
-  UdpPacketEvent,
-  UdpScope,
-  UdpSession,
-} from "./udp-session.js";
+import type { UdpPacketEvent, UdpScope, UdpSession } from "./udp-session.js";
 
 export interface WaterfallControllerEvents extends Record<string, unknown> {
   readonly change: WaterfallStateChange;
@@ -31,19 +20,6 @@ export interface WaterfallControllerEvents extends Record<string, unknown> {
 }
 
 export interface WaterfallUpdateRequest {
-  centerFrequencyMHz?: number;
-  bandwidthMHz?: number;
-  lowDbm?: number;
-  highDbm?: number;
-  fps?: number;
-  average?: number;
-  weightedAverage?: boolean;
-  rxAntenna?: string;
-  rfGain?: number;
-  daxIqChannel?: number;
-  loopAEnabled?: boolean;
-  loopBEnabled?: boolean;
-  band?: string;
   lineSpeed?: number;
   blackLevel?: number;
   colorGain?: number;
@@ -67,26 +43,6 @@ export interface WaterfallController {
   readonly state: WaterfallSnapshot;
   readonly streamId: string;
   readonly panadapterStreamId: string;
-  /** @deprecated Use panadapterStreamId instead. */
-  readonly panadapterStream: string;
-  readonly centerFrequencyMHz: number;
-  readonly bandwidthMHz: number;
-  readonly lowDbm: number;
-  readonly highDbm: number;
-  readonly fps: number;
-  readonly average: number;
-  readonly weightedAverage: boolean;
-  readonly rxAntenna: string;
-  readonly rfGain: number;
-  readonly rfGainLow: number;
-  readonly rfGainHigh: number;
-  readonly rfGainStep: number;
-  readonly rfGainMarkers: readonly number[];
-  readonly daxIqChannel: number;
-  readonly loopAEnabled: boolean;
-  readonly loopBEnabled: boolean;
-  readonly wideEnabled: boolean;
-  readonly band: string;
   readonly width: number;
   readonly height: number;
   /** Raw 0-100 line speed as reported by the radio. */
@@ -103,29 +59,11 @@ export interface WaterfallController {
     event: TKey,
     listener: (payload: WaterfallControllerEvents[TKey]) => void,
   ): Subscription;
-  setCenterFrequency(frequencyMHz: number): Promise<void>;
-  setBandwidth(
-    bandwidthMHz: number,
-    options?: { autoCenter?: boolean },
-  ): Promise<void>;
-  setMinDbm(value: number): Promise<void>;
-  setMaxDbm(value: number): Promise<void>;
-  setDbmRange(range: { low: number; high: number }): Promise<void>;
-  setFps(value: number): Promise<void>;
-  setAverage(value: number): Promise<void>;
-  setWeightedAverage(enabled: boolean): Promise<void>;
-  setRxAntenna(port: string): Promise<void>;
-  setRfGain(value: number): Promise<void>;
-  setDaxIqChannel(channel: number): Promise<void>;
-  setLoopAEnabled(enabled: boolean): Promise<void>;
-  setLoopBEnabled(enabled: boolean): Promise<void>;
-  setBand(band: string): Promise<void>;
   setLineSpeed(value: number): Promise<void>;
   setBlackLevel(level: number): Promise<void>;
   setColorGain(value: number): Promise<void>;
   setAutoBlackLevelEnabled(enabled: boolean): Promise<void>;
   setGradientIndex(index: number): Promise<void>;
-  refreshRfGainInfo(): Promise<void>;
   update(request: WaterfallUpdateRequest): Promise<void>;
   close(): Promise<void>;
 }
@@ -163,84 +101,8 @@ export class WaterfallControllerImpl implements WaterfallController {
     return this.current().streamId;
   }
 
-  get panadapterStream(): string {
-    return this.current().panadapterStreamId;
-  }
-
   get panadapterStreamId(): string {
     return this.current().panadapterStreamId;
-  }
-
-  get centerFrequencyMHz(): number {
-    return this.current().centerFrequencyMHz;
-  }
-
-  get bandwidthMHz(): number {
-    return this.current().bandwidthMHz;
-  }
-
-  get lowDbm(): number {
-    return this.current().lowDbm;
-  }
-
-  get highDbm(): number {
-    return this.current().highDbm;
-  }
-
-  get fps(): number {
-    return this.current().fps;
-  }
-
-  get average(): number {
-    return this.current().average;
-  }
-
-  get weightedAverage(): boolean {
-    return this.current().weightedAverage;
-  }
-
-  get rxAntenna(): string {
-    return this.current().rxAntenna;
-  }
-
-  get rfGain(): number {
-    return this.current().rfGain;
-  }
-
-  get rfGainLow(): number {
-    return this.current().rfGainLow;
-  }
-
-  get rfGainHigh(): number {
-    return this.current().rfGainHigh;
-  }
-
-  get rfGainStep(): number {
-    return this.current().rfGainStep;
-  }
-
-  get rfGainMarkers(): readonly number[] {
-    return this.current().rfGainMarkers;
-  }
-
-  get daxIqChannel(): number {
-    return this.current().daxIqChannel;
-  }
-
-  get loopAEnabled(): boolean {
-    return this.current().loopAEnabled;
-  }
-
-  get loopBEnabled(): boolean {
-    return this.current().loopBEnabled;
-  }
-
-  get wideEnabled(): boolean {
-    return this.current().wideEnabled;
-  }
-
-  get band(): string {
-    return this.current().band;
   }
 
   get width(): number {
@@ -303,70 +165,6 @@ export class WaterfallControllerImpl implements WaterfallController {
     return this.events.on(event, listener);
   }
 
-  async setCenterFrequency(frequencyMHz: number): Promise<void> {
-    await this.sendSet({ center: formatMegahertz(frequencyMHz) });
-  }
-
-  async setBandwidth(
-    bandwidthMHz: number,
-    options?: { autoCenter?: boolean },
-  ): Promise<void> {
-    const extras: string[] = [];
-    if (options?.autoCenter) extras.push("autocenter=1");
-    await this.sendSet({ bandwidth: formatMegahertz(bandwidthMHz) }, extras);
-  }
-
-  async setMinDbm(value: number): Promise<void> {
-    await this.sendSet({ min_dbm: formatDbm(value) });
-  }
-
-  async setMaxDbm(value: number): Promise<void> {
-    await this.sendSet({ max_dbm: formatDbm(value) });
-  }
-
-  async setDbmRange(range: { low: number; high: number }): Promise<void> {
-    await this.sendSet({
-      min_dbm: formatDbm(range.low),
-      max_dbm: formatDbm(range.high),
-    });
-  }
-
-  async setFps(value: number): Promise<void> {
-    await this.sendSet({ fps: formatInteger(value) });
-  }
-
-  async setAverage(value: number): Promise<void> {
-    await this.sendSet({ average: formatInteger(value) });
-  }
-
-  async setWeightedAverage(enabled: boolean): Promise<void> {
-    await this.sendSet({ weighted_average: formatBooleanFlag(enabled) });
-  }
-
-  async setRxAntenna(port: string): Promise<void> {
-    await this.sendSet({ rxant: port });
-  }
-
-  async setRfGain(value: number): Promise<void> {
-    await this.sendSet({ rfgain: formatInteger(value) });
-  }
-
-  async setDaxIqChannel(channel: number): Promise<void> {
-    await this.sendSet({ daxiq_channel: formatInteger(channel) });
-  }
-
-  async setLoopAEnabled(enabled: boolean): Promise<void> {
-    await this.sendSet({ loopa: formatBooleanFlag(enabled) });
-  }
-
-  async setLoopBEnabled(enabled: boolean): Promise<void> {
-    await this.sendSet({ loopb: formatBooleanFlag(enabled) });
-  }
-
-  async setBand(band: string): Promise<void> {
-    await this.sendSet({ band });
-  }
-
   async setLineSpeed(value: number): Promise<void> {
     await this.sendSet({ line_duration: formatInteger(clampLineSpeed(value)) });
   }
@@ -385,23 +183,6 @@ export class WaterfallControllerImpl implements WaterfallController {
 
   async setGradientIndex(index: number): Promise<void> {
     await this.sendSet({ gradient_index: formatInteger(index) });
-  }
-
-  async refreshRfGainInfo(): Promise<void> {
-    const stream = this.requireStreamHandle();
-    const response = await this.session.command(
-      `display panafall rfgain_info ${stream}`,
-    );
-    if (!response.message) {
-      throw new FlexError("Flex radio returned no RF gain info");
-    }
-    const info = parseRfGainInfo(response.message);
-    if (!info) {
-      throw new FlexError(
-        `Unable to parse RF gain info reply: ${response.message}`,
-      );
-    }
-    this.session.applyWaterfallRfGainInfo(this.id, info);
   }
 
   async update(request: WaterfallUpdateRequest): Promise<void> {
@@ -431,29 +212,6 @@ export class WaterfallControllerImpl implements WaterfallController {
     request: WaterfallUpdateRequest,
   ): Record<string, string> {
     const entries = Object.create(null) as Record<string, string>;
-    if (request.centerFrequencyMHz !== undefined)
-      entries.center = formatMegahertz(request.centerFrequencyMHz);
-    if (request.bandwidthMHz !== undefined)
-      entries.bandwidth = formatMegahertz(request.bandwidthMHz);
-    if (request.lowDbm !== undefined)
-      entries.min_dbm = formatDbm(request.lowDbm);
-    if (request.highDbm !== undefined)
-      entries.max_dbm = formatDbm(request.highDbm);
-    if (request.fps !== undefined) entries.fps = formatInteger(request.fps);
-    if (request.average !== undefined)
-      entries.average = formatInteger(request.average);
-    if (request.weightedAverage !== undefined)
-      entries.weighted_average = formatBooleanFlag(request.weightedAverage);
-    if (request.rxAntenna !== undefined) entries.rxant = request.rxAntenna;
-    if (request.rfGain !== undefined)
-      entries.rfgain = formatInteger(request.rfGain);
-    if (request.daxIqChannel !== undefined)
-      entries.daxiq_channel = formatInteger(request.daxIqChannel);
-    if (request.loopAEnabled !== undefined)
-      entries.loopa = formatBooleanFlag(request.loopAEnabled);
-    if (request.loopBEnabled !== undefined)
-      entries.loopb = formatBooleanFlag(request.loopBEnabled);
-    if (request.band !== undefined) entries.band = request.band;
     if (request.lineSpeed !== undefined)
       entries.line_duration = formatInteger(clampLineSpeed(request.lineSpeed));
     if (request.blackLevel !== undefined)

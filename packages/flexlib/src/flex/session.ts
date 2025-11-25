@@ -1231,7 +1231,9 @@ const DEFAULT_HANDSHAKE_COMMANDS: readonly string[] = [
   "sub ale all",
   "sub log_manager",
   "sub radio all",
+  // "sub codec all",
   "sub apd all",
+  "sub dvk all",
   "keepalive enable",
 ];
 

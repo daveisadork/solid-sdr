@@ -844,6 +844,10 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     teardownRadioConnection({ resetState: false });
   });
 
+  createEffect(() => {
+    window.radio = activeRadio();
+  });
+
   return (
     <FlexRadioContext.Provider
       value={{

@@ -20,11 +20,7 @@ import {
   formatInteger,
   formatMegahertz,
 } from "./controller-helpers.js";
-import type {
-  UdpPacketEvent,
-  UdpScope,
-  UdpSession,
-} from "./udp-session.js";
+import type { UdpPacketEvent, UdpScope, UdpSession } from "./udp-session.js";
 
 export interface PanadapterControllerEvents extends Record<string, unknown> {
   readonly change: PanadapterStateChange;
@@ -79,6 +75,7 @@ export interface PanadapterController {
   readonly id: string;
   readonly state: PanadapterSnapshot;
   readonly streamId: string;
+  readonly band: string;
   readonly centerFrequencyMHz: number;
   readonly bandwidthMHz: number;
   readonly autoCenterEnabled: boolean;
@@ -207,6 +204,10 @@ export class PanadapterControllerImpl implements PanadapterController {
 
   get streamId(): string {
     return this.current().streamId;
+  }
+
+  get band(): string {
+    return this.current().band;
   }
 
   get centerFrequencyMHz(): number {
@@ -657,7 +658,12 @@ export class PanadapterControllerImpl implements PanadapterController {
     const stream = this.requireStreamHandle();
     const command = buildDisplaySetCommand("display pan set", stream, entries);
     this.session.patchPanadapter(this.id, { stream_id: stream, ...entries });
-    await this.session.command(command);
+    try {
+      await this.session.command(command);
+    } catch (error) {
+      await this.session.command("sub pan all");
+      throw error;
+    }
   }
 
   private ensureDataPipeline(): void {

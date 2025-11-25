@@ -18,16 +18,21 @@ import {
   type EqualizerId,
   type EqualizerSnapshot,
 } from "./equalizer.js";
-import { createMeterSnapshot } from "./meter.js";
-import type { MeterSnapshot } from "./meter.js";
-import { createPanadapterSnapshot } from "./panadapter.js";
-import type { PanadapterSnapshot } from "./panadapter.js";
-import { createRadioSnapshot } from "./radio.js";
-import type { RadioSnapshot, RadioStatusContext } from "./radio.js";
-import { createSliceSnapshot } from "./slice.js";
-import type { SliceSnapshot } from "./slice.js";
-import { createWaterfallSnapshot } from "./waterfall.js";
-import type { WaterfallSnapshot } from "./waterfall.js";
+import { createMeterSnapshot, type MeterSnapshot } from "./meter.js";
+import {
+  createPanadapterSnapshot,
+  type PanadapterSnapshot,
+} from "./panadapter.js";
+import {
+  createRadioSnapshot,
+  type RadioSnapshot,
+  type RadioStatusContext,
+} from "./radio.js";
+import { createSliceSnapshot, type SliceSnapshot } from "./slice.js";
+import {
+  createWaterfallSnapshot,
+  type WaterfallSnapshot,
+} from "./waterfall.js";
 import {
   createGuiClientSnapshot,
   type GuiClientSnapshot,
@@ -772,9 +777,7 @@ export function createRadioStateStore(
     };
   }
 
-  function handleAtu(
-    message: FlexStatusMessage,
-  ): RadioStateChange | undefined {
+  function handleAtu(message: FlexStatusMessage): RadioStateChange | undefined {
     return patchRadio(message.attributes, {
       source: message.source,
       identifier: message.identifier,

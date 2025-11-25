@@ -37,6 +37,10 @@ import {
   createGuiClientSnapshot,
   type GuiClientSnapshot,
 } from "./gui-client.js";
+import {
+  createTxBandSettingSnapshot,
+  type TxBandSettingSnapshot,
+} from "./tx-band-settings.js";
 
 export type { SnapshotDiff } from "./common.js";
 export type { SliceSnapshot } from "./slice.js";
@@ -47,12 +51,17 @@ export type { FeatureLicenseSnapshot } from "./feature-license.js";
 export type { ApdSnapshot } from "./apd.js";
 export type { EqualizerSnapshot, EqualizerId } from "./equalizer.js";
 export type { KnownMeterUnits, MeterSnapshot, MeterUnits } from "./meter.js";
+export type { TxBandSettingSnapshot } from "./tx-band-settings.js";
 export type {
   RadioAtuTuneStatus,
   RadioFilterSharpnessMode,
   RadioOscillatorSetting,
   RadioScreensaverMode,
   RadioLogModule,
+  RadioInterlockState,
+  RadioInterlockReason,
+  RadioPttSource,
+  RadioCwIambicMode,
   RadioSnapshot as RadioSnapshot,
   RadioStatusContext,
 } from "./radio.js";
@@ -78,6 +87,10 @@ export type RadioStateChange =
       entity: "audioStream";
       id: string;
     } & ChangeMetadata<AudioStreamSnapshot>)
+  | ({
+      entity: "txBandSetting";
+      id: string;
+    } & ChangeMetadata<TxBandSettingSnapshot>)
   | ({ entity: "guiClient"; id: string } & ChangeMetadata<GuiClientSnapshot>)
   | ({ entity: "radio" } & ChangeMetadata<RadioSnapshot>)
   | ({ entity: "featureLicense" } & ChangeMetadata<FeatureLicenseSnapshot>)
@@ -112,6 +125,10 @@ export type GuiClientStateChange = Extract<
   RadioStateChange,
   { entity: "guiClient" }
 >;
+export type TxBandSettingStateChange = Extract<
+  RadioStateChange,
+  { entity: "txBandSetting" }
+>;
 
 export interface RadioStateSnapshot {
   readonly slices: readonly SliceSnapshot[];
@@ -121,6 +138,7 @@ export interface RadioStateSnapshot {
   readonly audioStreams: readonly AudioStreamSnapshot[];
   readonly guiClients: readonly GuiClientSnapshot[];
   readonly equalizers: readonly EqualizerSnapshot[];
+  readonly txBandSettings: readonly TxBandSettingSnapshot[];
   readonly radio: RadioSnapshot;
   readonly featureLicense?: FeatureLicenseSnapshot;
   readonly apd?: ApdSnapshot;
@@ -138,6 +156,8 @@ export interface RadioStateStore {
   getGuiClients(): readonly GuiClientSnapshot[];
   getEqualizer(id: EqualizerId): EqualizerSnapshot | undefined;
   getEqualizers(): readonly EqualizerSnapshot[];
+  getTxBandSetting(id: string): TxBandSettingSnapshot | undefined;
+  getTxBandSettings(): readonly TxBandSettingSnapshot[];
   getApd(): ApdSnapshot | undefined;
   getRadio(): RadioSnapshot | undefined;
   getFeatureLicense(): FeatureLicenseSnapshot | undefined;
@@ -165,6 +185,10 @@ export interface RadioStateStore {
     id: EqualizerId,
     attributes: Record<string, string>,
   ): EqualizerStateChange | undefined;
+  patchTxBandSetting(
+    id: string,
+    attributes: Record<string, string>,
+  ): TxBandSettingStateChange | undefined;
   patchApd(attributes: Record<string, string>): ApdStateChange | undefined;
   applyPanadapterRfGainInfo(
     id: string,
@@ -195,6 +219,7 @@ export function createRadioStateStore(
   const guiClients = new Map<string, GuiClientSnapshot>();
   const guiClientsByHandle = new Map<number, string>();
   const equalizers = new Map<EqualizerId, EqualizerSnapshot>();
+  const txBandSettings = new Map<string, TxBandSettingSnapshot>();
   let radio: RadioSnapshot;
   let featureLicense: FeatureLicenseSnapshot | undefined;
   let apd: ApdSnapshot | undefined;
@@ -214,6 +239,15 @@ export function createRadioStateStore(
         case "radio":
         case "gps":
           return [handleRadio(message)];
+        case "interlock":
+        case "transmit": {
+          if (message.identifier === "band") {
+            const change = handleTxBandSetting(message);
+            if (change) return [change];
+            return [];
+          }
+          return [handleRadio(message)];
+        }
         case "client":
           return handleClient(message);
         case "eq": {
@@ -273,6 +307,7 @@ export function createRadioStateStore(
         audioStreams: Array.from(audioStreams.values()),
         guiClients: Array.from(guiClients.values()),
         equalizers: Array.from(equalizers.values()),
+        txBandSettings: Array.from(txBandSettings.values()),
         radio,
         featureLicense,
         apd,
@@ -305,6 +340,12 @@ export function createRadioStateStore(
     getEqualizers() {
       return Array.from(equalizers.values());
     },
+    getTxBandSetting(id) {
+      return txBandSettings.get(id);
+    },
+    getTxBandSettings() {
+      return Array.from(txBandSettings.values());
+    },
     getApd() {
       return apd;
     },
@@ -331,6 +372,9 @@ export function createRadioStateStore(
     },
     patchEqualizer(id, attributes) {
       return patchEqualizer(id, attributes);
+    },
+    patchTxBandSetting(id, attributes) {
+      return patchTxBandSetting(id, attributes);
     },
     patchApd(attributes) {
       return patchApd(attributes);
@@ -577,6 +621,59 @@ export function createRadioStateStore(
     audioStreams.set(id, snapshot);
     return {
       entity: "audioStream",
+      id,
+      diff,
+      removed: false,
+    };
+  }
+
+  function handleTxBandSetting(
+    message: FlexStatusMessage,
+  ): RadioStateChange | undefined {
+    const id =
+      message.positional[0] ??
+      message.attributes["band_id"] ??
+      message.attributes["id"];
+    if (!id) {
+      return {
+        entity: "unknown",
+        source: message.source,
+        id: message.identifier,
+        attributes: message.attributes,
+      };
+    }
+
+    const removed =
+      message.positional.some((token) => token === "removed") ||
+      "removed" in message.attributes;
+    if (removed) {
+      if (!txBandSettings.has(id)) {
+        return {
+          entity: "txBandSetting",
+          id,
+          removed: true,
+        };
+      }
+      txBandSettings.delete(id);
+      return {
+        entity: "txBandSetting",
+        id,
+        removed: true,
+      };
+    }
+
+    const previous = txBandSettings.get(id);
+    const baseAttributes: Record<string, string> = previous
+      ? {}
+      : { band_id: id };
+    const { snapshot, diff } = createTxBandSettingSnapshot(
+      id,
+      { ...baseAttributes, ...message.attributes },
+      previous,
+    );
+    txBandSettings.set(id, snapshot);
+    return {
+      entity: "txBandSetting",
       id,
       diff,
       removed: false,
@@ -1025,6 +1122,31 @@ export function createRadioStateStore(
     if (diffKeys.length === 0) return undefined;
     return {
       entity: "equalizer",
+      id,
+      diff,
+      removed: false,
+    };
+  }
+
+  function patchTxBandSetting(
+    id: string,
+    attributes: Record<string, string>,
+  ): TxBandSettingStateChange | undefined {
+    if (Object.keys(attributes).length === 0) return undefined;
+    const previous = txBandSettings.get(id);
+    const baseAttributes: Record<string, string> = previous
+      ? {}
+      : { band_id: id };
+    const { snapshot, diff } = createTxBandSettingSnapshot(
+      id,
+      { ...baseAttributes, ...attributes },
+      previous,
+    );
+    const diffKeys = Object.keys(diff as Record<string, unknown>);
+    txBandSettings.set(id, snapshot);
+    if (diffKeys.length === 0) return undefined;
+    return {
+      entity: "txBandSetting",
       id,
       diff,
       removed: false,

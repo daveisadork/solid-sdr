@@ -16,6 +16,7 @@ export * from "./discovery.js";
 export * from "./gui-client.js";
 export * from "./control-channel.js";
 export * from "./radio.js";
+export * from "./tx-band-settings.js";
 export * from "./waterfall-line-speed.js";
 export * from "./udp-session.js";
 export * from "./client.js";

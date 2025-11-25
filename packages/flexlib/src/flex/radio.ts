@@ -3,6 +3,9 @@ import type {
   RadioAtuTuneStatus,
   RadioFilterSharpnessMode,
   RadioLogModule,
+  RadioInterlockState,
+  RadioInterlockReason,
+  RadioPttSource,
   RadioOscillatorSetting,
   RadioSnapshot,
   RadioScreensaverMode,
@@ -98,6 +101,19 @@ export interface RadioController {
   get headphoneMute(): boolean;
   get backlightLevel(): number;
   get remoteOnEnabled(): boolean;
+  get mox(): boolean;
+  get txAllowed(): boolean;
+  get interlockState(): RadioInterlockState | undefined;
+  get interlockReason(): RadioInterlockReason | undefined;
+  get interlockTimeoutMs(): number;
+  get txDelayMs(): number;
+  get maxPowerLevel(): number;
+  get rfPower(): number;
+  get tunePower(): number;
+  get txFilterLowHz(): number;
+  get txFilterHighHz(): number;
+  get txTune(): boolean;
+  get tuneMode(): "single_tone" | "two_tone" | undefined;
   get pllDone(): boolean;
   get tnfEnabled(): boolean;
   get binauralRx(): boolean;
@@ -159,6 +175,52 @@ export interface RadioController {
   setHeadphoneMute(muted: boolean): Promise<void>;
   setBacklightLevel(level: number): Promise<void>;
   setRemoteOnEnabled(enabled: boolean): Promise<void>;
+  setMox(enabled: boolean): Promise<void>;
+  setTxTune(enabled: boolean): Promise<void>;
+  setTuneMode(mode: "single_tone" | "two_tone"): Promise<void>;
+  setInterlockTimeoutMs(timeoutMs: number): Promise<void>;
+  setTxDelayMs(delayMs: number): Promise<void>;
+  setTxReqRcaEnabled(enabled: boolean): Promise<void>;
+  setTxReqAccEnabled(enabled: boolean): Promise<void>;
+  setTxReqRcaPolarityHigh(enabled: boolean): Promise<void>;
+  setTxReqAccPolarityHigh(enabled: boolean): Promise<void>;
+  setTx1Enabled(enabled: boolean): Promise<void>;
+  setTx2Enabled(enabled: boolean): Promise<void>;
+  setTx3Enabled(enabled: boolean): Promise<void>;
+  setAccTxEnabled(enabled: boolean): Promise<void>;
+  setTx1DelayMs(delayMs: number): Promise<void>;
+  setTx2DelayMs(delayMs: number): Promise<void>;
+  setTx3DelayMs(delayMs: number): Promise<void>;
+  setAccTxDelayMs(delayMs: number): Promise<void>;
+  setMaxPowerLevel(level: number): Promise<void>;
+  setRfPower(level: number): Promise<void>;
+  setTunePower(level: number): Promise<void>;
+  setTxFilter(lowHz: number, highHz: number): Promise<void>;
+  setTxFilterLowHz(lowHz: number): Promise<void>;
+  setTxFilterHighHz(highHz: number): Promise<void>;
+  setAmCarrierLevel(level: number): Promise<void>;
+  setMicLevel(level: number): Promise<void>;
+  setMicBoost(enabled: boolean): Promise<void>;
+  setHwAlcEnabled(enabled: boolean): Promise<void>;
+  setTxInhibit(enabled: boolean): Promise<void>;
+  setMicBias(enabled: boolean): Promise<void>;
+  setMicAccessoryEnabled(enabled: boolean): Promise<void>;
+  setDaxEnabled(enabled: boolean): Promise<void>;
+  setCompanderEnabled(enabled: boolean): Promise<void>;
+  setCompanderLevel(level: number): Promise<void>;
+  setSpeechProcessorEnabled(enabled: boolean): Promise<void>;
+  setSpeechProcessorLevel(level: number): Promise<void>;
+  setVoxEnabled(enabled: boolean): Promise<void>;
+  setVoxLevel(level: number): Promise<void>;
+  setVoxDelay(level: number): Promise<void>;
+  setTxMonitorEnabled(enabled: boolean): Promise<void>;
+  setTxCwMonitorGain(gain: number): Promise<void>;
+  setTxSbMonitorGain(gain: number): Promise<void>;
+  setTxCwMonitorPan(pan: number): Promise<void>;
+  setTxSbMonitorPan(pan: number): Promise<void>;
+  setShowTxInWaterfall(enabled: boolean): Promise<void>;
+  setTxRawIqEnabled(enabled: boolean): Promise<void>;
+  setMeterInRxEnabled(enabled: boolean): Promise<void>;
   setTnfEnabled(enabled: boolean): Promise<void>;
   setBinauralRx(enabled: boolean): Promise<void>;
   setMuteLocalAudioWhenRemote(enabled: boolean): Promise<void>;
@@ -449,6 +511,62 @@ export class RadioControllerImpl implements RadioController {
 
   get remoteOnEnabled(): boolean {
     return this.current()?.remoteOnEnabled ?? false;
+  }
+
+  get mox(): boolean {
+    const snapshot = this.current();
+    if (!snapshot) return false;
+    if (snapshot.mox !== undefined) return snapshot.mox;
+    return isInterlockMoxState(snapshot.interlockState);
+  }
+
+  get txAllowed(): boolean {
+    const snapshot = this.current();
+    return snapshot?.txAllowed ?? true;
+  }
+
+  get interlockState(): RadioInterlockState | undefined {
+    return this.current()?.interlockState;
+  }
+
+  get interlockReason(): RadioInterlockReason | undefined {
+    return this.current()?.interlockReason;
+  }
+
+  get interlockTimeoutMs(): number {
+    return this.current()?.interlockTimeoutMs ?? 0;
+  }
+
+  get txDelayMs(): number {
+    return this.current()?.interlockTxDelayMs ?? 0;
+  }
+
+  get maxPowerLevel(): number {
+    return this.current()?.maxPowerLevel ?? 0;
+  }
+
+  get rfPower(): number {
+    return this.current()?.rfPower ?? 0;
+  }
+
+  get tunePower(): number {
+    return this.current()?.tunePower ?? 0;
+  }
+
+  get txFilterLowHz(): number {
+    return this.current()?.txFilterLowHz ?? 0;
+  }
+
+  get txFilterHighHz(): number {
+    return this.current()?.txFilterHighHz ?? 10_000;
+  }
+
+  get txTune(): boolean {
+    return this.current()?.txTune ?? false;
+  }
+
+  get tuneMode(): "single_tone" | "two_tone" | undefined {
+    return this.current()?.tuneMode;
   }
 
   get pllDone(): boolean {
@@ -775,6 +893,303 @@ export class RadioControllerImpl implements RadioController {
     });
   }
 
+  async setMox(enabled: boolean): Promise<void> {
+    const encoded = formatBooleanFlag(enabled);
+    await this.commandAndPatch(
+      `xmit ${encoded}`,
+      { mox: encoded },
+      { source: "interlock" },
+    );
+  }
+
+  async setTxTune(enabled: boolean): Promise<void> {
+    const encoded = formatBooleanFlag(enabled);
+    await this.commandAndPatch(
+      `transmit tune ${encoded}`,
+      { tune: encoded },
+      { source: "transmit" },
+    );
+  }
+
+  async setTuneMode(mode: "single_tone" | "two_tone"): Promise<void> {
+    const normalized = mode === "two_tone" ? "two_tone" : "single_tone";
+    await this.commandAndPatch(
+      `transmit set tune_mode=${normalized}`,
+      { tune_mode: normalized },
+      { source: "transmit" },
+    );
+  }
+
+  async setInterlockTimeoutMs(timeoutMs: number): Promise<void> {
+    await this.setInterlockInteger(
+      "timeout",
+      timeoutMs,
+      0,
+      600_000,
+      "Interlock timeout",
+    );
+  }
+
+  async setTxDelayMs(delayMs: number): Promise<void> {
+    await this.setInterlockInteger(
+      "tx_delay",
+      delayMs,
+      0,
+      60_000,
+      "TX delay",
+    );
+  }
+
+  async setTxReqRcaEnabled(enabled: boolean): Promise<void> {
+    await this.setInterlockBoolean("rca_txreq_enable", enabled);
+  }
+
+  async setTxReqAccEnabled(enabled: boolean): Promise<void> {
+    await this.setInterlockBoolean("acc_txreq_enable", enabled);
+  }
+
+  async setTxReqRcaPolarityHigh(enabled: boolean): Promise<void> {
+    await this.setInterlockBoolean("rca_txreq_polarity", enabled);
+  }
+
+  async setTxReqAccPolarityHigh(enabled: boolean): Promise<void> {
+    await this.setInterlockBoolean("acc_txreq_polarity", enabled);
+  }
+
+  async setTx1Enabled(enabled: boolean): Promise<void> {
+    await this.setInterlockBoolean("tx1_enabled", enabled);
+  }
+
+  async setTx2Enabled(enabled: boolean): Promise<void> {
+    await this.setInterlockBoolean("tx2_enabled", enabled);
+  }
+
+  async setTx3Enabled(enabled: boolean): Promise<void> {
+    await this.setInterlockBoolean("tx3_enabled", enabled);
+  }
+
+  async setAccTxEnabled(enabled: boolean): Promise<void> {
+    await this.setInterlockBoolean("acc_tx_enabled", enabled);
+  }
+
+  async setTx1DelayMs(delayMs: number): Promise<void> {
+    await this.setInterlockInteger(
+      "tx1_delay",
+      delayMs,
+      0,
+      6_000,
+      "TX1 delay",
+    );
+  }
+
+  async setTx2DelayMs(delayMs: number): Promise<void> {
+    await this.setInterlockInteger(
+      "tx2_delay",
+      delayMs,
+      0,
+      6_000,
+      "TX2 delay",
+    );
+  }
+
+  async setTx3DelayMs(delayMs: number): Promise<void> {
+    await this.setInterlockInteger(
+      "tx3_delay",
+      delayMs,
+      0,
+      6_000,
+      "TX3 delay",
+    );
+  }
+
+  async setAccTxDelayMs(delayMs: number): Promise<void> {
+    await this.setInterlockInteger(
+      "acc_tx_delay",
+      delayMs,
+      0,
+      6_000,
+      "ACC TX delay",
+    );
+  }
+
+  async setMaxPowerLevel(level: number): Promise<void> {
+    await this.setTransmitInteger(
+      "max_power_level",
+      level,
+      0,
+      100,
+      "max power level",
+    );
+  }
+
+  async setRfPower(level: number): Promise<void> {
+    await this.setTransmitInteger("rfpower", level, 0, 100, "RF power");
+  }
+
+  async setTunePower(level: number): Promise<void> {
+    await this.setTransmitInteger("tunepower", level, 0, 100, "Tune power");
+  }
+
+  async setTxFilter(lowHz: number, highHz: number): Promise<void> {
+    const low = clampInteger(lowHz, 0, 10_000, "TX filter low");
+    let high = clampInteger(highHz, 0, 10_000, "TX filter high");
+    const minimumHigh = low + 50;
+    if (high < minimumHigh) high = minimumHigh;
+    if (high > 10_000) {
+      high = 10_000;
+      if (high < minimumHigh) {
+        const adjustedLow = Math.max(0, high - 50);
+        await this.setTxFilter(adjustedLow, high);
+        return;
+      }
+    }
+    await this.commandAndPatch(
+      `transmit set filter_low=${low} filter_high=${high}`,
+      {
+        filter_low: low.toString(10),
+        filter_high: high.toString(10),
+      },
+      { source: "transmit" },
+    );
+  }
+
+  async setTxFilterLowHz(lowHz: number): Promise<void> {
+    const currentHigh = this.current()?.txFilterHighHz ?? 10_000;
+    await this.setTxFilter(lowHz, currentHigh);
+  }
+
+  async setTxFilterHighHz(highHz: number): Promise<void> {
+    const currentLow = this.current()?.txFilterLowHz ?? 0;
+    await this.setTxFilter(currentLow, highHz);
+  }
+
+  async setAmCarrierLevel(level: number): Promise<void> {
+    await this.setTransmitInteger(
+      "am_carrier_level",
+      level,
+      0,
+      100,
+      "AM carrier level",
+    );
+  }
+
+  async setMicLevel(level: number): Promise<void> {
+    await this.setTransmitInteger("mic_level", level, 0, 100, "Mic level");
+  }
+
+  async setMicBoost(enabled: boolean): Promise<void> {
+    await this.setTransmitBoolean("mic_boost", enabled);
+  }
+
+  async setHwAlcEnabled(enabled: boolean): Promise<void> {
+    await this.setTransmitBoolean("hwalc_enabled", enabled);
+  }
+
+  async setTxInhibit(enabled: boolean): Promise<void> {
+    await this.setTransmitBoolean("inhibit", enabled);
+  }
+
+  async setMicBias(enabled: boolean): Promise<void> {
+    await this.setTransmitBoolean("mic_bias", enabled);
+  }
+
+  async setMicAccessoryEnabled(enabled: boolean): Promise<void> {
+    await this.setTransmitBoolean("mic_acc", enabled);
+  }
+
+  async setDaxEnabled(enabled: boolean): Promise<void> {
+    await this.setTransmitBoolean("dax", enabled);
+  }
+
+  async setCompanderEnabled(enabled: boolean): Promise<void> {
+    await this.setTransmitBoolean("compander", enabled);
+  }
+
+  async setCompanderLevel(level: number): Promise<void> {
+    await this.setTransmitInteger(
+      "compander_level",
+      level,
+      0,
+      100,
+      "Compander level",
+    );
+  }
+
+  async setSpeechProcessorEnabled(enabled: boolean): Promise<void> {
+    await this.setTransmitBoolean("speech_processor_enable", enabled);
+  }
+
+  async setSpeechProcessorLevel(level: number): Promise<void> {
+    await this.setTransmitInteger(
+      "speech_processor_level",
+      level,
+      0,
+      100,
+      "Speech processor level",
+    );
+  }
+
+  async setVoxEnabled(enabled: boolean): Promise<void> {
+    await this.setTransmitBoolean("vox_enable", enabled);
+  }
+
+  async setVoxLevel(level: number): Promise<void> {
+    await this.setTransmitInteger("vox_level", level, 0, 100, "VOX level");
+  }
+
+  async setVoxDelay(delay: number): Promise<void> {
+    await this.setTransmitInteger("vox_delay", delay, 0, 100, "VOX delay");
+  }
+
+  async setTxMonitorEnabled(enabled: boolean): Promise<void> {
+    const encoded = formatBooleanFlag(enabled);
+    await this.commandAndPatch(
+      `transmit set mon=${encoded}`,
+      { sb_monitor: encoded },
+      { source: "transmit" },
+    );
+  }
+
+  async setTxCwMonitorGain(gain: number): Promise<void> {
+    await this.setTransmitInteger(
+      "mon_gain_cw",
+      gain,
+      0,
+      100,
+      "CW monitor gain",
+    );
+  }
+
+  async setTxSbMonitorGain(gain: number): Promise<void> {
+    await this.setTransmitInteger(
+      "mon_gain_sb",
+      gain,
+      0,
+      100,
+      "SSB monitor gain",
+    );
+  }
+
+  async setTxCwMonitorPan(pan: number): Promise<void> {
+    await this.setTransmitInteger("mon_pan_cw", pan, 0, 100, "CW monitor pan");
+  }
+
+  async setTxSbMonitorPan(pan: number): Promise<void> {
+    await this.setTransmitInteger("mon_pan_sb", pan, 0, 100, "SSB monitor pan");
+  }
+
+  async setShowTxInWaterfall(enabled: boolean): Promise<void> {
+    await this.setTransmitBoolean("show_tx_in_waterfall", enabled);
+  }
+
+  async setTxRawIqEnabled(enabled: boolean): Promise<void> {
+    await this.setTransmitBoolean("raw_iq_enable", enabled);
+  }
+
+  async setMeterInRxEnabled(enabled: boolean): Promise<void> {
+    await this.setTransmitBoolean("met_in_rx", enabled);
+  }
+
   async setTnfEnabled(enabled: boolean): Promise<void> {
     const encoded = formatBooleanFlag(enabled);
     await this.commandAndPatch(`radio set tnf_enabled=${encoded}`, {
@@ -964,6 +1379,71 @@ export class RadioControllerImpl implements RadioController {
     await this.sendProfileCommand("profile global delete", name);
   }
 
+  private async setInterlockBoolean(
+    key: string,
+    enabled: boolean,
+  ): Promise<void> {
+    await this.sendInterlockValue(key, formatBooleanFlag(enabled));
+  }
+
+  private async setInterlockInteger(
+    key: string,
+    value: number,
+    min: number,
+    max: number,
+    label: string,
+  ): Promise<void> {
+    const clamped = clampInteger(value, min, max, label);
+    await this.sendInterlockValue(key, clamped.toString(10));
+  }
+
+  private async sendInterlockValue(
+    key: string,
+    value: string,
+  ): Promise<void> {
+    await this.commandAndPatch(
+      `interlock ${key}=${value}`,
+      { [key]: value },
+      { source: "interlock" },
+    );
+  }
+
+  private async setTransmitBoolean(
+    key: string,
+    enabled: boolean,
+  ): Promise<void> {
+    await this.sendTransmitEntries({
+      [key]: formatBooleanFlag(enabled),
+    });
+  }
+
+  private async setTransmitInteger(
+    key: string,
+    value: number,
+    min: number,
+    max: number,
+    label: string,
+  ): Promise<void> {
+    const clamped = clampInteger(value, min, max, label);
+    await this.sendTransmitEntries({
+      [key]: clamped.toString(10),
+    });
+  }
+
+  private async sendTransmitEntries(
+    entries: Record<string, string>,
+  ): Promise<void> {
+    const segments = Object.entries(entries).map(
+      ([entryKey, entryValue]) => `${entryKey}=${entryValue}`,
+    );
+    if (segments.length === 0) return;
+    await this.commandAndPatch(
+      `transmit set ${segments.join(" ")}`,
+      entries,
+      { source: "transmit" },
+    );
+  }
+
   private async commandAndPatch(
     command: string,
     attributes: Record<string, string>,
@@ -1014,6 +1494,19 @@ function sanitizeNickname(value: string): string {
 
 function sanitizeCallsign(value: string): string {
   return value.toUpperCase().replace(/[^0-9A-Z]/g, "");
+}
+
+const INTERLOCK_MOX_STATE_SET = new Set<RadioInterlockState>([
+  "PTT_REQUESTED",
+  "TRANSMITTING",
+  "UNKEY_REQUESTED",
+]);
+
+function isInterlockMoxState(
+  state: RadioInterlockState | undefined,
+): boolean {
+  if (!state) return false;
+  return INTERLOCK_MOX_STATE_SET.has(state);
 }
 
 function normalizeLogModuleName(value: string): string {

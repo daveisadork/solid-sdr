@@ -15,7 +15,12 @@ import type {
   FlexRadioDescriptor,
 } from "./adapters.js";
 import { TypedEventEmitter, type Subscription } from "../util/events.js";
-import type { RadioSnapshot, RadioStateChange } from "./state/index.js";
+import type {
+  RadioSnapshot,
+  RadioStateChange,
+  TxBandSettingSnapshot,
+} from "./state/index.js";
+import type { TxBandSettingController } from "./tx-band-settings.js";
 import type { RadioController } from "./radio.js";
 import type { SliceController } from "./slice.js";
 import type { PanadapterController } from "./panadapter.js";
@@ -60,6 +65,8 @@ export interface RadioHandleExtras {
   waterfall(id: string): WaterfallController | undefined;
   meter(id: string): MeterController | undefined;
   audioStream(id: string): AudioStreamController | undefined;
+  txBandSetting(id: string): TxBandSettingController | undefined;
+  txBandSettings(): readonly TxBandSettingSnapshot[];
   guiClients(): readonly GuiClientSnapshot[];
   snapshot(): RadioSnapshot;
   on<TKey extends RadioHandleEventKey>(
@@ -127,6 +134,7 @@ export interface RadioClientEvents extends Record<string, unknown> {
   readonly meterChange: RadioStateChangeWithSerial;
   readonly audioStreamChange: RadioStateChangeWithSerial;
   readonly guiClientChange: RadioStateChangeWithSerial;
+  readonly txBandSettingChange: RadioStateChangeWithSerial;
   readonly message: RadioWireMessageEvent;
   readonly progress: RadioProgressEvent;
   readonly error: RadioErrorEvent;
@@ -146,6 +154,7 @@ export interface RadioHandleEvents extends Record<string, unknown> {
   readonly meterChange: RadioStateChangeWithSerial;
   readonly audioStreamChange: RadioStateChangeWithSerial;
   readonly guiClientChange: RadioStateChangeWithSerial;
+  readonly txBandSettingChange: RadioStateChangeWithSerial;
   readonly message: RadioWireMessageEvent;
   readonly ready: undefined;
   readonly disconnected: undefined;
@@ -505,6 +514,14 @@ class RadioHandleCore extends TypedEventEmitter<RadioHandleEvents> {
     return this.session?.audioStream(id);
   }
 
+  txBandSetting(id: string): TxBandSettingController | undefined {
+    return this.session?.txBandSetting(id);
+  }
+
+  txBandSettings(): readonly TxBandSettingSnapshot[] {
+    return this.session?.txBandSettings() ?? [];
+  }
+
   guiClients(): readonly GuiClientSnapshot[] {
     return this.session?.getGuiClients() ?? [];
   }
@@ -710,6 +727,8 @@ function createRadioHandleProxy(core: RadioHandleCore): RadioHandle {
       if (prop === "waterfall") return core.waterfall.bind(core);
       if (prop === "meter") return core.meter.bind(core);
       if (prop === "audioStream") return core.audioStream.bind(core);
+      if (prop === "txBandSetting") return core.txBandSetting.bind(core);
+      if (prop === "txBandSettings") return core.txBandSettings.bind(core);
       if (prop === "guiClients") return core.guiClients.bind(core);
       if (prop === "snapshot") return core.snapshot.bind(core);
       if (prop === "on") return core.on.bind(core) as RadioHandleExtras["on"];
@@ -748,6 +767,8 @@ function createRadioHandleProxy(core: RadioHandleCore): RadioHandle {
           "waterfall",
           "meter",
           "audioStream",
+          "txBandSetting",
+          "txBandSettings",
           "guiClients",
           "snapshot",
           "on",

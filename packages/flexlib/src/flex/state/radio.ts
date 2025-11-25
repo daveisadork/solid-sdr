@@ -9,6 +9,7 @@ import {
   parseCsv,
   parseFloatSafe,
   parseInteger,
+  parseIntegerHex,
 } from "./common.js";
 
 const EMPTY_STRING_LIST = Object.freeze([]) as readonly string[];
@@ -28,6 +29,34 @@ export type RadioFilterSharpnessMode = "voice" | "cw" | "digital";
 export type RadioOscillatorSetting = "auto" | "external" | "gpsdo" | "tcxo";
 
 export type RadioScreensaverMode = "model" | "name" | "callsign" | "none";
+
+export type RadioInterlockState =
+  | "NONE"
+  | "RECEIVE"
+  | "READY"
+  | "NOT_READY"
+  | "PTT_REQUESTED"
+  | "TRANSMITTING"
+  | "TX_FAULT"
+  | "TIMEOUT"
+  | "STUCK_INPUT"
+  | "UNKEY_REQUESTED";
+
+export type RadioInterlockReason =
+  | "RCA_TXREQ"
+  | "ACC_TXREQ"
+  | "BAD_MODE"
+  | "TUNED_TOO_FAR"
+  | "OUT_OF_BAND"
+  | "OUT_OF_PA_RANGE"
+  | "CLIENT_TX_INHIBIT"
+  | "XVTR_RX_ONLY"
+  | "NO_TX_ASSIGNED"
+  | "TGXL";
+
+export type RadioPttSource = "SW" | "MIC" | "ACC" | "RCA" | "TUNE";
+
+export type RadioCwIambicMode = "a" | "b" | "strict_b" | "bug";
 
 export type RadioAtuTuneStatus =
   | "NONE"
@@ -150,6 +179,71 @@ export interface RadioSnapshot {
   readonly oscillatorGnssPresent: boolean;
   readonly oscillatorGpsdoPresent: boolean;
   readonly oscillatorTcxoPresent: boolean;
+  readonly interlockState?: RadioInterlockState;
+  readonly interlockReason?: RadioInterlockReason;
+  readonly interlockPttSource?: RadioPttSource;
+  readonly interlockTimeoutMs?: number;
+  readonly interlockTxClientHandle?: number;
+  readonly interlockAccTxReqEnabled?: boolean;
+  readonly interlockRcaTxReqEnabled?: boolean;
+  readonly interlockAccTxReqPolarityHigh?: boolean;
+  readonly interlockRcaTxReqPolarityHigh?: boolean;
+  readonly interlockTx1Enabled?: boolean;
+  readonly interlockTx2Enabled?: boolean;
+  readonly interlockTx3Enabled?: boolean;
+  readonly interlockAccTxEnabled?: boolean;
+  readonly interlockTx1DelayMs?: number;
+  readonly interlockTx2DelayMs?: number;
+  readonly interlockTx3DelayMs?: number;
+  readonly interlockAccTxDelayMs?: number;
+  readonly interlockTxDelayMs?: number;
+  readonly interlockAmplifierHandles?: readonly string[];
+  readonly txAllowed?: boolean;
+  readonly mox?: boolean;
+  readonly maxPowerLevel?: number;
+  readonly rfPower?: number;
+  readonly tunePower?: number;
+  readonly txFilterLowHz?: number;
+  readonly txFilterHighHz?: number;
+  readonly txFilterChangesAllowed?: boolean;
+  readonly txRfPowerChangesAllowed?: boolean;
+  readonly amCarrierLevel?: number;
+  readonly micLevel?: number;
+  readonly micSelection?: string;
+  readonly micBoost?: boolean;
+  readonly micBias?: boolean;
+  readonly micAccessoryEnabled?: boolean;
+  readonly daxEnabled?: boolean;
+  readonly hwAlcEnabled?: boolean;
+  readonly txInhibit?: boolean;
+  readonly companderEnabled?: boolean;
+  readonly companderLevel?: number;
+  readonly speechProcessorEnabled?: boolean;
+  readonly speechProcessorLevel?: number;
+  readonly voxEnabled?: boolean;
+  readonly voxLevel?: number;
+  readonly voxDelay?: number;
+  readonly txMonitorAvailable?: boolean;
+  readonly txMonitorEnabled?: boolean;
+  readonly txCwMonitorGain?: number;
+  readonly txSbMonitorGain?: number;
+  readonly txCwMonitorPan?: number;
+  readonly txSbMonitorPan?: number;
+  readonly txTune?: boolean;
+  readonly tuneMode?: "single_tone" | "two_tone";
+  readonly meterInRx?: boolean;
+  readonly showTxInWaterfall?: boolean;
+  readonly txRawIqEnabled?: boolean;
+  readonly cwPitchHz?: number;
+  readonly cwSpeedWpm?: number;
+  readonly syncCwx?: boolean;
+  readonly cwIambic?: boolean;
+  readonly cwIambicMode?: RadioCwIambicMode;
+  readonly cwSwapPaddles?: boolean;
+  readonly cwBreakIn?: boolean;
+  readonly cwSidetone?: boolean;
+  readonly cwLeftEnabled?: boolean;
+  readonly cwBreakInDelayMs?: number;
   readonly logLevels: readonly string[];
   readonly logModules: readonly RadioLogModule[];
   readonly raw: Readonly<Record<string, string>>;
@@ -165,6 +259,12 @@ export function createRadioSnapshot(
   switch (resolveRadioContext(context)) {
     case "gps":
       applyGpsStatusAttributes(attributes, partial);
+      break;
+    case "interlock":
+      applyInterlockAttributes(attributes, partial, previous);
+      break;
+    case "transmit":
+      applyTransmitAttributes(attributes, partial);
       break;
     case "filter_sharpness":
       if (context) {
@@ -486,6 +586,336 @@ function applyAtuStatusAttributes(
   }
 }
 
+function applyInterlockAttributes(
+  attributes: Record<string, string>,
+  partial: Mutable<Partial<RadioSnapshot>>,
+  previous?: RadioSnapshot,
+): void {
+  for (const [key, value] of Object.entries(attributes)) {
+    switch (key) {
+      case "state": {
+        const parsed = parseInterlockState(value);
+        if (parsed) {
+          partial.interlockState = parsed;
+        } else {
+          logParseError("interlock", key, value ?? "");
+        }
+        break;
+      }
+      case "reason": {
+        const parsed = parseInterlockReason(value);
+        if (parsed) partial.interlockReason = parsed;
+        else if (value && !value.includes("PG-XL")) {
+          logParseError("interlock", key, value);
+        }
+        break;
+      }
+      case "source": {
+        const parsed = parsePttSource(value);
+        if (parsed) partial.interlockPttSource = parsed;
+        else if (value) logParseError("interlock", key, value);
+        break;
+      }
+      case "timeout": {
+        const parsed = parseInteger(value);
+        if (parsed !== undefined) partial.interlockTimeoutMs = parsed;
+        else logParseError("interlock", key, value ?? "");
+        break;
+      }
+      case "tx_client_handle": {
+        const parsed = parseClientHandle(value);
+        if (parsed !== undefined) partial.interlockTxClientHandle = parsed;
+        else logParseError("interlock", key, value ?? "");
+        break;
+      }
+      case "amplifier":
+        partial.interlockAmplifierHandles = parseAmplifierHandles(value);
+        break;
+      case "tx_allowed":
+        partial.txAllowed = isTruthy(value);
+        break;
+      case "acc_txreq_enable":
+        partial.interlockAccTxReqEnabled = isTruthy(value);
+        break;
+      case "rca_txreq_enable":
+        partial.interlockRcaTxReqEnabled = isTruthy(value);
+        break;
+      case "acc_txreq_polarity":
+        partial.interlockAccTxReqPolarityHigh = isTruthy(value);
+        break;
+      case "rca_txreq_polarity":
+        partial.interlockRcaTxReqPolarityHigh = isTruthy(value);
+        break;
+      case "tx1_enabled":
+        partial.interlockTx1Enabled = isTruthy(value);
+        break;
+      case "tx2_enabled":
+        partial.interlockTx2Enabled = isTruthy(value);
+        break;
+      case "tx3_enabled":
+        partial.interlockTx3Enabled = isTruthy(value);
+        break;
+      case "acc_tx_enabled":
+        partial.interlockAccTxEnabled = isTruthy(value);
+        break;
+      case "tx1_delay":
+        partial.interlockTx1DelayMs = parseInterlockDelay(value, key);
+        break;
+      case "tx2_delay":
+        partial.interlockTx2DelayMs = parseInterlockDelay(value, key);
+        break;
+      case "tx3_delay":
+        partial.interlockTx3DelayMs = parseInterlockDelay(value, key);
+        break;
+      case "acc_tx_delay":
+        partial.interlockAccTxDelayMs = parseInterlockDelay(value, key);
+        break;
+      case "tx_delay":
+        partial.interlockTxDelayMs = parseInterlockDelay(value, key);
+        break;
+      case "mox":
+        partial.mox = isTruthy(value);
+        break;
+      default:
+        logUnknownAttribute("interlock", key, value);
+        break;
+    }
+  }
+
+  if (partial.mox === undefined) {
+    const nextState = partial.interlockState ?? previous?.interlockState;
+    if (nextState) {
+      partial.mox = INTERLOCK_MOX_STATES.has(nextState);
+    }
+  }
+}
+
+function applyTransmitAttributes(
+  attributes: Record<string, string>,
+  partial: Mutable<Partial<RadioSnapshot>>,
+): void {
+  for (const [key, value] of Object.entries(attributes)) {
+    switch (key) {
+      case "max_power_level":
+        partial.maxPowerLevel = parseBoundedInteger(
+          value,
+          0,
+          100,
+          "transmit",
+          key,
+        );
+        break;
+      case "rfpower":
+        partial.rfPower = parseBoundedInteger(value, 0, 100, "transmit", key);
+        break;
+      case "tunepower":
+        partial.tunePower = parseBoundedInteger(value, 0, 100, "transmit", key);
+        break;
+      case "lo":
+        partial.txFilterLowHz = parseIntegerAttribute(value, "transmit", key);
+        break;
+      case "hi":
+        partial.txFilterHighHz = parseIntegerAttribute(value, "transmit", key);
+        break;
+      case "tx_filter_changes_allowed":
+        partial.txFilterChangesAllowed = isTruthy(value);
+        break;
+      case "tx_rf_power_changes_allowed":
+        partial.txRfPowerChangesAllowed = isTruthy(value);
+        break;
+      case "am_carrier_level":
+        partial.amCarrierLevel = parseBoundedInteger(
+          value,
+          0,
+          100,
+          "transmit",
+          key,
+        );
+        break;
+      case "mic_level":
+        partial.micLevel = parseBoundedInteger(value, 0, 100, "transmit", key);
+        break;
+      case "mic_selection":
+        partial.micSelection = value;
+        break;
+      case "mic_boost":
+        partial.micBoost = isTruthy(value);
+        break;
+      case "mon_available":
+        partial.txMonitorAvailable = isTruthy(value);
+        break;
+      case "hwalc_enabled":
+        partial.hwAlcEnabled = isTruthy(value);
+        break;
+      case "inhibit":
+        partial.txInhibit = isTruthy(value);
+        break;
+      case "mic_bias":
+        partial.micBias = isTruthy(value);
+        break;
+      case "mic_acc":
+        partial.micAccessoryEnabled = isTruthy(value);
+        break;
+      case "dax":
+        partial.daxEnabled = isTruthy(value);
+        break;
+      case "compander":
+        partial.companderEnabled = isTruthy(value);
+        break;
+      case "compander_level":
+        partial.companderLevel = parseBoundedInteger(
+          value,
+          0,
+          100,
+          "transmit",
+          key,
+        );
+        break;
+      case "pitch":
+        partial.cwPitchHz = parseBoundedInteger(
+          value,
+          100,
+          6000,
+          "transmit",
+          key,
+        );
+        break;
+      case "speed":
+        partial.cwSpeedWpm = parseBoundedInteger(
+          value,
+          1,
+          100,
+          "transmit",
+          key,
+        );
+        break;
+      case "synccwx":
+        partial.syncCwx = isTruthy(value);
+        break;
+      case "iambic":
+        partial.cwIambic = isTruthy(value);
+        break;
+      case "iambic_mode": {
+        const parsed = parseInteger(value);
+        if (parsed === undefined) {
+          logParseError("transmit", key, value ?? "");
+          break;
+        }
+        partial.cwIambicMode = parseIambicMode(parsed);
+        break;
+      }
+      case "swap_paddles":
+        partial.cwSwapPaddles = isTruthy(value);
+        break;
+      case "break_in":
+        partial.cwBreakIn = isTruthy(value);
+        break;
+      case "sidetone":
+        partial.cwSidetone = isTruthy(value);
+        break;
+      case "cwl_enabled":
+        partial.cwLeftEnabled = isTruthy(value);
+        break;
+      case "break_in_delay":
+        partial.cwBreakInDelayMs = parseBoundedInteger(
+          value,
+          0,
+          2000,
+          "transmit",
+          key,
+        );
+        break;
+      case "sb_monitor":
+        partial.txMonitorEnabled = isTruthy(value);
+        break;
+      case "mon_gain_cw":
+        partial.txCwMonitorGain = parseIntegerAttribute(
+          value,
+          "transmit",
+          key,
+        );
+        break;
+      case "mon_gain_sb":
+        partial.txSbMonitorGain = parseIntegerAttribute(
+          value,
+          "transmit",
+          key,
+        );
+        break;
+      case "mon_pan_cw":
+        partial.txCwMonitorPan = parseIntegerAttribute(
+          value,
+          "transmit",
+          key,
+        );
+        break;
+      case "mon_pan_sb":
+        partial.txSbMonitorPan = parseIntegerAttribute(
+          value,
+          "transmit",
+          key,
+        );
+        break;
+      case "speech_processor_enable":
+        partial.speechProcessorEnabled = isTruthy(value);
+        break;
+      case "speech_processor_level":
+        partial.speechProcessorLevel = parseBoundedInteger(
+          value,
+          0,
+          100,
+          "transmit",
+          key,
+        );
+        break;
+      case "vox_enable":
+        partial.voxEnabled = isTruthy(value);
+        break;
+      case "vox_level":
+        partial.voxLevel = parseBoundedInteger(
+          value,
+          0,
+          100,
+          "transmit",
+          key,
+        );
+        break;
+      case "vox_delay":
+        partial.voxDelay = parseBoundedInteger(
+          value,
+          0,
+          100,
+          "transmit",
+          key,
+        );
+        break;
+      case "tune":
+        partial.txTune = isTruthy(value);
+        break;
+      case "tune_mode":
+        partial.tuneMode = parseTuneMode(value);
+        break;
+      case "met_in_rx":
+        partial.meterInRx = isTruthy(value);
+        break;
+      case "show_tx_in_waterfall":
+        partial.showTxInWaterfall = isTruthy(value);
+        break;
+      case "raw_iq_enable":
+        partial.txRawIqEnabled = isTruthy(value);
+        break;
+      case "freq":
+      case "tx_slice_mode":
+      case "tx_antenna":
+        // Informational fields handled elsewhere; ignore to keep logs clean.
+        break;
+      default:
+        logUnknownAttribute("transmit", key, value);
+        break;
+    }
+  }
+}
+
 function applyLogAttributes(
   attributes: Record<string, string>,
   partial: Mutable<Partial<RadioSnapshot>>,
@@ -545,6 +975,154 @@ function assignLogModule(
   else updated.push(snapshot);
   partial.logModules = Object.freeze(updated);
 }
+
+function parseInterlockState(
+  value: string | undefined,
+): RadioInterlockState | undefined {
+  if (!value) return undefined;
+  return INTERLOCK_STATE_BY_TOKEN[value.toUpperCase()];
+}
+
+function parseInterlockReason(
+  value: string | undefined,
+): RadioInterlockReason | undefined {
+  if (!value) return undefined;
+  return INTERLOCK_REASON_BY_TOKEN[value.toUpperCase()];
+}
+
+function parsePttSource(
+  value: string | undefined,
+): RadioPttSource | undefined {
+  if (!value) return undefined;
+  return PTT_SOURCE_BY_TOKEN[value.toUpperCase()];
+}
+
+function parseInterlockDelay(
+  value: string | undefined,
+  key: string,
+): number | undefined {
+  const parsed = parseInteger(value);
+  if (parsed !== undefined) return parsed;
+  logParseError("interlock", key, value ?? "");
+  return undefined;
+}
+
+function parseAmplifierHandles(
+  value: string | undefined,
+): readonly string[] | undefined {
+  if (!value) return undefined;
+  if (!value.trim()) return Object.freeze([]) as readonly string[];
+  const handles = value
+    .split(",")
+    .map((handle) => handle.trim())
+    .filter((handle) => handle.length > 0);
+  return Object.freeze(handles) as readonly string[];
+}
+
+function parseClientHandle(value: string | undefined): number | undefined {
+  if (!value) return undefined;
+  const normalized = value.startsWith("0x") ? value : `0x${value}`;
+  return parseIntegerHex(normalized);
+}
+
+function parseBoundedInteger(
+  value: string | undefined,
+  min: number,
+  max: number,
+  entity: string,
+  key: string,
+): number | undefined {
+  const parsed = parseInteger(value);
+  if (parsed === undefined) {
+    logParseError(entity, key, value ?? "");
+    return undefined;
+  }
+  return clampRange(parsed, min, max);
+}
+
+function parseIntegerAttribute(
+  value: string | undefined,
+  entity: string,
+  key: string,
+): number | undefined {
+  const parsed = parseInteger(value);
+  if (parsed === undefined) {
+    logParseError(entity, key, value ?? "");
+    return undefined;
+  }
+  return parsed;
+}
+
+function parseIambicMode(value: number): RadioCwIambicMode {
+  switch (value) {
+    case 0:
+      return "a";
+    case 1:
+      return "b";
+    case 2:
+      return "strict_b";
+    case 3:
+      return "bug";
+    default:
+      return "a";
+  }
+}
+
+function parseTuneMode(
+  value: string | undefined,
+): "single_tone" | "two_tone" | undefined {
+  if (!value) return undefined;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "two_tone") return "two_tone";
+  if (normalized === "single_tone") return "single_tone";
+  return undefined;
+}
+
+function clampRange(value: number, min: number, max: number): number {
+  if (value < min) return min;
+  if (value > max) return max;
+  return value;
+}
+
+const INTERLOCK_STATE_BY_TOKEN: Record<string, RadioInterlockState> = {
+  NONE: "NONE",
+  RECEIVE: "RECEIVE",
+  READY: "READY",
+  NOT_READY: "NOT_READY",
+  PTT_REQUESTED: "PTT_REQUESTED",
+  TRANSMITTING: "TRANSMITTING",
+  TX_FAULT: "TX_FAULT",
+  TIMEOUT: "TIMEOUT",
+  STUCK_INPUT: "STUCK_INPUT",
+  UNKEY_REQUESTED: "UNKEY_REQUESTED",
+};
+
+const INTERLOCK_REASON_BY_TOKEN: Record<string, RadioInterlockReason> = {
+  RCA_TXREQ: "RCA_TXREQ",
+  ACC_TXREQ: "ACC_TXREQ",
+  BAD_MODE: "BAD_MODE",
+  TUNED_TOO_FAR: "TUNED_TOO_FAR",
+  OUT_OF_BAND: "OUT_OF_BAND",
+  OUT_OF_PA_RANGE: "OUT_OF_PA_RANGE",
+  CLIENT_TX_INHIBIT: "CLIENT_TX_INHIBIT",
+  XVTR_RX_ONLY: "XVTR_RX_ONLY",
+  NO_TX_ASSIGNED: "NO_TX_ASSIGNED",
+  "AMP:TG": "TGXL",
+};
+
+const PTT_SOURCE_BY_TOKEN: Record<string, RadioPttSource> = {
+  SW: "SW",
+  MIC: "MIC",
+  ACC: "ACC",
+  RCA: "RCA",
+  TUNE: "TUNE",
+};
+
+const INTERLOCK_MOX_STATES = new Set<RadioInterlockState>([
+  "TRANSMITTING",
+  "PTT_REQUESTED",
+  "UNKEY_REQUESTED",
+]);
 
 function parseScreensaverMode(value: string | undefined): RadioScreensaverMode {
   if (!value) return "none";
@@ -765,6 +1343,8 @@ const FILTER_SHARPNESS_MAX_LEVEL = 3;
 type RadioContextKind =
   | "radio"
   | "gps"
+  | "interlock"
+  | "transmit"
   | "filter_sharpness"
   | "static_net_params"
   | "oscillator"
@@ -781,6 +1361,8 @@ function resolveRadioContext(context?: RadioStatusContext): RadioContextKind {
 
   const source = context?.source?.toLowerCase();
   if (source === "gps") return "gps";
+  if (source === "interlock") return "interlock";
+  if (source === "transmit") return "transmit";
   if (source === "profile") return "profile";
   if (source === "log") return "log";
   if (source === "atu") return "atu";

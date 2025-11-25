@@ -33,6 +33,8 @@ import {
   type EqualizerId,
   type ApdSnapshot,
   type ApdStateChange,
+  type TxBandSettingSnapshot,
+  type TxBandSettingStateChange,
 } from "./state/index.js";
 import {
   FlexClientClosedError,
@@ -62,6 +64,10 @@ import {
   type EqualizerController,
   EqualizerControllerImpl,
 } from "./equalizer.js";
+import {
+  type TxBandSettingController,
+  TxBandSettingControllerImpl,
+} from "./tx-band-settings.js";
 import { type ApdController, ApdControllerImpl } from "./apd.js";
 import {
   FeatureLicenseControllerImpl,
@@ -366,6 +372,10 @@ class FlexRadioSessionImpl implements FlexRadioSession {
     EqualizerId,
     EqualizerControllerImpl
   >();
+  private readonly txBandControllers = new Map<
+    string,
+    TxBandSettingControllerImpl
+  >();
   private readonly apdController: ApdController;
   private readonly radioController: RadioController;
   private readonly featureLicenseController: FeatureLicenseController;
@@ -506,6 +516,14 @@ class FlexRadioSessionImpl implements FlexRadioSession {
 
   getEqualizers(): readonly EqualizerSnapshot[] {
     return this.store.snapshot().equalizers;
+  }
+
+  getTxBandSetting(id: string): TxBandSettingSnapshot | undefined {
+    return this.store.getTxBandSetting(id);
+  }
+
+  getTxBandSettings(): readonly TxBandSettingSnapshot[] {
+    return this.store.getTxBandSettings();
   }
 
   getRemoteAudioRxStream(id: string): AudioStreamSnapshot | undefined {
@@ -752,6 +770,14 @@ class FlexRadioSessionImpl implements FlexRadioSession {
     if (change) this.handleStateChange(change);
   }
 
+  private patchTxBandSetting(
+    id: string,
+    attributes: Record<string, string>,
+  ): void {
+    const change = this.store.patchTxBandSetting(id, attributes);
+    if (change) this.handleStateChange(change);
+  }
+
   getRadio(): RadioSnapshot | undefined {
     return this.store.getRadio();
   }
@@ -832,6 +858,17 @@ class FlexRadioSessionImpl implements FlexRadioSession {
     return controller;
   }
 
+  txBandSetting(id: string): TxBandSettingController | undefined {
+    if (this.closed) return undefined;
+    let controller = this.txBandControllers.get(id);
+    if (!controller) {
+      controller = this.createTxBandSettingController(id);
+      if (!controller) return undefined;
+      this.txBandControllers.set(id, controller);
+    }
+    return controller;
+  }
+
   remoteAudioRxStream(id: string): RemoteAudioRxStreamController | undefined {
     const snapshot = this.getRemoteAudioRxStream(id);
     if (!snapshot) return undefined;
@@ -869,6 +906,22 @@ class FlexRadioSessionImpl implements FlexRadioSession {
       );
     }
     return controller;
+  }
+
+  private createTxBandSettingController(
+    id: string,
+  ): TxBandSettingControllerImpl | undefined {
+    const snapshot = this.store.getTxBandSetting(id);
+    if (!snapshot) return undefined;
+    return new TxBandSettingControllerImpl(
+      {
+        command: (command: string) => this.command(command),
+        patchTxBandSetting: (bandId, attributes) =>
+          this.patchTxBandSetting(bandId, attributes),
+        getTxBandSetting: (bandId) => this.store.getTxBandSetting(bandId),
+      },
+      id,
+    );
   }
 
   async createPanadapter(
@@ -1068,6 +1121,7 @@ class FlexRadioSessionImpl implements FlexRadioSession {
     this.meterControllers.clear();
     this.audioControllers.clear();
     this.equalizerControllers.clear();
+    this.txBandControllers.clear();
   }
 
   private handleWireMessage(message: FlexWireMessage): void {
@@ -1135,6 +1189,13 @@ class FlexRadioSessionImpl implements FlexRadioSession {
           if (!snapshot) return undefined;
           return new MeterControllerImpl(this, change.id);
         });
+        break;
+      case "txBandSetting":
+        this.updateController(
+          change as IdentifiedRadioStateChange & TxBandSettingStateChange,
+          this.txBandControllers,
+          () => this.createTxBandSettingController(change.id),
+        );
         break;
       case "equalizer":
         this.updateController(

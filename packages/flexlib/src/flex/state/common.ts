@@ -1,4 +1,11 @@
 import type { Logger } from "../adapters.js";
+export {
+  parseCsv,
+  parseFloatSafe,
+  parseInteger,
+  parseIntegerHex,
+  parseIntegerList,
+} from "../../util/parsers.js";
 
 /**
  * Shared types and utilities for radio-state snapshot parsing.
@@ -72,58 +79,6 @@ export function parseMegahertz(value: string | undefined): number | undefined {
   const parsed = Number.parseFloat(value);
   if (!Number.isFinite(parsed)) return undefined;
   return parsed;
-}
-
-export function parseFloatSafe(value: string | undefined): number | undefined {
-  if (!value) return undefined;
-  const parsed = Number.parseFloat(value);
-  if (!Number.isFinite(parsed)) return undefined;
-  return parsed;
-}
-
-export function parseInteger(value: string | undefined): number | undefined {
-  if (!value) return undefined;
-  const parsed = Number.parseInt(value, 10);
-  if (!Number.isFinite(parsed)) return undefined;
-  return parsed;
-}
-
-export function parseIntegerHex(value: string | undefined): number | undefined {
-  if (!value) return undefined;
-  const trimmed = value.trim();
-  if (!trimmed) return undefined;
-  const normalized =
-    trimmed.startsWith("0x") || trimmed.startsWith("0X")
-      ? trimmed.slice(2)
-      : trimmed;
-  const parsed = Number.parseInt(normalized, 16);
-  if (!Number.isFinite(parsed)) return undefined;
-  return parsed;
-}
-
-export function parseCsv(value: string | undefined): string[] | undefined {
-  if (!value) return undefined;
-  const parsed = value
-    .split(",")
-    .map((token) => token.trim())
-    .filter(Boolean);
-  return parsed.length > 0 ? parsed : undefined;
-}
-
-export function parseIntegerList(
-  value: string | undefined,
-): number[] | undefined {
-  if (!value) return undefined;
-  const result: number[] = [];
-  for (const token of value
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean)) {
-    const parsed = Number.parseInt(token, 10);
-    if (!Number.isFinite(parsed)) return undefined;
-    result.push(parsed);
-  }
-  return result;
 }
 
 export function logUnknownAttribute(

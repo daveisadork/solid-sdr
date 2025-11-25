@@ -1,3 +1,4 @@
+import { clampNumber } from "../controller-helpers.js";
 import type { Mutable, SnapshotUpdate } from "./common.js";
 import {
   arraysShallowEqual,
@@ -589,7 +590,7 @@ function applyFilterSharpnessAttributes(
   if (levelValue !== undefined) {
     const parsed = parseInteger(levelValue);
     if (parsed !== undefined) {
-      const clamped = clamp(
+      const clamped = clampNumber(
         parsed,
         FILTER_SHARPNESS_MIN_LEVEL,
         FILTER_SHARPNESS_MAX_LEVEL,
@@ -903,12 +904,6 @@ function normalizeProfileSelection(
   if (value === undefined) return undefined;
   const trimmed = value.trim();
   return trimmed.length ? trimmed : undefined;
-}
-
-function clamp(value: number, min: number, max: number): number {
-  if (value < min) return min;
-  if (value > max) return max;
-  return value;
 }
 
 function parseFilterSharpnessMode(

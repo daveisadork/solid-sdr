@@ -14,7 +14,12 @@ import {
   parseRadioInfoReply,
   parseRadioVersionReply,
 } from "./radio-replies.js";
-import { formatBooleanFlag } from "./controller-helpers.js";
+import {
+  clampInteger,
+  ensureFinite,
+  formatBooleanFlag,
+  toInteger,
+} from "./controller-helpers.js";
 
 interface RadioControllerSession {
   command(
@@ -1002,23 +1007,6 @@ function normalizeLogLevel(value: string): string {
 
 const FILTER_SHARPNESS_MIN_LEVEL = 0;
 const FILTER_SHARPNESS_MAX_LEVEL = 3;
-
-function clampInteger(value: number, min: number, max: number): number {
-  const normalized = ensureFinite(value, "value");
-  const clamped = Math.min(max, Math.max(min, Math.round(normalized)));
-  return clamped;
-}
-
-function toInteger(value: number, label: string): number {
-  return Math.round(ensureFinite(value, label));
-}
-
-function ensureFinite(value: number, label: string): number {
-  if (!Number.isFinite(value)) {
-    throw new Error(`${label} must be a finite number`);
-  }
-  return value;
-}
 
 type ProfileLoadDomain = "global" | "tx" | "mic" | "display";
 

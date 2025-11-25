@@ -6,6 +6,12 @@ import type {
 } from "./adapters.js";
 import { parseVitaPacket } from "../vita/parser.js";
 import { parseDiscoveredGuiClients } from "./gui-client.js";
+import {
+  parseBooleanFlag,
+  parseCsvList,
+  parseInteger as parseOptionalInteger,
+  valueOrUndefined,
+} from "../util/parsers.js";
 
 const DEFAULT_CLOCK: Clock = { now: () => Date.now() };
 
@@ -312,41 +318,16 @@ function resolveProtocol(
   return defaultProtocol;
 }
 
-function valueOrUndefined(value: string | undefined): string | undefined {
-  if (!value) return undefined;
-  const trimmed = value.trim();
-  return trimmed.length ? trimmed : undefined;
-}
-
 function parseInteger(
   value: string | undefined,
   field: string,
 ): number | undefined {
-  if (!value) return undefined;
-  const parsed = Number.parseInt(value, 10);
-  if (Number.isNaN(parsed)) {
+  if (value === undefined) return undefined;
+  const parsed = parseOptionalInteger(value);
+  if (parsed === undefined) {
     throw new Error(`Discovery payload has invalid integer for ${field}`);
   }
   return parsed;
-}
-
-function parseBooleanFlag(
-  value: string | undefined,
-): boolean | undefined {
-  if (!value) return undefined;
-  const normalized = value.trim();
-  if (!normalized) return undefined;
-  if (normalized === "1" || normalized.toLowerCase() === "true") return true;
-  if (normalized === "0" || normalized.toLowerCase() === "false") return false;
-  return undefined;
-}
-
-function parseCsvList(value: string | undefined): string[] {
-  if (!value) return [];
-  return value
-    .split(",")
-    .map((part) => part.trim())
-    .filter(Boolean);
 }
 
 function normalizeStations(value: string | undefined): string | undefined {

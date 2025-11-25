@@ -41,6 +41,7 @@ import {
   FlexError,
 } from "./errors.js";
 import { describeResponseCode } from "./response-codes.js";
+import { toInteger } from "./controller-helpers.js";
 import { type SliceController, SliceControllerImpl } from "./slice.js";
 import {
   type PanadapterController,
@@ -875,8 +876,14 @@ class FlexRadioSessionImpl implements FlexRadioSession {
   ): Promise<PanadapterController> {
     if (this.closed) throw new FlexClientClosedError();
     let command = "display panafall create";
-    if (options?.x !== undefined) command += ` x=${Math.round(options.x)}`;
-    if (options?.y !== undefined) command += ` y=${Math.round(options.y)}`;
+    if (options?.x !== undefined) {
+      const x = toInteger(options.x, "panadapter x position");
+      command += ` x=${x}`;
+    }
+    if (options?.y !== undefined) {
+      const y = toInteger(options.y, "panadapter y position");
+      command += ` y=${y}`;
+    }
     const response = await this.command(command);
     // The radio emits the status event before it replies, so the store already
     // contains the new panadapter (and associated waterfall) snapshot by now.
@@ -928,7 +935,8 @@ class FlexRadioSessionImpl implements FlexRadioSession {
   async createDaxRxAudioStream(
     options: DaxRxAudioStreamCreateOptions,
   ): Promise<AudioStreamController> {
-    const command = `stream create type=dax_rx dax_channel=${Math.round(options.daxChannel)}`;
+    const channel = toInteger(options.daxChannel, "DAX RX channel");
+    const command = `stream create type=dax_rx dax_channel=${channel}`;
     return this.createAudioStream(command);
   }
 

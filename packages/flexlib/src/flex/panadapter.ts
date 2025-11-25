@@ -13,6 +13,8 @@ import { parseRfGainInfo } from "./rf-gain.js";
 import type { RfGainInfo } from "./rf-gain.js";
 import {
   buildDisplaySetCommand,
+  clampInteger,
+  clampNumber,
   formatBooleanFlag,
   formatDbm,
   formatInteger,
@@ -415,18 +417,18 @@ export class PanadapterControllerImpl implements PanadapterController {
   }
 
   async setMinDbm(value: number): Promise<void> {
-    const clamped = this.clampNumber(value, -180, undefined);
+    const clamped = clampNumber(value, -180, undefined);
     await this.sendSet({ min_dbm: formatDbm(clamped) });
   }
 
   async setMaxDbm(value: number): Promise<void> {
-    const clamped = this.clampNumber(value, undefined, 20);
+    const clamped = clampNumber(value, undefined, 20);
     await this.sendSet({ max_dbm: formatDbm(clamped) });
   }
 
   async setDbmRange(range: { low: number; high: number }): Promise<void> {
-    const low = this.clampNumber(range.low, -180, undefined);
-    const high = this.clampNumber(range.high, undefined, 20);
+    const low = clampNumber(range.low, -180, undefined);
+    const high = clampNumber(range.high, undefined, 20);
     await this.sendSet({
       min_dbm: formatDbm(low),
       max_dbm: formatDbm(high),
@@ -458,13 +460,13 @@ export class PanadapterControllerImpl implements PanadapterController {
   }
 
   async setWnbLevel(level: number): Promise<void> {
-    const clamped = this.clampNumber(Math.round(level), 0, 100);
+    const clamped = clampInteger(level, 0, 100, "WNB level");
     await this.sendSet({ wnb_level: formatInteger(clamped) });
   }
 
   async setNoiseFloorPosition(value: number): Promise<void> {
     await this.sendSet({
-      pan_position: formatInteger(Math.round(value)),
+      pan_position: formatInteger(value, "noise floor position"),
     });
   }
 
@@ -597,11 +599,11 @@ export class PanadapterControllerImpl implements PanadapterController {
       }
     }
     if (request.lowDbm !== undefined) {
-      const clamped = this.clampNumber(request.lowDbm, -180, undefined);
+      const clamped = clampNumber(request.lowDbm, -180, undefined);
       entries.min_dbm = formatDbm(clamped);
     }
     if (request.highDbm !== undefined) {
-      const clamped = this.clampNumber(request.highDbm, undefined, 20);
+      const clamped = clampNumber(request.highDbm, undefined, 20);
       entries.max_dbm = formatDbm(clamped);
     }
     if (request.fps !== undefined) entries.fps = formatInteger(request.fps);
@@ -616,12 +618,13 @@ export class PanadapterControllerImpl implements PanadapterController {
     if (request.wnbEnabled !== undefined)
       entries.wnb = formatBooleanFlag(request.wnbEnabled);
     if (request.wnbLevel !== undefined) {
-      const clamped = this.clampNumber(Math.round(request.wnbLevel), 0, 100);
+      const clamped = clampInteger(request.wnbLevel, 0, 100, "WNB level");
       entries.wnb_level = formatInteger(clamped);
     }
     if (request.noiseFloorPosition !== undefined)
       entries.pan_position = formatInteger(
-        Math.round(request.noiseFloorPosition),
+        request.noiseFloorPosition,
+        "noise floor position",
       );
     if (request.noiseFloorPositionEnabled !== undefined)
       entries.pan_position_enable = formatBooleanFlag(
@@ -714,13 +717,6 @@ export class PanadapterControllerImpl implements PanadapterController {
       snapshot.minBandwidthMHz > 0 ? snapshot.minBandwidthMHz : undefined;
     const max =
       snapshot.maxBandwidthMHz > 0 ? snapshot.maxBandwidthMHz : undefined;
-    return this.clampNumber(bandwidthMHz, min, max);
-  }
-
-  private clampNumber(value: number, min?: number, max?: number): number {
-    let result = value;
-    if (min !== undefined && result < min) result = min;
-    if (max !== undefined && result > max) result = max;
-    return result;
+    return clampNumber(bandwidthMHz, min, max);
   }
 }

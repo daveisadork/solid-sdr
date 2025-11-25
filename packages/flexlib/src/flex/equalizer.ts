@@ -14,7 +14,7 @@ import type {
   EqualizerSnapshot,
   EqualizerStateChange,
 } from "./state/index.js";
-import { formatBooleanFlag } from "./controller-helpers.js";
+import { clampInteger, formatBooleanFlag } from "./controller-helpers.js";
 
 const LEVEL_MIN = -10;
 const LEVEL_MAX = 10;
@@ -138,12 +138,6 @@ export class EqualizerControllerImpl implements EqualizerController {
   }
 
   private normalizeLevel(value: number): number {
-    if (!Number.isFinite(value)) {
-      throw new RangeError("Equalizer level must be a finite number");
-    }
-    const rounded = Math.round(value);
-    if (rounded < LEVEL_MIN) return LEVEL_MIN;
-    if (rounded > LEVEL_MAX) return LEVEL_MAX;
-    return rounded;
+    return clampInteger(value, LEVEL_MIN, LEVEL_MAX, "Equalizer level");
   }
 }

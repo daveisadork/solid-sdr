@@ -10,8 +10,46 @@ export function formatBooleanFlag(value: boolean): string {
   return value ? "1" : "0";
 }
 
-export function formatInteger(value: number): string {
-  return Math.round(value).toString(10);
+export function ensureFinite(value: number, label = "value"): number {
+  if (!Number.isFinite(value)) {
+    throw new RangeError(`${label} must be a finite number`);
+  }
+  return value;
+}
+
+export function toInteger(value: number, label = "value"): number {
+  return Math.round(ensureFinite(value, label));
+}
+
+export function formatInteger(value: number, label = "value"): string {
+  return toInteger(value, label).toString(10);
+}
+
+/**
+ * Clamps a value within optional minimum and maximum bounds.
+ */
+export function clampNumber(
+  value: number,
+  min?: number,
+  max?: number,
+): number {
+  let result = value;
+  if (min !== undefined && result < min) result = min;
+  if (max !== undefined && result > max) result = max;
+  return result;
+}
+
+/**
+ * Rounds a value to the nearest integer before clamping it into the range.
+ */
+export function clampInteger(
+  value: number,
+  min: number,
+  max: number,
+  label = "value",
+): number {
+  const rounded = toInteger(value, label);
+  return clampNumber(rounded, min, max);
 }
 
 export function buildDisplaySetCommand(

@@ -4,6 +4,7 @@ import {
   createSignal,
   For,
   onCleanup,
+  Show,
 } from "solid-js";
 import useFlexRadio, { type UdpPacketEvent } from "~/context/flexradio";
 import { DetachedSlices, Slice } from "./slice";
@@ -331,6 +332,12 @@ export function Panadapter(props: { streamId: string }) {
         />
       </div>
       <div class="absolute top-0 left-0 h-[var(--panafall-available-height)] w-[var(--panafall-available-width)]">
+        <div class="flex pointer-events-none absolute top-4 right-4 text-white font-black opacity-50 space-x-2">
+          <div>{pan().preampSetting}</div>
+          <Show when={pan().wideEnabled}>
+            <div>WIDE</div>
+          </Show>
+        </div>
         <For each={slices()}>
           {(sliceIndex) => <Slice sliceIndex={sliceIndex} />}
         </For>

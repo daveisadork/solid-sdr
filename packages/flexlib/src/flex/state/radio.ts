@@ -234,6 +234,8 @@ export interface RadioSnapshot {
   readonly meterInRx?: boolean;
   readonly showTxInWaterfall?: boolean;
   readonly txRawIqEnabled?: boolean;
+  /** Maximum internal PA power in watts (e.g. 100W for standard radios). */
+  readonly maxInternalPaPowerWatts?: number;
   readonly cwPitchHz?: number;
   readonly cwSpeedWpm?: number;
   readonly syncCwx?: boolean;
@@ -903,6 +905,13 @@ function applyTransmitAttributes(
         break;
       case "raw_iq_enable":
         partial.txRawIqEnabled = isTruthy(value);
+        break;
+      case "max_internal_pa_power":
+        partial.maxInternalPaPowerWatts = parseIntegerAttribute(
+          value,
+          "transmit",
+          key,
+        );
         break;
       case "freq":
       case "tx_slice_mode":

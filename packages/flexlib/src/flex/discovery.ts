@@ -200,6 +200,15 @@ export function decodeDiscoveryPayload(
     valueOrUndefined(fields.get("min_software_version")),
   );
 
+  // v4.1+ uses license_is_unknown; older firmware uses requires_additional_license
+  const hasUnknownRadioLicense = parseBooleanFlag(
+    fields.get("license_is_unknown"),
+  );
+  if (hasUnknownRadioLicense !== undefined) {
+    meta.hasUnknownRadioLicense = hasUnknownRadioLicense;
+  }
+
+  // Deprecated in v4.1, but keep for backward compatibility with older firmware
   const requiresAdditionalLicense = parseBooleanFlag(
     fields.get("requires_additional_license"),
   );

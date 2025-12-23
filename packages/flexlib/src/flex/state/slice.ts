@@ -107,6 +107,8 @@ export interface SliceSnapshot {
   readonly meterIds: readonly string[];
   readonly owner: string;
   readonly clientHandle: number;
+  /** Maximum internal PA power in watts for this slice (e.g. 100W for standard radios). */
+  readonly maxInternalPaPowerWatts?: number;
   readonly raw: Readonly<Record<string, string>>;
 }
 
@@ -606,6 +608,12 @@ export function createSliceSnapshot(
       case "client_handle": {
         const parsed = parseIntegerHex(value);
         if (parsed !== undefined) partial.clientHandle = parsed;
+        else logParseError("slice", key, value);
+        break;
+      }
+      case "max_internal_pa_power": {
+        const parsed = parseInteger(value);
+        if (parsed !== undefined) partial.maxInternalPaPowerWatts = parsed;
         else logParseError("slice", key, value);
         break;
       }

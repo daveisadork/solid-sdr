@@ -5,7 +5,6 @@ import type {
   RadioLogModule,
   RadioInterlockState,
   RadioInterlockReason,
-  RadioPttSource,
   RadioOscillatorSetting,
   RadioSnapshot,
   RadioScreensaverMode,

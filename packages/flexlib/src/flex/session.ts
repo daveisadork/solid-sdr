@@ -208,6 +208,8 @@ export interface FlexRadioSession {
   getEqualizers(): readonly EqualizerSnapshot[];
   getRemoteAudioRxStream(id: string): AudioStreamSnapshot | undefined;
   getRemoteAudioRxStreams(): readonly AudioStreamSnapshot[];
+  getTxBandSetting(id: string): TxBandSettingSnapshot | undefined;
+  getTxBandSettings(): readonly TxBandSettingSnapshot[];
   getRadio(): RadioSnapshot | undefined;
   getFeatureLicense(): FeatureLicenseSnapshot | undefined;
   radio(): RadioController;
@@ -220,6 +222,8 @@ export interface FlexRadioSession {
   audioStream(id: string): AudioStreamController | undefined;
   remoteAudioRxStream(id: string): RemoteAudioRxStreamController | undefined;
   equalizer(id: EqualizerId): EqualizerController;
+  txBandSetting(id: string): TxBandSettingController | undefined;
+  txBandSettings(): readonly TxBandSettingSnapshot[];
   createPanadapter(
     options?: PanadapterCreateOptions,
   ): Promise<PanadapterController>;
@@ -523,6 +527,10 @@ class FlexRadioSessionImpl implements FlexRadioSession {
   }
 
   getTxBandSettings(): readonly TxBandSettingSnapshot[] {
+    return this.store.getTxBandSettings();
+  }
+
+  txBandSettings(): readonly TxBandSettingSnapshot[] {
     return this.store.getTxBandSettings();
   }
 

@@ -363,7 +363,7 @@ export function Slice(props: { sliceIndex: string }) {
           style={{
             "--slice-offset": `${offset()}px`,
           }}
-          onMouseDown={(event) => {
+          onPointerDown={(event) => {
             setDragState({
               dragging: true,
               originX: event.clientX,

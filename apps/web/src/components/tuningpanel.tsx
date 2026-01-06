@@ -159,7 +159,6 @@ export function TuningPanel(props: { streamId: string }) {
         onChange={(value: string) => {
           if (!value || value === pan.band) return;
           panController()?.setBand(value);
-          // setPan("band", value);
         }}
         options={BANDS.map((b) => b.id)}
         itemComponent={(props) => (
@@ -220,6 +219,13 @@ export function TuningPanel(props: { streamId: string }) {
           <NumberFieldDecrementTrigger class="select-none" />
         </NumberFieldGroup>
       </NumberField>
+      <SimpleSwitch
+        checked={state.status.radio.showTxInWaterfall}
+        onChange={(isChecked) => {
+          radio()?.setShowTxInWaterfall(isChecked);
+        }}
+        label="Show TX in Waterfall"
+      />
       <SimpleSwitch
         checked={pan.isBandZoomOn}
         onChange={(isChecked) => {

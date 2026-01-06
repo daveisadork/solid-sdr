@@ -82,26 +82,19 @@ export function Waterfall(props: { streamId: string }) {
     });
     if (!paletteCtx) return;
     const { gradients, colorMin, colorMax } = state.palette;
-    const { clip, colors } = gradients[waterfall().gradientIndex];
-    setBlack(colors[0]);
+    const { stops } = gradients[waterfall().gradientIndex];
+    setBlack(stops[0].color);
     const gradient = paletteCtx.createLinearGradient(
       0,
       0,
       paletteCanvas.width,
       paletteCanvas.height,
     );
-    const stepSize = (colorMax - colorMin) / (colors.length - 1);
-    colors.forEach((color, index) => {
-      const stop = Math.min(index * stepSize + colorMin, 1.0);
-      gradient.addColorStop(stop, color);
+    const range = colorMax - colorMin;
+    stops.forEach(({ offset, color }) => {
+      gradient.addColorStop(offset * range + colorMin, color);
     });
 
-    if (clip) {
-      gradient.addColorStop(
-        Math.min((colors.length - 1) * stepSize + colorMin, 1.0),
-        clip,
-      );
-    }
     paletteCtx.fillStyle = gradient;
     paletteCtx.fillRect(0, 0, paletteCanvas.width, paletteCanvas.height);
     const imageData = paletteCtx.getImageData(

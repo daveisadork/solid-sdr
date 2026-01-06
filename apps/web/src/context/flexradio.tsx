@@ -79,7 +79,7 @@ const withoutRaw = <T extends { raw?: unknown }>(
 export interface Gradient {
   name: string;
   clip?: string; // Optional, used for gradients that have a clipping color
-  colors: string[];
+  stops: { color: string; offset: number }[];
 }
 
 type MutableProps<T> = {
@@ -96,12 +96,6 @@ export type GuiClient = Omit<MutableProps<GuiClientSnapshot>, "raw">;
 export type Equalizer = Omit<MutableProps<EqualizerSnapshot>, "raw">;
 export type APD = Omit<MutableProps<ApdSnapshot>, "raw">;
 export type TxBandSetting = Omit<MutableProps<TxBandSettingSnapshot>, "raw">;
-
-export interface Gradient {
-  name: string;
-  clip?: string;
-  colors: string[];
-}
 
 export interface DisplaySettings {
   scrollOffset: number;
@@ -174,69 +168,86 @@ export const initialState = () =>
         {
           name: "SmartSDR",
           clip: "#ffffff",
-          colors: [
-            "#000000",
-            "#0000ff",
-            "#00ffff",
-            "#00ff00",
-            "#ffff00",
-            "#ff8000",
-            "#ff0000",
+          stops: [
+            { color: "#000000", offset: 0.0 },
+            { color: "#0000ff", offset: 0.15 },
+            { color: "#00ffff", offset: 0.25 },
+            { color: "#00ff00", offset: 0.35 },
+            { color: "#ffff00", offset: 0.55 },
+            { color: "#ff0000", offset: 0.9 },
+            { color: "#ffffff", offset: 1.0 },
           ],
         },
         {
           name: "SmartSDR + Purple",
           clip: "#ffffff",
-          colors: [
-            "#000000",
-            "#0000ff",
-            "#00ffff",
-            "#00ff00",
-            "#ffff00",
-            "#ff8000",
-            "#ff0000",
-            "#ff00ff",
+          stops: [
+            { color: "#000000", offset: 0.0 },
+            { color: "#0000ff", offset: 0.15 },
+            { color: "#00ffff", offset: 0.225 },
+            { color: "#00ff00", offset: 0.3 },
+            { color: "#ffff00", offset: 0.45 },
+            { color: "#ff0000", offset: 0.6 },
+            { color: "#ff00ff", offset: 0.75 },
+            { color: "#ffffff", offset: 1.0 },
           ],
         },
         {
           name: "Vintage Warm",
           clip: "#ffffff",
-          colors: [
-            "#000000",
-            "#1d4877",
-            // "#1ba4a1",
-            "#1b8a5a",
-            "#fbb021",
-            "#f68838",
-            "#ee3e32",
+          stops: [
+            { color: "#000000", offset: 0.0 },
+            { color: "#1d4877", offset: 0.1667 },
+            // { color: "#1ba4a1", percent: 0.3333 },
+            { color: "#1b8a5a", offset: 0.3333 },
+            { color: "#fbb021", offset: 0.5 },
+            { color: "#f68838", offset: 0.6667 },
+            { color: "#ee3e32", offset: 0.8333 },
+            { color: "#ffffff", offset: 1.0 },
           ],
         },
         {
           name: "Grayscale",
-          colors: ["#000000", "#ffffff"],
+          stops: [
+            { color: "#000000", offset: 0.0 },
+            { color: "#ffffff", offset: 1.0 },
+          ],
         },
         {
           name: "CMYK",
           clip: "#ffffff",
-          colors: ["#000000", "#00ffff", "#ffff00", "#ff00ff"],
+          stops: [
+            { color: "#000000", offset: 0.0 },
+            { color: "#00ffff", offset: 0.25 },
+            { color: "#ffff00", offset: 0.5 },
+            { color: "#ff00ff", offset: 0.75 },
+            { color: "#ffffff", offset: 1.0 },
+          ],
         },
         {
           name: "RGB",
           clip: "#ffffff",
-          colors: ["#000000", "#0000ff", "#00ff00", "#ff0000"],
+          stops: [
+            { color: "#000000", offset: 0.0 },
+            { color: "#0000ff", offset: 0.25 },
+            { color: "#00ff00", offset: 0.5 },
+            { color: "#ff0000", offset: 0.75 },
+            { color: "#ffffff", offset: 1.0 },
+          ],
         },
         {
           name: "Solarized",
           clip: "#ffffff",
-          colors: [
-            "#002b36",
-            "#268bd2",
-            // "#2aa198",
-            "#859900",
-            "#b58900",
-            "#cb4b16",
-            "#dc322f",
-            // "#d33682",
+          stops: [
+            { color: "#002b36", offset: 0.0 },
+            { color: "#268bd2", offset: 0.1667 },
+            // { color: "#2aa198", percent: 0.3333 },
+            { color: "#859900", offset: 0.3333 },
+            { color: "#b58900", offset: 0.5 },
+            { color: "#cb4b16", offset: 0.6667 },
+            { color: "#dc322f", offset: 0.8333 },
+            // { color: "#d33682", percent: 1.0 },
+            { color: "#ffffff", offset: 1.0 },
           ],
         },
       ],

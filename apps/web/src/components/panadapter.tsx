@@ -75,10 +75,7 @@ export function Panadapter(props: { streamId: string }) {
     const { gradients } = state.palette;
     const { gradientIndex: gradient_index } =
       state.status.waterfall[pan().waterfallStreamId];
-    const { colors } = gradients[gradient_index];
-    const colorMin = 0;
-    const colorMax = 1;
-    const stepSize = (colorMax - colorMin) / colors.length;
+    const { stops } = gradients[gradient_index];
     const offscreen = new OffscreenCanvas(1, pan().height);
     const ctx = offscreen.getContext("2d");
     if (!ctx) return;
@@ -88,8 +85,8 @@ export function Panadapter(props: { streamId: string }) {
       0,
       0,
     );
-    colors.forEach((color, index) => {
-      gradient.addColorStop(index * stepSize + colorMin, color);
+    stops.forEach(({ offset, color }) => {
+      gradient.addColorStop(offset, color);
     });
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, offscreen.width, offscreen.height);
@@ -117,12 +114,10 @@ export function Panadapter(props: { streamId: string }) {
     const waterfall = state.status.waterfall[pan().waterfallStreamId];
     if (!waterfall) return;
     const { gradientIndex } = waterfall;
-    const { colors } = gradients[gradientIndex];
-    const stepSize = 1 / colors.length;
-
+    const { stops } = gradients[gradientIndex];
     const gradient = ctx.createLinearGradient(0, pan().height, 0, 0);
-    colors.forEach((color, index) => {
-      gradient.addColorStop(index * stepSize, color);
+    stops.forEach(({ offset, color }) => {
+      gradient.addColorStop(offset, color);
     });
     return gradient;
   });

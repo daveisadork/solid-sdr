@@ -313,7 +313,11 @@ export function TuningPanel(props: { streamId: string }) {
           if (value === waterfall.colorGain) return;
           wfController()?.setColorGain(Math.floor(value));
         }}
-        getValueLabel={(params) => `${params.values[0] / 5} dB`}
+        getValueLabel={(params) => {
+          const gain =
+            20 * Math.log10(1 / Math.pow(1 - params.values[0] / 100, 3));
+          return `${Math.round(gain * 10) / 10} dB`;
+        }}
         label="Color Gain"
       />
       <SimpleSlider

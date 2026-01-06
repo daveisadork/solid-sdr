@@ -54,8 +54,8 @@ export function Waterfall(props: { streamId: string }) {
     // translate the configured color gain into a colorMax value
     const { colorMin } = state.palette;
     const range = 1 - colorMin;
-    const gain = Math.pow(10, waterfall().colorGain / 50);
-    const colorMax = colorMin + range / gain;
+    const gain = Math.pow(1 - waterfall().colorGain / 100, 3);
+    const colorMax = colorMin + range * gain;
     setState("palette", "colorMax", colorMax);
   });
 

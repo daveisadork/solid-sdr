@@ -363,15 +363,6 @@ export function Slice(props: { sliceIndex: string }) {
           style={{
             "--slice-offset": `${offset()}px`,
           }}
-          onPointerDown={(event) => {
-            setDragState({
-              dragging: true,
-              originX: event.clientX,
-              originFreq: slice.frequencyMHz,
-              offset: 0,
-            });
-            makeActive();
-          }}
           onClick={makeActive}
           ref={setRef}
         >
@@ -384,6 +375,15 @@ export function Slice(props: { sliceIndex: string }) {
             style={{
               "--filter-width": `${filterWidth()}px`,
               "--filter-offset": `${filterOffset()}px`,
+            }}
+            onPointerDown={(event) => {
+              setDragState({
+                dragging: true,
+                originX: event.clientX,
+                originFreq: slice.frequencyMHz,
+                offset: 0,
+              });
+              makeActive();
             }}
           />
           <div

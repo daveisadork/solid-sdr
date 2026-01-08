@@ -78,7 +78,6 @@ const withoutRaw = <T extends { raw?: unknown }>(
 
 export interface Gradient {
   name: string;
-  clip?: string; // Optional, used for gradients that have a clipping color
   stops: { color: string; offset: number }[];
 }
 
@@ -167,7 +166,6 @@ export const initialState = () =>
       gradients: [
         {
           name: "SmartSDR",
-          clip: "#ffffff",
           stops: [
             { color: "#000000", offset: 0.0 },
             { color: "#0000ff", offset: 0.15 },
@@ -180,7 +178,6 @@ export const initialState = () =>
         },
         {
           name: "SmartSDR + Purple",
-          clip: "#ffffff",
           stops: [
             { color: "#000000", offset: 0.0 },
             { color: "#0000ff", offset: 0.15 },
@@ -194,7 +191,6 @@ export const initialState = () =>
         },
         {
           name: "Vintage Warm",
-          clip: "#ffffff",
           stops: [
             { color: "#000000", offset: 0.0 },
             { color: "#1d4877", offset: 0.1667 },
@@ -215,7 +211,6 @@ export const initialState = () =>
         },
         {
           name: "CMYK",
-          clip: "#ffffff",
           stops: [
             { color: "#000000", offset: 0.0 },
             { color: "#00ffff", offset: 0.25 },
@@ -226,7 +221,6 @@ export const initialState = () =>
         },
         {
           name: "RGB",
-          clip: "#ffffff",
           stops: [
             { color: "#000000", offset: 0.0 },
             { color: "#0000ff", offset: 0.25 },
@@ -237,7 +231,6 @@ export const initialState = () =>
         },
         {
           name: "Solarized",
-          clip: "#ffffff",
           stops: [
             { color: "#002b36", offset: 0.0 },
             { color: "#268bd2", offset: 0.1667 },

@@ -367,10 +367,12 @@ export function Slice(props: { sliceIndex: string }) {
           ref={setRef}
         >
           <div
-            class="absolute h-full translate-x-[var(--filter-offset)] w-[var(--filter-width)] "
+            class="absolute h-full translate-x-[var(--filter-offset)] w-[var(--filter-width)]"
             classList={{
               "backdrop-brightness-125 backdrop-contrast-75":
                 !slice.diversityChild,
+              "cursor-grab": !dragState.dragging,
+              "cursor-grabbing": dragState.dragging,
             }}
             style={{
               "--filter-width": `${filterWidth()}px`,

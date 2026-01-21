@@ -1021,18 +1021,15 @@ export class SliceControllerImpl implements SliceController {
   }
 
   async setFilterLow(lowHz: number): Promise<void> {
-    await this.sendSet({ filter_lo: formatInteger(lowHz) });
+    await this.sendFilter(lowHz, this.filterHighHz);
   }
 
   async setFilterHigh(highHz: number): Promise<void> {
-    await this.sendSet({ filter_hi: formatInteger(highHz) });
+    await this.sendFilter(this.filterLowHz, highHz);
   }
 
   async setFilter(lowHz: number, highHz: number): Promise<void> {
-    await this.sendSet({
-      filter_lo: formatInteger(lowHz),
-      filter_hi: formatInteger(highHz),
-    });
+    await this.sendFilter(lowHz, highHz);
   }
 
   async setRttyMark(markHz: number): Promise<void> {
@@ -1267,10 +1264,16 @@ export class SliceControllerImpl implements SliceController {
   }
 
   async update(request: SliceUpdateRequest): Promise<void> {
-    const { frequencyMHz, isLocked, ...setRequest } = request;
+    const { frequencyMHz, isLocked, filterLowHz, filterHighHz, ...setRequest } =
+      request;
     const entries = this.buildSetEntries(setRequest);
     if (Object.keys(entries).length > 0) {
       await this.sendSet(entries);
+    }
+    if (filterLowHz !== undefined || filterHighHz !== undefined) {
+      const low = filterLowHz ?? this.filterLowHz;
+      const high = filterHighHz ?? this.filterHighHz;
+      await this.sendFilter(low, high);
     }
     if (isLocked !== undefined) {
       await this.setLocked(isLocked);
@@ -1298,8 +1301,28 @@ export class SliceControllerImpl implements SliceController {
     }
   }
 
+  private async sendFilter(lowHz: number, highHz: number): Promise<void> {
+    const low = formatInteger(lowHz);
+    const high = formatInteger(highHz);
+    const command = `filt ${this.id} ${low} ${high}`;
+    this.session.patchSlice(this.id, {
+      index: this.id,
+      filter_lo: low,
+      filter_hi: high,
+    });
+    try {
+      await this.session.command(command);
+    } catch (error) {
+      await this.session.command(`sub slice ${this.id}`);
+      throw error;
+    }
+  }
+
   private buildSetEntries(
-    request: Omit<SliceUpdateRequest, "frequencyMHz" | "isLocked">,
+    request: Omit<
+      SliceUpdateRequest,
+      "frequencyMHz" | "isLocked" | "filterLowHz" | "filterHighHz"
+    >,
   ): Record<string, string> {
     const entries = Object.create(null) as Record<string, string>;
     if (request.mode !== undefined) entries.mode = request.mode;
@@ -1314,10 +1337,6 @@ export class SliceControllerImpl implements SliceController {
       entries.dax = formatInteger(request.daxChannel);
     if (request.rfGain !== undefined)
       entries.rfgain = formatInteger(request.rfGain);
-    if (request.filterLowHz !== undefined)
-      entries.filter_lo = formatInteger(request.filterLowHz);
-    if (request.filterHighHz !== undefined)
-      entries.filter_hi = formatInteger(request.filterHighHz);
     if (request.rttyMarkHz !== undefined)
       entries.rtty_mark = formatInteger(request.rttyMarkHz);
     if (request.rttyShiftHz !== undefined)

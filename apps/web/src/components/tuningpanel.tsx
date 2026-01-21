@@ -63,9 +63,18 @@ export function TuningPanel(props: { streamId: string }) {
   const [rawBandwidth, setRawBandwidth] = createSignal(
     panController().bandwidthMHz,
   );
+  const [rawHighDbm, setRawHighDbm] = createSignal(panController().highDbm);
+  const [rawLowDbm, setRawLowDbm] = createSignal(panController().lowDbm);
 
   return (
     <div class="flex flex-col px-4 gap-4 size-full text-sm overflow-y-auto overflow-x-hidden select-none overscroll-y-contain">
+      <SimpleSwitch
+        checked={state.settings.showFps}
+        onChange={(isChecked) => {
+          setState("settings", "showFps", isChecked);
+        }}
+        label="Show FPS"
+      />
       <SegmentedControl
         value={state.display.peakStyle}
         onChange={(value) => {
@@ -212,6 +221,46 @@ export function TuningPanel(props: { streamId: string }) {
       >
         <NumberFieldDescription class="select-none">
           Bandwidth
+        </NumberFieldDescription>
+        <NumberFieldGroup class="select-none">
+          <NumberFieldInput />
+          <NumberFieldIncrementTrigger class="select-none" />
+          <NumberFieldDecrementTrigger class="select-none" />
+        </NumberFieldGroup>
+      </NumberField>
+      <NumberField
+        class="flex w-36 flex-col gap-2 select-none"
+        rawValue={pan.highDbm}
+        onFocusOut={() => {
+          const high = rawHighDbm();
+          if (high !== pan.highDbm) {
+            panController()?.setDbmRange({ high, low: rawLowDbm() });
+          }
+        }}
+        onRawValueChange={setRawHighDbm}
+      >
+        <NumberFieldDescription class="select-none">
+          High dBm
+        </NumberFieldDescription>
+        <NumberFieldGroup class="select-none">
+          <NumberFieldInput />
+          <NumberFieldIncrementTrigger class="select-none" />
+          <NumberFieldDecrementTrigger class="select-none" />
+        </NumberFieldGroup>
+      </NumberField>
+      <NumberField
+        class="flex w-36 flex-col gap-2 select-none"
+        rawValue={pan.lowDbm}
+        onFocusOut={() => {
+          const low = rawLowDbm();
+          if (low !== pan.lowDbm) {
+            panController()?.setDbmRange({ high: rawHighDbm(), low });
+          }
+        }}
+        onRawValueChange={setRawLowDbm}
+      >
+        <NumberFieldDescription class="select-none">
+          Low dBm
         </NumberFieldDescription>
         <NumberFieldGroup class="select-none">
           <NumberFieldInput />

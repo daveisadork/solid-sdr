@@ -53,9 +53,14 @@ export function Waterfall(props: { streamId: string }) {
   createEffect(() => {
     // translate the configured color gain into a colorMax value
     const { colorMin } = state.palette;
+    const colorGain = waterfall().colorGain;
     const range = 1 - colorMin;
-    const gain = Math.pow(1 - waterfall().colorGain / 100, 3);
+    const gain = Math.pow(1 - colorGain / 100, 3);
     const colorMax = colorMin + range * gain;
+    // const low = colorMin * 170 - 150;
+    // const high = colorMax * 256 - 150;
+    // console.log("colorMin:", colorMin, "colorMax:", colorMax, "->", low, high);
+    // radio()?.panadapter(pan().streamId)?.setDbmRange({ low, high });
     setState("palette", "colorMax", colorMax);
   });
 
@@ -300,11 +305,13 @@ export function Waterfall(props: { streamId: string }) {
           requestAnimationFrame(paint);
         }
 
-        frameTimes.push(performance.now() - frameStartTime);
-        if (frameTimes.length > 10) frameTimes.shift();
-        const avgFrameTime =
-          frameTimes.reduce((a, b) => a + b, 0) / frameTimes.length;
-        setFps(Math.round(1000 / avgFrameTime));
+        if (state.settings.showFps) {
+          frameTimes.push(performance.now() - frameStartTime);
+          if (frameTimes.length > 10) frameTimes.shift();
+          const avgFrameTime =
+            frameTimes.reduce((a, b) => a + b, 0) / frameTimes.length;
+          setFps(Math.round(1000 / avgFrameTime));
+        }
 
         setBinBandwidth(binBandwidth);
         setLastCalculatedCenter(calculatedCenter);
@@ -353,12 +360,13 @@ export function Waterfall(props: { streamId: string }) {
           "--width-multiplier": widthMultiplier(),
         }}
       />
-
-      <Portal>
-        <div class="fixed top-12 left-2 -z-50 text-lg font-bold text-emerald-400/50">
-          {fps()}
-        </div>
-      </Portal>
+      <Show when={state.settings.showFps}>
+        <Portal>
+          <div class="fixed top-12 left-2 -z-50 text-lg font-bold text-emerald-400/50">
+            {fps()}
+          </div>
+        </Portal>
+      </Show>
       <Show when={totalSeconds() > 0}>
         <div class="pointer-events-none absolute inset-y-0 right-0 w-10 bg-background/50">
           <div class="relative h-full px-1.5 flex items-center">

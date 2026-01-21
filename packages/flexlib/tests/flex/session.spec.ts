@@ -68,9 +68,7 @@ describe("FlexClient", () => {
     expect(slice?.rfGain).toBe(120);
 
     await slice?.setFilter(-300, 300);
-    expect(channel.commands.at(-1)?.command).toBe(
-      "slice set 0 filter_lo=-300 filter_hi=300",
-    );
+    expect(channel.commands.at(-1)?.command).toBe("filt 0 -300 300");
     expect(slice?.filterLowHz).toBe(-300);
     expect(slice?.filterHighHz).toBe(300);
 

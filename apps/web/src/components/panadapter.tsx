@@ -286,11 +286,13 @@ export function Panadapter(props: { streamId: string }) {
           cancelAnimationFrame(rafId);
         }
         rafId = requestAnimationFrame(flushFrame);
-        frameTimes.push(performance.now() - frameStartTime);
-        if (frameTimes.length > 10) frameTimes.shift();
-        const avgFrameTime =
-          frameTimes.reduce((a, b) => a + b, 0) / frameTimes.length;
-        setFps(Math.round(1000 / avgFrameTime));
+        if (state.settings.showFps) {
+          frameTimes.push(performance.now() - frameStartTime);
+          if (frameTimes.length > 10) frameTimes.shift();
+          const avgFrameTime =
+            frameTimes.reduce((a, b) => a + b, 0) / frameTimes.length;
+          setFps(Math.round(1000 / avgFrameTime));
+        }
       }
     };
   });
@@ -312,12 +314,13 @@ export function Panadapter(props: { streamId: string }) {
         ref={setCanvasRef}
         class="absolute size-full translate-x-[var(--drag-offset)] select-none"
       />
-
-      <Portal>
-        <div class="fixed top-7 left-2 -z-50 text-lg font-bold text-indigo-400/50">
-          {fps()}
-        </div>
-      </Portal>
+      <Show when={state.settings.showFps}>
+        <Portal>
+          <div class="fixed top-7 left-2 -z-50 text-lg font-bold text-indigo-400/50">
+            {fps()}
+          </div>
+        </Portal>
+      </Show>
       <div class="pointer-events-none absolute inset-y-0 left-0 w-[var(--panafall-available-width)] translate-x-[var(--drag-offset)] -z-50">
         <PanadapterGrid
           class="size-full"

@@ -18,7 +18,9 @@ export function AppSidebar() {
           <TuningPanel streamId={state.selectedPanadapter!} />
         </Show>
       </SidebarContent>
-      <FPSCounter />
+      <Show when={state.settings.showFps}>
+        <FPSCounter />
+      </Show>
     </Sidebar>
   );
 }

@@ -131,6 +131,10 @@ export interface StatusState {
   txBandSetting: Record<string, TxBandSetting>;
 }
 
+export interface SettingsState {
+  showFps: boolean; // Add user settings here in the future
+}
+
 export interface AppState {
   clientHandle: string | null;
   clientHandleInt: number | null;
@@ -141,6 +145,7 @@ export interface AppState {
   connectModal: ConnectModalState;
   status: StatusState;
   runtime: RuntimeState;
+  settings: SettingsState;
 }
 
 interface RuntimeState {
@@ -300,6 +305,9 @@ export const initialState = () =>
       featureLicense: {},
       audioStream: {},
       txBandSetting: {},
+    },
+    settings: {
+      showFps: false,
     },
   }) as AppState;
 

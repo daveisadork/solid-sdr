@@ -58,13 +58,130 @@ import { FrequencyInput } from "./frequency-input";
 import { SliderToggle } from "./ui/slider-toggle";
 import { SimpleSwitch } from "./ui/simple-switch";
 import { SimpleSlider } from "./ui/simple-slider";
+import {
+  NumberField,
+  NumberFieldDecrementTrigger,
+  NumberFieldDescription,
+  NumberFieldGroup,
+  NumberFieldIncrementTrigger,
+  NumberFieldInput,
+} from "./ui/number-field";
+
+const filterMaxHz = 12_000;
+const filterMinHz = -filterMaxHz;
+
+export interface FilterPreset {
+  name: string;
+  lowCut: number;
+  highCut: number;
+}
+
+export const filterPresets: Record<string, FilterPreset[]> = {
+  AM: [
+    { name: "5.6K", lowCut: -2800, highCut: 2800 },
+    { name: "6.0K", lowCut: -3000, highCut: 3000 },
+    { name: "8.0K", lowCut: -4000, highCut: 4000 },
+    { name: "10K", lowCut: -5000, highCut: 5000 },
+    { name: "12K", lowCut: -6000, highCut: 6000 },
+    { name: "14K", lowCut: -7000, highCut: 7000 },
+    { name: "16K", lowCut: -8000, highCut: 8000 },
+    { name: "20K", lowCut: -10000, highCut: 10000 },
+  ],
+  USB: [
+    { name: "1.8K", lowCut: 100, highCut: 1900 },
+    { name: "2.1K", lowCut: 100, highCut: 2200 },
+    { name: "2.4K", lowCut: 100, highCut: 2500 },
+    { name: "2.7K", lowCut: 100, highCut: 2800 },
+    { name: "2.9K", lowCut: 100, highCut: 3000 },
+    { name: "3.3K", lowCut: 100, highCut: 3400 },
+    { name: "4.0K", lowCut: 100, highCut: 4100 },
+    { name: "6.0K", lowCut: 100, highCut: 6100 },
+  ],
+  LSB: [
+    { name: "1.8K", lowCut: -1900, highCut: -100 },
+    { name: "2.1K", lowCut: -2200, highCut: -100 },
+    { name: "2.4K", lowCut: -2500, highCut: -100 },
+    { name: "2.7K", lowCut: -2800, highCut: -100 },
+    { name: "2.9K", lowCut: -3000, highCut: -100 },
+    { name: "3.3K", lowCut: -3400, highCut: -100 },
+    { name: "4.0K", lowCut: -4100, highCut: -100 },
+    { name: "6.0K", lowCut: -6100, highCut: -100 },
+  ],
+  DIGU: [
+    { name: "100", lowCut: -50, highCut: 50 },
+    { name: "300", lowCut: -150, highCut: 150 },
+    { name: "600", lowCut: -300, highCut: 300 },
+    { name: "1.0K", lowCut: -500, highCut: 500 },
+    { name: "1.5K", lowCut: -750, highCut: 750 },
+    { name: "2.0K", lowCut: -1000, highCut: 1000 },
+    { name: "3.0K", lowCut: -1500, highCut: 1500 },
+    { name: "6.0K", lowCut: -3000, highCut: 3000 },
+  ],
+  DIGL: [
+    { name: "100", lowCut: -50, highCut: 50 },
+    { name: "300", lowCut: -150, highCut: 150 },
+    { name: "600", lowCut: -300, highCut: 300 },
+    { name: "1.0K", lowCut: -500, highCut: 500 },
+    { name: "1.5K", lowCut: -750, highCut: 750 },
+    { name: "2.0K", lowCut: -1000, highCut: 1000 },
+    { name: "3.0K", lowCut: -1500, highCut: 1500 },
+    { name: "6.0K", lowCut: -3000, highCut: 3000 },
+  ],
+  RTTY: [
+    { name: "250", lowCut: -125, highCut: 125 },
+    { name: "300", lowCut: -150, highCut: 150 },
+    { name: "350", lowCut: -175, highCut: 175 },
+    { name: "400", lowCut: -200, highCut: 200 },
+    { name: "500", lowCut: -250, highCut: 250 },
+    { name: "1.0K", lowCut: -500, highCut: 500 },
+    { name: "1.5K", lowCut: -750, highCut: 750 },
+    { name: "3.0K", lowCut: -1500, highCut: 1500 },
+  ],
+  CW: [
+    { name: "50", lowCut: -25, highCut: 25 },
+    { name: "100", lowCut: -50, highCut: 50 },
+    { name: "250", lowCut: -125, highCut: 125 },
+    { name: "400", lowCut: -200, highCut: 200 },
+    { name: "500", lowCut: -250, highCut: 250 },
+    { name: "800", lowCut: -400, highCut: 400 },
+    { name: "1.0K", lowCut: -500, highCut: 500 },
+    { name: "3.0K", lowCut: -1500, highCut: 1500 },
+  ],
+  DFM: [
+    { name: "6.0K", lowCut: -3000, highCut: 3000 },
+    { name: "8.0K", lowCut: -4000, highCut: 4000 },
+    { name: "10K", lowCut: -5000, highCut: 5000 },
+    { name: "12K", lowCut: -6000, highCut: 6000 },
+    { name: "14K", lowCut: -7000, highCut: 7000 },
+    { name: "16K", lowCut: -8000, highCut: 8000 },
+    { name: "18K", lowCut: -9000, highCut: 9000 },
+    { name: "20K", lowCut: -10000, highCut: 10000 },
+  ],
+};
+
+export interface FilterConstraint {
+  low: number;
+  high: number;
+}
+
+const filterConstraints: Record<string, FilterConstraint> = {
+  AM: { low: -10_000, high: 10_000 },
+  USB: { low: 0, high: 10_000 },
+  LSB: { low: -10_000, high: 0 },
+  DIGU: { low: -3_000, high: 3_000 },
+  DIGL: { low: -3_000, high: 3_000 },
+  RTTY: { low: -1_500, high: 1_500 },
+  CW: { low: -1_500, high: 1_500 },
+  DFM: { low: -10_000, high: 10_000 },
+};
 
 const StatusToggle: Component<ComponentProps<"span"> & { active?: boolean }> = (
   props,
 ) => {
-  const [local, others] = splitProps(props, ["classList", "active"]);
+  const [local, others] = splitProps(props, ["class", "classList", "active"]);
   return (
     <span
+      class={local.class}
       classList={{
         "text-blue-500": local.active,
         "text-neutral-500": !local.active,
@@ -227,6 +344,152 @@ export function DetachedSlices(props: { streamId: string }) {
   );
 }
 
+const SliceFilter = (props: { sliceIndex: string }) => {
+  const sliceIndex = () => props.sliceIndex;
+  const { radio: session, state } = useFlexRadio();
+  const slice = () => state.status.slice[sliceIndex()];
+  const sliceController = () => session()?.slice(sliceIndex());
+  const [rawFilterLow, setRawFilterLow] = createSignal(slice().filterLowHz);
+  const [rawFilterHigh, setRawFilterHigh] = createSignal(slice().filterHighHz);
+
+  createEffect(() => setRawFilterLow(slice().filterLowHz));
+  createEffect(() => setRawFilterHigh(slice().filterHighHz));
+
+  const applyFilterLow = () =>
+    rawFilterLow() !== slice().filterLowHz
+      ? sliceController().setFilterLow(rawFilterLow())
+      : null;
+
+  const applyFilterHigh = () =>
+    rawFilterHigh() !== slice().filterHighHz
+      ? sliceController().setFilterHigh(rawFilterHigh())
+      : null;
+
+  const filterText = () => {
+    let filterWidth = slice().filterHighHz - slice().filterLowHz;
+    const unit = filterWidth >= 1000 ? "K" : "";
+    if (filterWidth >= 1000) filterWidth /= 1000;
+    return `${filterWidth}${unit}`;
+  };
+
+  const selectedPreset = () =>
+    filterPresets[slice().mode].find(
+      (preset) =>
+        preset.lowCut === slice().filterLowHz &&
+        preset.highCut === slice().filterHighHz,
+    );
+
+  return (
+    <Popover>
+      <PopoverTrigger class="text-blue-500 text-xs text-center font-mono grow">
+        {filterText()}
+      </PopoverTrigger>
+      <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 bg-background/50 backdrop-blur-xl">
+        <PopoverArrow />
+        <div class="p-4 flex flex-col space-y-6 max-h-[var(--kb-popper-content-available-height)] overflow-x-auto">
+          <Show when={filterPresets[slice().mode]}>
+            {(presets) => (
+              <ToggleGroup
+                value={selectedPreset()?.name}
+                onChange={(preset: string) => {
+                  const presetObj = presets().find((p) => p.name === preset);
+                  if (!presetObj) return;
+                  sliceController().setFilter(
+                    presetObj.lowCut,
+                    presetObj.highCut,
+                  );
+                }}
+                class="grid grid-cols-4"
+              >
+                <For each={presets()}>
+                  {(preset) => (
+                    <ToggleGroupItem
+                      variant="outline"
+                      size="sm"
+                      class="border-muted-foreground data-[pressed]:bg-primary data-[pressed]:text-primary-foreground"
+                      value={preset.name}
+                    >
+                      {preset.name}
+                    </ToggleGroupItem>
+                  )}
+                </For>
+              </ToggleGroup>
+            )}
+          </Show>
+          <div class="flex justify-between">
+            <div>
+              <NumberField
+                class="flex w-24 flex-col gap-2 select-none font-mono"
+                rawValue={rawFilterLow()}
+                format={false}
+                minValue={filterMinHz}
+                maxValue={slice().filterHighHz}
+                onRawValueChange={setRawFilterLow}
+                onFocusOut={applyFilterLow}
+              >
+                <NumberFieldDescription class="select-none">
+                  Low Hz
+                </NumberFieldDescription>
+                <NumberFieldGroup class="select-none">
+                  <NumberFieldInput />
+                  <NumberFieldIncrementTrigger class="select-none" />
+                  <NumberFieldDecrementTrigger class="select-none" />
+                </NumberFieldGroup>
+              </NumberField>
+            </div>
+            <div>
+              <NumberField
+                class="flex w-24 flex-col gap-2 select-none font-mono"
+                rawValue={rawFilterHigh()}
+                minValue={slice().filterLowHz}
+                format={false}
+                maxValue={filterConstraints[slice().mode]?.high ?? filterMaxHz}
+                onRawValueChange={setRawFilterHigh}
+                onFocusOut={applyFilterHigh}
+              >
+                <NumberFieldDescription class="select-none text-right">
+                  High Hz
+                </NumberFieldDescription>
+                <NumberFieldGroup class="select-none">
+                  <NumberFieldInput size={6} />
+                  <NumberFieldIncrementTrigger class="select-none" />
+                  <NumberFieldDecrementTrigger class="select-none" />
+                </NumberFieldGroup>
+              </NumberField>
+            </div>
+          </div>
+          <Slider
+            minValue={filterConstraints[slice().mode]?.low ?? filterMinHz}
+            maxValue={filterConstraints[slice().mode]?.high ?? filterMaxHz}
+            step={25}
+            value={[slice().filterLowHz, slice().filterHighHz]}
+            onChange={([low, high]) => sliceController().setFilter(low, high)}
+            class="space-y-3"
+          >
+            <SliderTrack>
+              <SliderFill />
+              <div
+                class="absolute w-[3px] bg-red-500 h-[200%] rounded-sm -translate-y-1/4"
+                classList={{
+                  "left-0 -translate-x-1/2":
+                    filterConstraints[slice().mode]?.low === 0,
+                  "right-0 translate-x-1/2":
+                    filterConstraints[slice().mode]?.high === 0,
+                  "left-1/2 -translate-x-1/2":
+                    filterConstraints[slice().mode]?.low < 0 &&
+                    filterConstraints[slice().mode]?.high > 0,
+                }}
+              />
+              <SliderThumb />
+              <SliderThumb />
+            </SliderTrack>
+          </Slider>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+};
+
 export function Slice(props: { sliceIndex: string }) {
   const sliceIndex = () => props.sliceIndex;
   const { radio: session, state } = useFlexRadio();
@@ -241,7 +504,6 @@ export function Slice(props: { sliceIndex: string }) {
   const [flag, setFlag] = createSignal<HTMLElement>();
   const [filterWidth, setFilterWidth] = createSignal(0);
   const [filterOffset, setFilterOffset] = createSignal(0);
-  const [filterText, setFilterText] = createSignal("");
   const [flagSide, setFlagSide] = createSignal<"left" | "right">("left");
   const [dragState, setDragState] = createStore({
     dragging: false,
@@ -318,7 +580,6 @@ export function Slice(props: { sliceIndex: string }) {
     batch(() => {
       setFilterWidth((filterWidthMhz / pan.bandwidthMHz) * width);
       setFilterOffset((slice.filterLowHz / 1e6 / pan.bandwidthMHz) * width);
-      setFilterText(`${(slice.filterHighHz - slice.filterLowHz) / 1e3}K`);
       // panadapter display is off by 2 pixels, so adjust
       setOffset(offsetPixels - 2);
     });
@@ -487,7 +748,7 @@ export function Slice(props: { sliceIndex: string }) {
                     </SelectTrigger>
                     <SelectContent />
                   </Select>
-                  <span class="grow text-xs text-center">{filterText()}</span>
+                  <SliceFilter sliceIndex={props.sliceIndex} />
                   <ToggleButton.Root
                     class="text-center font-bold pl-1 pr-1 rounded-sm"
                     classList={{
@@ -513,8 +774,38 @@ export function Slice(props: { sliceIndex: string }) {
                   </span>
                 </div>
                 <Show when={!slice.diversityChild}>
-                  <div class="flex justify-between items-center space-x-2">
-                    <span>{slice.mode}</span>
+                  <div class="flex justify-between items-center">
+                    <Popover>
+                      <PopoverTrigger disabled={slice.diversityChild}>
+                        {slice.mode.padEnd(4, "\xA0")}
+                      </PopoverTrigger>
+                      <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 bg-background/50 backdrop-blur-xl">
+                        <PopoverArrow />
+                        <div class="p-4 flex flex-col space-y-6 max-h-[var(--kb-popper-content-available-height)] overflow-x-auto">
+                          <ToggleGroup
+                            value={slice.mode}
+                            onChange={(mode: string) => {
+                              if (!mode || mode === slice.mode) return;
+                              sliceController().setMode(mode);
+                            }}
+                            class="grid grid-cols-4"
+                          >
+                            <For each={slice.modeList}>
+                              {(mode) => (
+                                <ToggleGroupItem
+                                  variant="outline"
+                                  size="sm"
+                                  class="border-muted-foreground data-[pressed]:bg-primary data-[pressed]:text-primary-foreground"
+                                  value={mode}
+                                >
+                                  {mode}
+                                </ToggleGroupItem>
+                              )}
+                            </For>
+                          </ToggleGroup>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
                     <FrequencyInput
                       class="text-right bg-transparent text-lg font-mono"
                       size={14}
@@ -526,9 +817,10 @@ export function Slice(props: { sliceIndex: string }) {
                 <div>
                   <LevelMeter sliceIndex={props.sliceIndex} />
                 </div>
-                <div class="flex items-center text-xs font-bold justify-between *:basis-64 *:flex *:flex-col *:items-center">
+                <div class="h-4 flex items-center text-xs font-bold justify-between *:flex *:flex-col *:items-center">
                   <Popover>
                     <PopoverTrigger
+                      class="basis-64"
                       onContextMenu={(e) => {
                         e.preventDefault();
                         sliceController().setMute(!slice.isMuted);
@@ -698,7 +990,7 @@ export function Slice(props: { sliceIndex: string }) {
                     </PopoverContent>
                   </Popover>
                   <Popover>
-                    <PopoverTrigger>DSP</PopoverTrigger>
+                    <PopoverTrigger class="basis-64">DSP</PopoverTrigger>
                     <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 bg-background/50 backdrop-blur-xl">
                       <PopoverArrow />
                       <div class="p-4 flex flex-col space-y-6 max-h-[var(--kb-popper-content-available-height)] overflow-x-auto">
@@ -838,41 +1130,15 @@ export function Slice(props: { sliceIndex: string }) {
                       </div>
                     </PopoverContent>
                   </Popover>
-                  <Popover>
-                    <PopoverTrigger disabled={slice.diversityChild}>
-                      {slice.mode}
-                    </PopoverTrigger>
-                    <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 bg-background/50 backdrop-blur-xl">
-                      <PopoverArrow />
-                      <div class="p-4 flex flex-col space-y-6 max-h-[var(--kb-popper-content-available-height)] overflow-x-auto">
-                        <ToggleGroup
-                          value={slice.mode}
-                          onChange={(mode: string) => {
-                            if (!mode || mode === slice.mode) return;
-                            sliceController().setMode(mode);
-                          }}
-                          class="grid grid-cols-4"
-                        >
-                          <For each={slice.modeList}>
-                            {(mode) => (
-                              <ToggleGroupItem
-                                variant="outline"
-                                size="sm"
-                                class="border-muted-foreground data-[pressed]:bg-primary data-[pressed]:text-primary-foreground"
-                                value={mode}
-                              >
-                                {mode}
-                              </ToggleGroupItem>
-                            )}
-                          </For>
-                        </ToggleGroup>
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                  <StatusToggle active={slice.ritEnabled || slice.xitEnabled}>
+                  <StatusToggle
+                    class="basis-64"
+                    active={slice.ritEnabled || slice.xitEnabled}
+                  >
                     RIT
                   </StatusToggle>
-                  <StatusToggle active={!!slice.daxChannel}>DAX</StatusToggle>
+                  <StatusToggle class="basis-64" active={!!slice.daxChannel}>
+                    DAX
+                  </StatusToggle>
                 </div>
               </div>
             </div>

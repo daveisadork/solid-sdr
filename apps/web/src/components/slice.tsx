@@ -352,8 +352,8 @@ const SliceFilter = (props: { sliceIndex: string }) => {
   const [rawFilterLow, setRawFilterLow] = createSignal(slice().filterLowHz);
   const [rawFilterHigh, setRawFilterHigh] = createSignal(slice().filterHighHz);
 
-  createEffect(() => setRawFilterLow(slice().filterLowHz));
-  createEffect(() => setRawFilterHigh(slice().filterHighHz));
+  createEffect(() => setRawFilterLow(slice()?.filterLowHz ?? 0));
+  createEffect(() => setRawFilterHigh(slice()?.filterHighHz ?? 0));
 
   const applyFilterLow = () =>
     rawFilterLow() !== slice().filterLowHz
@@ -366,7 +366,8 @@ const SliceFilter = (props: { sliceIndex: string }) => {
       : null;
 
   const filterText = () => {
-    let filterWidth = slice().filterHighHz - slice().filterLowHz;
+    let filterWidth =
+      (slice()?.filterHighHz ?? 0) - (slice()?.filterLowHz ?? 0);
     const unit = filterWidth >= 1000 ? "K" : "";
     if (filterWidth >= 1000) filterWidth /= 1000;
     return `${filterWidth}${unit}`;
@@ -375,8 +376,8 @@ const SliceFilter = (props: { sliceIndex: string }) => {
   const selectedPreset = () =>
     filterPresets[slice().mode].find(
       (preset) =>
-        preset.lowCut === slice().filterLowHz &&
-        preset.highCut === slice().filterHighHz,
+        preset.lowCut === slice()?.filterLowHz &&
+        preset.highCut === slice()?.filterHighHz,
     );
 
   return (
@@ -491,6 +492,7 @@ const SliceFilter = (props: { sliceIndex: string }) => {
 };
 
 export function Slice(props: { sliceIndex: string }) {
+  console.log("Rendering Slice", props.sliceIndex);
   const sliceIndex = () => props.sliceIndex;
   const { radio: session, state } = useFlexRadio();
   const [slice, setSlice] = createStore(state.status.slice[sliceIndex()]);

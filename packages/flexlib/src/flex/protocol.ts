@@ -15,12 +15,29 @@ export interface FlexStatusMessage {
   readonly attributes: Readonly<Record<string, string>>;
 }
 
+export type FlexReplyCodeLevel =
+  | "success"
+  | "info"
+  | "warning"
+  | "error"
+  | "fatal";
+
+enum _FlexReplyCodeLevel {
+  Success = 0,
+  Info = 0x10000000,
+  Warning = 0x31000000,
+  ErrorBase = 0x50000000,
+  Error = 0xe2000000,
+  Fatal = 0xf3000000,
+}
+
 export interface FlexReplyMessage {
   readonly kind: "reply";
   readonly raw: string;
   readonly timestamp: number;
   readonly sequence: number;
   readonly code: number;
+  readonly level?: FlexReplyCodeLevel;
   readonly message?: string;
 }
 
@@ -155,12 +172,33 @@ function parseReply(
   const message = payload[1]?.trim();
 
   if (sequence === undefined || code === undefined) return undefined;
+  let level: FlexReplyCodeLevel | undefined = undefined;
+  if (code === _FlexReplyCodeLevel.Success) {
+    level = "success";
+  } else if ((code & _FlexReplyCodeLevel.Fatal) === _FlexReplyCodeLevel.Fatal) {
+    level = "fatal";
+  } else if ((code & _FlexReplyCodeLevel.Error) === _FlexReplyCodeLevel.Error) {
+    level = "error";
+  } else if (
+    (code & _FlexReplyCodeLevel.ErrorBase) ===
+    _FlexReplyCodeLevel.ErrorBase
+  ) {
+    level = "error";
+  } else if (
+    (code & _FlexReplyCodeLevel.Warning) ===
+    _FlexReplyCodeLevel.Warning
+  ) {
+    level = "warning";
+  } else if ((code & _FlexReplyCodeLevel.Info) === _FlexReplyCodeLevel.Info) {
+    level = "info";
+  }
 
   return {
     kind: "reply",
     raw: line,
     timestamp,
     sequence,
+    level,
     code,
     message: message || undefined,
   };
@@ -220,18 +258,9 @@ function safeParseInt(value: string | undefined): number | undefined {
 }
 
 function parseReplyCode(value: string | undefined): number | undefined {
-  if (!value) return undefined;
-  const trimmed = value.trim();
+  const trimmed = value?.trim();
   if (!trimmed) return undefined;
-  if (/^0[xX]/.test(trimmed)) {
-    const parsed = Number.parseInt(trimmed.slice(2), 16);
-    return Number.isFinite(parsed) ? parsed : undefined;
-  }
-  if (trimmed.length >= 8) {
-    const parsed = Number.parseInt(trimmed, 16);
-    return Number.isFinite(parsed) ? parsed : undefined;
-  }
-  const parsed = Number.parseInt(trimmed, 10);
+  const parsed = Number.parseInt(trimmed, 16);
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 

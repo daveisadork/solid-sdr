@@ -8,7 +8,10 @@ import {
 import type { Accessor } from "solid-js";
 import { startRTC, type RtcSession } from "../lib/rtc";
 
-type RemoteTrack = { id: string; stream: MediaStream };
+type RemoteTrack = {
+  streamId: string;
+  stream: MediaStream;
+};
 
 type RtcContextValue = {
   session: Accessor<RtcSession | null>;
@@ -25,14 +28,17 @@ export const RtcProvider: ParentComponent = (props) => {
 
   const onTrack = (ev: RTCTrackEvent) => {
     const stream = ev.streams[0] ?? new MediaStream([ev.track]);
-    const id = stream.id || `${ev.track.kind}-${crypto.randomUUID()}`;
-    setTracks((t) => [...t.filter((x) => x.id !== id), { id, stream }]);
+    const streamId = stream.id;
+    setTracks((t) => [
+      ...t.filter((x) => x.streamId !== streamId),
+      { streamId, stream },
+    ]);
     ev.track.addEventListener("unmute", () =>
       console.log("[rtc] remote track unmuted"),
     );
 
     ev.track.onended = () => {
-      setTracks((t) => t.filter((x) => x.id !== id));
+      setTracks((t) => t.filter((x) => x.streamId !== streamId));
     };
   };
 

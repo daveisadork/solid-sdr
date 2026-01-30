@@ -43,17 +43,15 @@ func startUDPDemux(rs *core.RadioSession) {
 			}
 
 			// Treat as audio if either it's the announced audio stream or the Opus class code.
-			isAudio := (rs.AudioStreamID != 0 && v.StreamID == rs.AudioStreamID) || v.ClassCode == 0x8005
-
-			if isAudio {
-				if rs.AudioSample == nil || len(v.Payload) == 0 {
+			if stream, ok := rs.AudioStreams[v.StreamID]; ok && v.ClassCode == 0x8005 {
+				if len(v.Payload) == 0 {
 					continue
 				}
 				frames := opusFrameCount(v.Payload) // 10 ms per frame
 				if frames <= 0 {
 					frames = 1
 				}
-				_ = rs.AudioSample.WriteSample(media.Sample{
+				_ = stream.WriteSample(media.Sample{
 					Data:     append([]byte(nil), v.Payload...), // copy; buf is reused
 					Duration: time.Duration(frames) * 10 * time.Millisecond,
 				})
@@ -68,10 +66,7 @@ func startUDPDemux(rs *core.RadioSession) {
 				}
 				const chunk = 16 * 1024
 				for off := 0; off < len(p); off += chunk {
-					end := off + chunk
-					if end > len(p) {
-						end = len(p)
-					}
+					end := min(off+chunk, len(p))
 					_ = dc.Send(p[off:end])
 				}
 			}

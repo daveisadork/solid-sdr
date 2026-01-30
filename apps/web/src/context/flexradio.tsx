@@ -26,7 +26,6 @@ import {
   type AudioStreamSnapshot,
   type FlexConnectionProgress,
   type FlexDataPlaneFactory,
-  type FlexRadioDescriptor,
   type FlexWireMessage,
   type GuiClientSnapshot,
   type MeterSnapshot,
@@ -43,6 +42,7 @@ import {
   ApdSnapshot,
   TxBandSettingSnapshot,
   RadioClient,
+  FlexReplyCodeLevel,
 } from "@repo/flexlib";
 import { createWebSocketFlexControlFactory } from "~/lib/flex-control";
 import { useRtc } from "./rtc";
@@ -105,8 +105,6 @@ export interface PaletteSettings {
 }
 
 export interface ConnectModalState {
-  radios: Record<string, FlexRadioDescriptor>;
-  open: boolean;
   status: ConnectionState;
   selectedRadio: string | null;
   stage: ConnectionStage;
@@ -247,8 +245,6 @@ export const initialState = () =>
       ],
     },
     connectModal: {
-      radios: {},
-      open: true,
       status: ConnectionState.disconnected,
     },
     runtime: {
@@ -389,9 +385,11 @@ export const FlexRadioProvider: ParentComponent = (props) => {
 
   const controlFactory = createWebSocketFlexControlFactory({
     makeSocket(descriptor) {
-      return makeWS(
+      const ws = makeWS(
         `/ws/radio?host=${descriptor.host}&port=${descriptor.port}`,
       );
+      ws.addEventListener("close", disconnect);
+      return ws;
     },
     logger,
     udpSession,
@@ -555,8 +553,19 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         handleNoticePayload(message.raw);
         break;
       case "reply":
-        if (message.code !== 0) {
-          console.warn("Command reply", message.raw);
+        switch (message.level) {
+          case "success":
+            break;
+          case "info":
+            console.info("Command reply", message.raw);
+            break;
+          case "warning":
+            console.warn("Command reply", message.raw);
+            break;
+          case "error":
+          case "fatal":
+            console.error("Command reply", message.raw);
+            break;
         }
         break;
       case "status":
@@ -642,7 +651,8 @@ export const FlexRadioProvider: ParentComponent = (props) => {
       selectedRadio: addr.host,
       stage: ConnectionStage.TCP,
     });
-    const descriptor = state.connectModal.radios[addr.host];
+    const radio = radioClient.radioByEndpoint(addr);
+    const descriptor = radio?.descriptor;
     if (!descriptor) {
       showToast({
         description: "Selected radio is unavailable",
@@ -655,7 +665,6 @@ export const FlexRadioProvider: ParentComponent = (props) => {
       });
       return;
     }
-    const radio = radioClient.radio(descriptor.serial);
     if (!radio) {
       showToast({
         description: "Selected radio handle is unavailable",
@@ -768,10 +777,10 @@ export const FlexRadioProvider: ParentComponent = (props) => {
   });
 
   createEffect(() => {
-    window.radio = activeRadio();
+    globalThis.radio = activeRadio();
   });
-  window.state = state;
-  window.sendCommand = sendCommand; // Expose for debugging
+  globalThis.state = state;
+  globalThis.sendCommand = sendCommand; // Expose for debugging
 
   return (
     <FlexRadioContext.Provider
@@ -793,6 +802,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
 
 export default function useFlexRadio() {
   const context = useContext(FlexRadioContext);
+  globalThis.flexradio = context; // Expose for debugging
   if (!context) {
     throw new Error(
       "useFlexRadioContext must be used within a FlexRadioProvider",

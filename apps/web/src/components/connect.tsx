@@ -24,8 +24,12 @@ import { FlexRadioDescriptor } from "@repo/flexlib";
 export default function Connect() {
   const { client, connect, disconnect, state } = useFlexRadio();
   const [radios, setRadios] = createStore<Record<string, FlexRadioDescriptor>>(
-    {},
+    client.getRadios().reduce((acc, radio) => {
+      acc[radio.descriptor.host] = { ...radio.descriptor };
+      return acc;
+    }, {}),
   );
+
   const [open, setOpen] = createSignal(true);
 
   createEffect((lastOpen) => {

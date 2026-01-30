@@ -138,7 +138,7 @@ func (h *WSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			line := strings.TrimSpace(b)
-			log.Printf("[ws] %s:%d <%s", host, basePort, line)
+			// log.Printf("[ws] %s:%d <%s", host, basePort, line)
 			connLog.LogInbound(line)
 
 			// Forward trimmed line to UI
@@ -147,10 +147,9 @@ func (h *WSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 
 			// Observe "stream …" creations and notify RTC
-			if ok, sid, typ, comp := parseStreamCreate(line); ok {
-				// We already know the handle for this TCP session (handleHex)
-				if h.RTC != nil {
-					h.RTC.NoteStreamCreated(handleHex, sid, typ, comp)
+			if stream, ok := parseAudioStream(line); ok {
+				if stream.ClientHandle == rs.HandleU32 && h.RTC != nil {
+					h.RTC.NoteStreamCreated(handleHex, stream.StreamID, stream.Type, stream.Compression)
 				}
 			}
 		}
@@ -165,7 +164,7 @@ func (h *WSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 		if mt == websocket.TextMessage || mt == websocket.BinaryMessage {
-			log.Printf("[ws] %s:%d >%s", host, basePort, strings.TrimSpace(string(msg)))
+			// log.Printf("[ws] %s:%d >%s", host, basePort, strings.TrimSpace(string(msg)))
 			connLog.LogOutbound(strings.TrimSpace(string(msg)))
 			// Pass through as-is; UI includes newline when needed.
 			if _, err := tcp.Write(msg); err != nil {
@@ -175,52 +174,4 @@ func (h *WSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	<-done
-}
-
-// Example expected line (trimmed):
-// S143460AF|stream 0x04000008 type=remote_audio_rx compression=OPUS client_handle=0x143460AF ip=...
-func parseStreamCreate(line string) (ok bool, streamID uint32, typ string, compression string) {
-	if !strings.Contains(line, "stream ") || !strings.Contains(line, "type=") {
-		return false, 0, "", ""
-	}
-	// type
-	if i := strings.Index(line, "type="); i != -1 {
-		j := i + len("type=")
-		k := j
-		for k < len(line) && line[k] != ' ' {
-			k++
-		}
-		typ = line[j:k]
-	}
-	// compression
-	if i := strings.Index(line, "compression="); i != -1 {
-		j := i + len("compression=")
-		k := j
-		for k < len(line) && line[k] != ' ' {
-			k++
-		}
-		compression = line[j:k]
-	}
-	// stream id
-	const key = "stream 0x"
-	if i := strings.Index(line, key); i != -1 {
-		j := i + len(key)
-		k := j
-		for k < len(line) && isHex(line[k]) {
-			k++
-		}
-		if k > j {
-			if v, err := strconv.ParseUint(line[j:k], 16, 32); err == nil {
-				streamID = uint32(v)
-			}
-		}
-	}
-	if streamID == 0 || typ == "" {
-		return false, 0, "", ""
-	}
-	return true, streamID, typ, compression
-}
-
-func isHex(b byte) bool {
-	return (b >= '0' && b <= '9') || (b|0x20 >= 'a' && b|0x20 <= 'f')
 }

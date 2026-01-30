@@ -21,10 +21,9 @@ type RadioSession struct {
 	TCP net.Conn
 
 	// RTC leg (owned by RTC handler)
-	PC            *webrtc.PeerConnection
-	DC            *webrtc.DataChannel
-	AudioSample   *webrtc.TrackLocalStaticSample
-	AudioStreamID uint32
+	PC           *webrtc.PeerConnection
+	DC           *webrtc.DataChannel
+	AudioStreams map[uint32]*webrtc.TrackLocalStaticSample
 
 	// UDP leg to radio (created by RTC handler, connected to Host:(BasePort+1))
 	UDPConn *net.UDPConn
@@ -45,9 +44,10 @@ func (m *SessionManager) PutTCP(handleHex, host string, basePort int, tcp net.Co
 	rs := m.sess[handleHex]
 	if rs == nil {
 		rs = &RadioSession{
-			HandleHex: handleHex,
-			Host:      host,
-			BasePort:  basePort,
+			HandleHex:    handleHex,
+			Host:         host,
+			BasePort:     basePort,
+			AudioStreams: make(map[uint32]*webrtc.TrackLocalStaticSample),
 		}
 		m.sess[handleHex] = rs
 	}

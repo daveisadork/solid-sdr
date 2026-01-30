@@ -145,58 +145,65 @@ func (s *Server) handleOffer(handleHex, offerSDP string) (string, error) {
 		return "", stepErr("no-tcp-session", fmt.Errorf("no TCP session for handle %s", handleHex))
 	}
 
-	pc, err := s.api.NewPeerConnection(webrtc.Configuration{ICEServers: s.ICEServers})
-	if err != nil {
-		return "", stepErr("new-pc", err)
+	newConnection := rs.PC == nil
+	if newConnection {
+		pc, err := s.api.NewPeerConnection(webrtc.Configuration{ICEServers: s.ICEServers})
+		if err != nil {
+			return "", stepErr("new-pc", err)
+		}
+		rs.PC = pc
+
+		// Capture client-created datachannel "udp".
+		rs.PC.OnDataChannel(func(dc *webrtc.DataChannel) {
+			if dc.Label() != "udp" {
+				return
+			}
+			rs.DC = dc
+		})
+
+		rs.PC.OnConnectionStateChange(func(st webrtc.PeerConnectionState) {
+			log.Printf("[rtc] PeerConnection state: %s (handle %s)", st.String(), handleHex)
+			if st == webrtc.PeerConnectionStateFailed || st == webrtc.PeerConnectionStateClosed {
+				_ = pc.Close()
+			}
+		})
 	}
-	rs.PC = pc
-
-	// Capture client-created datachannel "udp".
-	pc.OnDataChannel(func(dc *webrtc.DataChannel) {
-		if dc.Label() != "udp" {
-			return
-		}
-		rs.DC = dc
-	})
-
-	pc.OnConnectionStateChange(func(st webrtc.PeerConnectionState) {
-		log.Printf("[rtc] PeerConnection state: %s (handle %s)", st.String(), handleHex)
-		if st == webrtc.PeerConnectionStateFailed || st == webrtc.PeerConnectionStateClosed {
-			_ = pc.Close()
-		}
-	})
 
 	// Remote offer first.
-	if err := pc.SetRemoteDescription(webrtc.SessionDescription{
+	if err := rs.PC.SetRemoteDescription(webrtc.SessionDescription{
 		Type: webrtc.SDPTypeOffer,
 		SDP:  offerSDP,
 	}); err != nil {
 		return "", stepErr("set-remote", err)
 	}
 
+	gatherComplete := webrtc.GatheringCompletePromise(rs.PC)
+
 	// Always install a sample track if the offer has audio (so answer contains an audio sender).
-	if err := s.addAudioTrackIfOffered(rs); err != nil {
-		log.Printf("[rtc] addAudioTrackIfOffered: %v", err)
-	}
+	// if err := s.addAudioTrackIfOffered(rs); err != nil {
+	// 	log.Printf("[rtc] addAudioTrackIfOffered: %v", err)
+	// }
 
 	// Create + set local answer.
-	answer, err := pc.CreateAnswer(nil)
+	answer, err := rs.PC.CreateAnswer(nil)
 	if err != nil {
 		return "", stepErr("create-answer", err)
 	}
-	g := webrtc.GatheringCompletePromise(pc)
-	if err := pc.SetLocalDescription(answer); err != nil {
+	if err := rs.PC.SetLocalDescription(answer); err != nil {
 		return "", stepErr("set-local", err)
 	}
-	<-g
 
-	ld := pc.LocalDescription()
+	<-gatherComplete
+
+	ld := rs.PC.LocalDescription()
 	if ld == nil {
 		return "", stepErr("no-local-desc", errors.New("no local description"))
 	}
 
 	// After answering, wire UDP and start demux (errors here shouldn't fail the HTTP cycle).
-	go s.postAnswerPlumbing(rs)
+	if newConnection {
+		go s.postAnswerPlumbing(rs)
+	}
 
 	return ld.SDP, nil
 }
@@ -222,41 +229,6 @@ func (s *Server) postAnswerPlumbing(rs *core.RadioSession) {
 	startUDPDemux(rs)
 }
 
-// If the browser offered audio, add a TrackLocalStaticSample(Opus) before CreateAnswer.
-func (s *Server) addAudioTrackIfOffered(rs *core.RadioSession) error {
-	if rs.PC == nil || rs.AudioSample != nil {
-		return nil
-	}
-	hasAudio := false
-	for _, t := range rs.PC.GetTransceivers() {
-		if t.Kind() == webrtc.RTPCodecTypeAudio {
-			hasAudio = true
-			break
-		}
-	}
-	if !hasAudio {
-		return nil
-	}
-
-	tr, err := webrtc.NewTrackLocalStaticSample(
-		webrtc.RTPCodecCapability{
-			MimeType:  webrtc.MimeTypeOpus,
-			ClockRate: 48000,
-			Channels:  2,
-		},
-		"radio-audio",
-		"radio",
-	)
-	if err != nil {
-		return err
-	}
-	if _, err := rs.PC.AddTrack(tr); err != nil {
-		return err
-	}
-	rs.AudioSample = tr
-	return nil
-}
-
 // Optional: called by TCP/WS when radio announces Opus stream creation.
 //
 //	S<handle>|stream 0x04000008 type=remote_audio_rx compression=OPUS ...
@@ -265,10 +237,30 @@ func (s *Server) NoteStreamCreated(handleHex string, streamID uint32, typ, compr
 	if rs == nil {
 		return
 	}
-	if !strings.EqualFold(typ, "remote_audio_rx") || !strings.EqualFold(compression, "OPUS") {
+	if _, ok := rs.AudioStreams[streamID]; ok {
 		return
 	}
-	rs.AudioStreamID = streamID
+	stream := fmt.Sprintf("0x%08X", streamID)
+	log.Printf("[rtc] NoteStreamCreated handle: %s, stream %s, type: %s, compression: %s\n", handleHex, stream, typ, compression)
+	if compression != "OPUS" {
+		return
+	}
+	tr, err := webrtc.NewTrackLocalStaticSample(
+		webrtc.RTPCodecCapability{
+			MimeType:  webrtc.MimeTypeOpus,
+			ClockRate: 48000,
+			Channels:  2,
+		},
+		typ,
+		stream,
+	)
+	if err != nil {
+		return
+	}
+	if _, err := rs.PC.AddTrack(tr); err != nil {
+		return
+	}
+	rs.AudioStreams[streamID] = tr
 }
 
 // ----- small helpers -----

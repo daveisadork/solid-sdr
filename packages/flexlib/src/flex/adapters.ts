@@ -1,5 +1,5 @@
 import type { Subscription } from "../util/events.js";
-import type { FlexWireMessage } from "./protocol.js";
+import type { FlexReplyCodeLevel, FlexWireMessage } from "./protocol.js";
 import type { DiscoveredGuiClient } from "./gui-client.js";
 import type { RadioSnapshot } from "./state/radio.js";
 
@@ -53,6 +53,7 @@ export interface FlexCommandOptions {
 export interface FlexCommandResponse {
   readonly sequence: number;
   readonly accepted: boolean;
+  readonly level?: FlexReplyCodeLevel;
   readonly code?: number;
   readonly message?: string;
   readonly raw: string;
@@ -75,11 +76,7 @@ export interface FlexControlFactory {
   ): Promise<FlexControlChannel>;
 }
 
-export type FlexWireChunk =
-  | string
-  | ArrayBuffer
-  | ArrayBufferView
-  | Uint8Array;
+export type FlexWireChunk = string | ArrayBuffer | ArrayBufferView | Uint8Array;
 
 export interface FlexWireTransportHandlers {
   onData(chunk: FlexWireChunk): void;

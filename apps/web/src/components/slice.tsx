@@ -207,7 +207,7 @@ const Triangle: Component<ComponentProps<"div">> = (props) => {
 };
 
 const LevelMeter = (props: { sliceIndex?: string }) => {
-  const { state } = useFlexRadio();
+  const { state, setState } = useFlexRadio();
   const [meterId, setMeterId] = createSignal<string>();
 
   createEffect(() => {
@@ -238,7 +238,11 @@ const LevelMeter = (props: { sliceIndex?: string }) => {
             value={meter.value}
             minValue={-127}
             maxValue={-33}
+            onClick={() => setState("settings", "sMeterEnabled", (v) => !v)}
             getValueLabel={() => {
+              if (!state.settings.sMeterEnabled) {
+                return `${Math.round(meter.value)}dBm`;
+              }
               // This meter is in dBm. S9 is -73 dBm, and each S unit is 6 dB.
               // We start by adding 73 so S9 is 0. That way the rest of the math
               // is a little easier, we can divide by 6 and add 9 to get the S unit.

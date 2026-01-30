@@ -1314,6 +1314,8 @@ export async function defaultFlexHandshake(
   });
   context.emitProgress({ stage: "handle", handle });
 
+  context.command("client program SolidSDR");
+
   context.emitProgress({ stage: "sync", detail: "radio-info" });
   await Promise.all([
     context.radio.refreshInfo(),
@@ -1335,8 +1337,11 @@ export async function defaultFlexHandshake(
     await context.attachDataPlane(context.dataPlaneFactory);
   }
 
-  const clientGuiResponse = await context.command("client gui");
+  const clientGuiResponse = await context.command(
+    "client gui 76806B36-7090-4958-A879-174BAB94DF11",
+  );
   const clientId = clientGuiResponse.message?.trim();
+  await context.command("client station SolidSDR-Chrome");
   context.setClientId(clientId && clientId.length ? clientId : null);
 
   context.emitProgress({ stage: "sync", detail: "audio" });

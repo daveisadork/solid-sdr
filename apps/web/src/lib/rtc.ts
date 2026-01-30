@@ -1,6 +1,7 @@
 export type RtcSession = {
   pc: RTCPeerConnection;
   data: RTCDataChannel;
+  renegotiate: () => Promise<void>;
   close: () => void;
 };
 
@@ -19,6 +20,26 @@ export async function startRTC(
     // iceTransportPolicy: "relay", // <— TEMP: force TURN to test
   });
 
+  const renegotiate = async () => {
+    // Create the offer, then MUNGE it to force opus stereo.
+    const offer = await pc.createOffer();
+    const sdp = forceStereoInSDP(offer.sdp!);
+    await pc.setLocalDescription({ ...offer, sdp });
+
+    // Wait for ICE, post to server, set remote description as usual
+    await waitForIceComplete(pc);
+    const res = await fetch("/rtc/offer", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ sessionId, sdp: pc.localDescription!.sdp }),
+    });
+    const { sdp: answer } = await res.json();
+    await pc.setRemoteDescription({ type: "answer", sdp: answer });
+    await waitForIceConnected(pc);
+  };
+
+  pc.addEventListener("negotiationneeded", renegotiate);
+
   const data = pc.createDataChannel("udp", {
     ordered: false, // no head-of-line blocking
     maxRetransmits: 0, // drop instead of retry
@@ -31,45 +52,12 @@ export async function startRTC(
   data.onclose = () => console.log("[dc] closed");
   data.onerror = (e) => console.warn("[dc] error", e);
 
-  pc.addTransceiver("audio", { direction: "recvonly" });
   if (onTrack) pc.addEventListener("track", onTrack);
 
-  // Create the offer, then MUNGE it to force opus stereo.
-  const offer = await pc.createOffer({ offerToReceiveAudio: true });
-  const mungedSDP = forceStereoInSDP(offer.sdp!);
-  await pc.setLocalDescription({ type: "offer", sdp: mungedSDP });
-
-  // Wait for ICE, post to server, set remote description as usual
-  await waitForIceComplete(pc);
-  const res = await fetch("/rtc/offer", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ sessionId, sdp: pc.localDescription!.sdp }),
-  });
-  const { sdp: answer } = await res.json();
-  await pc.setRemoteDescription({ type: "answer", sdp: answer });
-  await waitForIceConnected(pc);
-
-  async function logSelected() {
-    const stats = await pc.getStats();
-    for (const r of stats.values()) {
-      if (r.type === "transport" && r.selectedCandidatePairId) {
-        const pair = stats.get(r.selectedCandidatePairId);
-        const local = stats.get(pair.localCandidateId);
-        const remote = stats.get(pair.remoteCandidateId);
-        console.log("[ice selected]", {
-          pairState: pair.state,
-          localType: local.candidateType,
-          remoteType: remote.candidateType,
-          proto: local.protocol,
-        });
-      }
-    }
-  }
-  // setInterval(logSelected, 2000);
   return {
     pc,
     data,
+    renegotiate,
     close: () => pc.close(),
   };
 }

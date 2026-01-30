@@ -97,11 +97,12 @@ export function createControlChannelFactory(
         }
         pending.delete(reply.sequence);
         if (entry.timeoutHandle) clearTimeout(entry.timeoutHandle);
-        const accepted = reply.code === 0;
+        const accepted = reply.level === "success" || reply.level === "info";
         entry.resolve({
           sequence: reply.sequence,
           accepted,
           code: reply.code,
+          level: reply.level,
           message: reply.message,
           raw: reply.raw,
         });

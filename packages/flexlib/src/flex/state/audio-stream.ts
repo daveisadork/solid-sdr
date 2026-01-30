@@ -24,6 +24,7 @@ export interface AudioStreamSnapshot {
   readonly ip?: string;
   readonly daxChannel?: number;
   readonly slice?: string;
+  readonly tx: boolean;
   readonly raw: Readonly<Record<string, string>>;
 }
 
@@ -41,12 +42,14 @@ export function createAudioStreamSnapshot(
   previous?: AudioStreamSnapshot,
 ): SnapshotUpdate<AudioStreamSnapshot> {
   const rawDiff = freezeAttributes(attributes);
-  const partial: Mutable<Partial<AudioStreamSnapshot>> = {};
+  const partial: Mutable<Partial<AudioStreamSnapshot>> = previous
+    ? {}
+    : { id, tx: false };
 
   for (const [key, value] of Object.entries(attributes)) {
     switch (key) {
       case "stream_id":
-        partial.streamId = value || partial.streamId;
+        partial.streamId = value;
         break;
       case "type":
         partial.type = value.toLowerCase() as AudioStreamKind;
@@ -72,6 +75,9 @@ export function createAudioStreamSnapshot(
       case "slice":
         partial.slice = value;
         break;
+      case "tx":
+        partial.tx = value === "1";
+        break;
       default:
         logUnknownAttribute("audio_stream", key, value);
         break;
@@ -79,10 +85,7 @@ export function createAudioStreamSnapshot(
   }
 
   const snapshot = Object.freeze({
-    ...(previous ?? {
-      id,
-      streamId: id,
-    }),
+    ...(previous ?? {}),
     ...partial,
     raw: Object.freeze({
       ...previous?.raw,

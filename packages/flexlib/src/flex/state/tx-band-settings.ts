@@ -29,7 +29,9 @@ export function createTxBandSettingSnapshot(
   previous?: TxBandSettingSnapshot,
 ): SnapshotUpdate<TxBandSettingSnapshot> {
   const rawDiff = freezeAttributes(attributes);
-  const partial: Mutable<Partial<TxBandSettingSnapshot>> = {};
+  const partial: Mutable<Partial<TxBandSettingSnapshot>> = previous
+    ? {}
+    : { id };
   for (const [key, value] of Object.entries(attributes)) {
     switch (key) {
       case "band_id":
@@ -74,7 +76,7 @@ export function createTxBandSettingSnapshot(
   }
 
   const snapshot = Object.freeze({
-    ...(previous ?? { id }),
+    ...(previous ?? {}),
     ...partial,
     id,
     raw: Object.freeze({
@@ -90,7 +92,10 @@ export function createTxBandSettingSnapshot(
   };
 }
 
-function parsePower(value: string | undefined, key: string): number | undefined {
+function parsePower(
+  value: string | undefined,
+  key: string,
+): number | undefined {
   const parsed = parseInteger(value);
   if (parsed === undefined) {
     if (value !== undefined) logParseError("tx_band", key, value);

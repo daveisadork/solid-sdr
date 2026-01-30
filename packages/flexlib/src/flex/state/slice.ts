@@ -118,7 +118,9 @@ export function createSliceSnapshot(
   previous?: SliceSnapshot,
 ): SnapshotUpdate<SliceSnapshot> {
   const rawDiff = freezeAttributes(attributes);
-  const partial: Mutable<Partial<SliceSnapshot>> = {};
+  const partial: Mutable<Partial<SliceSnapshot>> = previous
+    ? {}
+    : { id, escGain: 1.0, escPhaseShift: 0.0 };
 
   for (const [key, value] of Object.entries(attributes)) {
     switch (key) {
@@ -626,7 +628,7 @@ export function createSliceSnapshot(
   }
 
   const snapshot = Object.freeze({
-    ...(previous ?? { id, escGain: 1.0, escPhaseShift: 0.0 }),
+    ...(previous ?? {}),
     ...partial,
     raw: Object.freeze({
       ...previous?.raw,

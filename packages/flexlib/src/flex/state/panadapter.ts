@@ -66,7 +66,17 @@ export function createPanadapterSnapshot(
   previous?: PanadapterSnapshot,
 ): SnapshotUpdate<PanadapterSnapshot> {
   const rawDiff = freezeAttributes(attributes);
-  const partial: Mutable<Partial<PanadapterSnapshot>> = {};
+  const partial: Mutable<Partial<PanadapterSnapshot>> = previous
+    ? {}
+    : {
+        id,
+        autoCenterEnabled: false,
+        attachedSlices: Object.freeze([]),
+        rfGainMarkers: Object.freeze([]),
+        rfGainLow: 0,
+        rfGainHigh: 0,
+        rfGainStep: 0,
+      };
 
   for (const [key, value] of Object.entries(attributes)) {
     switch (key) {
@@ -281,15 +291,7 @@ export function createPanadapterSnapshot(
   }
 
   const snapshot = Object.freeze({
-    ...(previous ?? {
-      id,
-      autoCenterEnabled: false,
-      attachedSlices: Object.freeze([]),
-      rfGainMarkers: Object.freeze([]),
-      rfGainLow: 0,
-      rfGainHigh: 0,
-      rfGainStep: 0,
-    }),
+    ...(previous ?? {}),
     ...partial,
     raw: Object.freeze({
       ...previous?.raw,

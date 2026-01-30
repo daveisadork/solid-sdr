@@ -58,7 +58,12 @@ export function createWaterfallSnapshot(
   previous?: WaterfallSnapshot,
 ): SnapshotUpdate<WaterfallSnapshot> {
   const rawDiff = freezeAttributes(attributes);
-  const partial: Mutable<Partial<WaterfallSnapshot>> = {};
+  const partial: Mutable<Partial<WaterfallSnapshot>> = previous
+    ? {}
+    : {
+        id,
+        rfGainMarkers: Object.freeze([]),
+      };
 
   for (const [key, value] of Object.entries(attributes)) {
     switch (key) {
@@ -228,7 +233,7 @@ export function createWaterfallSnapshot(
   }
 
   const snapshot = Object.freeze({
-    ...(previous ?? { id, rfGainMarkers: Object.freeze([]) }),
+    ...(previous ?? {}),
     ...partial,
     raw: Object.freeze({
       ...previous?.raw,

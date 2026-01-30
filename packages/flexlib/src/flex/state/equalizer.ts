@@ -39,7 +39,7 @@ export function createEqualizerSnapshot(
   previous?: EqualizerSnapshot,
 ): SnapshotUpdate<EqualizerSnapshot> {
   const rawDiff = freezeAttributes(attributes);
-  const partial: Mutable<Partial<EqualizerSnapshot>> = {};
+  const partial: Mutable<Partial<EqualizerSnapshot>> = previous ? {} : { id };
   let bandOverrides: Partial<Record<EqualizerBand, number>> | null = null;
 
   for (const [key, value] of Object.entries(attributes)) {
@@ -84,7 +84,7 @@ export function createEqualizerSnapshot(
   }
 
   const snapshot = Object.freeze({
-    ...(previous ?? { id }),
+    ...(previous ?? {}),
     ...partial,
     raw: Object.freeze({
       ...previous?.raw,

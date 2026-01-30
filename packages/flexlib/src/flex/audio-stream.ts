@@ -5,11 +5,7 @@ import type {
   AudioStreamSnapshot,
   AudioStreamStateChange,
 } from "./state/index.js";
-import type {
-  UdpPacketEvent,
-  UdpScope,
-  UdpSession,
-} from "./udp-session.js";
+import type { UdpPacketEvent, UdpScope, UdpSession } from "./udp-session.js";
 
 export interface AudioStreamControllerEvents extends Record<string, unknown> {
   readonly change: AudioStreamStateChange;
@@ -47,6 +43,7 @@ export interface AudioStreamController {
   readonly ip?: string;
   readonly daxChannel?: number;
   readonly slice?: string;
+  readonly tx: boolean;
   snapshot(): AudioStreamSnapshot;
   on<TKey extends keyof AudioStreamControllerEvents>(
     event: TKey,
@@ -114,6 +111,10 @@ export class AudioStreamControllerImpl implements AudioStreamController {
 
   get slice(): string | undefined {
     return this.current().slice;
+  }
+
+  get tx(): boolean {
+    return this.current().tx;
   }
 
   snapshot(): AudioStreamSnapshot {

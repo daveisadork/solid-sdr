@@ -70,7 +70,7 @@ export function createMeterSnapshot(
   previous?: MeterSnapshot,
 ): SnapshotUpdate<MeterSnapshot> {
   const rawDiff = freezeAttributes(attributes);
-  const partial: Mutable<Partial<MeterSnapshot>> = {};
+  const partial: Mutable<Partial<MeterSnapshot>> = previous ? {} : { id };
 
   for (const [key, value] of Object.entries(attributes)) {
     switch (key) {
@@ -117,7 +117,7 @@ export function createMeterSnapshot(
   }
 
   const snapshot = Object.freeze({
-    ...(previous ?? { id }),
+    ...(previous ?? {}),
     ...partial,
     raw: Object.freeze({
       ...previous?.raw,

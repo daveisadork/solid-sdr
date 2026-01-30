@@ -1,4 +1,11 @@
-import { createEffect, createSignal, For, Show } from "solid-js";
+import {
+  createEffect,
+  createSignal,
+  For,
+  onCleanup,
+  onMount,
+  Show,
+} from "solid-js";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import {
@@ -11,30 +18,81 @@ import {
 import { Skeleton } from "./ui/skeleton";
 import useFlexRadio, { ConnectionState } from "~/context/flexradio";
 import { ProgressCircle } from "./ui/progress-circle";
+import { createStore } from "solid-js/store";
+import { FlexRadioDescriptor } from "@repo/flexlib";
 
 export default function Connect() {
-  const { connect, disconnect, state } = useFlexRadio();
-  const [open, setOpen] = createSignal(state.connectModal.open);
+  const { client, connect, disconnect, state } = useFlexRadio();
+  const [radios, setRadios] = createStore<Record<string, FlexRadioDescriptor>>(
+    {},
+  );
+  const [open, setOpen] = createSignal(true);
 
   createEffect((lastOpen) => {
     if (open() && !lastOpen) {
       disconnect();
     }
     return open();
-  }, false);
+  }, true);
 
   createEffect((prevStatus) => {
     const status = state.connectModal.status;
-    if (status === ConnectionState.connected && prevStatus !== status) {
-      setOpen(false);
-    } else if (
-      status === ConnectionState.disconnected &&
-      prevStatus !== status
-    ) {
-      setOpen(true);
+    switch (status) {
+      case prevStatus:
+        break;
+      case ConnectionState.connected:
+        setOpen(false);
+        break;
+      case ConnectionState.disconnected:
+        setOpen(true);
+        break;
     }
     return status;
   }, state.connectModal.status);
+
+  const updateDiscoveryRadio = (descriptor?: FlexRadioDescriptor) => {
+    if (descriptor) {
+      setRadios(descriptor.host, { ...descriptor });
+    }
+  };
+
+  onMount(() => {
+    const clientSubscriptions = [
+      client.on("radioDiscovered", (handle) =>
+        updateDiscoveryRadio(handle.descriptor),
+      ),
+      client.on("radioChange", (change) =>
+        updateDiscoveryRadio(client.radio(change.radioSerial)?.descriptor),
+      ),
+      client.on("radioLost", ({ serial, endpoint }) => {
+        setRadios((radios) => {
+          const next = { ...radios };
+          const removalKey =
+            endpoint.host ??
+            Object.keys(next).find(
+              (existingHost) => next[existingHost]?.serial === serial,
+            );
+          if (removalKey) {
+            delete next[removalKey];
+          }
+          return next;
+        });
+      }),
+    ];
+
+    client.startDiscovery().catch((error) => {
+      console.error("Failed to start discovery session", error);
+    });
+
+    onCleanup(() => {
+      for (const sub of clientSubscriptions) sub.unsubscribe();
+      client
+        .stopDiscovery()
+        .catch((error) =>
+          console.error("Failed to stop discovery session", error),
+        );
+    });
+  });
 
   return (
     <Dialog
@@ -59,9 +117,7 @@ export default function Connect() {
         <Card>
           <ul class="grid w-full gap-0">
             <For
-              each={Object.values(state.connectModal.radios).filter(
-                (radio) => radio.lastSeen.getTime() > Date.now() - 20_000,
-              )}
+              each={Object.values(radios)}
               fallback={
                 <li class="flex p-2">
                   <div class="flex text-sm flex-col grow">

@@ -1,4 +1,4 @@
-import { createEffect, createSignal, For, onCleanup, onMount } from "solid-js";
+import { createEffect, createSignal, For, onMount } from "solid-js";
 import { useRtc } from "../context/rtc";
 import {
   Select,
@@ -15,6 +15,10 @@ export default function RtcAudio() {
   const { state } = useFlexRadio();
   const outputs = createSpeakers();
   const [outputDeviceId, setOutputDeviceId] = createSignal<string>("default");
+
+  onMount(() => {
+    navigator.mediaDevices.getUserMedia({ audio: true });
+  });
 
   createEffect(() => {
     const pc = session()?.pc;
@@ -39,9 +43,7 @@ export default function RtcAudio() {
         itemComponent={(props) => {
           return (
             <SelectItem item={props.item}>
-              {() =>
-                outputs().find((d) => d.deviceId === props.item.rawValue)?.label
-              }
+              {outputs().find((d) => d.deviceId === props.item.rawValue)?.label}
             </SelectItem>
           );
         }}

@@ -111,6 +111,8 @@ export interface FlexDiscoverySession {
 }
 
 export interface FlexConnectionOptions {
+  /** Overrides identity fields used by the default handshake. */
+  readonly clientInfo?: FlexHandshakeClientInfo;
   readonly commandTimeoutMs?: number;
   readonly controlOptions?: Record<string, unknown>;
   readonly udpSession?: UdpSession;
@@ -154,6 +156,8 @@ export interface FlexHandshakeContext {
   readonly udp: UdpSession;
   readonly logger?: Logger;
   readonly dataPlaneFactory?: FlexDataPlaneFactory;
+  /** Client identity metadata for the default handshake. */
+  readonly clientInfo?: FlexHandshakeClientInfo;
   command(
     command: string,
     options?: FlexCommandOptions,
@@ -165,6 +169,16 @@ export interface FlexHandshakeContext {
 }
 
 export type FlexHandshake = (context: FlexHandshakeContext) => Promise<void>;
+
+/** Optional identity fields used by the default handshake. */
+export interface FlexHandshakeClientInfo {
+  /** Name of the client program announced during handshake. */
+  readonly program?: string;
+  /** Optional GUI client id to reuse during handshake. */
+  readonly guiClientId?: string | null;
+  /** Station name announced to the radio for this client. */
+  readonly station?: string;
+}
 
 export interface FlexRadioEvents extends Record<string, unknown> {
   readonly change: RadioStateChange;
@@ -329,6 +343,7 @@ export function createFlexClient(
           handshake,
           dataPlaneFactory: connectionOptions?.dataPlane,
           onProgress: connectionOptions?.onProgress,
+          clientInfo: connectionOptions?.clientInfo,
         });
       } catch (error) {
         try {
@@ -354,6 +369,7 @@ interface SessionPrepareOptions {
   readonly handshake: FlexHandshake | null;
   readonly dataPlaneFactory?: FlexDataPlaneFactory;
   readonly onProgress?: (progress: FlexConnectionProgress) => void;
+  readonly clientInfo?: FlexHandshakeClientInfo;
 }
 
 type IdentifiedRadioStateChange = Extract<RadioStateChange, { id: string }>;
@@ -562,6 +578,7 @@ class FlexRadioSessionImpl implements FlexRadioSession {
         udp: this.udpSession,
         logger: this.options.logger,
         dataPlaneFactory: options.dataPlaneFactory,
+        clientInfo: options.clientInfo,
         command: (command, commandOptions) =>
           this.command(command, commandOptions),
         waitForHandle: (handleOptions) => this.waitForHandle(handleOptions),
@@ -1309,12 +1326,15 @@ const DEFAULT_HANDSHAKE_COMMANDS: readonly string[] = [
 export async function defaultFlexHandshake(
   context: FlexHandshakeContext,
 ): Promise<void> {
+  const clientInfo = context.clientInfo ?? {};
   const handle = await context.waitForHandle({
     timeoutMs: DEFAULT_HANDLE_TIMEOUT_MS,
   });
   context.emitProgress({ stage: "handle", handle });
 
-  context.command("client program SolidSDR");
+  if (clientInfo.program) {
+    context.command(`client program ${clientInfo.program.trim()}`);
+  }
 
   context.emitProgress({ stage: "sync", detail: "radio-info" });
   await Promise.all([
@@ -1337,11 +1357,16 @@ export async function defaultFlexHandshake(
     await context.attachDataPlane(context.dataPlaneFactory);
   }
 
+  const guiClientId = clientInfo.guiClientId;
   const clientGuiResponse = await context.command(
-    "client gui 76806B36-7090-4958-A879-174BAB94DF11",
+    guiClientId && guiClientId.length > 0
+      ? `client gui ${guiClientId}`
+      : "client gui",
   );
   const clientId = clientGuiResponse.message?.trim();
-  await context.command("client station SolidSDR-Chrome");
+  if (clientInfo.station) {
+    await context.radio.setClientStationName(clientInfo.station);
+  }
   context.setClientId(clientId && clientId.length ? clientId : null);
 
   context.emitProgress({ stage: "sync", detail: "audio" });

@@ -156,6 +156,8 @@ export interface RadioController {
   refreshRxAntennaList(): Promise<void>;
   refreshMicList(): Promise<void>;
   refreshProfileLists(): Promise<void>;
+  /** Set the GUI client station name announced to the radio. */
+  setClientStationName(stationName: string): Promise<void>;
   setNickname(nickname: string): Promise<void>;
   setCallsign(callsign: string): Promise<void>;
   setFullDuplexEnabled(enabled: boolean): Promise<void>;
@@ -770,6 +772,12 @@ export class RadioControllerImpl implements RadioController {
       this.session.command("profile mic info"),
       this.session.command("profile display info"),
     ]);
+  }
+
+  async setClientStationName(stationName: string): Promise<void> {
+    const sanitized = sanitizeClientStationName(stationName);
+    const encoded = sanitized.replace(/ /g, "\u007f");
+    await this.session.command(`client station ${encoded}`);
   }
 
   async setNickname(nickname: string): Promise<void> {
@@ -1493,6 +1501,13 @@ function sanitizeNickname(value: string): string {
 
 function sanitizeCallsign(value: string): string {
   return value.toUpperCase().replace(/[^0-9A-Z]/g, "");
+}
+
+const INVALID_CLIENT_STATION_CHARS =
+  /[\*#@!%^&.,;:?\"\)(+=`'~<>|\\[\]{}]+/g;
+
+function sanitizeClientStationName(value: string): string {
+  return value.replace(INVALID_CLIENT_STATION_CHARS, "");
 }
 
 const INTERLOCK_MOX_STATE_SET = new Set<RadioInterlockState>([

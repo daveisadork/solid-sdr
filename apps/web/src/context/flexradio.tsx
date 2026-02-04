@@ -736,6 +736,10 @@ export const FlexRadioProvider: ParentComponent = (props) => {
           udpSession,
           dataPlane: dataPlaneFactory,
           onProgress: handleProgress,
+          clientInfo: {
+            program: "SolidSDR Web",
+            guiClientId: "76806B36-7090-4958-A879-174BAB94DF11",
+          },
         });
         setState({
           clientHandle: radio.clientHandle,

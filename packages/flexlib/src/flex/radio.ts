@@ -158,6 +158,8 @@ export interface RadioController {
   refreshProfileLists(): Promise<void>;
   /** Set the GUI client station name announced to the radio. */
   setClientStationName(stationName: string): Promise<void>;
+  /** Bind this non-GUI client to an existing GUI client id. */
+  bindGuiClient(clientId: string): Promise<void>;
   setNickname(nickname: string): Promise<void>;
   setCallsign(callsign: string): Promise<void>;
   setFullDuplexEnabled(enabled: boolean): Promise<void>;
@@ -778,6 +780,14 @@ export class RadioControllerImpl implements RadioController {
     const sanitized = sanitizeClientStationName(stationName);
     const encoded = sanitized.replace(/ /g, "\u007f");
     await this.session.command(`client station ${encoded}`);
+  }
+
+  async bindGuiClient(clientId: string): Promise<void> {
+    const trimmed = clientId.trim();
+    if (!trimmed) {
+      throw new FlexError("GUI client id cannot be empty");
+    }
+    await this.session.command(`client bind client_id=${trimmed}`);
   }
 
   async setNickname(nickname: string): Promise<void> {

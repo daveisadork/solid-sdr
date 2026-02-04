@@ -174,8 +174,12 @@ export type FlexHandshake = (context: FlexHandshakeContext) => Promise<void>;
 export interface FlexHandshakeClientInfo {
   /** Name of the client program announced during handshake. */
   readonly program?: string;
+  /** True when this client should register as a GUI client. Defaults to true. */
+  readonly isGui?: boolean;
   /** Optional GUI client id to reuse during handshake. */
   readonly guiClientId?: string | null;
+  /** GUI client id to bind for non-GUI connections. */
+  readonly boundClientId?: string | null;
   /** Station name announced to the radio for this client. */
   readonly station?: string;
 }
@@ -1320,6 +1324,8 @@ const DEFAULT_HANDSHAKE_COMMANDS: readonly string[] = [
   // "sub codec all",
   "sub apd all",
   "sub dvk all",
+  // "sub ha_api amplifier",
+  // "sub ha_api fault",
   "keepalive enable",
 ];
 
@@ -1332,8 +1338,9 @@ export async function defaultFlexHandshake(
   });
   context.emitProgress({ stage: "handle", handle });
 
-  if (clientInfo.program) {
-    context.command(`client program ${clientInfo.program.trim()}`);
+  const programName = clientInfo.program?.trim();
+  if (programName) {
+    context.command(`client program ${programName}`);
   }
 
   context.emitProgress({ stage: "sync", detail: "radio-info" });
@@ -1350,22 +1357,34 @@ export async function defaultFlexHandshake(
   );
 
   context.emitProgress({ stage: "sync", detail: "network-mtu" });
+
+  // ensure that packets are manually fragmented to avoid network issues
   await context.radio.setNetworkMtu(context.radio.networkMtu);
+
+  // Send reduced bandwidth DAX packets
+  await context.command("client set send_reduced_bw_dax=1");
 
   if (context.dataPlaneFactory) {
     context.emitProgress({ stage: "data-plane" });
     await context.attachDataPlane(context.dataPlaneFactory);
   }
 
-  const guiClientId = clientInfo.guiClientId;
-  const clientGuiResponse = await context.command(
-    guiClientId && guiClientId.length > 0
-      ? `client gui ${guiClientId}`
-      : "client gui",
-  );
-  const clientId = clientGuiResponse.message?.trim();
-  if (clientInfo.station) {
-    await context.radio.setClientStationName(clientInfo.station);
+  const isGui = !!clientInfo.isGui;
+  let clientId: string | null = null;
+  if (isGui) {
+    const guiClientId = clientInfo.guiClientId;
+    const clientGuiResponse = await context.command(
+      guiClientId && guiClientId.length > 0
+        ? `client gui ${guiClientId}`
+        : "client gui",
+    );
+    clientId = clientGuiResponse.message?.trim() ?? null;
+  } else if (clientInfo.boundClientId) {
+    await context.radio.bindGuiClient(clientInfo.boundClientId);
+  }
+  const stationName = clientInfo.station;
+  if (stationName) {
+    await context.radio.setClientStationName(stationName);
   }
   context.setClientId(clientId && clientId.length ? clientId : null);
 

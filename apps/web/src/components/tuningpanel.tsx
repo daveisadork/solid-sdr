@@ -1,4 +1,4 @@
-import useFlexRadio from "~/context/flexradio";
+import useFlexRadio, { Meter } from "~/context/flexradio";
 import { createSignal, For } from "solid-js";
 import { createStore } from "solid-js/store";
 import {
@@ -29,6 +29,16 @@ import {
 import { SliderToggle } from "./ui/slider-toggle";
 import { SimpleSwitch } from "./ui/simple-switch";
 import { SimpleSlider } from "./ui/simple-slider";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "./ui/dialog";
+
+import { Meter as MeterRoot } from "@kobalte/core/meter";
+import { createElementSize } from "@solid-primitives/resize-observer";
 
 const BANDS: { id: string; label: string }[] = [
   { id: "160", label: "160m" },
@@ -47,6 +57,43 @@ const BANDS: { id: string; label: string }[] = [
   { id: "2200", label: "2200m" },
   { id: "630", label: "630m" },
 ];
+
+function MeterElement(props: { meter: Meter }) {
+  const [trackRef, setTrackRef] = createSignal<HTMLDivElement>();
+  const trackSize = createElementSize(trackRef);
+
+  return (
+    <MeterRoot
+      value={props.meter.value}
+      minValue={props.meter.low}
+      maxValue={props.meter.high}
+      getValueLabel={({ value }) => `${value.toFixed(2)} ${props.meter.units}`}
+      class="flex flex-col w-full items-center"
+    >
+      <div class="flex font-mono text-xs w-full">
+        <MeterRoot.Label>
+          {props.meter.name} {props.meter.source} {props.meter.sourceIndex}
+        </MeterRoot.Label>
+        <div class="grow" />
+        <MeterRoot.ValueLabel />
+      </div>
+      <MeterRoot.Track
+        ref={setTrackRef}
+        class="w-full h-2 rounded-sm border border-border overflow-hidden"
+      >
+        <MeterRoot.Fill
+          class="h-full w-[var(--kb-meter-fill-width)] bg-linear-to-r/decreasing from-blue-500 to-red-500"
+          style={{
+            "background-size": `${trackSize.width}px 100%`,
+          }}
+        />
+      </MeterRoot.Track>
+      <div class="flex w-full justify-between text-xs text-muted-foreground">
+        {props.meter.description}
+      </div>
+    </MeterRoot>
+  );
+}
 
 export function TuningPanel(props: { streamId: string }) {
   const streamId = () => props.streamId;
@@ -68,6 +115,19 @@ export function TuningPanel(props: { streamId: string }) {
 
   return (
     <div class="flex flex-col px-4 gap-4 size-full text-sm overflow-y-auto overflow-x-hidden select-none overscroll-y-contain">
+      <Dialog>
+        <DialogTrigger>Show Meters</DialogTrigger>
+        <DialogContent class="max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>Meters</DialogTitle>
+          </DialogHeader>
+          <div class="flex flex-col gap-4">
+            <For each={Object.values(state.status.meter)}>
+              {(meter) => <MeterElement meter={meter} />}
+            </For>
+          </div>
+        </DialogContent>
+      </Dialog>
       <SimpleSwitch
         checked={state.settings.showFps}
         onChange={(isChecked) => {

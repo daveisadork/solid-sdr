@@ -209,6 +209,8 @@ const Triangle: Component<ComponentProps<"div">> = (props) => {
 const LevelMeter = (props: { sliceIndex?: string }) => {
   const { state, setState } = useFlexRadio();
   const [meterId, setMeterId] = createSignal<string>();
+  const [trackRef, setTrackRef] = createSignal<HTMLDivElement>();
+  const trackSize = createElementSize(trackRef);
 
   createEffect(() => {
     const sliceIndex = Number(props.sliceIndex);
@@ -257,18 +259,16 @@ const LevelMeter = (props: { sliceIndex?: string }) => {
             class="flex w-full items-center"
           >
             <MeterElement.Track
-              class="grow w-full h-2 rounded-sm overflow-visible flex items-center"
-              style={{
-                background: `linear-gradient(to right, #3b82f6, #34d399, #fbbf24, #f87171, #f87171, #f87171)`,
-              }}
+              class="grow w-full h-2 rounded-sm overflow-hidden flex items-center"
+              ref={setTrackRef}
             >
               <MeterElement.Fill
-                class="h-full w-[var(--kb-meter-fill-width)] bg-transparent"
+                class="h-full w-[var(--kb-meter-fill-width)] bg-linear-to-r/decreasing from-blue-500 to-red-500"
                 style={{
+                  "background-size": `${trackSize.width}px 100%`,
                   "transition-duration": `${1 / (meter.fps || 4)}s`,
                 }}
               />
-              <div class="shrink grow bg-background h-full" />
             </MeterElement.Track>
             <MeterElement.ValueLabel class="font-mono text-xs whitespace-pre" />
           </MeterElement>

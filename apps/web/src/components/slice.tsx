@@ -238,8 +238,8 @@ const LevelMeter = (props: { sliceIndex?: string }) => {
         return (
           <MeterElement
             value={meter.value}
-            minValue={-127}
-            maxValue={-33}
+            minValue={-133} // This is S0-6dBm
+            maxValue={-13} // S9+60
             onClick={() => setState("settings", "sMeterEnabled", (v) => !v)}
             getValueLabel={() => {
               if (!state.settings.sMeterEnabled) {
@@ -263,8 +263,9 @@ const LevelMeter = (props: { sliceIndex?: string }) => {
               ref={setTrackRef}
             >
               <MeterElement.Fill
-                class="h-full w-[var(--kb-meter-fill-width)] bg-linear-to-r/decreasing from-blue-500 to-red-500"
+                class="h-full w-[var(--kb-meter-fill-width)] bg-linear-to-r/decreasing from-blue-500 via-[yellow] via-50% to-[red] to-70%"
                 style={{
+                  // background: `linear-gradient(to right, #00ff00 20%, #ffff00 50%, #ff0000 70%)`,
                   "background-size": `${trackSize.width}px 100%`,
                   "transition-duration": `${1 / (meter.fps || 4)}s`,
                 }}

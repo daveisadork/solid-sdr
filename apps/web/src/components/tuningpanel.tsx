@@ -85,6 +85,7 @@ function MeterElement(props: { meter: Meter }) {
           class="h-full w-[var(--kb-meter-fill-width)] bg-linear-to-r/decreasing from-blue-500 to-red-500"
           style={{
             "background-size": `${trackSize.width}px 100%`,
+            // "transition-duration": `${1 / (props.meter.fps || 4)}s`,
           }}
         />
       </MeterRoot.Track>

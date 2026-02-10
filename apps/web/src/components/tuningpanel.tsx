@@ -8,11 +8,13 @@ import {
   NumberFieldGroup,
   NumberFieldIncrementTrigger,
   NumberFieldInput,
+  NumberFieldLabel,
 } from "./ui/number-field";
 import {
   Select,
   SelectContent,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
@@ -39,6 +41,7 @@ import {
 
 import { Meter as MeterRoot } from "@kobalte/core/meter";
 import { createElementSize } from "@solid-primitives/resize-observer";
+import { AspectRatio } from "./ui/aspect-ratio";
 
 const BANDS: { id: string; label: string }[] = [
   { id: "160", label: "160m" },
@@ -94,6 +97,15 @@ function MeterElement(props: { meter: Meter }) {
       </div>
     </MeterRoot>
   );
+}
+
+function createGradientStyle(
+  stops: { color: string; offset: number }[],
+  to: string = "top",
+) {
+  return `linear-gradient(to ${to}, ${stops
+    .map(({ color, offset }) => `${color} ${offset * 100}%`)
+    .join(", ")})`;
 }
 
 export function TuningPanel(props: { streamId: string }) {
@@ -185,28 +197,40 @@ export function TuningPanel(props: { streamId: string }) {
         </SegmentedControlGroup>
       </SegmentedControl>
       <Select
-        value={gradients[waterfall.gradientIndex].name}
-        onChange={(value: string) => {
-          if (!value) return;
-          wfController().setGradientIndex(
-            gradients.findIndex((item) => item.name === value),
-          );
+        class="flex flex-col gap-2 select-none"
+        value={waterfall.gradientIndex}
+        onChange={(value: number) => {
+          if (value !== waterfall.gradientIndex)
+            wfController().setGradientIndex(value);
         }}
-        options={gradients.map((g) => g.name)}
+        options={gradients.map((_, index) => index)}
         itemComponent={(props) => {
+          const gradient = gradients.at(props.item.rawValue);
           return (
-            <SelectItem item={props.item}>{props.item.rawValue}</SelectItem>
+            <SelectItem item={props.item}>
+              <div class="flex items-center gap-2">
+                <div
+                  class="h-6 w-6 rounded-sm"
+                  style={{
+                    "background-image": createGradientStyle(gradient.stops),
+                  }}
+                />
+                <div>{gradient.name}</div>
+              </div>
+            </SelectItem>
           );
         }}
       >
-        <SelectTrigger class="w-[180px]">
-          <SelectValue<"none" | "points" | "line">>
-            {(state) => state.selectedOption()}
+        <SelectLabel>Waterfall Gradient</SelectLabel>
+        <SelectTrigger>
+          <SelectValue<number>>
+            {(state) => gradients.at(state.selectedOption())?.name}
           </SelectValue>
         </SelectTrigger>
         <SelectContent />
       </Select>
       <Select
+        class="flex flex-col gap-2 select-none"
         value={pan.rxAntenna}
         onChange={(value: string) => {
           if (!value) return;
@@ -219,12 +243,14 @@ export function TuningPanel(props: { streamId: string }) {
           <SelectItem item={props.item}>{props.item.rawValue}</SelectItem>
         )}
       >
-        <SelectTrigger class="w-[180px]">
+        <SelectLabel>RX Antenna</SelectLabel>
+        <SelectTrigger>
           <SelectValue<string>>{(state) => state.selectedOption()}</SelectValue>
         </SelectTrigger>
         <SelectContent />
       </Select>
       <Select
+        class="flex flex-col gap-2 select-none"
         value={pan.band}
         onChange={(value: string) => {
           if (!value || value === pan.band) return;
@@ -237,7 +263,8 @@ export function TuningPanel(props: { streamId: string }) {
           </SelectItem>
         )}
       >
-        <SelectTrigger class="w-[180px]">
+        <SelectLabel>Band</SelectLabel>
+        <SelectTrigger>
           <SelectValue<string>>
             {(state) =>
               BANDS.find((b) => b.id === state.selectedOption())?.label
@@ -247,7 +274,7 @@ export function TuningPanel(props: { streamId: string }) {
         <SelectContent />
       </Select>
       <NumberField
-        class="flex w-36 flex-col gap-2 select-none"
+        class="flex flex-col gap-2 select-none"
         rawValue={pan.centerFrequencyMHz}
         step={pan.bandwidthMHz / 10}
         largeStep={pan.bandwidthMHz}
@@ -259,6 +286,7 @@ export function TuningPanel(props: { streamId: string }) {
         }}
         onRawValueChange={setRawFrequency}
       >
+        <NumberFieldLabel class="select-none">Center Freq MHz</NumberFieldLabel>
         <NumberFieldGroup class="select-none">
           <NumberFieldInput />
           <NumberFieldIncrementTrigger class="select-none" />
@@ -266,7 +294,7 @@ export function TuningPanel(props: { streamId: string }) {
         </NumberFieldGroup>
       </NumberField>
       <NumberField
-        class="flex w-36 flex-col gap-2 select-none"
+        class="flex flex-col gap-2 select-none"
         rawValue={pan.bandwidthMHz}
         step={pan.bandwidthMHz / 2}
         largeStep={pan.bandwidthMHz}
@@ -280,9 +308,7 @@ export function TuningPanel(props: { streamId: string }) {
         }}
         onRawValueChange={setRawBandwidth}
       >
-        <NumberFieldDescription class="select-none">
-          Bandwidth
-        </NumberFieldDescription>
+        <NumberFieldLabel class="select-none">Bandwidth MHz</NumberFieldLabel>
         <NumberFieldGroup class="select-none">
           <NumberFieldInput />
           <NumberFieldIncrementTrigger class="select-none" />
@@ -290,7 +316,7 @@ export function TuningPanel(props: { streamId: string }) {
         </NumberFieldGroup>
       </NumberField>
       <NumberField
-        class="flex w-36 flex-col gap-2 select-none"
+        class="flex flex-col gap-2 select-none"
         rawValue={pan.highDbm}
         onFocusOut={() => {
           const high = rawHighDbm();
@@ -300,9 +326,7 @@ export function TuningPanel(props: { streamId: string }) {
         }}
         onRawValueChange={setRawHighDbm}
       >
-        <NumberFieldDescription class="select-none">
-          High dBm
-        </NumberFieldDescription>
+        <NumberFieldLabel class="select-none">High dBm</NumberFieldLabel>
         <NumberFieldGroup class="select-none">
           <NumberFieldInput />
           <NumberFieldIncrementTrigger class="select-none" />
@@ -310,7 +334,7 @@ export function TuningPanel(props: { streamId: string }) {
         </NumberFieldGroup>
       </NumberField>
       <NumberField
-        class="flex w-36 flex-col gap-2 select-none"
+        class="flex flex-col gap-2 select-none"
         rawValue={pan.lowDbm}
         onFocusOut={() => {
           const low = rawLowDbm();
@@ -320,9 +344,7 @@ export function TuningPanel(props: { streamId: string }) {
         }}
         onRawValueChange={setRawLowDbm}
       >
-        <NumberFieldDescription class="select-none">
-          Low dBm
-        </NumberFieldDescription>
+        <NumberFieldLabel class="select-none">Low dBm</NumberFieldLabel>
         <NumberFieldGroup class="select-none">
           <NumberFieldInput />
           <NumberFieldIncrementTrigger class="select-none" />

@@ -59,7 +59,11 @@ const BANDS: { id: string; label: string }[] = [
   { id: "630", label: "630m" },
 ];
 
-function MeterElement(props: { meter: Meter }) {
+function MeterElement(props: {
+  meter: Meter;
+  showInstant?: boolean;
+  showAnimated?: boolean;
+}) {
   const [trackRef, setTrackRef] = createSignal<HTMLDivElement>();
   const trackSize = createElementSize(trackRef);
 
@@ -82,14 +86,16 @@ function MeterElement(props: { meter: Meter }) {
         ref={setTrackRef}
         class="relative w-full h-2 rounded-sm border border-border overflow-hidden"
       >
-        <MeterRoot.Fill
-          class="h-full w-[var(--kb-meter-fill-width)] bg-linear-to-r/decreasing from-blue-500 to-red-500"
-          style={{
-            "background-size": `${trackSize.width}px 100%`,
-            // "transition-duration": `${1 / (props.meter.fps || 4)}s`,
-          }}
-        />
-        <Show when={false}>
+        <Show when={props.showInstant}>
+          <MeterRoot.Fill
+            class="h-full w-[var(--kb-meter-fill-width)] bg-linear-to-r/decreasing from-blue-500 to-red-500"
+            style={{
+              "background-size": `${trackSize.width}px 100%`,
+              // "transition-duration": `${1 / (props.meter.fps || 4)}s`,
+            }}
+          />
+        </Show>
+        <Show when={props.showAnimated}>
           <MeterRoot.Fill
             class="absolute top-0 left-0 h-full w-[var(--kb-meter-fill-width)] bg-linear-to-r/decreasing from-blue-500 to-red-500"
             style={{
@@ -132,6 +138,8 @@ export function TuningPanel(props: { streamId: string }) {
   );
   const [rawHighDbm, setRawHighDbm] = createSignal(panController().highDbm);
   const [rawLowDbm, setRawLowDbm] = createSignal(panController().lowDbm);
+  const [showInstant, setShowInstant] = createSignal(true);
+  const [showAnimated, setShowAnimated] = createSignal(true);
 
   return (
     <div class="flex flex-col px-4 gap-4 size-full text-sm overflow-y-auto overflow-x-hidden select-none overscroll-y-contain">
@@ -142,8 +150,24 @@ export function TuningPanel(props: { streamId: string }) {
             <DialogTitle>Meters</DialogTitle>
           </DialogHeader>
           <div class="flex flex-col gap-4">
+            <SimpleSwitch
+              checked={showInstant()}
+              onChange={setShowInstant}
+              label="Show Instant"
+            />
+            <SimpleSwitch
+              checked={showAnimated()}
+              onChange={setShowAnimated}
+              label="Show Animated"
+            />
             <For each={Object.values(state.status.meter)}>
-              {(meter) => <MeterElement meter={meter} />}
+              {(meter) => (
+                <MeterElement
+                  meter={meter}
+                  showAnimated={showAnimated()}
+                  showInstant={showInstant()}
+                />
+              )}
             </For>
           </div>
         </DialogContent>

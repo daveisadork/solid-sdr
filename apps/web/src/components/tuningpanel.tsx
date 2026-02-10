@@ -1,10 +1,9 @@
 import useFlexRadio, { Meter } from "~/context/flexradio";
-import { createSignal, For } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
 import { createStore } from "solid-js/store";
 import {
   NumberField,
   NumberFieldDecrementTrigger,
-  NumberFieldDescription,
   NumberFieldGroup,
   NumberFieldIncrementTrigger,
   NumberFieldInput,
@@ -41,7 +40,6 @@ import {
 
 import { Meter as MeterRoot } from "@kobalte/core/meter";
 import { createElementSize } from "@solid-primitives/resize-observer";
-import { AspectRatio } from "./ui/aspect-ratio";
 
 const BANDS: { id: string; label: string }[] = [
   { id: "160", label: "160m" },
@@ -82,7 +80,7 @@ function MeterElement(props: { meter: Meter }) {
       </div>
       <MeterRoot.Track
         ref={setTrackRef}
-        class="w-full h-2 rounded-sm border border-border overflow-hidden"
+        class="relative w-full h-2 rounded-sm border border-border overflow-hidden"
       >
         <MeterRoot.Fill
           class="h-full w-[var(--kb-meter-fill-width)] bg-linear-to-r/decreasing from-blue-500 to-red-500"
@@ -91,9 +89,18 @@ function MeterElement(props: { meter: Meter }) {
             // "transition-duration": `${1 / (props.meter.fps || 4)}s`,
           }}
         />
+        <Show when={false}>
+          <MeterRoot.Fill
+            class="absolute top-0 left-0 h-full w-[var(--kb-meter-fill-width)] bg-linear-to-r/decreasing from-blue-500 to-red-500"
+            style={{
+              "background-size": `${trackSize.width}px 100%`,
+              "transition-duration": `${1 / (props.meter.fps || 4)}s`,
+            }}
+          />
+        </Show>
       </MeterRoot.Track>
       <div class="flex w-full justify-between text-xs text-muted-foreground">
-        {props.meter.description}
+        {props.meter.fps} {props.meter.description}
       </div>
     </MeterRoot>
   );

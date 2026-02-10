@@ -19,7 +19,10 @@ function App() {
   return (
     <RtcProvider>
       <FlexRadioProvider>
-        <ColorModeScript storageType={storageManager.type} />
+        <ColorModeScript
+          initialColorMode="dark"
+          storageType={storageManager.type}
+        />
         <ColorModeProvider storageManager={storageManager}>
           <div class="flex flex-col relative items-stretch size-full">
             <SidebarProvider class="relative grow h-auto overflow-visible min-h-0 bg-transparent">

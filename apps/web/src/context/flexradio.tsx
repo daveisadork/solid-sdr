@@ -95,6 +95,7 @@ export interface DisplaySettings {
   enableTransparencyEffects: boolean;
   peakStyle: "none" | "points" | "line";
   fillStyle: "none" | "solid" | "gradient";
+  meterStyle: "instant" | "smooth" | "ballistic";
 }
 
 export interface PaletteSettings {
@@ -157,6 +158,7 @@ export const initialState = () =>
       enableTransparencyEffects: true,
       peakStyle: "points",
       fillStyle: "solid",
+      meterStyle: "smooth",
     },
     palette: {
       colorMin: 0.0,

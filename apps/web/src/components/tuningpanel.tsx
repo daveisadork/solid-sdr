@@ -40,6 +40,7 @@ import {
 
 import { Meter as MeterRoot } from "@kobalte/core/meter";
 import { createElementSize } from "@solid-primitives/resize-observer";
+import { DialogDescription } from "@kobalte/core/src/dialog/dialog-description.jsx";
 
 const BANDS: { id: string; label: string }[] = [
   { id: "160", label: "160m" },
@@ -138,34 +139,50 @@ export function TuningPanel(props: { streamId: string }) {
   );
   const [rawHighDbm, setRawHighDbm] = createSignal(panController().highDbm);
   const [rawLowDbm, setRawLowDbm] = createSignal(panController().lowDbm);
-  const [showInstant, setShowInstant] = createSignal(true);
-  const [showAnimated, setShowAnimated] = createSignal(true);
 
   return (
     <div class="flex flex-col px-4 gap-4 size-full text-sm overflow-y-auto overflow-x-hidden select-none overscroll-y-contain">
       <Dialog>
         <DialogTrigger>Show Meters</DialogTrigger>
-        <DialogContent class="max-h-[90vh]">
+        <DialogContent class="size-full max-h-[90vh] overflow-y-hidden">
           <DialogHeader>
             <DialogTitle>Meters</DialogTitle>
+            <SegmentedControl
+              value={state.display.meterStyle}
+              onChange={(value) => {
+                console.log(value);
+                if (!value) return;
+                setState(
+                  "display",
+                  "meterStyle",
+                  value as "instant" | "smooth" | "ballistic",
+                );
+              }}
+            >
+              <SegmentedControlLabel>Meter Style</SegmentedControlLabel>
+              <SegmentedControlGroup>
+                <SegmentedControlIndicator />
+                <SegmentedControlItemsList>
+                  <For each={["instant", "smooth", "ballistic"]}>
+                    {(style) => (
+                      <SegmentedControlItem value={style}>
+                        <SegmentedControlItemLabel>
+                          {style}
+                        </SegmentedControlItemLabel>
+                      </SegmentedControlItem>
+                    )}
+                  </For>
+                </SegmentedControlItemsList>
+              </SegmentedControlGroup>
+            </SegmentedControl>
           </DialogHeader>
-          <div class="flex flex-col gap-4">
-            <SimpleSwitch
-              checked={showInstant()}
-              onChange={setShowInstant}
-              label="Show Instant"
-            />
-            <SimpleSwitch
-              checked={showAnimated()}
-              onChange={setShowAnimated}
-              label="Show Animated"
-            />
+          <div class="flex flex-col gap-4 overflow-y-auto">
             <For each={Object.values(state.status.meter)}>
               {(meter) => (
                 <MeterElement
                   meter={meter}
-                  showAnimated={showAnimated()}
-                  showInstant={showInstant()}
+                  showAnimated={state.display.meterStyle !== "instant"}
+                  showInstant={state.display.meterStyle !== "smooth"}
                 />
               )}
             </For>
@@ -179,6 +196,40 @@ export function TuningPanel(props: { streamId: string }) {
         }}
         label="Show FPS"
       />
+      <SegmentedControl
+        value={state.display.meterStyle}
+        onChange={(value) => {
+          console.log(value);
+          if (!value) return;
+          setState(
+            "display",
+            "meterStyle",
+            value as "instant" | "smooth" | "ballistic",
+          );
+        }}
+      >
+        <SegmentedControlLabel>Meter Style</SegmentedControlLabel>
+        <SegmentedControlGroup>
+          <SegmentedControlIndicator />
+          <SegmentedControlItemsList>
+            <For each={["instant", "smooth", "ballistic"]}>
+              {(style) => (
+                <SegmentedControlItem value={style}>
+                  <SegmentedControlItemLabel>
+                    {
+                      {
+                        instant: "inst",
+                        smooth: "smth",
+                        ballistic: "ball",
+                      }[style]
+                    }
+                  </SegmentedControlItemLabel>
+                </SegmentedControlItem>
+              )}
+            </For>
+          </SegmentedControlItemsList>
+        </SegmentedControlGroup>
+      </SegmentedControl>
       <SegmentedControl
         value={state.display.peakStyle}
         onChange={(value) => {

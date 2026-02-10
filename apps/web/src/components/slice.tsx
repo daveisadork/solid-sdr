@@ -262,15 +262,17 @@ const LevelMeter = (props: { sliceIndex?: string }) => {
               class="relative grow w-full h-2 rounded-sm overflow-hidden flex items-center"
               ref={setTrackRef}
             >
-              <MeterElement.Fill
-                class="h-full w-[var(--kb-meter-fill-width)] bg-linear-to-r/decreasing from-blue-500 via-[yellow] via-50% to-[red] to-70%"
-                style={{
-                  // background: `linear-gradient(to right, #00ff00 20%, #ffff00 50%, #ff0000 70%)`,
-                  "background-size": `${trackSize.width}px 100%`,
-                  "transition-duration": `${1 / (meter.fps || 4)}s`,
-                }}
-              />
-              <Show when={false}>
+              <Show when={state.display.meterStyle !== "instant"}>
+                <MeterElement.Fill
+                  class="h-full w-[var(--kb-meter-fill-width)] bg-linear-to-r/decreasing from-blue-500 via-[yellow] via-50% to-[red] to-70%"
+                  style={{
+                    // background: `linear-gradient(to right, #00ff00 20%, #ffff00 50%, #ff0000 70%)`,
+                    "background-size": `${trackSize.width}px 100%`,
+                    "transition-duration": `${1 / (meter.fps || 4)}s`,
+                  }}
+                />
+              </Show>
+              <Show when={state.display.meterStyle !== "smooth"}>
                 <MeterElement.Fill
                   class="absolute h-full w-[var(--kb-meter-fill-width)] bg-linear-to-r/decreasing from-blue-500 via-[yellow] via-50% to-[red] to-70%"
                   style={{

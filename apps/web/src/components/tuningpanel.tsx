@@ -40,7 +40,7 @@ import {
 
 import { Meter as MeterRoot } from "@kobalte/core/meter";
 import { createElementSize } from "@solid-primitives/resize-observer";
-import { DialogDescription } from "@kobalte/core/src/dialog/dialog-description.jsx";
+import { ColorField, ColorFieldInput, ColorFieldLabel } from "./ui/color-field";
 
 const BANDS: { id: string; label: string }[] = [
   { id: "160", label: "160m" },
@@ -142,41 +142,29 @@ export function TuningPanel(props: { streamId: string }) {
 
   return (
     <div class="flex flex-col px-4 gap-4 size-full text-sm overflow-y-auto overflow-x-hidden select-none overscroll-y-contain">
+      <ColorField
+        class="flex flex-col gap-2 select-none"
+        value={state.display.panBackgroundColor}
+        onChange={(value) => setState("display", "panBackgroundColor", value)}
+      >
+        <ColorFieldLabel>Panadapter Background</ColorFieldLabel>
+        <ColorFieldInput />
+      </ColorField>
+      <SimpleSwitch
+        checked={state.display.originalGradient}
+        onChange={(isChecked) => {
+          setState("display", "originalGradient", isChecked);
+        }}
+        label="Original Gradient"
+      />
+
       <Dialog>
         <DialogTrigger>Show Meters</DialogTrigger>
-        <DialogContent class="size-full max-h-[90vh] overflow-y-hidden">
+        <DialogContent class="size-full max-h-[90vh] overflow-y-hidden pr-3">
           <DialogHeader>
             <DialogTitle>Meters</DialogTitle>
-            <SegmentedControl
-              value={state.display.meterStyle}
-              onChange={(value) => {
-                console.log(value);
-                if (!value) return;
-                setState(
-                  "display",
-                  "meterStyle",
-                  value as "instant" | "smooth" | "ballistic",
-                );
-              }}
-            >
-              <SegmentedControlLabel>Meter Style</SegmentedControlLabel>
-              <SegmentedControlGroup>
-                <SegmentedControlIndicator />
-                <SegmentedControlItemsList>
-                  <For each={["instant", "smooth", "ballistic"]}>
-                    {(style) => (
-                      <SegmentedControlItem value={style}>
-                        <SegmentedControlItemLabel>
-                          {style}
-                        </SegmentedControlItemLabel>
-                      </SegmentedControlItem>
-                    )}
-                  </For>
-                </SegmentedControlItemsList>
-              </SegmentedControlGroup>
-            </SegmentedControl>
           </DialogHeader>
-          <div class="flex flex-col gap-4 overflow-y-auto">
+          <div class="flex flex-col gap-4 overflow-y-auto pr-3">
             <For each={Object.values(state.status.meter)}>
               {(meter) => (
                 <MeterElement
@@ -199,7 +187,6 @@ export function TuningPanel(props: { streamId: string }) {
       <SegmentedControl
         value={state.display.meterStyle}
         onChange={(value) => {
-          console.log(value);
           if (!value) return;
           setState(
             "display",

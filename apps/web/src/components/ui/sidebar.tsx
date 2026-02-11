@@ -19,8 +19,8 @@ import {
   useContext,
 } from "solid-js";
 
-import type { PolymorphicProps } from "@kobalte/core";
-import { Polymorphic } from "@kobalte/core";
+import type { PolymorphicProps } from "@kobalte/core/polymorphic";
+import { Polymorphic } from "@kobalte/core/polymorphic";
 import type { VariantProps } from "class-variance-authority";
 import { cva } from "class-variance-authority";
 

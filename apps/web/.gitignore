@@ -5,6 +5,7 @@ dist
 .netlify
 .vinxi
 app.config.timestamp_*.js
+stats.html
 
 # Environment
 .env

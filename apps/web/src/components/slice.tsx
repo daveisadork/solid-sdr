@@ -42,7 +42,7 @@ import {
 } from "./ui/slider";
 
 import { Trigger as SelectTrigger } from "@kobalte/core/select";
-import { ToggleButton } from "@kobalte/core";
+import { ToggleButton } from "@kobalte/core/toggle-button";
 import { ToggleGroup, ToggleGroupItem } from "./ui/toggle-group";
 import {
   SegmentedControl,
@@ -220,6 +220,7 @@ const LevelMeter = (props: { sliceIndex?: string }) => {
     for (const meterId in state.status.meter) {
       const meter: Meter = state.status.meter[meterId];
       if (
+        meter &&
         meter.source === "SLC" &&
         meter.sourceIndex === sliceIndex &&
         meter.name === "LEVEL"
@@ -768,7 +769,7 @@ export function Slice(props: { sliceIndex: string }) {
                     <SelectContent />
                   </Select>
                   <SliceFilter sliceIndex={props.sliceIndex} />
-                  <ToggleButton.Root
+                  <ToggleButton
                     class="text-center font-bold pl-1 pr-1 rounded-sm"
                     classList={{
                       "bg-red-500": slice.isTransmitEnabled,
@@ -780,7 +781,7 @@ export function Slice(props: { sliceIndex: string }) {
                     }}
                   >
                     TX
-                  </ToggleButton.Root>
+                  </ToggleButton>
                   <span class="text-center font-bold bg-blue-500 pl-1 pr-1 rounded-sm">
                     <Popover>
                       <PopoverTrigger>{slice.indexLetter}</PopoverTrigger>

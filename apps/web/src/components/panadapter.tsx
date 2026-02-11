@@ -308,12 +308,17 @@ export function Panadapter(props: { streamId: string }) {
   return (
     <div
       ref={setWrapper}
-      class="relative shrink size-full flex justify-center overflow-clip select-none"
+      class="relative shrink size-full flex justify-center overflow-clip select-none bg-radial-[ellipse_at_bottom] from-[var(--panadapter-background-color)] via-[var(--panadapter-background-color)]/70 via-30% to-[var(--panadapter-background-color)]/35 to-85%"
       style={{
         "--panadapter-available-height": `${wrapperSize.height}px`,
         "--panadapter-available-width": `${wrapperSize.width}px`,
+        "--panadapter-background-color": state.display.panBackgroundColor,
       }}
     >
+      <PanadapterGrid
+        horizontalTicks={levelTicks()}
+        verticalTicks={frequencyTicks()}
+      />
       <canvas
         ref={setCanvasRef}
         class="absolute size-full translate-x-[var(--drag-offset)] select-none"
@@ -325,10 +330,6 @@ export function Panadapter(props: { streamId: string }) {
           </div>
         </Portal>
       </Show>
-      <PanadapterGrid
-        horizontalTicks={levelTicks()}
-        verticalTicks={frequencyTicks()}
-      />
       <div class="absolute top-0 left-0 h-[var(--panafall-available-height)] w-[var(--panafall-available-width)]">
         <div class="flex pointer-events-none absolute top-4 right-4 text-white font-black opacity-50 space-x-2">
           <div>{pan().preampSetting}</div>

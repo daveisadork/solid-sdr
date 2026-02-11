@@ -3,9 +3,15 @@ import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
 import solidPlugin from "vite-plugin-solid";
 import Icons from "unplugin-icons/vite";
+import { visualizer } from "rollup-plugin-visualizer";
 
 export default defineConfig({
-  plugins: [solidPlugin(), tailwindcss(), Icons({ compiler: "solid" })],
+  plugins: [
+    solidPlugin(),
+    tailwindcss(),
+    Icons({ compiler: "solid" }),
+    visualizer(),
+  ],
   resolve: {
     alias: {
       "~": path.resolve(__dirname, "src"),

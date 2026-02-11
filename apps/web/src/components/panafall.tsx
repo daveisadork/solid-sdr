@@ -22,7 +22,10 @@ import FullscreenExit from "~icons/mdi/fullscreen-exit";
 import ThemeLightDark from "~icons/mdi/theme-light-dark";
 import { Button } from "./ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
-import { createLocalStorageManager, useColorMode } from "@kobalte/core";
+import {
+  createLocalStorageManager,
+  useColorMode,
+} from "@kobalte/core/color-mode";
 import { frequencyToLabel } from "~/lib/utils";
 import { createFullscreen } from "@solid-primitives/fullscreen";
 import { createElementSize } from "@solid-primitives/resize-observer";

@@ -41,6 +41,8 @@ import {
 import { Meter as MeterRoot } from "@kobalte/core/meter";
 import { createElementSize } from "@solid-primitives/resize-observer";
 import { ColorField, ColorFieldInput, ColorFieldLabel } from "./ui/color-field";
+import { ColorSwatch } from "@kobalte/core/color-swatch";
+import { parseColor } from "@kobalte/core/colors";
 
 const BANDS: { id: string; label: string }[] = [
   { id: "160", label: "160m" },
@@ -89,16 +91,15 @@ function MeterElement(props: {
       >
         <Show when={props.showInstant}>
           <MeterRoot.Fill
-            class="h-full w-[var(--kb-meter-fill-width)] bg-linear-to-r/decreasing from-blue-500 to-red-500"
+            class="h-full w-(--kb-meter-fill-width) bg-linear-to-r/decreasing from-blue-500 to-red-500"
             style={{
               "background-size": `${trackSize.width}px 100%`,
-              // "transition-duration": `${1 / (props.meter.fps || 4)}s`,
             }}
           />
         </Show>
         <Show when={props.showAnimated}>
           <MeterRoot.Fill
-            class="absolute top-0 left-0 h-full w-[var(--kb-meter-fill-width)] bg-linear-to-r/decreasing from-blue-500 to-red-500"
+            class="absolute top-0 left-0 h-full w-(--kb-meter-fill-width) bg-linear-to-r/decreasing from-blue-500 to-red-500"
             style={{
               "background-size": `${trackSize.width}px 100%`,
               "transition-duration": `${1 / (props.meter.fps || 4)}s`,
@@ -148,16 +149,14 @@ export function TuningPanel(props: { streamId: string }) {
         onChange={(value) => setState("display", "panBackgroundColor", value)}
       >
         <ColorFieldLabel>Panadapter Background</ColorFieldLabel>
-        <ColorFieldInput />
+        <div class="relative">
+          <ColorFieldInput />
+          <ColorSwatch
+            class="absolute top-2 right-2 rounded-sm w-6 h-6"
+            value={parseColor(state.display.panBackgroundColor)}
+          />
+        </div>
       </ColorField>
-      <SimpleSwitch
-        checked={state.display.originalGradient}
-        onChange={(isChecked) => {
-          setState("display", "originalGradient", isChecked);
-        }}
-        label="Original Gradient"
-      />
-
       <Dialog>
         <DialogTrigger>Show Meters</DialogTrigger>
         <DialogContent class="size-full max-h-[90vh] overflow-y-hidden pr-3">

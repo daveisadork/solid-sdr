@@ -352,7 +352,7 @@ export function Waterfall(props: { streamId: string }) {
       class="relative size-full flex justify-center overflow-visible select-none"
     >
       <canvas
-        class="absolute shrink-0 select-none scale-x-[var(--width-multiplier)] translate-x-[var(--drag-offset)]"
+        class="absolute shrink-0 select-none scale-x-(--width-multiplier) translate-x-(--drag-offset)"
         ref={setCanvasRef}
         width={canvasWidth()}
         height={window.screen.height}
@@ -368,22 +368,24 @@ export function Waterfall(props: { streamId: string }) {
         </Portal>
       </Show>
       <Show when={totalSeconds() > 0}>
-        <div class="pointer-events-none absolute inset-y-0 right-0 w-10 bg-background/50">
-          <div class="relative h-full px-1.5 flex items-center">
-            <LinearScale
-              min={-totalSeconds()}
-              max={0}
-              class="h-full"
-              tickClass="pr-0.5"
-              labelClass="text-[10px] font-semibold scale-text-shadow"
-              lineClass="bg-primary/25"
-              tickLength={9}
-              tickSpacing={60}
-              showTicks={false}
-              showMin={false}
-              showMax={false}
-              format={formatSeconds}
-            />
+        <div class="absolute top-0 left-0 h-full w-(--panafall-available-width)">
+          <div class="pointer-events-none absolute inset-y-0 right-0 w-10">
+            <div class="relative h-full px-1.5 flex items-center">
+              <LinearScale
+                min={-totalSeconds()}
+                max={0}
+                class="h-full"
+                tickClass="pr-0.5"
+                labelClass="text-[10px] font-semibold scale-text-shadow"
+                lineClass="bg-primary/25"
+                tickLength={9}
+                tickSpacing={60}
+                showTicks={false}
+                showMin={false}
+                showMax={false}
+                format={formatSeconds}
+              />
+            </div>
           </div>
         </div>
       </Show>

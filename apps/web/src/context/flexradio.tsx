@@ -96,7 +96,6 @@ export interface DisplaySettings {
   peakStyle: "none" | "points" | "line";
   fillStyle: "none" | "solid" | "gradient";
   meterStyle: "instant" | "smooth" | "ballistic";
-  originalGradient: boolean;
   panBackgroundColor: string;
 }
 
@@ -161,8 +160,7 @@ export const initialState = () =>
       peakStyle: "points",
       fillStyle: "solid",
       meterStyle: "smooth",
-      originalGradient: true,
-      panBackgroundColor: "#02517E",
+      panBackgroundColor: "#02517e",
     },
     palette: {
       colorMin: 0.0,

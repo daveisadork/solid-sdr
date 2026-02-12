@@ -34,7 +34,7 @@ function App() {
                 <Suspense fallback={<div>Loading...</div>}>
                   <Panafall />
                 </Suspense>
-                <SidebarTrigger class="z-50 absolute right-2 top-2 select-none" />
+                <SidebarTrigger class="z-50 absolute right-2 top-4 select-none backdrop-blur-lg" />
                 <AppSidebar />
               </SidebarProvider>
               <StatusBar />

@@ -265,7 +265,7 @@ const LevelMeter = (props: { sliceIndex?: string }) => {
             >
               <Show when={state.display.meterStyle !== "instant"}>
                 <MeterElement.Fill
-                  class="h-full w-[var(--kb-meter-fill-width)] bg-linear-to-r/decreasing from-blue-500 via-[yellow] via-50% to-[red] to-70%"
+                  class="h-full w-(--kb-meter-fill-width) bg-linear-to-r/decreasing from-blue-500 via-[yellow] via-50% to-[red] to-70%"
                   style={{
                     // background: `linear-gradient(to right, #00ff00 20%, #ffff00 50%, #ff0000 70%)`,
                     "background-size": `${trackSize.width}px 100%`,
@@ -275,7 +275,7 @@ const LevelMeter = (props: { sliceIndex?: string }) => {
               </Show>
               <Show when={state.display.meterStyle !== "smooth"}>
                 <MeterElement.Fill
-                  class="absolute h-full w-[var(--kb-meter-fill-width)] bg-linear-to-r/decreasing from-blue-500 via-[yellow] via-50% to-[red] to-70%"
+                  class="absolute h-full w-(--kb-meter-fill-width) bg-linear-to-r/decreasing from-blue-500 via-[yellow] via-50% to-[red] to-70%"
                   style={{
                     // background: `linear-gradient(to right, #00ff00 20%, #ffff00 50%, #ff0000 70%)`,
                     "background-size": `${trackSize.width}px 100%`,
@@ -302,7 +302,7 @@ export function DetachedSlice(props: { sliceIndex: string }) {
     <Button
       variant="ghost"
       size="sm"
-      class="font-black text-md font-mono z-10 pointer-events-auto text-shadow-md text-shadow-black"
+      class="font-black text-md font-mono z-10 pointer-events-auto text-shadow-md text-shadow-background"
       onClick={() => {
         radio()
           ?.panadapter(slice().panadapterStreamId)
@@ -326,7 +326,7 @@ export function DetachedSlices(props: { streamId: string }) {
   const pan = () => state.status.panadapter[props.streamId];
 
   return (
-    <div class="flex absolute top-10 left-0 bottom-0 right-0 pointer-events-none">
+    <div class="flex absolute top-10 left-0 bottom-0 w-(--panafall-available-width) pr-10 pointer-events-none">
       <div class="flex flex-col">
         <For
           each={Object.keys(state.status.slice).filter((sliceIndex) => {
@@ -405,7 +405,7 @@ const SliceFilter = (props: { sliceIndex: string }) => {
       </PopoverTrigger>
       <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 bg-background/50 backdrop-blur-xl">
         <PopoverArrow />
-        <div class="p-4 flex flex-col space-y-6 max-h-[var(--kb-popper-content-available-height)] overflow-x-auto">
+        <div class="p-4 flex flex-col space-y-6 max-h-(--kb-popper-content-available-height) overflow-x-auto">
           <Show when={filterPresets[slice().mode]}>
             {(presets) => (
               <ToggleGroup
@@ -425,7 +425,7 @@ const SliceFilter = (props: { sliceIndex: string }) => {
                     <ToggleGroupItem
                       variant="outline"
                       size="sm"
-                      class="border-muted-foreground data-[pressed]:bg-primary data-[pressed]:text-primary-foreground"
+                      class="border-muted-foreground data-pressed:bg-primary data-pressed:text-primary-foreground"
                       value={preset.name}
                     >
                       {preset.name}
@@ -488,7 +488,7 @@ const SliceFilter = (props: { sliceIndex: string }) => {
             <SliderTrack>
               <SliderFill />
               <div
-                class="absolute w-[3px] bg-red-500 h-[200%] rounded-sm -translate-y-1/4"
+                class="absolute w-0.75 bg-red-500 h-[200%] rounded-sm -translate-y-1/4"
                 classList={{
                   "left-0 -translate-x-1/2":
                     filterConstraints[slice().mode]?.low === 0,
@@ -510,7 +510,6 @@ const SliceFilter = (props: { sliceIndex: string }) => {
 };
 
 export function Slice(props: { sliceIndex: string }) {
-  console.log("Rendering Slice", props.sliceIndex);
   const sliceIndex = () => props.sliceIndex;
   const { radio: session, state } = useFlexRadio();
   const [slice, setSlice] = createStore(state.status.slice[sliceIndex()]);
@@ -636,7 +635,7 @@ export function Slice(props: { sliceIndex: string }) {
     <>
       <Show when={!slice.isDetached}>
         <div
-          class="absolute h-full left-[var(--slice-offset)] translate-x-[var(--drag-offset)] cursor-ew-resize"
+          class="absolute h-full left-(--slice-offset) translate-x-(--drag-offset) cursor-ew-resize"
           classList={{
             "z-0": !slice.isActive,
             "z-10": slice.isActive,
@@ -648,7 +647,7 @@ export function Slice(props: { sliceIndex: string }) {
           ref={setRef}
         >
           <div
-            class="absolute h-full translate-x-[var(--filter-offset)] w-[var(--filter-width)]"
+            class="absolute h-full translate-x-(--filter-offset) w-(--filter-width)"
             classList={{
               "backdrop-brightness-125 backdrop-contrast-75":
                 !slice.diversityChild,
@@ -697,7 +696,7 @@ export function Slice(props: { sliceIndex: string }) {
           </div>
           <Portal>
             <div
-              class="absolute top-0 left-[var(--flag-offset)] pt-1.5 pl-1 pr-1 z-20"
+              class="absolute top-0 left-(--flag-offset) pt-1.5 pl-1 pr-1 z-20"
               classList={{
                 "-translate-x-full": flagSide() === "left",
               }}
@@ -785,7 +784,7 @@ export function Slice(props: { sliceIndex: string }) {
                   <span class="text-center font-bold bg-blue-500 pl-1 pr-1 rounded-sm">
                     <Popover>
                       <PopoverTrigger>{slice.indexLetter}</PopoverTrigger>
-                      <PopoverContent class="flex flex-col overflow-hidden w-96 max-h-[var(--kb-popper-content-available-height)]">
+                      <PopoverContent class="flex flex-col overflow-hidden w-96 max-h-(--kb-popper-content-available-height)">
                         <pre class="size-full overflow-auto text-sm">
                           {JSON.stringify(slice, null, 2)}
                         </pre>
@@ -801,7 +800,7 @@ export function Slice(props: { sliceIndex: string }) {
                       </PopoverTrigger>
                       <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 bg-background/50 backdrop-blur-xl">
                         <PopoverArrow />
-                        <div class="p-4 flex flex-col space-y-6 max-h-[var(--kb-popper-content-available-height)] overflow-x-auto">
+                        <div class="p-4 flex flex-col space-y-6 max-h-(--kb-popper-content-available-height) overflow-x-auto">
                           <ToggleGroup
                             value={slice.mode}
                             onChange={(mode: string) => {
@@ -815,7 +814,7 @@ export function Slice(props: { sliceIndex: string }) {
                                 <ToggleGroupItem
                                   variant="outline"
                                   size="sm"
-                                  class="border-muted-foreground data-[pressed]:bg-primary data-[pressed]:text-primary-foreground"
+                                  class="border-muted-foreground data-pressed:bg-primary data-pressed:text-primary-foreground"
                                   value={mode}
                                 >
                                   {mode}
@@ -855,7 +854,7 @@ export function Slice(props: { sliceIndex: string }) {
                     </PopoverTrigger>
                     <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 bg-background/50 backdrop-blur-xl">
                       <PopoverArrow />
-                      <div class="p-4 flex flex-col space-y-6 max-h-[var(--kb-popper-content-available-height)] overflow-x-auto">
+                      <div class="p-4 flex flex-col space-y-6 max-h-(--kb-popper-content-available-height) overflow-x-auto">
                         <SimpleSwitch
                           checked={slice.isMuted}
                           onChange={(isChecked) => {
@@ -1013,7 +1012,7 @@ export function Slice(props: { sliceIndex: string }) {
                     <PopoverTrigger class="basis-64">DSP</PopoverTrigger>
                     <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 bg-background/50 backdrop-blur-xl">
                       <PopoverArrow />
-                      <div class="p-4 flex flex-col space-y-6 max-h-[var(--kb-popper-content-available-height)] overflow-x-auto">
+                      <div class="p-4 flex flex-col space-y-6 max-h-(--kb-popper-content-available-height) overflow-x-auto">
                         <SliderToggle
                           disabled={!slice.wnbEnabled}
                           minValue={0}
@@ -1167,7 +1166,7 @@ export function Slice(props: { sliceIndex: string }) {
       </Show>
       <div
         ref={setSentinel}
-        class="absolute left-[var(--slice-offset)] translate-x-[var(--drag-offset)] pointer-events-none"
+        class="absolute left-(--slice-offset) translate-x-(--drag-offset) pointer-events-none"
         style={{
           "--slice-offset": `${offset()}px`,
         }}

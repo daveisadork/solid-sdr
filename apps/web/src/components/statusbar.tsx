@@ -1,5 +1,4 @@
 import useFlexRadio from "~/context/flexradio";
-import { Flex } from "./ui/flex";
 import { createEffect, createSignal, Show } from "solid-js";
 import { createStore } from "solid-js/store";
 import Connect from "./connect";
@@ -37,8 +36,8 @@ export function StatusBar() {
   });
 
   return (
-    <Flex
-      class="shrink-0 h-10 w-full gap-4 py-2 px-3 text-sm font-mono select-none z-10"
+    <div
+      class="flex shrink-0 h-10 items-center w-full gap-4 py-2 px-3 text-sm font-mono select-none z-10"
       classList={{
         "bg-background/50 backdrop-blur-xl":
           state.display.enableTransparencyEffects,
@@ -60,6 +59,6 @@ export function StatusBar() {
         </Show>
         <GpsStatus class="justify-self-end justify-end" />
       </Show>
-    </Flex>
+    </div>
   );
 }

@@ -308,7 +308,7 @@ export function Panadapter(props: { streamId: string }) {
   return (
     <div
       ref={setWrapper}
-      class="relative shrink size-full flex justify-center overflow-clip select-none bg-radial-[ellipse_at_bottom] from-[var(--panadapter-background-color)] via-[var(--panadapter-background-color)]/70 via-30% to-[var(--panadapter-background-color)]/35 to-85%"
+      class="relative shrink size-full flex justify-center overflow-clip select-none bg-radial-[ellipse_at_bottom] from-(--panadapter-background-color) via-(--panadapter-background-color)/70 via-30% to-(--panadapter-background-color)/35 to-85%"
       style={{
         "--panadapter-available-height": `${wrapperSize.height}px`,
         "--panadapter-available-width": `${wrapperSize.width}px`,
@@ -321,7 +321,7 @@ export function Panadapter(props: { streamId: string }) {
       />
       <canvas
         ref={setCanvasRef}
-        class="absolute size-full translate-x-[var(--drag-offset)] select-none"
+        class="absolute size-full translate-x-(--drag-offset) select-none"
       />
       <Show when={state.settings.showFps}>
         <Portal>
@@ -330,8 +330,26 @@ export function Panadapter(props: { streamId: string }) {
           </div>
         </Portal>
       </Show>
-      <div class="absolute top-0 left-0 h-[var(--panafall-available-height)] w-[var(--panafall-available-width)]">
-        <div class="flex pointer-events-none absolute top-4 right-4 text-white font-black opacity-50 space-x-2">
+      <div class="absolute top-0 left-0 h-(--panadapter-available-height) w-(--panafall-available-width)">
+        <div class="absolute inset-y-0 right-0 w-10">
+          <div class="relative h-full px-1.5 flex items-center">
+            <LinearScale
+              min={pan().lowDbm}
+              max={pan().highDbm}
+              class="h-full"
+              tickClass="pr-0.5"
+              labelClass="text-[10px] font-semibold scale-text-shadow"
+              lineClass="bg-primary/25"
+              tickLength={9}
+              showTicks={false}
+              showMin={false}
+              showMax={false}
+              format={(value) => `${Math.round(value)}`}
+              onTicksChange={setLevelTicks}
+            />
+          </div>
+        </div>
+        <div class="flex pointer-events-none absolute top-4 right-12 text-fg text-xl font-bold opacity-50 space-x-2">
           <div>{pan().preampSetting}</div>
           <Show when={pan().wideEnabled}>
             <div>WIDE</div>
@@ -341,24 +359,6 @@ export function Panadapter(props: { streamId: string }) {
           {(sliceIndex) => <Slice sliceIndex={sliceIndex} />}
         </For>
         <DetachedSlices streamId={streamId()} />
-      </div>
-      <div class="pointer-events-none absolute inset-y-0 right-0 w-10 bg-background/50">
-        <div class="relative h-full px-1.5 flex items-center">
-          <LinearScale
-            min={pan().lowDbm}
-            max={pan().highDbm}
-            class="h-full"
-            tickClass="pr-0.5"
-            labelClass="text-[10px] font-semibold scale-text-shadow"
-            lineClass="bg-primary/25"
-            tickLength={9}
-            showTicks={false}
-            showMin={false}
-            showMax={false}
-            format={(value) => `${Math.round(value)}`}
-            onTicksChange={setLevelTicks}
-          />
-        </div>
       </div>
     </div>
   );

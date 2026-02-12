@@ -30,6 +30,7 @@ import { frequencyToLabel } from "~/lib/utils";
 import { createFullscreen } from "@solid-primitives/fullscreen";
 import { createElementSize } from "@solid-primitives/resize-observer";
 import { TabToSignal } from "./tab-to-signal";
+import { SidebarTrigger } from "./ui/sidebar";
 
 export function Panafall() {
   const { colorMode, setColorMode } = useColorMode();
@@ -357,7 +358,8 @@ export function Panafall() {
                 </TooltipContent>
               </Tooltip>
             </div>
-            <div class="absolute bottom-2 right-2 flex gap-2">
+
+            <div class="absolute bottom-2 right-12 flex gap-2">
               <Tooltip>
                 <TooltipTrigger
                   as={Button}

@@ -1,5 +1,4 @@
 import useFlexRadio from "~/context/flexradio";
-import { Flex } from "./ui/flex";
 import { For, Show } from "solid-js";
 import { Separator } from "./ui/separator";
 import { cn } from "~/lib/utils";
@@ -58,12 +57,22 @@ export function GpsStatus(props: { class?: string }) {
   };
 
   return (
-    <Flex class={cn("gap-4 cursor-default select-none", props.class)}>
+    <div
+      class={cn(
+        "flex items-center w-full gap-4 cursor-default select-none",
+        props.class,
+      )}
+    >
       <Show when={radio().gpsGrid}>
         <HoverCard>
-          <HoverCardTrigger as={"div"} class="flex items-center font-mono">
+          <HoverCardTrigger
+            as={"div"}
+            class="flex gap-1 items-center font-mono"
+          >
             <BaselineGpsFixed />
-            {radio().gpsGrid}
+            <span class="textbox-trim-both textbox-edge-cap-alphabetic">
+              {radio().gpsGrid}
+            </span>
           </HoverCardTrigger>
           <HoverCardContent class="w-80 bg-background/50 backdrop-blur-lg">
             <div class="flex justify-between space-x-4">
@@ -121,8 +130,10 @@ export function GpsStatus(props: { class?: string }) {
         </HoverCard>
       </Show>
       <Show when={radio().gpsUtcTime}>
-        <span class="font-mono">{radio().gpsUtcTime}</span>
+        <span class="font-mono textbox-trim-both textbox-edge-cap-alphabetic">
+          {radio().gpsUtcTime}
+        </span>
       </Show>
-    </Flex>
+    </div>
   );
 }

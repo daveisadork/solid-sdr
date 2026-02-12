@@ -37,7 +37,7 @@ export function StatusBar() {
 
   return (
     <div
-      class="flex shrink-0 h-10 items-center w-full gap-4 py-2 px-3 text-sm font-mono select-none z-10"
+      class="flex shrink-0 items-center w-full gap-4 py-2 px-3 text-sm font-mono select-none"
       classList={{
         "bg-background/50 backdrop-blur-xl":
           state.display.enableTransparencyEffects,
@@ -47,13 +47,17 @@ export function StatusBar() {
       <Connect />
       <Show when={state.clientHandle} keyed>
         <Show when={voltageId()} keyed>
-          {(id) => <pre>{meters[id].value?.toFixed(2)}V</pre>}
+          {(id) => (
+            <span class="textbox-trim-both textbox-edge-cap-alphabetic">
+              {meters[id].value?.toFixed(2)}V
+            </span>
+          )}
         </Show>
         <Show when={tempId()} keyed>
           {(id) => {
             const { value, units } = meters[id];
             return (
-              <span>{`${value?.toPrecision(3)}${units?.replace("deg", "°")}`}</span>
+              <span class="textbox-trim-both textbox-edge-cap-alphabetic">{`${value?.toPrecision(3)}${units?.replace("deg", "°")}`}</span>
             );
           }}
         </Show>

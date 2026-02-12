@@ -91,7 +91,7 @@ function MeterElement(props: {
       >
         <Show when={props.showInstant}>
           <MeterRoot.Fill
-            class="h-full w-(--kb-meter-fill-width) bg-linear-to-r/decreasing from-blue-500 to-red-500"
+            class="h-full w-(--kb-meter-fill-width) bg-linear-to-r/decreasing from-blue-500  via-yellow-300 via-60% to-red-500"
             style={{
               "background-size": `${trackSize.width}px 100%`,
             }}
@@ -99,7 +99,7 @@ function MeterElement(props: {
         </Show>
         <Show when={props.showAnimated}>
           <MeterRoot.Fill
-            class="absolute top-0 left-0 h-full w-(--kb-meter-fill-width) bg-linear-to-r/decreasing from-blue-500 to-red-500"
+            class="absolute top-0 left-0 h-full w-(--kb-meter-fill-width) bg-linear-to-r/decreasing from-blue-500 via-yellow-300 via-60% to-red-500"
             style={{
               "background-size": `${trackSize.width}px 100%`,
               "transition-duration": `${1 / (props.meter.fps || 4)}s`,
@@ -143,20 +143,6 @@ export function TuningPanel(props: { streamId: string }) {
 
   return (
     <div class="flex flex-col px-4 gap-4 size-full text-sm overflow-y-auto overflow-x-hidden select-none overscroll-y-contain">
-      <ColorField
-        class="flex flex-col gap-2 select-none"
-        value={state.display.panBackgroundColor}
-        onChange={(value) => setState("display", "panBackgroundColor", value)}
-      >
-        <ColorFieldLabel>Panadapter Background</ColorFieldLabel>
-        <div class="relative">
-          <ColorFieldInput />
-          <ColorSwatch
-            class="absolute top-2 right-2 rounded-sm w-6 h-6"
-            value={parseColor(state.display.panBackgroundColor)}
-          />
-        </div>
-      </ColorField>
       <Dialog>
         <DialogTrigger>Show Meters</DialogTrigger>
         <DialogContent class="size-full max-h-[90vh] overflow-y-hidden pr-3">
@@ -183,39 +169,6 @@ export function TuningPanel(props: { streamId: string }) {
         }}
         label="Show FPS"
       />
-      <SegmentedControl
-        value={state.display.meterStyle}
-        onChange={(value) => {
-          if (!value) return;
-          setState(
-            "display",
-            "meterStyle",
-            value as "instant" | "smooth" | "ballistic",
-          );
-        }}
-      >
-        <SegmentedControlLabel>Meter Style</SegmentedControlLabel>
-        <SegmentedControlGroup>
-          <SegmentedControlIndicator />
-          <SegmentedControlItemsList>
-            <For each={["instant", "smooth", "ballistic"]}>
-              {(style) => (
-                <SegmentedControlItem value={style}>
-                  <SegmentedControlItemLabel>
-                    {
-                      {
-                        instant: "inst",
-                        smooth: "smth",
-                        ballistic: "ball",
-                      }[style]
-                    }
-                  </SegmentedControlItemLabel>
-                </SegmentedControlItem>
-              )}
-            </For>
-          </SegmentedControlItemsList>
-        </SegmentedControlGroup>
-      </SegmentedControl>
       <SegmentedControl
         value={state.display.peakStyle}
         onChange={(value) => {
@@ -532,6 +485,20 @@ export function TuningPanel(props: { streamId: string }) {
         getValueLabel={(params) => params.values[0].toString()}
         label="Black Level"
       />
+      <ColorField
+        class="flex flex-col gap-2 select-none"
+        value={state.display.panBackgroundColor}
+        onChange={(value) => setState("display", "panBackgroundColor", value)}
+      >
+        <ColorFieldLabel>Panadapter Background</ColorFieldLabel>
+        <div class="relative">
+          <ColorFieldInput />
+          <ColorSwatch
+            class="absolute top-2 right-2 rounded-sm w-6 h-6"
+            value={parseColor(state.display.panBackgroundColor)}
+          />
+        </div>
+      </ColorField>
       <pre class="block w-full overflow-x-auto overflow-y-visible shrink-0">
         {JSON.stringify(state.status.panadapter, null, 2)}
       </pre>

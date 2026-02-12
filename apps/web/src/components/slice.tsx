@@ -238,6 +238,7 @@ const LevelMeter = (props: { sliceIndex?: string }) => {
         const meter = state.status.meter[id];
         return (
           <MeterElement
+            class="flex w-full items-center"
             value={meter.value}
             minValue={-133} // This is S0-6dBm
             maxValue={-13} // S9+60
@@ -257,7 +258,6 @@ const LevelMeter = (props: { sliceIndex?: string }) => {
                   : `S${Math.max(Math.floor(adjustedValue / 6) + 9, 0)}`;
               return label.padEnd(5, " ");
             }}
-            class="flex w-full items-center"
           >
             <MeterElement.Track
               class="relative grow w-full h-2 rounded-sm overflow-hidden flex items-center"
@@ -265,7 +265,7 @@ const LevelMeter = (props: { sliceIndex?: string }) => {
             >
               <Show when={state.display.meterStyle !== "instant"}>
                 <MeterElement.Fill
-                  class="h-full w-(--kb-meter-fill-width) bg-linear-to-r/decreasing from-blue-500 via-[yellow] via-50% to-[red] to-70%"
+                  class="h-full w-(--kb-meter-fill-width) bg-linear-to-r/decreasing from-blue-500 via-[yellow] via-50% to-red-500 to-70%"
                   style={{
                     // background: `linear-gradient(to right, #00ff00 20%, #ffff00 50%, #ff0000 70%)`,
                     "background-size": `${trackSize.width}px 100%`,
@@ -275,7 +275,7 @@ const LevelMeter = (props: { sliceIndex?: string }) => {
               </Show>
               <Show when={state.display.meterStyle !== "smooth"}>
                 <MeterElement.Fill
-                  class="absolute h-full w-(--kb-meter-fill-width) bg-linear-to-r/decreasing from-blue-500 via-[yellow] via-50% to-[red] to-70%"
+                  class="absolute h-full w-(--kb-meter-fill-width) bg-linear-to-r/decreasing from-blue-500 via-[yellow] via-50% to-red-500 to-70%"
                   style={{
                     // background: `linear-gradient(to right, #00ff00 20%, #ffff00 50%, #ff0000 70%)`,
                     "background-size": `${trackSize.width}px 100%`,
@@ -284,7 +284,7 @@ const LevelMeter = (props: { sliceIndex?: string }) => {
                 />
               </Show>
             </MeterElement.Track>
-            <MeterElement.ValueLabel class="font-mono text-xs whitespace-pre" />
+            <MeterElement.ValueLabel class="font-mono text-xs whitespace-pre textbox-edge-cap-alphabetic textbox-trim-both" />
           </MeterElement>
         );
       }}
@@ -400,7 +400,7 @@ const SliceFilter = (props: { sliceIndex: string }) => {
 
   return (
     <Popover>
-      <PopoverTrigger class="text-blue-500 text-xs text-center font-mono grow">
+      <PopoverTrigger class="text-blue-500 text-xs text-center font-mono grow textbox-trim-both textbox-edge-cap-alphabetic">
         {filterText()}
       </PopoverTrigger>
       <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 bg-background/50 backdrop-blur-xl">
@@ -707,7 +707,7 @@ export function Slice(props: { sliceIndex: string }) {
               ref={setFlag}
             >
               <div
-                class="border border-gray-500 rounded-md flex flex-col p-2 pointer-events-auto text-sm font-mono bg-background drop-shadow-black"
+                class="border border-gray-500 rounded-md flex flex-col p-2 gap-1 pointer-events-auto text-sm font-mono bg-background drop-shadow-black"
                 classList={{
                   "drop-shadow-lg": slice.isActive,
                   "drop-shadow-md": !slice.isActive,
@@ -720,7 +720,7 @@ export function Slice(props: { sliceIndex: string }) {
                       !slice.isActive,
                   }}
                 />
-                <div class="flex justify-between items-center space-x-2">
+                <div class="flex justify-between items-center gap-2">
                   <Select
                     value={slice.rxAntenna}
                     options={Array.from(slice.availableRxAntennas)}
@@ -736,9 +736,9 @@ export function Slice(props: { sliceIndex: string }) {
                   >
                     <SelectTrigger
                       aria-label="RX Antenna"
-                      class="text-blue-500 font-medium"
+                      class="flex items-center text-blue-500 font-medium"
                     >
-                      <SelectValue<string>>
+                      <SelectValue<string> class="textbox-trim-both textbox-edge-cap-alphabetic">
                         {(state) => state.selectedOption()}
                       </SelectValue>
                     </SelectTrigger>
@@ -759,9 +759,9 @@ export function Slice(props: { sliceIndex: string }) {
                   >
                     <SelectTrigger
                       aria-label="TX Antenna"
-                      class="text-red-500 font-medium"
+                      class="flex items-center text-red-500 font-medium"
                     >
-                      <SelectValue<string>>
+                      <SelectValue<string> class="textbox-trim-both textbox-edge-cap-alphabetic">
                         {(state) => state.selectedOption()}
                       </SelectValue>
                     </SelectTrigger>
@@ -769,7 +769,7 @@ export function Slice(props: { sliceIndex: string }) {
                   </Select>
                   <SliceFilter sliceIndex={props.sliceIndex} />
                   <ToggleButton
-                    class="text-center font-bold pl-1 pr-1 rounded-sm"
+                    class="flex items-center font-black p-1 rounded-sm"
                     classList={{
                       "bg-red-500": slice.isTransmitEnabled,
                       "opacity-50": !slice.isTransmitEnabled,
@@ -779,23 +779,30 @@ export function Slice(props: { sliceIndex: string }) {
                       sliceController().enableTransmit(pressed);
                     }}
                   >
-                    TX
+                    <span class="textbox-trim-both textbox-edge-cap-alphabetic">
+                      TX
+                    </span>
                   </ToggleButton>
-                  <span class="text-center font-bold bg-blue-500 pl-1 pr-1 rounded-sm">
-                    <Popover>
-                      <PopoverTrigger>{slice.indexLetter}</PopoverTrigger>
-                      <PopoverContent class="flex flex-col overflow-hidden w-96 max-h-(--kb-popper-content-available-height)">
-                        <pre class="size-full overflow-auto text-sm">
-                          {JSON.stringify(slice, null, 2)}
-                        </pre>
-                      </PopoverContent>
-                    </Popover>
-                  </span>
+                  <Popover>
+                    <PopoverTrigger class="flex items-center bg-blue-500 p-1 rounded-sm">
+                      <span class="font-mono font-black textbox-edge-cap-alphabetic textbox-trim-both">
+                        {slice.indexLetter}
+                      </span>
+                    </PopoverTrigger>
+                    <PopoverContent class="flex flex-col overflow-hidden w-96 max-h-(--kb-popper-content-available-height)">
+                      <pre class="size-full overflow-auto text-sm">
+                        {JSON.stringify(slice, null, 2)}
+                      </pre>
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 <Show when={!slice.diversityChild}>
                   <div class="flex justify-between items-center">
                     <Popover>
-                      <PopoverTrigger disabled={slice.diversityChild}>
+                      <PopoverTrigger
+                        class="textbox-trim-both textbox-edge-cap-alphabetic"
+                        disabled={slice.diversityChild}
+                      >
                         {slice.mode.padEnd(4, "\xA0")}
                       </PopoverTrigger>
                       <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 bg-background/50 backdrop-blur-xl">
@@ -826,17 +833,15 @@ export function Slice(props: { sliceIndex: string }) {
                       </PopoverContent>
                     </Popover>
                     <FrequencyInput
-                      class="text-right bg-transparent text-lg font-mono"
+                      class="text-right bg-transparent text-lg/tight font-mono"
                       size={14}
                       valueHz={Math.round(slice.frequencyMHz * 1e6)}
                       onCommit={tuneSlice}
                     />
                   </div>
                 </Show>
-                <div>
-                  <LevelMeter sliceIndex={props.sliceIndex} />
-                </div>
-                <div class="h-4 flex items-center text-xs font-bold justify-between *:flex *:flex-col *:items-center">
+                <LevelMeter sliceIndex={props.sliceIndex} />
+                <div class="flex items-center text-xs font-bold justify-between *:flex *:flex-col *:items-center">
                   <Popover>
                     <PopoverTrigger
                       class="basis-64"
@@ -1009,7 +1014,9 @@ export function Slice(props: { sliceIndex: string }) {
                     </PopoverContent>
                   </Popover>
                   <Popover>
-                    <PopoverTrigger class="basis-64">DSP</PopoverTrigger>
+                    <PopoverTrigger class="basis-64 textbox-trim-both textbox-edge-cap-alphabetic">
+                      DSP
+                    </PopoverTrigger>
                     <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 bg-background/50 backdrop-blur-xl">
                       <PopoverArrow />
                       <div class="p-4 flex flex-col space-y-6 max-h-(--kb-popper-content-available-height) overflow-x-auto">
@@ -1150,12 +1157,15 @@ export function Slice(props: { sliceIndex: string }) {
                     </PopoverContent>
                   </Popover>
                   <StatusToggle
-                    class="basis-64"
+                    class="basis-64 textbox-edge-cap-alphabetic textbox-trim-both"
                     active={slice.ritEnabled || slice.xitEnabled}
                   >
                     RIT
                   </StatusToggle>
-                  <StatusToggle class="basis-64" active={!!slice.daxChannel}>
+                  <StatusToggle
+                    class="basis-64 textbox-trim-both textbox-edge-cap-alphabetic"
+                    active={!!slice.daxChannel}
+                  >
                     DAX
                   </StatusToggle>
                 </div>

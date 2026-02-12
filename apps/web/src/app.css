@@ -270,6 +270,10 @@
   /* --font-mono: "Roboto Mono"; */
   /* --font-mono: "Inconsolata", ui-monospace, SFMono-Regular, Menlo, Monaco, */
   /*   Consolas, "Liberation Mono", "Courier New", monospace; */
+  --text-trim-both: trim-both;
+  --text-trim-start: trim-start;
+  --text-trim-end: trim-end;
+  --text-edge-cap-alphabetic: cap alphabetic;
 }
 
 @layer base {
@@ -294,6 +298,22 @@
     @apply ml-[-50px] mt-[-4px];
     content: counter(step);
   }
+}
+
+@utility textbox-trim-* {
+  text-box-trim: --value(--text-trim-*, "none");
+}
+
+@utility textbox-edge-* {
+  text-box-edge: --value(
+    --text-edge-*,
+    "text",
+    "alphabetic",
+    "ideographic",
+    "cap",
+    "ex",
+    [*]
+  );
 }
 
 @media (max-width: 640px) {

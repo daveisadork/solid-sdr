@@ -309,10 +309,10 @@ const LevelMeter = (props: { sliceIndex?: string }) => {
                 </For>
               </div>
             </MeterElement.Track>
-            <div class="w-full text-[0.5rem] flex">
+            <div class="w-full text-[0.5rem] flex font-sans">
               <For each={["1", "3", "5", "7", "9", "+20", "+40", ""]}>
                 {(value) => (
-                  <div class="w-full h-1.5 translate-x-1/2 flex flex-col items-center">
+                  <div class="w-full h-1.5 translate-x-1/2 flex flex-col items-center justify-center">
                     <Show when={value}>
                       <span class="textbox-edge-cap-alphabetic textbox-trim-both">
                         {value}
@@ -807,7 +807,7 @@ export function Slice(props: { sliceIndex: string }) {
                   </Select>
                   <SliceFilter sliceIndex={props.sliceIndex} />
                   <ToggleButton
-                    class="flex items-center h-4.5 font-black px-1 rounded-sm"
+                    class="flex justify-center items-center h-4.5 font-black px-1 rounded-sm"
                     classList={{
                       "bg-red-500": slice.isTransmitEnabled,
                       "opacity-50": !slice.isTransmitEnabled,
@@ -817,7 +817,7 @@ export function Slice(props: { sliceIndex: string }) {
                       sliceController().enableTransmit(pressed);
                     }}
                   >
-                    <span class="textbox-trim-both textbox-edge-cap-alphabetic">
+                    <span class="leading-tight textbox-trim-both textbox-edge-cap-alphabetic">
                       TX
                     </span>
                   </ToggleButton>
@@ -903,7 +903,7 @@ export function Slice(props: { sliceIndex: string }) {
                   </div>
                 </Show>
                 <LevelMeter sliceIndex={props.sliceIndex} />
-                <div class="flex items-center text-xs font-bold justify-evenly *:flex *:flex-col *:justify-center-safe *:items-center *:h-3.5">
+                <div class="font-sans flex items-center text-xs h-3.5 font-medium justify-evenly *:flex *:justify-center *:items-center *:h-full">
                   <Popover>
                     <PopoverTrigger
                       class="w-full"
@@ -1076,7 +1076,7 @@ export function Slice(props: { sliceIndex: string }) {
                     </PopoverContent>
                   </Popover>
                   <Popover>
-                    <PopoverTrigger class="w-full">
+                    <PopoverTrigger class="w-full ">
                       <span class="textbox-trim-both textbox-edge-cap-alphabetic">
                         DSP
                       </span>
@@ -1229,7 +1229,7 @@ export function Slice(props: { sliceIndex: string }) {
                     </StatusToggle>
                   </div>
                   <Select
-                    class="size-full"
+                    class="w-full "
                     value={slice.daxChannel}
                     options={Array.from(
                       { length: state.status.radio.sliceCount + 1 },
@@ -1247,7 +1247,7 @@ export function Slice(props: { sliceIndex: string }) {
                   >
                     <SelectTrigger
                       aria-label="DAX Channel"
-                      class="size-full textbox-trim-both textbox-edge-cap-alphabetic"
+                      class="h-auto p-0 textbox-trim-both textbox-edge-cap-alphabetic"
                     >
                       DAX
                     </SelectTrigger>

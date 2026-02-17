@@ -26,7 +26,10 @@ function App() {
         initialColorMode="dark"
         storageType={storageManager.type}
       />
-      <ColorModeProvider storageManager={storageManager}>
+      <ColorModeProvider
+        initialColorMode="dark"
+        storageManager={storageManager}
+      >
         <RtcProvider>
           <FlexRadioProvider>
             <div class="flex flex-col relative items-stretch size-full">

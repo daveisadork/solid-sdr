@@ -259,7 +259,7 @@ const LevelMeter = (props: { sliceIndex?: string }) => {
     <Show when={state.status.meter[meterId()]} keyed>
       {(meter) => (
         <MeterElement
-          class="relative flex w-full items-center"
+          class="relative flex w-full items-center select-none cursor-default"
           value={meterValue(meter.value)}
           minValue={-133} // This would actually be 6dB below S0
           // The official app's signal meter is non-linear.
@@ -745,7 +745,7 @@ export function Slice(props: { sliceIndex: string }) {
               ref={setFlag}
             >
               <div
-                class="border border-foreground/50 rounded-md flex flex-col p-1.5 gap-1 pointer-events-auto text-sm font-mono bg-background/50 drop-shadow-black subpixel-antialiased transform-gpu"
+                class="border border-foreground/50 rounded-md flex flex-col p-1.5 gap-1 pointer-events-auto text-sm font-mono bg-background/50 drop-shadow-black subpixel-antialiased transform-gpu backdrop-blur-xs"
                 classList={{
                   "drop-shadow-lg": slice.isActive,
                   "drop-shadow-md": !slice.isActive,
@@ -1076,14 +1076,14 @@ export function Slice(props: { sliceIndex: string }) {
                     </PopoverContent>
                   </Popover>
                   <Popover>
-                    <PopoverTrigger class="w-full ">
+                    <PopoverTrigger class="w-full">
                       <span class="textbox-trim-both textbox-edge-cap-alphabetic">
                         DSP
                       </span>
                     </PopoverTrigger>
                     <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 bg-background/50 backdrop-blur-xl">
                       <PopoverArrow />
-                      <div class="p-4 flex flex-col space-y-6 max-h-(--kb-popper-content-available-height) overflow-x-auto">
+                      <div class="relative p-4 flex flex-col space-y-6 max-h-(--kb-popper-content-available-height) overflow-x-auto">
                         <SliderToggle
                           disabled={!slice.wnbEnabled}
                           minValue={0}
@@ -1220,14 +1220,50 @@ export function Slice(props: { sliceIndex: string }) {
                       </div>
                     </PopoverContent>
                   </Popover>
-                  <div class="w-full">
-                    <StatusToggle
-                      class="textbox-edge-cap-alphabetic textbox-trim-both"
-                      active={slice.ritEnabled || slice.xitEnabled}
-                    >
-                      X/RIT
-                    </StatusToggle>
-                  </div>
+                  <Popover>
+                    <PopoverTrigger class="w-full">
+                      <span class="textbox-trim-both textbox-edge-cap-alphabetic">
+                        X/RIT
+                      </span>
+                    </PopoverTrigger>
+                    <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 bg-background/50 backdrop-blur-xl">
+                      <PopoverArrow />
+                      <div class="relative p-4 flex flex-col space-y-6 max-h-(--kb-popper-content-available-height) overflow-x-auto">
+                        <SliderToggle
+                          disabled={!slice.ritEnabled}
+                          minValue={-100}
+                          maxValue={100}
+                          value={[slice.ritOffsetHz]}
+                          onChange={([value]) => {
+                            if (value === slice.ritOffsetHz) return;
+                            sliceController().setRitOffset(value);
+                          }}
+                          getValueLabel={(params) => `${params.values[0]} Hz`}
+                          label="RX Offset (RIT)"
+                          switchChecked={slice.ritEnabled}
+                          onSwitchChange={(isChecked) => {
+                            sliceController().setRitEnabled(isChecked);
+                          }}
+                        />
+                        <SliderToggle
+                          disabled={!slice.xitEnabled}
+                          minValue={-100}
+                          maxValue={100}
+                          value={[slice.xitOffsetHz]}
+                          onChange={([value]) => {
+                            if (value === slice.xitOffsetHz) return;
+                            sliceController().setXitOffset(value);
+                          }}
+                          getValueLabel={(params) => `${params.values[0]} Hz`}
+                          label="TX Offset (XIT)"
+                          switchChecked={slice.xitEnabled}
+                          onSwitchChange={(isChecked) => {
+                            sliceController().setXitEnabled(isChecked);
+                          }}
+                        />
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                   <Select
                     class="w-full "
                     value={slice.daxChannel}

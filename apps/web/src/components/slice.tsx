@@ -323,7 +323,7 @@ const LevelMeter = (props: { sliceIndex?: string }) => {
               </For>
             </div>
           </div>
-          <MeterElement.ValueLabel class="text-xs whitespace-pre textbox-edge-cap-alphabetic textbox-trim-both" />
+          <MeterElement.ValueLabel class="font-medium text-xs whitespace-pre textbox-edge-cap-alphabetic textbox-trim-both" />
         </MeterElement>
       )}
     </Show>
@@ -895,7 +895,7 @@ export function Slice(props: { sliceIndex: string }) {
                       </PopoverContent>
                     </Popover>
                     <FrequencyInput
-                      class="text-right bg-transparent text-lg/tight font-mono"
+                      class="text-right bg-transparent text-lg/tight textbox-edge-cap-alphabetic textbox-trim-both font-mono"
                       size={14}
                       valueHz={Math.round(slice.frequencyMHz * 1e6)}
                       onCommit={tuneSlice}
@@ -903,7 +903,7 @@ export function Slice(props: { sliceIndex: string }) {
                   </div>
                 </Show>
                 <LevelMeter sliceIndex={props.sliceIndex} />
-                <div class="font-sans flex items-center text-xs h-3.5 font-medium justify-evenly *:flex *:justify-center *:items-center *:h-full">
+                <div class="flex items-center text-xs h-3.5 font-medium justify-evenly *:flex *:justify-center *:items-center *:h-full">
                   <Popover>
                     <PopoverTrigger
                       class="w-full"

@@ -302,7 +302,7 @@ const LevelMeter = (props: { sliceIndex?: string }) => {
                   {(value) => (
                     <div class="w-full translate-x-1/2 flex flex-col items-center">
                       <Show when={value}>
-                        <hr class="h-full border border-foreground border-y-0 border-x-[0.5px]" />
+                        <hr class="h-full border border-foreground border-y-0 border-l-px border-r-0" />
                       </Show>
                     </div>
                   )}

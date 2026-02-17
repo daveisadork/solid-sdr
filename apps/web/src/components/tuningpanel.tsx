@@ -108,7 +108,7 @@ function MeterElement(props: {
         </Show>
       </MeterRoot.Track>
       <div class="flex w-full justify-between text-xs text-muted-foreground">
-        {props.meter.fps} {props.meter.description}
+        {props.meter.description}
       </div>
     </MeterRoot>
   );

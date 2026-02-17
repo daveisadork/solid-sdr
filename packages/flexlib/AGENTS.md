@@ -15,7 +15,7 @@
 - `src/` groups code by domain: `src/flex/` houses the TCP command client and radio model, `src/vita/` contains UDP/VITA parsers, and `src/util/` provides cross-cutting helpers. `src/index.ts` re-exports the domains for consumers.
 - `tests/` contains Vitest suites (`*.spec.ts`) and shared utilities in `helpers.ts`; mirror the source layout when adding coverage across `flex`, `vita`, and `util`.
 - `messages.json` and `messages.txt` track wire-format constants used for reference when porting commands.
-- `official/` stores upstream C# FlexLib snapshots; do not modify or import them, but consult when validating behaviour.
+- `official/` stores upstream C# FlexLib snapshots; do not modify or import them, but consult when validating behaviour. The `official/SmartSDR` subtree contains a decompiled copy of the Windows SmartSDR client and is read-only reference material for understanding UI behaviour (e.g., band lists, panadapter interactions); treat it the same way as the FlexLib snapshots—never import code from it.
 - `tsdown.config.ts` defines bundler entrypoints and build targets for `index`, `flex`, `vita`, and `util`; update it whenever a new public surface is introduced.
 - Avoid introducing TS path aliases inside `src/`; relative imports keep the workspace-friendly build layout intact.
 

@@ -32,7 +32,7 @@ export default function RtcAudio() {
   });
 
   return (
-    <div class="absolute top-3 left-3">
+    <div class="absolute bottom-2 left-1/2 -translate-x-1/2">
       <Select
         value={outputDeviceId()}
         onChange={(value: string) => {
@@ -48,7 +48,7 @@ export default function RtcAudio() {
           );
         }}
       >
-        <SelectTrigger>
+        <SelectTrigger class="h-6 px-2 py-0 text-xs">
           <SelectValue>
             {(state) =>
               outputs().find((d) => d.deviceId === state.selectedOption())

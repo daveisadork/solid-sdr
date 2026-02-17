@@ -386,7 +386,7 @@ export interface SliceController {
   /**
    * Sets the DAX channel for the slice (0–8).
    */
-  assignDaxChannel(channel: number): Promise<void>;
+  setDaxChannel(channel: number): Promise<void>;
   setRfGain(hundredthsDb: number): Promise<void>;
   /**
    * Sets the slice receive filter low cut in Hz.
@@ -1012,7 +1012,7 @@ export class SliceControllerImpl implements SliceController {
     await this.sendSet({ txant: port ?? "" });
   }
 
-  async assignDaxChannel(channel: number): Promise<void> {
+  async setDaxChannel(channel: number): Promise<void> {
     await this.sendSet({ dax: formatInteger(channel) });
   }
 

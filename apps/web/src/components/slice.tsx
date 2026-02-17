@@ -30,7 +30,13 @@ import BaselineVolumeUp from "~icons/ic/baseline-volume-up";
 import BaselineVolumeOff from "~icons/ic/baseline-volume-off";
 import { Button } from "./ui/button";
 import { Portal } from "solid-js/web";
-import { Select, SelectContent, SelectItem, SelectValue } from "./ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectLabel,
+  SelectValue,
+} from "./ui/select";
 
 import {
   Slider,
@@ -175,6 +181,8 @@ const filterConstraints: Record<string, FilterConstraint> = {
   DFM: { low: -10_000, high: 10_000 },
 };
 
+const S9 = -73;
+
 const StatusToggle: Component<ComponentProps<"span"> & { active?: boolean }> = (
   props,
 ) => {
@@ -206,10 +214,21 @@ const Triangle: Component<ComponentProps<"div">> = (props) => {
   );
 };
 
+const MeterMark: Component<ComponentProps<"div">> = (props) => {
+  const [local, others] = splitProps(props, ["class", "style"]);
+  return (
+    <div
+      class={cn("absolute flex flex-col h-full items-center", local.class)}
+      {...others}
+    />
+  );
+};
+
 const LevelMeter = (props: { sliceIndex?: string }) => {
   const { state, setState } = useFlexRadio();
   const [meterId, setMeterId] = createSignal<string>();
   const [trackRef, setTrackRef] = createSignal<HTMLDivElement>();
+  const [linear, setLinear] = createSignal(false);
   const trackSize = createElementSize(trackRef);
 
   createEffect(() => {
@@ -232,62 +251,81 @@ const LevelMeter = (props: { sliceIndex?: string }) => {
     setMeterId(undefined);
   });
 
+  const meterValue = (value: number) => {
+    return linear() || value < S9 ? value : (value - S9) * 0.6 + S9;
+  };
+
   return (
-    <Show when={meterId()} keyed>
-      {(id) => {
-        const meter = state.status.meter[id];
-        return (
-          <MeterElement
-            class="flex w-full items-center"
-            value={meter.value}
-            minValue={-133} // This is S0-6dBm
-            maxValue={-13} // S9+60
-            onClick={() => setState("settings", "sMeterEnabled", (v) => !v)}
-            getValueLabel={() => {
-              if (!state.settings.sMeterEnabled) {
-                return `${Math.round(meter.value)}dBm`;
-              }
-              // This meter is in dBm. S9 is -73 dBm, and each S unit is 6 dB.
-              // We start by adding 73 so S9 is 0. That way the rest of the math
-              // is a little easier, we can divide by 6 and add 9 to get the S unit.
-              // Anything above S9 is S9 + the number of dB over S9.
-              const adjustedValue = Math.round((meter.value ?? meter.low) + 73);
-              const label =
-                adjustedValue > 0
-                  ? `S9+${adjustedValue}`
-                  : `S${Math.max(Math.floor(adjustedValue / 6) + 9, 0)}`;
-              return label.padEnd(5, " ");
-            }}
-          >
+    <Show when={state.status.meter[meterId()]} keyed>
+      {(meter) => (
+        <MeterElement
+          class="relative flex w-full items-center"
+          value={meterValue(meter.value)}
+          minValue={-133} // This would actually be 6dB below S0
+          // The official app's signal meter is non-linear.
+          // The actual range is from -133 dBm (6 dB below S0) to -13 dBm (S9 + 60 dB),
+          // but the app compresses the range above S9.
+          maxValue={linear() ? -13 : -37} // S9+60
+          onClick={() => setState("settings", "sMeterEnabled", (v) => !v)}
+          getValueLabel={() => {
+            const { value, low } = meter;
+            if (!state.settings.sMeterEnabled) {
+              return `${Math.round(value)}dBm`;
+            }
+            // This meter is in dBm. S9 is -73 dBm, and each S unit is 6 dB.
+            // We start by subtracting -73 so S9 is 0. That way the rest of the math
+            // is a little easier, we can divide by 6 and add 9 to get the S unit.
+            // Anything above S9 is S9 + the number of dB over S9.
+            const adjustedValue = Math.round((value ?? low) - S9);
+            const label =
+              adjustedValue > 0
+                ? `S9+${adjustedValue}`
+                : `S${Math.max(Math.floor(adjustedValue / 6) + 9, 0)}`;
+            return label.padEnd(5, " ");
+          }}
+        >
+          <div class="relative flex flex-col w-full gap-0.5">
             <MeterElement.Track
               class="relative grow w-full h-2 rounded-sm overflow-hidden flex items-center"
               ref={setTrackRef}
             >
-              <Show when={state.display.meterStyle !== "instant"}>
-                <MeterElement.Fill
-                  class="h-full w-(--kb-meter-fill-width) bg-linear-to-r/decreasing from-blue-500 via-[yellow] via-50% to-red-500 to-70%"
-                  style={{
-                    // background: `linear-gradient(to right, #00ff00 20%, #ffff00 50%, #ff0000 70%)`,
-                    "background-size": `${trackSize.width}px 100%`,
-                    "transition-duration": `${1 / (meter.fps || 4)}s`,
-                  }}
-                />
-              </Show>
-              <Show when={state.display.meterStyle !== "smooth"}>
-                <MeterElement.Fill
-                  class="absolute h-full w-(--kb-meter-fill-width) bg-linear-to-r/decreasing from-blue-500 via-[yellow] via-50% to-red-500 to-70%"
-                  style={{
-                    // background: `linear-gradient(to right, #00ff00 20%, #ffff00 50%, #ff0000 70%)`,
-                    "background-size": `${trackSize.width}px 100%`,
-                    // "transition-duration": `${1 / (meter.fps || 4)}s`,
-                  }}
-                />
-              </Show>
+              <MeterElement.Fill
+                class="h-full w-(--kb-meter-fill-width) bg-linear-to-r/decreasing from-blue-500 via-[yellow] via-50% to-red-500 to-70%"
+                style={{
+                  // background: `linear-gradient(to right, #00ff00 20%, #ffff00 50%, #ff0000 70%)`,
+                  "background-size": `${trackSize.width}px 100%`,
+                  "transition-duration": `${1 / (meter.fps || 4)}s`,
+                }}
+              />
+              <div class="absolute inset-0 flex opacity-75">
+                <For each={["1", "3", "5", "7", "9", "+20", "+40", ""]}>
+                  {(value) => (
+                    <div class="w-full translate-x-1/2 flex flex-col items-center">
+                      <Show when={value}>
+                        <hr class="h-full border border-foreground border-y-0 border-x-[0.5px]" />
+                      </Show>
+                    </div>
+                  )}
+                </For>
+              </div>
             </MeterElement.Track>
-            <MeterElement.ValueLabel class="font-mono text-xs whitespace-pre textbox-edge-cap-alphabetic textbox-trim-both" />
-          </MeterElement>
-        );
-      }}
+            <div class="w-full text-[0.5rem] flex">
+              <For each={["1", "3", "5", "7", "9", "+20", "+40", ""]}>
+                {(value) => (
+                  <div class="w-full translate-x-1/2 flex flex-col items-center">
+                    <Show when={value}>
+                      <span class="textbox-edge-cap-alphabetic textbox-trim-both">
+                        {value}
+                      </span>
+                    </Show>
+                  </div>
+                )}
+              </For>
+            </div>
+          </div>
+          <MeterElement.ValueLabel class="text-xs whitespace-pre textbox-edge-cap-alphabetic textbox-trim-both" />
+        </MeterElement>
+      )}
     </Show>
   );
 };
@@ -707,7 +745,7 @@ export function Slice(props: { sliceIndex: string }) {
               ref={setFlag}
             >
               <div
-                class="border border-gray-500 rounded-md flex flex-col p-2 gap-1 pointer-events-auto text-sm font-mono bg-background drop-shadow-black"
+                class="border border-foreground/50 rounded-md flex flex-col p-1.5 gap-1 pointer-events-auto text-sm font-mono bg-background/50 drop-shadow-black"
                 classList={{
                   "drop-shadow-lg": slice.isActive,
                   "drop-shadow-md": !slice.isActive,
@@ -720,7 +758,7 @@ export function Slice(props: { sliceIndex: string }) {
                       !slice.isActive,
                   }}
                 />
-                <div class="flex justify-between items-center gap-2">
+                <div class="flex justify-between items-center gap-1">
                   <Select
                     value={slice.rxAntenna}
                     options={Array.from(slice.availableRxAntennas)}
@@ -730,7 +768,7 @@ export function Slice(props: { sliceIndex: string }) {
                     }}
                     itemComponent={(props) => (
                       <SelectItem item={props.item}>
-                        {props.item.rawValue}
+                        {props.item.rawValue.replace("_", " ")}
                       </SelectItem>
                     )}
                   >
@@ -739,7 +777,7 @@ export function Slice(props: { sliceIndex: string }) {
                       class="flex items-center text-blue-500 font-medium"
                     >
                       <SelectValue<string> class="textbox-trim-both textbox-edge-cap-alphabetic">
-                        {(state) => state.selectedOption()}
+                        {(state) => state.selectedOption().replace("_", " ")}
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent />
@@ -753,7 +791,7 @@ export function Slice(props: { sliceIndex: string }) {
                     }}
                     itemComponent={(props) => (
                       <SelectItem item={props.item}>
-                        {props.item.rawValue}
+                        {props.item.rawValue.replace("_", " ")}
                       </SelectItem>
                     )}
                   >
@@ -762,7 +800,7 @@ export function Slice(props: { sliceIndex: string }) {
                       class="flex items-center text-red-500 font-medium"
                     >
                       <SelectValue<string> class="textbox-trim-both textbox-edge-cap-alphabetic">
-                        {(state) => state.selectedOption()}
+                        {(state) => state.selectedOption().replace("_", " ")}
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent />
@@ -785,11 +823,35 @@ export function Slice(props: { sliceIndex: string }) {
                   </ToggleButton>
                   <Popover>
                     <PopoverTrigger class="flex items-center bg-blue-500 p-1 rounded-sm">
-                      <span class="font-mono font-black textbox-edge-cap-alphabetic textbox-trim-both">
+                      <span class="font-black textbox-edge-cap-alphabetic textbox-trim-both">
                         {slice.indexLetter}
                       </span>
                     </PopoverTrigger>
                     <PopoverContent class="flex flex-col overflow-hidden w-96 max-h-(--kb-popper-content-available-height)">
+                      <div>
+                        <Select
+                          class="flex flex-col gap-2 select-none"
+                          value={slice.tuneStepHz}
+                          options={Array.from(slice.tuneStepListHz)}
+                          onChange={(v: number) => {
+                            if (!v || v === slice.tuneStepHz) return;
+                            sliceController().setTuneStep(v);
+                          }}
+                          itemComponent={(props) => (
+                            <SelectItem item={props.item}>
+                              {props.item.rawValue} Hz
+                            </SelectItem>
+                          )}
+                        >
+                          <SelectLabel>Tune Step</SelectLabel>
+                          <SelectTrigger>
+                            <SelectValue<number>>
+                              {(state) => `${state.selectedOption()} Hz`}
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent />
+                        </Select>
+                      </div>
                       <pre class="size-full overflow-auto text-sm">
                         {JSON.stringify(slice, null, 2)}
                       </pre>
@@ -841,10 +903,10 @@ export function Slice(props: { sliceIndex: string }) {
                   </div>
                 </Show>
                 <LevelMeter sliceIndex={props.sliceIndex} />
-                <div class="flex items-center text-xs font-bold justify-between *:flex *:flex-col *:items-center">
+                <div class="flex items-center text-xs font-bold justify-evenly *:flex *:flex-col *:justify-center-safe *:items-center *:h-3.5">
                   <Popover>
                     <PopoverTrigger
-                      class="basis-64"
+                      class="w-full"
                       onContextMenu={(e) => {
                         e.preventDefault();
                         sliceController().setMute(!slice.isMuted);
@@ -1014,8 +1076,10 @@ export function Slice(props: { sliceIndex: string }) {
                     </PopoverContent>
                   </Popover>
                   <Popover>
-                    <PopoverTrigger class="basis-64 textbox-trim-both textbox-edge-cap-alphabetic">
-                      DSP
+                    <PopoverTrigger class="w-full">
+                      <span class="textbox-trim-both textbox-edge-cap-alphabetic">
+                        DSP
+                      </span>
                     </PopoverTrigger>
                     <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 bg-background/50 backdrop-blur-xl">
                       <PopoverArrow />
@@ -1156,18 +1220,39 @@ export function Slice(props: { sliceIndex: string }) {
                       </div>
                     </PopoverContent>
                   </Popover>
-                  <StatusToggle
-                    class="basis-64 textbox-edge-cap-alphabetic textbox-trim-both"
-                    active={slice.ritEnabled || slice.xitEnabled}
+                  <div class="w-full">
+                    <StatusToggle
+                      class="textbox-edge-cap-alphabetic textbox-trim-both"
+                      active={slice.ritEnabled || slice.xitEnabled}
+                    >
+                      X/RIT
+                    </StatusToggle>
+                  </div>
+                  <Select
+                    class="size-full"
+                    value={slice.daxChannel}
+                    options={Array.from(
+                      { length: state.status.radio.sliceCount + 1 },
+                      (_, i) => i,
+                    )}
+                    onChange={(v: number) => {
+                      if (v === slice.daxChannel) return;
+                      sliceController().setDaxChannel(v);
+                    }}
+                    itemComponent={(props) => (
+                      <SelectItem item={props.item}>
+                        {props.item.rawValue || "None"}
+                      </SelectItem>
+                    )}
                   >
-                    RIT
-                  </StatusToggle>
-                  <StatusToggle
-                    class="basis-64 textbox-trim-both textbox-edge-cap-alphabetic"
-                    active={!!slice.daxChannel}
-                  >
-                    DAX
-                  </StatusToggle>
+                    <SelectTrigger
+                      aria-label="DAX Channel"
+                      class="size-full textbox-trim-both textbox-edge-cap-alphabetic"
+                    >
+                      DAX
+                    </SelectTrigger>
+                    <SelectContent />
+                  </Select>
                 </div>
               </div>
             </div>

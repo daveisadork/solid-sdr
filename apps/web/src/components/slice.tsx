@@ -340,7 +340,7 @@ export function DetachedSlice(props: { sliceIndex: string }) {
     <Button
       variant="ghost"
       size="sm"
-      class="font-black text-md font-mono z-10 pointer-events-auto text-shadow-md text-shadow-background"
+      class="font-extrabold text-md font-mono z-10 pointer-events-auto text-shadow-md text-shadow-background"
       onClick={() => {
         radio()
           ?.panadapter(slice().panadapterStreamId)
@@ -734,7 +734,7 @@ export function Slice(props: { sliceIndex: string }) {
           </div>
           <Portal>
             <div
-              class="absolute top-0 left-(--flag-offset) pt-1.5 pl-1 pr-1 z-20"
+              class="absolute top-0 left-(--flag-offset) pt-1 pl-1 pr-1 z-20"
               classList={{
                 "-translate-x-full": flagSide() === "left",
               }}
@@ -807,7 +807,7 @@ export function Slice(props: { sliceIndex: string }) {
                   </Select>
                   <SliceFilter sliceIndex={props.sliceIndex} />
                   <ToggleButton
-                    class="flex justify-center items-center h-4.5 font-black px-1 rounded-sm"
+                    class="flex justify-center items-center h-4.5 font-extrabold px-1 rounded-sm"
                     classList={{
                       "bg-red-500": slice.isTransmitEnabled,
                       "opacity-50": !slice.isTransmitEnabled,
@@ -823,7 +823,7 @@ export function Slice(props: { sliceIndex: string }) {
                   </ToggleButton>
                   <Popover>
                     <PopoverTrigger class="flex items-center bg-blue-500 h-4.5 px-1 rounded-sm">
-                      <span class="font-black textbox-edge-cap-alphabetic textbox-trim-both">
+                      <span class="font-extrabold textbox-edge-cap-alphabetic textbox-trim-both">
                         {slice.indexLetter}
                       </span>
                     </PopoverTrigger>
@@ -895,7 +895,7 @@ export function Slice(props: { sliceIndex: string }) {
                       </PopoverContent>
                     </Popover>
                     <FrequencyInput
-                      class="text-right bg-transparent text-lg/tight textbox-edge-cap-alphabetic textbox-trim-both font-mono"
+                      class="text-right bg-transparent text-lg/tight font-mono"
                       size={14}
                       valueHz={Math.round(slice.frequencyMHz * 1e6)}
                       onCommit={tuneSlice}

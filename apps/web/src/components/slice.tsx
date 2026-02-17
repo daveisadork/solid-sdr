@@ -312,7 +312,7 @@ const LevelMeter = (props: { sliceIndex?: string }) => {
             <div class="w-full text-[0.5rem] flex">
               <For each={["1", "3", "5", "7", "9", "+20", "+40", ""]}>
                 {(value) => (
-                  <div class="w-full translate-x-1/2 flex flex-col items-center">
+                  <div class="w-full h-1.5 translate-x-1/2 flex flex-col items-center">
                     <Show when={value}>
                       <span class="textbox-edge-cap-alphabetic textbox-trim-both">
                         {value}
@@ -745,7 +745,7 @@ export function Slice(props: { sliceIndex: string }) {
               ref={setFlag}
             >
               <div
-                class="border border-foreground/50 rounded-md flex flex-col p-1.5 gap-1 pointer-events-auto text-sm font-mono bg-background/50 drop-shadow-black"
+                class="border border-foreground/50 rounded-md flex flex-col p-1.5 gap-1 pointer-events-auto text-sm font-mono bg-background/50 drop-shadow-black subpixel-antialiased transform-gpu"
                 classList={{
                   "drop-shadow-lg": slice.isActive,
                   "drop-shadow-md": !slice.isActive,
@@ -807,7 +807,7 @@ export function Slice(props: { sliceIndex: string }) {
                   </Select>
                   <SliceFilter sliceIndex={props.sliceIndex} />
                   <ToggleButton
-                    class="flex items-center font-black p-1 rounded-sm"
+                    class="flex items-center h-4.5 font-black px-1 rounded-sm"
                     classList={{
                       "bg-red-500": slice.isTransmitEnabled,
                       "opacity-50": !slice.isTransmitEnabled,
@@ -822,7 +822,7 @@ export function Slice(props: { sliceIndex: string }) {
                     </span>
                   </ToggleButton>
                   <Popover>
-                    <PopoverTrigger class="flex items-center bg-blue-500 p-1 rounded-sm">
+                    <PopoverTrigger class="flex items-center bg-blue-500 h-4.5 px-1 rounded-sm">
                       <span class="font-black textbox-edge-cap-alphabetic textbox-trim-both">
                         {slice.indexLetter}
                       </span>

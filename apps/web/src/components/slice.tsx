@@ -1223,7 +1223,7 @@ export function Slice(props: { sliceIndex: string }) {
                   <Popover>
                     <PopoverTrigger class="w-full">
                       <span class="textbox-trim-both textbox-edge-cap-alphabetic">
-                        X/RIT
+                        RIT
                       </span>
                     </PopoverTrigger>
                     <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 bg-background/50 backdrop-blur-xl">

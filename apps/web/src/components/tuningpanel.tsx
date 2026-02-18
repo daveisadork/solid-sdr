@@ -1,5 +1,5 @@
 import useFlexRadio, { Meter } from "~/context/flexradio";
-import { createSignal, For, Show } from "solid-js";
+import { createEffect, createSignal, For, onCleanup, Show } from "solid-js";
 import { createStore } from "solid-js/store";
 import {
   NumberField,
@@ -39,7 +39,6 @@ import {
 } from "./ui/dialog";
 
 import { Meter as MeterRoot } from "@kobalte/core/meter";
-import { createElementSize } from "@solid-primitives/resize-observer";
 import { ColorField, ColorFieldInput, ColorFieldLabel } from "./ui/color-field";
 import { ColorSwatch } from "@kobalte/core/color-swatch";
 import { parseColor } from "@kobalte/core/colors";
@@ -62,21 +61,14 @@ const BANDS: { id: string; label: string }[] = [
   { id: "630", label: "630m" },
 ];
 
-function MeterElement(props: {
-  meter: Meter;
-  showInstant?: boolean;
-  showAnimated?: boolean;
-}) {
-  const [trackRef, setTrackRef] = createSignal<HTMLDivElement>();
-  const trackSize = createElementSize(trackRef);
-
+function MeterElement(props: { meter: Meter }) {
   return (
     <MeterRoot
       value={props.meter.value}
       minValue={props.meter.low}
       maxValue={props.meter.high}
       getValueLabel={({ value }) => `${value.toFixed(2)} ${props.meter.units}`}
-      class="flex flex-col w-full items-center"
+      class="flex flex-col gap-0.5 w-full items-center"
     >
       <div class="flex font-mono text-xs w-full">
         <MeterRoot.Label>
@@ -85,28 +77,21 @@ function MeterElement(props: {
         <div class="grow" />
         <MeterRoot.ValueLabel />
       </div>
-      <MeterRoot.Track
-        ref={setTrackRef}
-        class="relative w-full h-2 rounded-sm border border-border overflow-hidden"
-      >
-        <Show when={props.showInstant}>
-          <MeterRoot.Fill
-            class="h-full w-(--kb-meter-fill-width) bg-linear-to-r/decreasing from-blue-500  via-yellow-300 via-60% to-red-500"
-            style={{
-              "background-size": `${trackSize.width}px 100%`,
-            }}
-          />
-        </Show>
-        <Show when={props.showAnimated}>
-          <MeterRoot.Fill
-            class="absolute top-0 left-0 h-full w-(--kb-meter-fill-width) bg-linear-to-r/decreasing from-blue-500 via-yellow-300 via-60% to-red-500"
-            style={{
-              "background-size": `${trackSize.width}px 100%`,
-              "transition-duration": `${1 / (props.meter.fps || 4)}s`,
-            }}
-          />
-        </Show>
-      </MeterRoot.Track>
+      <div class="w-full h-2.5 rounded-xl bg-linear-to-r/decreasing from-blue-500 via-yellow-300 via-60% to-red-500">
+        <div class="size-full mix-blend-luminosity">
+          <MeterRoot.Track class="size-full border border-white/20 bg-background rounded-xl overflow-hidden">
+            <MeterRoot.Fill
+              class="size-full bg-linear-to-r/decreasing from-blue-500 via-yellow-300 via-60% to-red-500"
+              style={{
+                "clip-path":
+                  "inset(0 calc(100% - var(--kb-meter-fill-width)) 0 0)",
+                "will-change": "clip-path",
+                transition: `clip-path ${1 / (props.meter.fps || 4)}s linear`,
+              }}
+            />
+          </MeterRoot.Track>
+        </div>
+      </div>
       <div class="flex w-full justify-between text-xs text-muted-foreground">
         {props.meter.description}
       </div>
@@ -151,13 +136,7 @@ export function TuningPanel(props: { streamId: string }) {
           </DialogHeader>
           <div class="flex flex-col gap-4 overflow-y-auto pr-3">
             <For each={Object.values(state.status.meter)}>
-              {(meter) => (
-                <MeterElement
-                  meter={meter}
-                  showAnimated={state.display.meterStyle !== "instant"}
-                  showInstant={state.display.meterStyle !== "smooth"}
-                />
-              )}
+              {(meter) => <MeterElement meter={meter} />}
             </For>
           </div>
         </DialogContent>

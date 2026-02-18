@@ -227,9 +227,25 @@ const MeterMark: Component<ComponentProps<"div">> = (props) => {
 const LevelMeter = (props: { sliceIndex?: string }) => {
   const { state, setState } = useFlexRadio();
   const [meterId, setMeterId] = createSignal<string>();
-  const [trackRef, setTrackRef] = createSignal<HTMLDivElement>();
   const [linear, setLinear] = createSignal(false);
-  const trackSize = createElementSize(trackRef);
+  const meterStops = [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+    "+10",
+    "+20",
+    "+30",
+    "+40",
+    "+50",
+    "",
+  ];
 
   createEffect(() => {
     const sliceIndex = Number(props.sliceIndex);
@@ -251,24 +267,28 @@ const LevelMeter = (props: { sliceIndex?: string }) => {
     setMeterId(undefined);
   });
 
-  const meterValue = (value: number) => {
+  const scaleMeterValue = (value: number) => {
     return linear() || value < S9 ? value : (value - S9) * 0.6 + S9;
+  };
+
+  const unscaleMeterValue = (value: number) => {
+    return linear() || value < S9 ? value : (value - S9) / 0.6 + S9;
   };
 
   return (
     <Show when={state.status.meter[meterId()]} keyed>
       {(meter) => (
         <MeterElement
-          class="relative flex w-full items-center select-none cursor-default"
-          value={meterValue(meter.value)}
+          class="relative flex gap-1 w-full items-center select-none cursor-default"
+          value={scaleMeterValue(meter.value)}
           minValue={-133} // This would actually be 6dB below S0
           // The official app's signal meter is non-linear.
           // The actual range is from -133 dBm (6 dB below S0) to -13 dBm (S9 + 60 dB),
           // but the app compresses the range above S9.
           maxValue={linear() ? -13 : -37} // S9+60
           onClick={() => setState("settings", "sMeterEnabled", (v) => !v)}
-          getValueLabel={() => {
-            const { value, low } = meter;
+          getValueLabel={(params) => {
+            const value = unscaleMeterValue(params.value);
             if (!state.settings.sMeterEnabled) {
               return `${Math.round(value)}dBm`;
             }
@@ -276,7 +296,12 @@ const LevelMeter = (props: { sliceIndex?: string }) => {
             // We start by subtracting -73 so S9 is 0. That way the rest of the math
             // is a little easier, we can divide by 6 and add 9 to get the S unit.
             // Anything above S9 is S9 + the number of dB over S9.
-            const adjustedValue = Math.round((value ?? low) - S9);
+            const adjustedValue = Math.round(value - S9);
+            // const overS9 =
+            //   adjustedValue > 0
+            //     ? `+${adjustedValue.toString().padStart(2, " ")}`
+            //     : "";
+            // return ` S${Math.min(9, Math.max(0, Math.floor(adjustedValue / 6) + 9))}\n${overS9.padEnd(3, " ")}`;
             const label =
               adjustedValue > 0
                 ? `S9+${adjustedValue}`
@@ -285,34 +310,36 @@ const LevelMeter = (props: { sliceIndex?: string }) => {
           }}
         >
           <div class="relative flex flex-col w-full gap-0.5">
-            <MeterElement.Track
-              class="relative grow w-full h-2 rounded-sm overflow-hidden flex items-center"
-              ref={setTrackRef}
-            >
-              <MeterElement.Fill
-                class="h-full w-(--kb-meter-fill-width) bg-linear-to-r/decreasing from-blue-500 via-[yellow] via-50% to-red-500 to-70%"
-                style={{
-                  // background: `linear-gradient(to right, #00ff00 20%, #ffff00 50%, #ff0000 70%)`,
-                  "background-size": `${trackSize.width}px 100%`,
-                  "transition-duration": `${1 / (meter.fps || 4)}s`,
-                }}
-              />
-              <div class="absolute inset-0 flex opacity-75">
-                <For each={["1", "3", "5", "7", "9", "+20", "+40", ""]}>
-                  {(value) => (
-                    <div class="w-full translate-x-1/2 flex flex-col items-center">
-                      <Show when={value}>
-                        <hr class="h-full border border-foreground border-y-0 border-l-px border-r-0" />
-                      </Show>
-                    </div>
-                  )}
-                </For>
+            <div class="w-full h-2.5 rounded-xl overflow-hidden bg-linear-to-r/decreasing from-blue-500 via-yellow-300 via-50% to-red-500 to-70%">
+              <div class="size-full rounded-xl border border-background/50 overflow-hidden mix-blend-luminosity isolate">
+                <MeterElement.Track class="relative size-full bg-background">
+                  <MeterElement.Fill
+                    class="size-full bg-linear-to-r/decreasing from-blue-500 via-yellow-300 via-50% to-red-500 to-70%"
+                    style={{
+                      "will-change": "clip-path",
+                      "clip-path":
+                        "inset(0 calc(100% - var(--kb-meter-fill-width)) 0 0)",
+                      transition: `clip-path ${1 / (meter.fps || 4)}s linear`,
+                    }}
+                  />
+                  <div class="absolute inset-0 flex">
+                    <For each={meterStops.filter((_, i) => i % 2)}>
+                      {(value) => (
+                        <div class="size-full translate-x-1/2 flex flex-col items-center">
+                          <Show when={value}>
+                            <hr class="h-full w-px bg-linear-to-b from-background/50 via-foreground/50 to-background/50 border-none" />
+                          </Show>
+                        </div>
+                      )}
+                    </For>
+                  </div>
+                </MeterElement.Track>
               </div>
-            </MeterElement.Track>
-            <div class="w-full text-[0.5rem] flex font-sans">
-              <For each={["1", "3", "5", "7", "9", "+20", "+40", ""]}>
+            </div>
+            <div class="w-full border-x border-transparent text-[0.5rem] flex font-sans">
+              <For each={meterStops.filter((_, i) => i % 2)}>
                 {(value) => (
-                  <div class="w-full h-1.5 translate-x-1/2 flex flex-col items-center justify-center">
+                  <div class="min-w-0 grow shrink basis-0 h-1.5 translate-x-1/2 flex flex-col items-center justify-center">
                     <Show when={value}>
                       <span class="textbox-edge-cap-alphabetic textbox-trim-both">
                         {value}
@@ -323,7 +350,7 @@ const LevelMeter = (props: { sliceIndex?: string }) => {
               </For>
             </div>
           </div>
-          <MeterElement.ValueLabel class="font-medium text-xs whitespace-pre textbox-edge-cap-alphabetic textbox-trim-both" />
+          <MeterElement.ValueLabel class="font-medium text-xs/tight whitespace-pre textbox-edge-cap-alphabetic textbox-trim-both" />
         </MeterElement>
       )}
     </Show>
@@ -903,10 +930,9 @@ export function Slice(props: { sliceIndex: string }) {
                   </div>
                 </Show>
                 <LevelMeter sliceIndex={props.sliceIndex} />
-                <div class="flex items-center text-xs h-3.5 font-medium justify-evenly *:flex *:justify-center *:items-center *:h-full">
+                <div class="flex items-center text-xs h-3.5 font-medium justify-evenly *:flex *:justify-center *:items-center *:h-full *:basis-0 *:grow *:shrink *:min-w-0">
                   <Popover>
                     <PopoverTrigger
-                      class="w-full"
                       onContextMenu={(e) => {
                         e.preventDefault();
                         sliceController().setMute(!slice.isMuted);
@@ -1076,7 +1102,7 @@ export function Slice(props: { sliceIndex: string }) {
                     </PopoverContent>
                   </Popover>
                   <Popover>
-                    <PopoverTrigger class="w-full">
+                    <PopoverTrigger>
                       <span class="textbox-trim-both textbox-edge-cap-alphabetic">
                         DSP
                       </span>
@@ -1221,7 +1247,7 @@ export function Slice(props: { sliceIndex: string }) {
                     </PopoverContent>
                   </Popover>
                   <Popover>
-                    <PopoverTrigger class="w-full">
+                    <PopoverTrigger>
                       <span class="textbox-trim-both textbox-edge-cap-alphabetic">
                         RIT
                       </span>
@@ -1265,7 +1291,6 @@ export function Slice(props: { sliceIndex: string }) {
                     </PopoverContent>
                   </Popover>
                   <Select
-                    class="w-full "
                     value={slice.daxChannel}
                     options={Array.from(
                       { length: state.status.radio.sliceCount + 1 },

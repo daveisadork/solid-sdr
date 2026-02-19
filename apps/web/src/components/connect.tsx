@@ -114,7 +114,7 @@ export default function Connect() {
       >
         {state.clientHandle ? "Disconnect" : "Connect"}
       </DialogTrigger>
-      <DialogContent class="sm:max-w-[425px] data-[closed]:slide-out-to-left data-[closed]:slide-out-to-bottom data-[expanded]:slide-in-from-left data-[expanded]:slide-in-from-bottom">
+      <DialogContent class="sm:max-w-md data-closed:slide-out-to-left data-closed:slide-out-to-bottom data-expanded:slide-in-from-left data-expanded:slide-in-from-bottom">
         <DialogHeader>
           <DialogTitle>Connect</DialogTitle>
         </DialogHeader>

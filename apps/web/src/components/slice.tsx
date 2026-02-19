@@ -600,6 +600,8 @@ export function Slice(props: { sliceIndex: string }) {
   const sentinelBounds = createElementBounds(sentinel);
   const flagBounds = createElementBounds(flag);
 
+  createEffect(() => console.log(flagSide()));
+
   createEffect(() => {
     if (slice.diversityParent) {
       return setFlagSide("left");
@@ -662,10 +664,17 @@ export function Slice(props: { sliceIndex: string }) {
     const offsetPixels = (offsetMhz / pan.bandwidthMHz) * width;
     const filterWidthMhz = (slice.filterHighHz - slice.filterLowHz) / 1e6; // Convert Hz to MHz
     batch(() => {
-      setFilterWidth((filterWidthMhz / pan.bandwidthMHz) * width);
+      const fWidth = (filterWidthMhz / pan.bandwidthMHz) * width;
+      setFilterWidth(
+        window.devicePixelRatio <= 1 ? Math.round(fWidth) : fWidth,
+      );
       setFilterOffset((slice.filterLowHz / 1e6 / pan.bandwidthMHz) * width);
       // panadapter display is off by 2 pixels, so adjust
-      setOffset(offsetPixels - 2);
+      setOffset(
+        (window.devicePixelRatio <= 1
+          ? Math.round(offsetPixels)
+          : offsetPixels) - 2,
+      );
     });
   });
 
@@ -700,13 +709,13 @@ export function Slice(props: { sliceIndex: string }) {
     <>
       <Show when={!slice.isDetached}>
         <div
-          class="absolute h-full left-(--slice-offset) translate-x-(--drag-offset) cursor-ew-resize"
+          class="absolute inset-y-0 translate-x-(--slice-offset) cursor-ew-resize"
           classList={{
             "z-0": !slice.isActive,
             "z-10": slice.isActive,
           }}
           style={{
-            "--slice-offset": `${offset()}px`,
+            "--slice-offset": `calc(var(--drag-offset) + ${offset()}px)`,
           }}
           onClick={makeActive}
           ref={setRef}
@@ -734,7 +743,7 @@ export function Slice(props: { sliceIndex: string }) {
             }}
           />
           <div
-            class="absolute h-full max-w-px w-px flex flex-col items-center m-auto top-0 -translate-x-1/2 transform-3d"
+            class="absolute inset-y-0 max-w-px w-px flex flex-col items-center m-auto top-0"
             classList={{
               "bg-yellow-300": slice.isActive,
               "bg-red-500": !slice.isActive,
@@ -761,18 +770,19 @@ export function Slice(props: { sliceIndex: string }) {
           </div>
           <Portal>
             <div
-              class="absolute top-0 left-(--flag-offset) pt-1 pl-1 pr-1 z-20"
-              classList={{
-                "-translate-x-full": flagSide() === "left",
-              }}
+              class="absolute top-0 left-0 translate-x-(--flag-offset) pt-1 px-1 z-20"
               style={{
-                "--flag-offset": `${sentinelBounds.left! + 0.5}px`,
+                "--side-offset":
+                  flagSide() === "left"
+                    ? `calc(100% - ${devicePixelRatio > 1 ? 1 : 0.5}px)`
+                    : "0px",
+                "--flag-offset": `calc(${sentinelBounds.left}px - var(--side-offset))`,
               }}
               onMouseDown={(e) => e.stopPropagation()}
               ref={setFlag}
             >
               <div
-                class="border border-foreground/50 rounded-md flex flex-col p-1.5 gap-1 pointer-events-auto text-sm font-mono bg-background/50 drop-shadow-black subpixel-antialiased transform-gpu backdrop-blur-xs"
+                class="border border-foreground/50 rounded-md overflow-hidden flex flex-col p-1.5 gap-1 pointer-events-auto text-sm font-mono bg-background/50 drop-shadow-black subpixel-antialiased transform-gpu backdrop-blur-xs"
                 classList={{
                   "drop-shadow-lg": slice.isActive,
                   "drop-shadow-md": !slice.isActive,
@@ -1322,9 +1332,9 @@ export function Slice(props: { sliceIndex: string }) {
       </Show>
       <div
         ref={setSentinel}
-        class="absolute left-(--slice-offset) translate-x-(--drag-offset) pointer-events-none"
+        class="absolute translate-x-(--slice-offset) pointer-events-none"
         style={{
-          "--slice-offset": `${offset()}px`,
+          "--slice-offset": `calc(var(--drag-offset) + ${offset()}px)`,
         }}
       />
     </>

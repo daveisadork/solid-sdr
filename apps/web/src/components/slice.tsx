@@ -1,5 +1,5 @@
 import { createStore } from "solid-js/store";
-import useFlexRadio, { Meter } from "~/context/flexradio";
+import useFlexRadio from "~/context/flexradio";
 import {
   createElementSize,
   createWindowSize,
@@ -18,8 +18,6 @@ import {
   PopoverTrigger,
   PopoverArrow,
 } from "~/components/ui/popover";
-
-import { Meter as MeterElement } from "@kobalte/core/meter";
 
 import type { Component, ComponentProps, JSX } from "solid-js";
 import { createPointerListeners } from "@solid-primitives/pointer";
@@ -72,6 +70,7 @@ import {
   NumberFieldIncrementTrigger,
   NumberFieldInput,
 } from "./ui/number-field";
+import { LevelMeter } from "./level-meter";
 
 const filterMaxHz = 12_000;
 const filterMinHz = -filterMaxHz;
@@ -181,8 +180,6 @@ const filterConstraints: Record<string, FilterConstraint> = {
   DFM: { low: -10_000, high: 10_000 },
 };
 
-const S9 = -73;
-
 const StatusToggle: Component<ComponentProps<"span"> & { active?: boolean }> = (
   props,
 ) => {
@@ -211,149 +208,6 @@ const Triangle: Component<ComponentProps<"div">> = (props) => {
       }}
       {...others}
     />
-  );
-};
-
-const MeterMark: Component<ComponentProps<"div">> = (props) => {
-  const [local, others] = splitProps(props, ["class", "style"]);
-  return (
-    <div
-      class={cn("absolute flex flex-col h-full items-center", local.class)}
-      {...others}
-    />
-  );
-};
-
-const LevelMeter = (props: { sliceIndex?: string }) => {
-  const { state, setState } = useFlexRadio();
-  const [meterId, setMeterId] = createSignal<string>();
-  const [linear, setLinear] = createSignal(false);
-  const meterStops = [
-    "0",
-    "1",
-    "2",
-    "3",
-    "4",
-    "5",
-    "6",
-    "7",
-    "8",
-    "9",
-    "+10",
-    "+20",
-    "+30",
-    "+40",
-    "+50",
-    "",
-  ];
-
-  createEffect(() => {
-    const sliceIndex = Number(props.sliceIndex);
-    if (state.status.slice[meterId()!]) {
-      return;
-    }
-    for (const meterId in state.status.meter) {
-      const meter: Meter = state.status.meter[meterId];
-      if (
-        meter &&
-        meter.source === "SLC" &&
-        meter.sourceIndex === sliceIndex &&
-        meter.name === "LEVEL"
-      ) {
-        setMeterId(meterId);
-        return;
-      }
-    }
-    setMeterId(undefined);
-  });
-
-  const scaleMeterValue = (value: number) => {
-    return linear() || value < S9 ? value : (value - S9) * 0.6 + S9;
-  };
-
-  const unscaleMeterValue = (value: number) => {
-    return linear() || value < S9 ? value : (value - S9) / 0.6 + S9;
-  };
-
-  return (
-    <Show when={state.status.meter[meterId()]} keyed>
-      {(meter) => (
-        <MeterElement
-          class="relative flex gap-1 w-full items-center select-none cursor-default"
-          value={scaleMeterValue(meter.value)}
-          minValue={-133} // This would actually be 6dB below S0
-          // The official app's signal meter is non-linear.
-          // The actual range is from -133 dBm (6 dB below S0) to -13 dBm (S9 + 60 dB),
-          // but the app compresses the range above S9.
-          maxValue={linear() ? -13 : -37} // S9+60
-          onClick={() => setState("settings", "sMeterEnabled", (v) => !v)}
-          getValueLabel={(params) => {
-            const value = unscaleMeterValue(params.value);
-            if (!state.settings.sMeterEnabled) {
-              return `${Math.round(value)}dBm`;
-            }
-            // This meter is in dBm. S9 is -73 dBm, and each S unit is 6 dB.
-            // We start by subtracting -73 so S9 is 0. That way the rest of the math
-            // is a little easier, we can divide by 6 and add 9 to get the S unit.
-            // Anything above S9 is S9 + the number of dB over S9.
-            const adjustedValue = Math.round(value - S9);
-            // const overS9 =
-            //   adjustedValue > 0
-            //     ? `+${adjustedValue.toString().padStart(2, " ")}`
-            //     : "";
-            // return ` S${Math.min(9, Math.max(0, Math.floor(adjustedValue / 6) + 9))}\n${overS9.padEnd(3, " ")}`;
-            const label =
-              adjustedValue > 0
-                ? `S9+${adjustedValue}`
-                : `S${Math.max(Math.floor(adjustedValue / 6) + 9, 0)}`;
-            return label.padEnd(5, " ");
-          }}
-        >
-          <div class="relative flex flex-col w-full gap-0.5">
-            <div class="w-full h-2.5 rounded-xl overflow-hidden bg-linear-to-r/decreasing from-blue-500 via-yellow-300 via-50% to-red-500 to-70%">
-              <div class="size-full rounded-xl border border-background/50 overflow-hidden mix-blend-luminosity isolate">
-                <MeterElement.Track class="relative size-full bg-background">
-                  <MeterElement.Fill
-                    class="size-full bg-linear-to-r/decreasing from-blue-500 via-yellow-300 via-50% to-red-500 to-70%"
-                    style={{
-                      "will-change": "clip-path",
-                      "clip-path":
-                        "inset(0 calc(100% - var(--kb-meter-fill-width)) 0 0)",
-                      transition: `clip-path ${1 / (meter.fps || 4)}s linear`,
-                    }}
-                  />
-                  <div class="absolute inset-0 flex">
-                    <For each={meterStops.filter((_, i) => i % 2)}>
-                      {(value) => (
-                        <div class="size-full translate-x-1/2 flex flex-col items-center">
-                          <Show when={value}>
-                            <hr class="h-full w-px bg-linear-to-b from-background/50 via-foreground/50 to-background/50 border-none" />
-                          </Show>
-                        </div>
-                      )}
-                    </For>
-                  </div>
-                </MeterElement.Track>
-              </div>
-            </div>
-            <div class="w-full border-x border-transparent text-[0.5rem] flex font-sans">
-              <For each={meterStops.filter((_, i) => i % 2)}>
-                {(value) => (
-                  <div class="min-w-0 grow shrink basis-0 h-1.5 translate-x-1/2 flex flex-col items-center justify-center">
-                    <Show when={value}>
-                      <span class="textbox-edge-cap-alphabetic textbox-trim-both">
-                        {value}
-                      </span>
-                    </Show>
-                  </div>
-                )}
-              </For>
-            </div>
-          </div>
-          <MeterElement.ValueLabel class="font-medium text-xs/tight whitespace-pre textbox-edge-cap-alphabetic textbox-trim-both" />
-        </MeterElement>
-      )}
-    </Show>
   );
 };
 
@@ -939,7 +793,11 @@ export function Slice(props: { sliceIndex: string }) {
                     />
                   </div>
                 </Show>
-                <LevelMeter sliceIndex={props.sliceIndex} />
+                <LevelMeter
+                  sliceIndex={props.sliceIndex}
+                  compressionFactor={0.6}
+                  compressionThreshold={-73}
+                />
                 <div class="flex items-center text-xs h-3.5 font-medium justify-evenly *:flex *:justify-center *:items-center *:h-full *:basis-0 *:grow *:shrink *:min-w-0">
                   <Popover>
                     <PopoverTrigger

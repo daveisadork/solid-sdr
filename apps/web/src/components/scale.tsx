@@ -133,7 +133,7 @@ export const Scale = <T extends ValidComponent = "button">(
   return (
     <ResizablePrimitive.Handle
       class={cn(
-        "relative flex w-full h-4 justify-around select-none font-mono z-10 translate-x-[var(--drag-offset)]",
+        "relative flex w-full h-4 justify-around select-none font-mono z-10 translate-x-(--drag-offset)",
         local.class,
       )}
       ref={setRef}
@@ -142,7 +142,7 @@ export const Scale = <T extends ValidComponent = "button">(
       <For each={gridFreqs()}>
         {({ label, offset }) => (
           <div
-            class="text-xs absolute top-0 left-[var(--offset)] -translate-x-1/2"
+            class="text-xs absolute top-0 left-(--offset) -translate-x-1/2"
             style={{ "--offset": `${offset}px` }}
           >
             {label}

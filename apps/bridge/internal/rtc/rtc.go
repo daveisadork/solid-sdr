@@ -257,6 +257,9 @@ func (s *Server) NoteStreamCreated(handleHex string, streamID uint32, typ, compr
 	if err != nil {
 		return
 	}
+	if rs.PC == nil {
+		return
+	}
 	if _, err := rs.PC.AddTrack(tr); err != nil {
 		return
 	}

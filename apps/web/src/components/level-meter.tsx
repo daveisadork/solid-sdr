@@ -36,9 +36,10 @@ const STOPS = [
 type LevelMeterProps<T extends ValidComponent = "div"> =
   MeterPrimitive.MeterRootProps<T> & {
     class?: string | undefined;
-    sliceIndex?: string | undefined;
     compressionThreshold?: number | undefined;
     compressionFactor?: number | undefined;
+    hideValueLabel?: boolean | undefined;
+    sliceIndex?: string | undefined;
   };
 
 export const LevelMeter = <T extends ValidComponent = "div">(
@@ -49,6 +50,7 @@ export const LevelMeter = <T extends ValidComponent = "div">(
     "sliceIndex",
     "compressionThreshold",
     "compressionFactor",
+    "hideValueLabel",
   ]);
   const { state, setState } = useFlexRadio();
   const [meterId, setMeterId] = createSignal<string>();
@@ -137,7 +139,7 @@ export const LevelMeter = <T extends ValidComponent = "div">(
       {(meter) => (
         <MeterPrimitive.Root
           class={cn(
-            "relative flex w-full h-4 justify-around select-none font-mono z-10 translate-x-(--drag-offset)",
+            "relative flex gap-1 w-full items-center select-none cursor-default",
             local.class,
           )}
           value={scaleMeterValue()(meter.value)}
@@ -151,32 +153,35 @@ export const LevelMeter = <T extends ValidComponent = "div">(
           {...rest}
         >
           <div class="relative flex flex-col w-full gap-0.5">
-            <div class="w-full h-2.5 rounded-xl overflow-hidden bg-linear-to-r/decreasing from-blue-500 via-yellow-300 via-50% to-red-500 to-70%">
-              <div class="size-full rounded-xl border border-background/50 overflow-hidden">
-                <MeterPrimitive.Track class="relative size-full bg-background">
-                  <MeterPrimitive.Fill
-                    class="absolute inset-0 bg-linear-to-r/decreasing from-blue-500 via-yellow-300 via-50% to-red-500 to-70% isolate"
-                    style={{
-                      "will-change": "clip-path",
-                      "clip-path":
-                        "inset(0 calc(100% - var(--kb-meter-fill-width)) 0 0)",
-                      transition: `clip-path ${1 / (meter.fps || 4)}s linear`,
-                    }}
-                  />
-                  <div class="absolute inset-0 flex">
-                    <For each={STOPS.filter((_, i) => i % 2)}>
-                      {(value) => (
-                        <div class="size-full translate-x-1/2 flex flex-col items-center mix-blend-screen">
-                          <Show when={value}>
-                            <hr class="h-full w-px bg-linear-to-b from-background/50 via-foreground/50 to-background/50 border-none" />
-                          </Show>
-                        </div>
-                      )}
-                    </For>
-                  </div>
-                </MeterPrimitive.Track>
+            <MeterPrimitive.Track class="relative w-full h-2.5">
+              <div
+                class="absolute inset-0 border border-transparent rounded-xl bg-linear-to-r/decreasing from-blue-500 via-yellow-300 via-50% to-red-500 to-70% bg-origin-border"
+                style={{
+                  mask: "linear-gradient(black 0 0) padding-box, linear-gradient(black 0 0)",
+                  "mask-composite": "exclude",
+                }}
+              />
+              <MeterPrimitive.Fill
+                class="absolute inset-0 rounded-xl bg-linear-to-r/decreasing from-blue-500 via-yellow-300 via-50% to-red-500 to-70%"
+                style={{
+                  "will-change": "clip-path",
+                  "clip-path":
+                    "inset(0 calc(100% - var(--kb-meter-fill-width)) 0 0)",
+                  transition: `clip-path ${1 / (meter.fps || 4)}s linear`,
+                }}
+              />
+              <div class="absolute inset-px flex">
+                <For each={STOPS.filter((_, i) => i % 2)}>
+                  {(value) => (
+                    <div class="size-full translate-x-1/2 flex flex-col items-center">
+                      <Show when={value}>
+                        <hr class="h-full w-px bg-foreground/50 border-none" />
+                      </Show>
+                    </div>
+                  )}
+                </For>
               </div>
-            </div>
+            </MeterPrimitive.Track>
             <div class="w-full border-x border-transparent text-[0.5rem] flex font-sans">
               <For each={STOPS.filter((_, i) => i % 2)}>
                 {(value) => (
@@ -191,7 +196,9 @@ export const LevelMeter = <T extends ValidComponent = "div">(
               </For>
             </div>
           </div>
-          <MeterPrimitive.ValueLabel class="font-medium text-xs/tight whitespace-pre textbox-edge-cap-alphabetic textbox-trim-both" />
+          <Show when={!local.hideValueLabel}>
+            <MeterPrimitive.ValueLabel class="font-medium text-xs/tight whitespace-pre textbox-edge-cap-alphabetic textbox-trim-both" />
+          </Show>
         </MeterPrimitive.Root>
       )}
     </Show>

@@ -37,7 +37,17 @@ export type RadioConnectionState =
   | "ready"
   | "disconnecting";
 
-export type RadioHandle = RadioController & RadioHandleExtras;
+type FlexRadioSessionMethods = {
+  [K in keyof FlexRadioSession as FlexRadioSession[K] extends (
+    ...args: any[]
+  ) => any
+    ? K
+    : never]: FlexRadioSession[K];
+};
+
+export type RadioHandle = RadioController &
+  RadioHandleExtras &
+  Omit<FlexRadioSessionMethods, "on" | "once" | "off" | "snapshot">;
 
 export type RadioEndpoint = {
   readonly host: string;
@@ -544,6 +554,10 @@ class RadioHandleCore extends TypedEventEmitter<RadioHandleEvents> {
     return this.session?.radio();
   }
 
+  currentSession(): FlexRadioSession | undefined {
+    return this.session;
+  }
+
   currentSnapshot(): RadioSnapshot {
     return this.cachedSnapshot;
   }
@@ -741,6 +755,14 @@ function createRadioHandleProxy(core: RadioHandleCore): RadioHandle {
         return typeof value === "function" ? value.bind(controller) : value;
       }
 
+      const session = core.currentSession();
+      if (session && Reflect.has(session, prop)) {
+        const value = Reflect.get(session, prop, session);
+        if (typeof value === "function") {
+          return value.bind(session);
+        }
+      }
+
       const snapshot = core.currentSnapshot();
       if (typeof prop === "string" && prop in snapshot) {
         return (snapshot as unknown as Record<string, unknown>)[prop];
@@ -777,7 +799,13 @@ function createRadioHandleProxy(core: RadioHandleCore): RadioHandle {
       )
         return true;
       const controller = core.currentRadioController();
-      return !!controller && Reflect.has(controller, prop);
+      if (controller && Reflect.has(controller, prop)) return true;
+      const session = core.currentSession();
+      if (session && Reflect.has(session, prop)) {
+        const value = Reflect.get(session, prop, session);
+        return typeof value === "function";
+      }
+      return false;
     },
   };
 

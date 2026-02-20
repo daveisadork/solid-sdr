@@ -154,7 +154,8 @@ export function Panadapter(props: { streamId: string }) {
     let skipFrame = 0;
     let frameStartTime = performance.now();
     let rafId: number | null = null;
-    const getPixelRatio = () => Math.max(window?.devicePixelRatio || 1, 1);
+    const getPixelRatio = () =>
+      Math.max(Number(devicePixelRatio?.toFixed(2) ?? 1), 1);
     let pixelRatio = getPixelRatio();
     let transformDirty = true;
 
@@ -218,7 +219,7 @@ export function Panadapter(props: { streamId: string }) {
           sharpOffset,
           sharpOffset,
         );
-        offscreenCtx.imageSmoothingEnabled = false;
+        offscreenCtx.imageSmoothingEnabled = true;
         transformDirty = false;
       }
       offscreenCtx.clearRect(

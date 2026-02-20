@@ -16,8 +16,8 @@ export default function RtcAudio() {
   const outputs = createSpeakers();
   const [outputDeviceId, setOutputDeviceId] = createSignal<string>("default");
   const [remoteAudioRxStreamId, setRemoteAudioRxStreamId] = createSignal<
-    string | null
-  >(null);
+    string | undefined
+  >();
 
   onMount(() => {
     navigator.mediaDevices.getUserMedia({ audio: true });
@@ -28,19 +28,22 @@ export default function RtcAudio() {
     if (!pc) return;
     const desiredTransceiverCount = Object.values(
       state.status.audioStream,
-    ).filter((s) => s.clientHandle !== state.clientHandleInt).length;
+    ).filter((s) => s.clientHandle === state.clientHandleInt).length;
+    console.log(
+      "[rtc audio] ensuring transceivers for remote streams:",
+      desiredTransceiverCount,
+    );
     while (pc.getTransceivers().length < desiredTransceiverCount) {
       pc.addTransceiver("audio", { direction: "recvonly" });
     }
   });
 
   createEffect(() => {
-    const streamId =
-      Object.entries(state.status.audioStream).find(
-        ([id, stream]) =>
-          stream.clientHandle === state.clientHandleInt &&
-          stream.type === "remote_audio_rx",
-      )?.[0] || null;
+    const streamId = Object.values(state.status.audioStream).find(
+      (stream) =>
+        stream.clientHandle === state.clientHandleInt &&
+        stream.type === "remote_audio_rx",
+    )?.streamId;
     setRemoteAudioRxStreamId(streamId);
   });
 

@@ -264,6 +264,7 @@ func (s *Server) NoteStreamCreated(handleHex string, streamID uint32, typ, compr
 		return
 	}
 	rs.AudioStreams[streamID] = tr
+	log.Printf("[rtc] added audio track for stream %s (handle %s)\n", stream, handleHex)
 }
 
 // ----- small helpers -----

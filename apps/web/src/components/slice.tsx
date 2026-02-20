@@ -26,6 +26,7 @@ import BaselineChevronLeft from "~icons/ic/baseline-chevron-left";
 import BaselineChevronRight from "~icons/ic/baseline-chevron-right";
 import BaselineVolumeUp from "~icons/ic/baseline-volume-up";
 import BaselineVolumeOff from "~icons/ic/baseline-volume-off";
+import BaselineDelete from "~icons/ic/baseline-delete";
 import { Button } from "./ui/button";
 import { Portal } from "solid-js/web";
 import {
@@ -1190,6 +1191,9 @@ export function Slice(props: { sliceIndex: string }) {
                       </SelectTrigger>
                       <SelectContent />
                     </Select>
+                    <div onClick={() => sliceController().close()}>
+                      <BaselineDelete />
+                    </div>
                   </div>
                 </div>
               </div>

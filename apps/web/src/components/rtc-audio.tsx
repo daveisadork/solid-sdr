@@ -12,9 +12,12 @@ import useFlexRadio from "~/context/flexradio";
 
 export default function RtcAudio() {
   const { session, tracks } = useRtc();
-  const { state } = useFlexRadio();
+  const { state, radio } = useFlexRadio();
   const outputs = createSpeakers();
   const [outputDeviceId, setOutputDeviceId] = createSignal<string>("default");
+  const [remoteAudioRxStreamId, setRemoteAudioRxStreamId] = createSignal<
+    string | null
+  >(null);
 
   onMount(() => {
     navigator.mediaDevices.getUserMedia({ audio: true });
@@ -31,8 +34,32 @@ export default function RtcAudio() {
     }
   });
 
+  createEffect(() => {
+    const streamId =
+      Object.entries(state.status.audioStream).find(
+        ([id, stream]) =>
+          stream.clientHandle === state.clientHandleInt &&
+          stream.type === "remote_audio_rx",
+      )?.[0] || null;
+    setRemoteAudioRxStreamId(streamId);
+  });
+
   return (
-    <div class="absolute bottom-2 left-1/2 -translate-x-1/2">
+    <div class="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-2">
+      <div
+        class="size-4 rounded-full border border-foreground"
+        classList={{
+          "bg-foreground": Boolean(remoteAudioRxStreamId()),
+        }}
+        onClick={async () => {
+          const streamId = remoteAudioRxStreamId();
+          if (streamId) {
+            await radio().audioStream(streamId)?.close();
+          } else {
+            await radio().createRemoteAudioRxStream({ compression: "OPUS" });
+          }
+        }}
+      />
       <Select
         value={outputDeviceId()}
         onChange={(value: string) => {

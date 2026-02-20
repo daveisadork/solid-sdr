@@ -1389,7 +1389,4 @@ export async function defaultFlexHandshake(
   context.setClientId(clientId && clientId.length ? clientId : null);
 
   context.emitProgress({ stage: "sync", detail: "audio" });
-  await context.session.createRemoteAudioRxStream({
-    compression: "OPUS",
-  });
 }

@@ -588,6 +588,7 @@ export interface SliceController {
    */
   setDiversityEnabled(enabled: boolean): Promise<void>;
   update(request: SliceUpdateRequest): Promise<void>;
+  close(): Promise<void>;
 }
 
 export interface SliceSessionApi {
@@ -597,6 +598,7 @@ export interface SliceSessionApi {
   ): Promise<FlexCommandResponse>;
   getSlice(id: string): SliceSnapshot | undefined;
   patchSlice(id: string, attributes: Record<string, string>): void;
+  removeSlice(id: string): void;
 }
 
 export class SliceControllerImpl implements SliceController {
@@ -1281,6 +1283,11 @@ export class SliceControllerImpl implements SliceController {
     if (frequencyMHz !== undefined) {
       await this.setFrequency(frequencyMHz);
     }
+  }
+
+  async close(): Promise<void> {
+    await this.session.command(`slice remove ${this.id}`);
+    this.session.removeSlice(this.id);
   }
 
   onStateChange(change: SliceStateChange): void {

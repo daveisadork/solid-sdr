@@ -19,6 +19,7 @@ export interface AudioStreamSessionApi {
   ): Promise<FlexCommandResponse>;
   getAudioStream(id: string): AudioStreamSnapshot | undefined;
   patchAudioStream(id: string, attributes: Record<string, string>): void;
+  removeAudioStream(id: string): void;
   readonly udp: UdpSession;
 }
 
@@ -146,6 +147,7 @@ export class AudioStreamControllerImpl implements AudioStreamController {
     if (!streamId) return;
     this.streamHandle = streamId;
     await this.session.command(`stream remove ${streamId}`);
+    this.session.removeAudioStream(this.id);
   }
 
   onStateChange(change: AudioStreamStateChange): void {

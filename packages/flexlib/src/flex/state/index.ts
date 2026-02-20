@@ -169,6 +169,7 @@ export interface RadioStateStore {
     id: string,
     attributes: Record<string, string>,
   ): SliceStateChange | undefined;
+  removeSlice(id: string): readonly RadioStateChange[] | undefined;
   patchPanadapter(
     id: string,
     attributes: Record<string, string>,
@@ -181,6 +182,7 @@ export interface RadioStateStore {
     id: string,
     attributes: Record<string, string>,
   ): AudioStreamStateChange | undefined;
+  removeAudioStream(id: string): AudioStreamStateChange | undefined;
   patchEqualizer(
     id: EqualizerId,
     attributes: Record<string, string>,
@@ -361,6 +363,9 @@ export function createRadioStateStore(
     patchSlice(id, attributes) {
       return patchSlice(id, attributes);
     },
+    removeSlice(id) {
+      return removeSlice(id);
+    },
     patchPanadapter(id, attributes) {
       return patchPanadapter(id, attributes);
     },
@@ -369,6 +374,9 @@ export function createRadioStateStore(
     },
     patchAudioStream(id, attributes) {
       return patchAudioStream(id, attributes);
+    },
+    removeAudioStream(id) {
+      return removeAudioStream(id);
     },
     patchEqualizer(id, attributes) {
       return patchEqualizer(id, attributes);
@@ -448,6 +456,28 @@ export function createRadioStateStore(
         snapshot.clientHandle,
         previous?.clientHandle,
       ]),
+    );
+    return changes;
+  }
+
+  function removeSlice(id: string): readonly RadioStateChange[] | undefined {
+    const previous = slices.get(id);
+    if (!previous) return undefined;
+    slices.delete(id);
+    updatePanadapterSliceMembership(
+      id,
+      undefined,
+      previous.panadapterStreamId,
+    );
+    const changes: RadioStateChange[] = [
+      {
+        entity: "slice",
+        id,
+        removed: true,
+      },
+    ];
+    changes.push(
+      ...recomputeGuiClientTransmitSlices([previous.clientHandle]),
     );
     return changes;
   }
@@ -579,6 +609,19 @@ export function createRadioStateStore(
       };
     }
 
+    const removed =
+      message.positional.some(
+        (token) => token === "removed" || token === "deleted",
+      ) || isMarkedDeleted(message.attributes);
+    if (removed) {
+      audioStreams.delete(id);
+      return {
+        entity: "audioStream",
+        id,
+        removed: true,
+      };
+    }
+
     const existing = audioStreams.get(id);
     const typeToken = message.attributes["type"] ?? existing?.type;
     const normalizedType = typeToken?.toLowerCase() as
@@ -591,15 +634,6 @@ export function createRadioStateStore(
         source: message.source,
         id,
         attributes: message.attributes,
-      };
-    }
-
-    if (isMarkedDeleted(message.attributes)) {
-      audioStreams.delete(id);
-      return {
-        entity: "audioStream",
-        id,
-        removed: true,
       };
     }
 
@@ -1103,6 +1137,18 @@ export function createRadioStateStore(
       id,
       diff,
       removed: false,
+    };
+  }
+
+  function removeAudioStream(
+    id: string,
+  ): AudioStreamStateChange | undefined {
+    if (!audioStreams.has(id)) return undefined;
+    audioStreams.delete(id);
+    return {
+      entity: "audioStream",
+      id,
+      removed: true,
     };
   }
 

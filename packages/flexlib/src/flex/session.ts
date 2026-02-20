@@ -1035,6 +1035,14 @@ class FlexRadioSessionImpl implements FlexRadioSession {
     if (change) this.handleStateChange(change);
   }
 
+  removeSlice(id: string): void {
+    const changes = this.store.removeSlice(id);
+    if (!changes) return;
+    for (const change of changes) {
+      this.handleStateChange(change);
+    }
+  }
+
   patchPanadapter(id: string, attributes: Record<string, string>): void {
     const change = this.store.patchPanadapter(id, attributes);
     if (change) this.handleStateChange(change);
@@ -1047,6 +1055,11 @@ class FlexRadioSessionImpl implements FlexRadioSession {
 
   patchAudioStream(id: string, attributes: Record<string, string>): void {
     const change = this.store.patchAudioStream(id, attributes);
+    if (change) this.handleStateChange(change);
+  }
+
+  removeAudioStream(id: string): void {
+    const change = this.store.removeAudioStream(id);
     if (change) this.handleStateChange(change);
   }
 

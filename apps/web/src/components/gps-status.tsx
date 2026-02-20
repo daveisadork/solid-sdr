@@ -74,7 +74,7 @@ export function GpsStatus(props: { class?: string }) {
               {radio().gpsGrid}
             </span>
           </HoverCardTrigger>
-          <HoverCardContent class="w-80 bg-background/50 backdrop-blur-lg">
+          <HoverCardContent class="w-80 fancy-bg-background">
             <div class="flex justify-between space-x-4">
               <div class="space-y-1">
                 <TextField

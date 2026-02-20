@@ -285,10 +285,11 @@ export function Panafall() {
                   as={Button}
                   size="icon"
                   variant="ghost"
-                  class="backdrop-blur-lg size-5"
+                  class="size-5"
                   classList={{
-                    "bg-background/50": !pan().isBandZoomOn,
-                    "bg-primary/50 text-primary-foreground": pan().isBandZoomOn,
+                    "fancy-bg-background": !pan().isBandZoomOn,
+                    "fancy-bg-primary text-primary-foreground":
+                      pan().isBandZoomOn,
                   }}
                   onClick={() => {
                     const zoom = pan().isBandZoomOn;
@@ -304,10 +305,10 @@ export function Panafall() {
                   as={Button}
                   size="icon"
                   variant="ghost"
-                  class="backdrop-blur-lg size-5"
+                  class="size-5"
                   classList={{
-                    "bg-background/50": !pan().isSegmentZoomOn,
-                    "bg-primary/50 text-primary-foreground":
+                    "fancy-bg-background": !pan().isSegmentZoomOn,
+                    "fancy-bg-primary text-primary-foreground":
                       pan().isSegmentZoomOn,
                   }}
                   onClick={() => {
@@ -324,7 +325,7 @@ export function Panafall() {
                   as={Button}
                   size="icon"
                   variant="ghost"
-                  class="bg-background/50 backdrop-blur-lg size-5"
+                  class="fancy-bg-background size-5"
                   onClick={() => {
                     const controller = panController();
                     if (!controller) return;
@@ -343,7 +344,7 @@ export function Panafall() {
                   as={Button}
                   size="icon"
                   variant="ghost"
-                  class="bg-background/50 backdrop-blur-lg size-5"
+                  class="fancy-bg-background size-5"
                   onClick={() => {
                     const controller = panController();
                     if (!controller) return;
@@ -365,7 +366,7 @@ export function Panafall() {
                   as={Button}
                   size="icon"
                   variant="ghost"
-                  class="bg-background/50 backdrop-blur-lg size-5"
+                  class="fancy-bg-background size-5"
                   onClick={cycleTheme}
                   aria-label="Toggle theme"
                 >
@@ -380,7 +381,7 @@ export function Panafall() {
                   as={Button}
                   size="icon"
                   variant="ghost"
-                  class="bg-background/50 backdrop-blur-lg size-5"
+                  class="fancy-bg-background size-5"
                   onClick={() => setFullscreen(!fullscreen())}
                   aria-label={
                     fullscreen() ? "Exit fullscreen" : "Enter fullscreen"
@@ -395,9 +396,17 @@ export function Panafall() {
                 </TooltipContent>
               </Tooltip>
             </div>
-            <Show when={pos.sourceType === "mouse" && pos.isInside}>
+            <Show
+              when={
+                state.settings.showTuningGuide && pos.sourceType === "mouse"
+              }
+            >
               <div
-                class="absolute h-full left-[calc(var(--cursor-x)-1.5px)] pointer-events-none w-0.5 backdrop-invert-50"
+                class="absolute inset-y-0 w-px translate-x-(--cursor-x) pointer-events-none will-change-transform backdrop-invert-100"
+                classList={{
+                  "opacity-100": pos.isInside,
+                  "opacity-0": !pos.isInside,
+                }}
                 style={{
                   "--cursor-x": `${pos.x}px`,
                 }}

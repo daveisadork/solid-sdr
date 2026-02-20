@@ -304,7 +304,7 @@
 
   .step:before {
     @apply absolute w-9 h-9 bg-muted rounded-full font-mono font-medium text-center text-base inline-flex items-center justify-center -indent-px border-4 border-background;
-    @apply ml-[-50px] mt-[-4px];
+    @apply -ml-12.5 -mt-1;
     content: counter(step);
   }
 }
@@ -362,4 +362,26 @@ body,
 
 :fullscreen {
   padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+}
+
+@utility fancy-bg-* {
+  background-color: --alpha(--value(--color-*) / 50%);
+  @apply backdrop-blur-lg;
+
+  .disable-transparency-effects & {
+    background-color: --alpha(--value(--color-*) / 80%);
+    @apply backdrop-blur-none;
+  }
+}
+
+.disable-transparency-effects {
+  .backdrop-blur-3xl,
+  .backdrop-blur-2xl,
+  .backdrop-blur-xl,
+  .backdrop-blur-lg,
+  .backdrop-blur-md,
+  .backdrop-blur-sm,
+  .backdrop-blur-xs {
+    @apply backdrop-blur-none;
+  }
 }

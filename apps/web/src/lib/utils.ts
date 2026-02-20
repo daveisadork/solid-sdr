@@ -37,3 +37,8 @@ export function radToDeg(rad: number): number {
 export function degToRad(deg: number): number {
   return Number(((deg * Math.PI) / 180).toFixed(6));
 }
+
+export function roundToDevicePixels(px: number) {
+  const dpr = window.devicePixelRatio || 1;
+  return Math.round(px * dpr) / dpr;
+}

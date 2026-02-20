@@ -36,14 +36,7 @@ export function StatusBar() {
   });
 
   return (
-    <div
-      class="flex shrink-0 items-center w-full gap-4 py-2 px-3 text-sm font-mono select-none"
-      classList={{
-        "bg-background/50 backdrop-blur-xl":
-          state.display.enableTransparencyEffects,
-        "bg-background": !state.display.enableTransparencyEffects,
-      }}
-    >
+    <div class="flex shrink-0 items-center w-full gap-4 py-2 px-3 text-sm font-mono select-none z-0 fancy-bg-background">
       <Connect />
       <Show when={state.clientHandle} keyed>
         <Show when={voltageId()} keyed>

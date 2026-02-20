@@ -128,6 +128,7 @@ export interface StatusState {
 export interface SettingsState {
   showFps: boolean;
   sMeterEnabled: boolean;
+  showTuningGuide: boolean;
 }
 
 export interface AppState {
@@ -364,6 +365,7 @@ export const initialState = () =>
     settings: {
       showFps: false,
       sMeterEnabled: true,
+      showTuningGuide: true,
     },
   }) as AppState;
 

@@ -7,19 +7,11 @@ import {
   MenubarShortcut,
   MenubarTrigger,
 } from "~/components/ui/menubar";
-import useFlexRadio from "~/context/flexradio";
 import RtcAudio from "./rtc-audio";
 
 export function AppMenubar() {
-  const { state } = useFlexRadio();
   return (
-    <Menubar
-      classList={{
-        "bg-background/50 backdrop-blur-xl":
-          state.display.enableTransparencyEffects,
-        "bg-background": !state.display.enableTransparencyEffects,
-      }}
-    >
+    <Menubar class="fancy-bg-background">
       <MenubarMenu>
         <MenubarTrigger>File</MenubarTrigger>
         <MenubarContent>

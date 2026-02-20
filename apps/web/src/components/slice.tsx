@@ -57,7 +57,7 @@ import {
   SegmentedControlItemsList,
   SegmentedControlLabel,
 } from "./ui/segmented-control";
-import { cn, degToRad, radToDeg } from "~/lib/utils";
+import { cn, degToRad, radToDeg, roundToDevicePixels } from "~/lib/utils";
 import { FrequencyInput } from "./frequency-input";
 import { SliderToggle } from "./ui/slider-toggle";
 import { SimpleSwitch } from "./ui/simple-switch";
@@ -322,7 +322,7 @@ const SliceFilter = (props: { sliceIndex: string }) => {
       <PopoverTrigger class="text-blue-500 text-xs text-center font-mono grow textbox-trim-both textbox-edge-cap-alphabetic">
         {filterText()}
       </PopoverTrigger>
-      <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 bg-background/50 backdrop-blur-xl">
+      <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 fancy-bg-popover">
         <PopoverArrow />
         <div class="p-4 flex flex-col space-y-6 max-h-(--kb-popper-content-available-height) overflow-x-auto">
           <Show when={filterPresets[slice().mode]}>
@@ -518,17 +518,13 @@ export function Slice(props: { sliceIndex: string }) {
     const offsetPixels = (offsetMhz / pan.bandwidthMHz) * width;
     const filterWidthMhz = (slice.filterHighHz - slice.filterLowHz) / 1e6; // Convert Hz to MHz
     batch(() => {
-      const fWidth = (filterWidthMhz / pan.bandwidthMHz) * width;
-      setFilterWidth(
-        window.devicePixelRatio <= 1 ? Math.round(fWidth) : fWidth,
+      const fWidth = roundToDevicePixels(
+        (filterWidthMhz / pan.bandwidthMHz) * width,
       );
+      setFilterWidth(fWidth);
       setFilterOffset((slice.filterLowHz / 1e6 / pan.bandwidthMHz) * width);
       // panadapter display is off by 2 pixels, so adjust
-      setOffset(
-        (window.devicePixelRatio <= 1
-          ? Math.round(offsetPixels)
-          : offsetPixels) - 2,
-      );
+      setOffset(roundToDevicePixels(offsetPixels) - 2);
     });
   });
 
@@ -563,10 +559,9 @@ export function Slice(props: { sliceIndex: string }) {
     <>
       <Show when={!slice.isDetached}>
         <div
-          class="absolute inset-y-0 translate-x-(--slice-offset) cursor-ew-resize"
+          class="absolute inset-y-0 translate-x-(--slice-offset) cursor-ew-resize z-10"
           classList={{
-            "z-0": !slice.isActive,
-            "z-10": slice.isActive,
+            "translate-z-1": slice.isActive,
           }}
           style={{
             "--slice-offset": `calc(var(--drag-offset) + ${offset()}px)`,
@@ -575,7 +570,7 @@ export function Slice(props: { sliceIndex: string }) {
           ref={setRef}
         >
           <div
-            class="absolute h-full translate-x-(--filter-offset) w-(--filter-width)"
+            class="absolute inset-y-0 translate-x-(--filter-offset) w-(--filter-width)"
             classList={{
               "backdrop-brightness-125 backdrop-contrast-75":
                 !slice.diversityChild,
@@ -597,17 +592,17 @@ export function Slice(props: { sliceIndex: string }) {
             }}
           />
           <div
-            class="absolute inset-y-0 border-x-[0.5px] -translate-x-1/2 border-y-0 max-w-0 w-0 flex flex-col items-center m-auto top-0"
+            class="absolute inset-y-0 max-w-px w-px flex flex-col items-center m-auto top-0"
             classList={{
-              "border-yellow-300 z-10": slice.isActive,
-              "border-red-500 -z-10": !slice.isActive,
+              "bg-yellow-300 z-10": slice.isActive,
+              "bg-red-500 -z-10": !slice.isActive && !slice.diversityChild,
             }}
           >
             <Show when={slice.isActive}>
               <Triangle
                 class="relative top-0"
                 classList={{
-                  "bg-red-500 -translate-z-10": slice.diversityChild,
+                  "bg-red-500 -z-10": slice.diversityChild,
                   "bg-yellow-300": !slice.diversityChild,
                 }}
               />
@@ -624,7 +619,11 @@ export function Slice(props: { sliceIndex: string }) {
           </div>
           <Portal>
             <div
-              class="absolute top-0 left-0 w-0 max-w-0 translate-x-(--flag-offset) overflow-visible z-10"
+              class="absolute top-0 left-0 w-0 max-w-0 translate-x-(--flag-offset) overflow-visible"
+              classList={{
+                "z-20": slice.isActive,
+                "z-10": !slice.isActive,
+              }}
               style={{
                 "--flag-offset": `${sentinelBounds.left}px`,
               }}
@@ -632,14 +631,14 @@ export function Slice(props: { sliceIndex: string }) {
               <div
                 class="absolute top-0 pt-1 px-1 z-20"
                 classList={{
-                  "left-0": flagSide() === "right",
+                  "left-px": flagSide() === "right",
                   "right-0": flagSide() === "left",
                 }}
                 onMouseDown={(e) => e.stopPropagation()}
                 ref={setFlag}
               >
                 <div
-                  class="border border-foreground/50 rounded-md overflow-hidden flex flex-col p-1.5 gap-1 pointer-events-auto text-sm font-mono bg-background/50 drop-shadow-black subpixel-antialiased transform-gpu backdrop-blur-xs"
+                  class="border border-foreground/50 rounded-md overflow-hidden flex flex-col p-1.5 gap-1 pointer-events-auto text-sm font-mono drop-shadow-black fancy-bg-background"
                   classList={{
                     "drop-shadow-lg": slice.isActive,
                     "drop-shadow-md": !slice.isActive,
@@ -763,7 +762,7 @@ export function Slice(props: { sliceIndex: string }) {
                         >
                           {slice.mode.padEnd(4, "\xA0")}
                         </PopoverTrigger>
-                        <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 bg-background/50 backdrop-blur-xl">
+                        <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 fancy-bg-popover">
                           <PopoverArrow />
                           <div class="p-4 flex flex-col space-y-6 max-h-(--kb-popper-content-available-height) overflow-x-auto">
                             <ToggleGroup
@@ -818,7 +817,7 @@ export function Slice(props: { sliceIndex: string }) {
                           <BaselineVolumeOff />
                         </Show>
                       </PopoverTrigger>
-                      <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 bg-background/50 backdrop-blur-xl">
+                      <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 fancy-bg-popover">
                         <PopoverArrow />
                         <div class="p-4 flex flex-col space-y-6 max-h-(--kb-popper-content-available-height) overflow-x-auto">
                           <SimpleSwitch
@@ -984,7 +983,7 @@ export function Slice(props: { sliceIndex: string }) {
                           DSP
                         </span>
                       </PopoverTrigger>
-                      <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 bg-background/50 backdrop-blur-xl">
+                      <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 fancy-bg-popover">
                         <PopoverArrow />
                         <div class="relative p-4 flex flex-col space-y-6 max-h-(--kb-popper-content-available-height) overflow-x-auto">
                           <SliderToggle
@@ -1129,7 +1128,7 @@ export function Slice(props: { sliceIndex: string }) {
                           RIT
                         </span>
                       </PopoverTrigger>
-                      <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 bg-background/50 backdrop-blur-xl">
+                      <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 fancy-bg-popover">
                         <PopoverArrow />
                         <div class="relative p-4 flex flex-col space-y-6 max-h-(--kb-popper-content-available-height) overflow-x-auto">
                           <SliderToggle

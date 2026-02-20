@@ -154,10 +154,7 @@ export function Panadapter(props: { streamId: string }) {
     let skipFrame = 0;
     let frameStartTime = performance.now();
     let rafId: number | null = null;
-    const getPixelRatio = () =>
-      typeof window === "undefined"
-        ? 1
-        : Math.max(window.devicePixelRatio || 1, 1);
+    const getPixelRatio = () => Math.max(window?.devicePixelRatio || 1, 1);
     let pixelRatio = getPixelRatio();
     let transformDirty = true;
 
@@ -169,7 +166,7 @@ export function Panadapter(props: { streamId: string }) {
       if (canvas.height !== offscreen.height) {
         canvas.height = offscreen.height;
       }
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.clearRect(-1, -1, canvas.width + 1, canvas.height + 1);
       ctx.drawImage(offscreen, 0, 0, canvas.width, canvas.height);
     };
 
@@ -224,13 +221,19 @@ export function Panadapter(props: { streamId: string }) {
         offscreenCtx.imageSmoothingEnabled = false;
         transformDirty = false;
       }
-      offscreenCtx.clearRect(startingBin, 0, binsInThisFrame, height);
+      offscreenCtx.clearRect(
+        startingBin === 0 ? -1 : startingBin,
+        -1,
+        startingBin === 0 ? binsInThisFrame + 1 : binsInThisFrame,
+        height + 1,
+      );
       offscreenCtx.lineWidth = 1;
       const { peakStyle, fillStyle } = state.display;
       if (fillStyle === "gradient") {
         const gradient = fillGradient();
         offscreenCtx.strokeStyle = gradient || "white";
         offscreenCtx.beginPath();
+        offscreenCtx.moveTo(startingBin, height);
         for (let index = 0; index < binsInThisFrame; index++) {
           const x = startingBin + index;
           const y = bins[index];

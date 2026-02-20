@@ -38,7 +38,7 @@ import {
   DialogTrigger,
 } from "./ui/dialog";
 
-import { Meter as MeterRoot } from "@kobalte/core/meter";
+import * as MeterPrimitive from "@kobalte/core/meter";
 import { ColorField, ColorFieldInput, ColorFieldLabel } from "./ui/color-field";
 import { ColorSwatch } from "@kobalte/core/color-swatch";
 import { parseColor } from "@kobalte/core/colors";
@@ -63,7 +63,7 @@ const BANDS: { id: string; label: string }[] = [
 
 function MeterElement(props: { meter: Meter }) {
   return (
-    <MeterRoot
+    <MeterPrimitive.Root
       value={props.meter.value}
       minValue={props.meter.low}
       maxValue={props.meter.high}
@@ -71,31 +71,33 @@ function MeterElement(props: { meter: Meter }) {
       class="flex flex-col gap-0.5 w-full items-center"
     >
       <div class="flex font-mono text-xs w-full">
-        <MeterRoot.Label>
+        <MeterPrimitive.Label>
           {props.meter.name} {props.meter.source} {props.meter.sourceIndex}
-        </MeterRoot.Label>
+        </MeterPrimitive.Label>
         <div class="grow" />
-        <MeterRoot.ValueLabel />
+        <MeterPrimitive.ValueLabel />
       </div>
-      <div class="w-full h-2.5 rounded-xl bg-linear-to-r/decreasing from-blue-500 via-yellow-300 via-60% to-red-500">
-        <div class="size-full mix-blend-luminosity">
-          <MeterRoot.Track class="size-full border border-white/20 bg-background rounded-xl overflow-hidden">
-            <MeterRoot.Fill
-              class="size-full bg-linear-to-r/decreasing from-blue-500 via-yellow-300 via-60% to-red-500"
-              style={{
-                "clip-path":
-                  "inset(0 calc(100% - var(--kb-meter-fill-width)) 0 0)",
-                "will-change": "clip-path",
-                transition: `clip-path ${1 / (props.meter.fps || 4)}s linear`,
-              }}
-            />
-          </MeterRoot.Track>
-        </div>
-      </div>
+      <MeterPrimitive.Track class="relative w-full h-2.5">
+        <div
+          class="absolute inset-0 border border-transparent rounded-xl bg-linear-to-r/decreasing from-blue-500 via-yellow-300 via-60% to-red-500 bg-origin-border"
+          style={{
+            mask: "linear-gradient(black 0 0) padding-box, linear-gradient(black 0 0)",
+            "mask-composite": "exclude",
+          }}
+        />
+        <MeterPrimitive.Fill
+          class="absolute inset-0 rounded-xl bg-linear-to-r/decreasing from-blue-500 via-yellow-300 via-60% to-red-500"
+          style={{
+            "clip-path": "inset(0 calc(100% - var(--kb-meter-fill-width)) 0 0)",
+            "will-change": "clip-path",
+            transition: `clip-path ${1 / (props.meter.fps || 4)}s linear`,
+          }}
+        />
+      </MeterPrimitive.Track>
       <div class="flex w-full justify-between text-xs text-muted-foreground">
         {props.meter.description}
       </div>
-    </MeterRoot>
+    </MeterPrimitive.Root>
   );
 }
 
@@ -126,6 +128,14 @@ export function TuningPanel(props: { streamId: string }) {
   const [rawHighDbm, setRawHighDbm] = createSignal(panController().highDbm);
   const [rawLowDbm, setRawLowDbm] = createSignal(panController().lowDbm);
 
+  createEffect(() => {
+    if (!state.display.enableTransparencyEffects) {
+      document.documentElement.classList.add("disable-transparency-effects");
+    } else {
+      document.documentElement.classList.remove("disable-transparency-effects");
+    }
+  });
+
   return (
     <div class="flex flex-col px-4 gap-4 size-full text-sm overflow-y-auto overflow-x-hidden select-none overscroll-y-contain">
       <Dialog>
@@ -141,6 +151,20 @@ export function TuningPanel(props: { streamId: string }) {
           </div>
         </DialogContent>
       </Dialog>
+      <SimpleSwitch
+        checked={state.display.enableTransparencyEffects}
+        onChange={(isChecked) => {
+          setState("display", "enableTransparencyEffects", isChecked);
+        }}
+        label="Blur Effects"
+      />
+      <SimpleSwitch
+        checked={state.settings.showTuningGuide}
+        onChange={(isChecked) => {
+          setState("settings", "showTuningGuide", isChecked);
+        }}
+        label="Tuning Guide"
+      />
       <SimpleSwitch
         checked={state.settings.showFps}
         onChange={(isChecked) => {

@@ -204,7 +204,7 @@ export function LinearScale(props: LinearScaleProps) {
       return {
         value,
         label,
-        position: Math.min(Math.max(position, 0), 1),
+        position,
         isEdge,
       };
     });

@@ -17,6 +17,7 @@ export function Waterfall(props: { streamId: string }) {
   const pan = () => state.status.panadapter[waterfall().panadapterStreamId];
 
   const [canvasWidth, setCanvasWidth] = createSignal(1);
+  const [canvasHeight, setCanvasHeight] = createSignal(1);
   const [widthMultiplier, setWidthMultiplier] = createSignal(1.0);
   const [binBandwidth, setBinBandwidth] = createSignal(1);
   const [canvasRef, setCanvasRef] = createSignal<HTMLCanvasElement>();
@@ -137,7 +138,7 @@ export function Waterfall(props: { streamId: string }) {
   });
 
   const totalSeconds = createMemo(() => {
-    const { height } = canvasSize;
+    const { height } = wrapperSize;
     const duration = lineDurationMs();
     if (!height || !duration) return 0;
     return (height * duration) / 1000;
@@ -150,6 +151,12 @@ export function Waterfall(props: { streamId: string }) {
     if (value >= 0) return "0s";
     return `${value.toFixed(2)}s`;
   };
+
+  const targetCanvasHeight = createMemo(() =>
+    state.display.enableTransparencyEffects
+      ? window.screen.height
+      : wrapperSize.height,
+  );
 
   const onWaterfall = createMemo(() => {
     // console.log("Waterfall handler created");
@@ -229,9 +236,15 @@ export function Waterfall(props: { streamId: string }) {
         setLastBandwidth(bandwidth);
 
         let src: CanvasImageSource =
-          offscreen.width === totalBins ? offscreen : canvas;
+          offscreen.width === totalBins &&
+          offscreen.height === targetCanvasHeight()
+            ? offscreen
+            : canvas;
         if (offscreen.width !== totalBins) {
           offscreen.width = totalBins;
+        }
+        if (offscreen.height !== targetCanvasHeight()) {
+          offscreen.height = targetCanvasHeight();
         }
 
         const xOffset =
@@ -254,7 +267,7 @@ export function Waterfall(props: { streamId: string }) {
           scaleOffset,
           yOffset,
           scaleWidth,
-          offscreen.height,
+          src.height,
         );
 
         if (scaleOffset !== 0) {
@@ -300,6 +313,10 @@ export function Waterfall(props: { streamId: string }) {
       if (startingBin + binsInThisFrame >= totalBins) {
         if (canvas.width !== offscreen.width) {
           setCanvasWidth(offscreen.width);
+        }
+
+        if (canvas.height !== offscreen.height) {
+          setCanvasHeight(offscreen.height);
         }
 
         // Coalesce to one paint per frame
@@ -358,7 +375,7 @@ export function Waterfall(props: { streamId: string }) {
         class="absolute shrink-0 select-none scale-x-(--width-multiplier) translate-x-(--drag-offset)"
         ref={setCanvasRef}
         width={canvasWidth()}
-        height={window.screen.height}
+        height={canvasHeight()}
         style={{
           "--width-multiplier": widthMultiplier(),
         }}

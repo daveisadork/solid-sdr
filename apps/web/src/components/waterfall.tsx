@@ -121,6 +121,9 @@ export function Waterfall(props: { streamId: string }) {
       );
     }
     setPalette32(u32);
+    // loadGradientPNG("/public/gradients/gradient.png", colorMin, colorMax)
+    //   .then(setPalette32)
+    //   .catch(console.error);
   });
 
   createEffect(() => {
@@ -362,8 +365,8 @@ export function Waterfall(props: { streamId: string }) {
       />
       <Show when={state.settings.showFps}>
         <Portal>
-          <div class="fixed top-12 left-2 -z-50 text-lg font-bold text-emerald-400/50">
-            {fps()}
+          <div class="fixed top-12 left-2 -z-50 text-lg font-mono whitespace-pre font-bold text-emerald-400/50">
+            W: {fps().toString().padStart(4, " ")}
           </div>
         </Portal>
       </Show>

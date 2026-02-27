@@ -42,3 +42,57 @@ export function roundToDevicePixels(px: number) {
   const dpr = Number(window.devicePixelRatio?.toFixed(2) || 1);
   return Math.round(px * dpr) / dpr;
 }
+
+const packRGBA = (r: number, g: number, b: number, a: number) =>
+  (a << 24) | (b << 16) | (g << 8) | (r << 0);
+
+export async function loadGradientPNG(
+  url: string,
+  colorMin: number,
+  colorMax: number,
+  width = 4096,
+): Promise<Uint32Array> {
+  console.log(
+    `Loading gradient from ${url} with range [${colorMin}, ${colorMax}]`,
+  );
+  // 1. Load image
+  const img = new Image();
+  img.src = url;
+  img.decoding = "async";
+
+  await img.decode();
+
+  if (img.width !== width || img.height !== 1) {
+    throw new Error(
+      `Expected ${width}x1 image, got ${img.width}x${img.height}`,
+    );
+  }
+
+  // 2. Draw into canvas
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = 1;
+
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) throw new Error("2D context unavailable");
+
+  ctx.drawImage(img, colorMin * width, 0, (colorMax - colorMin) * width, 1);
+
+  // 3. Read pixels
+  const data = ctx.getImageData(0, 0, width, 1).data;
+
+  // 4. Pack into Uint32
+  const out = new Uint32Array(width);
+
+  for (let i = 0; i < 4096; i++) {
+    const o = i * 4;
+    out[i] = packRGBA(
+      data[o + 0] | 0,
+      data[o + 1] | 0,
+      data[o + 2] | 0,
+      data[o + 3] | 0,
+    );
+  }
+
+  return out;
+}

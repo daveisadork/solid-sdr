@@ -113,12 +113,16 @@ export function Panadapter(props: { streamId: string }) {
     const { gradients } = state.palette;
     const waterfall = state.status.waterfall[pan().waterfallStreamId];
     if (!waterfall) return;
-    const { gradientIndex } = waterfall;
-    const { stops } = gradients[gradientIndex];
     const gradient = ctx.createLinearGradient(0, pan().height, 0, 0);
-    stops.forEach(({ offset, color }) => {
-      gradient.addColorStop(offset, color);
-    });
+    if (state.display.gradientStyle === "classic") {
+      gradient.addColorStop(0, "rgba(255, 255, 255, 0.2)");
+      gradient.addColorStop(1, "rgba(255, 255, 255, 1)");
+    } else {
+      const { stops } = gradients[waterfall.gradientIndex];
+      stops.forEach(({ offset, color }) => {
+        gradient.addColorStop(offset, color);
+      });
+    }
     return gradient;
   });
 
@@ -171,6 +175,8 @@ export function Panadapter(props: { streamId: string }) {
       ctx.drawImage(offscreen, 0, 0, canvas.width, canvas.height);
     };
 
+    let lastBinValue = 0;
+
     return ({ packet }: UdpPacketEvent<"panadapter">) => {
       const startingBin = packet.startBinIndex;
       const binsInThisFrame = packet.numBins;
@@ -180,6 +186,7 @@ export function Panadapter(props: { streamId: string }) {
       if (binsInThisFrame === 0) return;
       if (startingBin === 0) {
         frameStartTime = performance.now();
+        lastBinValue = bins[0];
       }
       const p = palette();
       const colors = paletteCss();
@@ -232,16 +239,36 @@ export function Panadapter(props: { streamId: string }) {
       const { peakStyle, fillStyle } = state.display;
       if (fillStyle === "gradient") {
         const gradient = fillGradient();
-        offscreenCtx.strokeStyle = gradient || "white";
-        offscreenCtx.beginPath();
-        offscreenCtx.moveTo(startingBin, height);
-        for (let index = 0; index < binsInThisFrame; index++) {
-          const x = startingBin + index;
-          const y = bins[index];
-          offscreenCtx.moveTo(x, height);
-          offscreenCtx.lineTo(x, y);
+        if (peakStyle === "points") {
+          // if the peaks are points, we need to draw the "fill" as individual lines
+          offscreenCtx.strokeStyle = gradient || "white";
+          offscreenCtx.beginPath();
+          offscreenCtx.moveTo(startingBin, height);
+          for (let index = 0; index < binsInThisFrame; index++) {
+            const x = startingBin + index;
+            const y = bins[index];
+            offscreenCtx.moveTo(x, height);
+            offscreenCtx.lineTo(x, y);
+          }
+          offscreenCtx.stroke();
+        } else {
+          // otherwise we can just outline the shape and fill it
+          offscreenCtx.strokeStyle = "transparent";
+          offscreenCtx.lineWidth = 0;
+          offscreenCtx.fillStyle = gradient || "white";
+          offscreenCtx.beginPath();
+          offscreenCtx.moveTo(startingBin - 1, height);
+          offscreenCtx.lineTo(startingBin - 1, lastBinValue);
+          for (let index = 0; index < binsInThisFrame; index++) {
+            const x = startingBin + index;
+            const y = bins[index];
+            offscreenCtx.lineTo(x, y);
+          }
+          offscreenCtx.lineTo(startingBin + binsInThisFrame - 1, height);
+          offscreenCtx.lineTo(startingBin + binsInThisFrame - 1, height);
+          offscreenCtx.closePath();
+          offscreenCtx.fill();
         }
-        offscreenCtx.stroke();
       } else if (fillStyle === "solid") {
         let currentColor = "";
         let hasPath = false;
@@ -269,7 +296,7 @@ export function Panadapter(props: { streamId: string }) {
       if (peakStyle === "line") {
         offscreenCtx.strokeStyle = "white";
         offscreenCtx.beginPath();
-        offscreenCtx.moveTo(startingBin, bins[0]);
+        offscreenCtx.moveTo(startingBin - 1, lastBinValue);
         for (let index = 0; index < binsInThisFrame; index++) {
           const x = startingBin + index;
           const y = bins[index];
@@ -283,6 +310,10 @@ export function Panadapter(props: { streamId: string }) {
           const y = bins[index];
           offscreenCtx.fillRect(x - 0.5, y - 0.5, 1, 1);
         }
+      }
+
+      if (startingBin > 0) {
+        lastBinValue = bins[binsInThisFrame - 1];
       }
 
       if (startingBin + binsInThisFrame >= totalBins) {
@@ -329,8 +360,8 @@ export function Panadapter(props: { streamId: string }) {
       />
       <Show when={state.settings.showFps}>
         <Portal>
-          <div class="fixed top-7 left-2 -z-50 text-lg font-bold text-indigo-400/50">
-            {fps()}
+          <div class="fixed top-7 left-2 -z-50 text-lg font-mono whitespace-pre font-bold text-indigo-400/50">
+            P: {fps().toString().padStart(4, " ")}
           </div>
         </Portal>
       </Show>

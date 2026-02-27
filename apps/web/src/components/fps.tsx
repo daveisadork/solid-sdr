@@ -7,17 +7,17 @@ export function FPSCounter() {
   let lastTime = performance.now();
   const frameTimes: number[] = [];
 
-  function refreshLoop() {
-    window.requestAnimationFrame((time) => {
-      frameTimes.push(time - lastTime);
-      if (frameTimes.length > 10) frameTimes.shift();
-      lastTime = time;
-      if (running()) refreshLoop();
-      const avgFrameTime =
-        frameTimes.reduce((a, b) => a + b, 0) / frameTimes.length;
-      setFps(Math.round(1000 / avgFrameTime));
-    });
-  }
+  const handleFrame = (time: number) => {
+    frameTimes.push(time - lastTime);
+    if (frameTimes.length > 10) frameTimes.shift();
+    lastTime = time;
+    if (running()) refreshLoop();
+    const avgFrameTime =
+      frameTimes.reduce((a, b) => a + b, 0) / frameTimes.length;
+    setFps(Math.round(1000 / avgFrameTime));
+  };
+
+  const refreshLoop = () => window.requestAnimationFrame(handleFrame);
 
   createEffect(() => {
     refreshLoop();
@@ -26,8 +26,8 @@ export function FPSCounter() {
 
   return (
     <Portal>
-      <div class="fixed top-2 left-2 -z-50 text-lg font-bold text-amber-400/50">
-        {fps()}
+      <div class="fixed top-2 left-2 -z-50 text-lg font-mono whitespace-pre font-bold text-amber-400/50">
+        B: {fps().toString().padStart(4, " ")}
       </div>
     </Portal>
   );

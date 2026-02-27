@@ -1,4 +1,4 @@
-import { lazy, Suspense, ErrorBoundary } from "solid-js";
+import { lazy, Suspense } from "solid-js";
 import { FlexRadioProvider } from "./context/flexradio";
 import { StatusBar } from "./components/statusbar";
 import { SidebarProvider, SidebarTrigger } from "./components/ui/sidebar";

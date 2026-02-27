@@ -1,4 +1,4 @@
-import { For, createEffect } from "solid-js";
+import { For } from "solid-js";
 import { cn } from "~/lib/utils";
 import type { LinearScaleTick } from "./linear-scale";
 import type { FrequencyGridTick } from "./scale";
@@ -10,8 +10,6 @@ type PanadapterGridProps = {
 };
 
 export function PanadapterGrid(props: PanadapterGridProps) {
-  createEffect(() => console.log(props.horizontalTicks));
-
   return (
     <div
       class={cn(
@@ -22,18 +20,18 @@ export function PanadapterGrid(props: PanadapterGridProps) {
       <For each={props.horizontalTicks}>
         {(tick) => (
           <div
-            class="absolute left-0 right-0 h-px top-[var(--tick-position)] bg-foreground"
+            class="absolute inset-x-0 h-px top-(--tick-position) bg-foreground"
             style={{
               "--tick-position": `${tick.position * 100}%`,
             }}
           />
         )}
       </For>
-      <div class="size-full translate-x-[var(--drag-offset)]">
+      <div class="size-full translate-x-(--drag-offset)">
         <For each={props.verticalTicks}>
           {(tick) => (
             <div
-              class="absolute top-0 bottom-0 left-[var(--tick-offset)] w-px bg-foreground"
+              class="absolute top-0 bottom-0 left-(--tick-offset) w-px bg-foreground"
               style={{
                 "--tick-offset": `${tick.offset}px`,
               }}

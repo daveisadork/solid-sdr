@@ -101,11 +101,16 @@ function AudioSink(props: {
   stream: MediaStream;
   output: MediaDeviceInfo["deviceId"];
 }) {
-  let el!: HTMLAudioElement;
-  onMount(() => {
+  const [ref, setRef] = createSignal<HTMLAudioElement>();
+
+  createEffect(() => {
+    const el = ref();
+    if (!el) return;
     el.srcObject = props.stream;
     el.autoplay = true;
   });
-  createEffect(() => el.setSinkId(props.output).catch(console.error));
-  return <audio ref={el} />;
+
+  createEffect(() => ref()?.setSinkId(props.output).catch(console.error));
+
+  return <audio ref={setRef} />;
 }

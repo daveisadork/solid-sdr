@@ -95,6 +95,7 @@ export interface DisplaySettings {
   enableTransparencyEffects: boolean;
   peakStyle: "none" | "points" | "line";
   fillStyle: "none" | "solid" | "gradient";
+  gradientStyle: "color" | "classic";
   meterStyle: "instant" | "smooth" | "ballistic";
   panBackgroundColor: string;
 }
@@ -160,6 +161,7 @@ export const initialState = () =>
       enableTransparencyEffects: true,
       peakStyle: "points",
       fillStyle: "solid",
+      gradientStyle: "color",
       meterStyle: "smooth",
       panBackgroundColor: "#02517e",
     },
@@ -303,6 +305,19 @@ export const initialState = () =>
             { color: "#cb4b16", offset: 0.525 },
             { color: "#dc322f", offset: 0.6 },
             { color: "#d33682", offset: 0.75 },
+            { color: "#ffffff", offset: 1.0 },
+          ],
+        },
+        {
+          name: "Contrasty",
+          stops: [
+            { color: "#000000", offset: 0.15 },
+            { color: "#0000ff", offset: 0.25 },
+            { color: "#00ffff", offset: 0.35 },
+            { color: "#00ff00", offset: 0.45 },
+            { color: "#ffff00", offset: 0.55 },
+            { color: "#ff0000", offset: 0.65 },
+            { color: "#ff00ff", offset: 0.75 },
             { color: "#ffffff", offset: 1.0 },
           ],
         },

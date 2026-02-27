@@ -1,5 +1,5 @@
 import useFlexRadio, { Meter } from "~/context/flexradio";
-import { createEffect, createSignal, For, onCleanup, Show } from "solid-js";
+import { createEffect, createSignal, For } from "solid-js";
 import { createStore } from "solid-js/store";
 import {
   NumberField,
@@ -127,6 +127,24 @@ export function TuningPanel(props: { streamId: string }) {
   );
   const [rawHighDbm, setRawHighDbm] = createSignal(panController().highDbm);
   const [rawLowDbm, setRawLowDbm] = createSignal(panController().lowDbm);
+  const [rawPanBackgroundColor, setRawPanBackgroundColor] = createSignal(
+    state.display.panBackgroundColor,
+  );
+
+  createEffect(() =>
+    setRawPanBackgroundColor(state.display.panBackgroundColor),
+  );
+
+  createEffect(() => {
+    const rawColor = rawPanBackgroundColor();
+    if (rawColor === state.display.panBackgroundColor) return;
+    try {
+      parseColor(rawColor);
+      setState("display", "panBackgroundColor", rawColor);
+    } catch (_e) {
+      // Invalid color, ignore
+    }
+  });
 
   createEffect(() => {
     if (!state.display.enableTransparencyEffects) {
@@ -211,6 +229,28 @@ export function TuningPanel(props: { streamId: string }) {
           <SegmentedControlIndicator />
           <SegmentedControlItemsList>
             <For each={["none", "solid", "gradient"]}>
+              {(style) => (
+                <SegmentedControlItem value={style}>
+                  <SegmentedControlItemLabel>{style}</SegmentedControlItemLabel>
+                </SegmentedControlItem>
+              )}
+            </For>
+          </SegmentedControlItemsList>
+        </SegmentedControlGroup>
+      </SegmentedControl>
+      <SegmentedControl
+        value={state.display.gradientStyle}
+        onChange={(value) => {
+          console.log(value);
+          if (!value) return;
+          setState("display", "gradientStyle", value as "color" | "classic");
+        }}
+      >
+        <SegmentedControlLabel>Gradient Style</SegmentedControlLabel>
+        <SegmentedControlGroup>
+          <SegmentedControlIndicator />
+          <SegmentedControlItemsList>
+            <For each={["color", "classic"]}>
               {(style) => (
                 <SegmentedControlItem value={style}>
                   <SegmentedControlItemLabel>{style}</SegmentedControlItemLabel>
@@ -490,8 +530,8 @@ export function TuningPanel(props: { streamId: string }) {
       />
       <ColorField
         class="flex flex-col gap-2 select-none"
-        value={state.display.panBackgroundColor}
-        onChange={(value) => setState("display", "panBackgroundColor", value)}
+        value={rawPanBackgroundColor()}
+        onChange={setRawPanBackgroundColor}
       >
         <ColorFieldLabel>Panadapter Background</ColorFieldLabel>
         <div class="relative">

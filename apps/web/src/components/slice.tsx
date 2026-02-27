@@ -914,6 +914,21 @@ export function Slice(props: { sliceIndex: string }) {
                             getValueLabel={(params) => `${params.values[0]}%`}
                             label="AGC Threshold"
                           />
+                          <SliderToggle
+                            disabled={!slice.squelchEnabled}
+                            minValue={0}
+                            maxValue={100}
+                            value={[slice.squelchLevel]}
+                            onChange={([value]) => {
+                              sliceController().setSquelchLevel(value);
+                            }}
+                            getValueLabel={(params) => `${params.values[0]}%`}
+                            label="Squelch"
+                            switchChecked={slice.nrEnabled}
+                            onSwitchChange={(isChecked) => {
+                              sliceController().setSquelchEnabled(isChecked);
+                            }}
+                          />
                           <SimpleSwitch
                             checked={slice.diversityEnabled}
                             disabled={slice.diversityChild}
@@ -1191,9 +1206,9 @@ export function Slice(props: { sliceIndex: string }) {
                       </SelectTrigger>
                       <SelectContent />
                     </Select>
-                    <div onClick={() => sliceController().close()}>
-                      <BaselineDelete />
-                    </div>
+                    {/* <div onClick={() => sliceController().close()}> */}
+                    {/*   <BaselineDelete /> */}
+                    {/* </div> */}
                   </div>
                 </div>
               </div>

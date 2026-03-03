@@ -377,6 +377,28 @@ describe("FlexClient", () => {
     );
   });
 
+  it("requests new slices through the radio controller", async () => {
+    const { factory, getChannel } = createMockControl();
+    const client = createFlexClient({ control: factory });
+    const session = await client.connect(descriptor, NO_HANDSHAKE);
+    const channel = getChannel();
+
+    const radio = session.radio();
+    await radio.requestSlice();
+    expect(channel.commands.at(-1)?.command).toBe("slice create");
+
+    await radio.requestSlice({
+      panadapterStreamId: "40000000",
+      demodMode: "DIGU",
+      frequencyMHz: 14.074,
+      rxAntenna: "ANT2",
+      loadPersistence: true,
+    });
+    expect(channel.commands.at(-1)?.command).toBe(
+      "slice create pan=0x40000000 freq=14.074000 rxant=ANT2 mode=DIGU load_from=PERSISTENCE",
+    );
+  });
+
   it("provides radio snapshots and gps convenience getters", async () => {
     const { factory, getChannel } = createMockControl();
     const client = createFlexClient({ control: factory });

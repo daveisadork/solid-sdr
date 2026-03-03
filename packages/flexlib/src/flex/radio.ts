@@ -38,6 +38,30 @@ const EMPTY_STRING_LIST = Object.freeze([]) as readonly string[];
 const EMPTY_LOG_MODULES = Object.freeze([]) as readonly RadioLogModule[];
 const DEFAULT_NETWORK_MTU = 1_500;
 
+export interface RadioRequestSliceOptions {
+  /**
+   * Panadapter stream id that should host the new slice, e.g. "0x40000000".
+   * When omitted, the radio will place the slice automatically.
+   */
+  readonly panadapterStreamId?: string;
+  /**
+   * Demodulation mode for the new slice, e.g. "USB", "DIGU", "LSB", "CW".
+   */
+  readonly demodMode?: string;
+  /**
+   * Initial center frequency in MHz. Match the radio command format precision.
+   */
+  readonly frequencyMHz?: number;
+  /**
+   * RX antenna port for the new slice, e.g. "ANT1", "ANT2", "RX_A".
+   */
+  readonly rxAntenna?: string;
+  /**
+   * Restores persisted slice settings when available.
+   */
+  readonly loadPersistence?: boolean;
+}
+
 export interface RadioController {
   snapshot(): RadioSnapshot | undefined;
   get model(): string;
@@ -160,6 +184,10 @@ export interface RadioController {
   setClientStationName(stationName: string): Promise<void>;
   /** Bind this non-GUI client to an existing GUI client id. */
   bindGuiClient(clientId: string): Promise<void>;
+  /**
+   * Request that the radio create a new slice receiver.
+   */
+  requestSlice(options?: RadioRequestSliceOptions): Promise<void>;
   setNickname(nickname: string): Promise<void>;
   setCallsign(callsign: string): Promise<void>;
   setFullDuplexEnabled(enabled: boolean): Promise<void>;
@@ -788,6 +816,38 @@ export class RadioControllerImpl implements RadioController {
       throw new FlexError("GUI client id cannot be empty");
     }
     await this.session.command(`client bind client_id=${trimmed}`);
+  }
+
+  async requestSlice(options: RadioRequestSliceOptions = {}): Promise<void> {
+    let command = "slice create";
+
+    const panadapterStreamId = options.panadapterStreamId?.trim();
+    if (panadapterStreamId) {
+      command += ` pan=${normalizeSliceCreatePanStreamId(panadapterStreamId)}`;
+    }
+
+    if (options.frequencyMHz !== undefined) {
+      const frequency = ensureFinite(options.frequencyMHz, "slice frequency");
+      if (frequency !== 0) {
+        command += ` freq=${frequency.toFixed(6)}`;
+      }
+    }
+
+    const rxAntenna = options.rxAntenna?.trim();
+    if (rxAntenna) {
+      command += ` rxant=${rxAntenna}`;
+    }
+
+    const demodMode = options.demodMode?.trim();
+    if (demodMode) {
+      command += ` mode=${demodMode}`;
+    }
+
+    if (options.loadPersistence) {
+      command += " load_from=PERSISTENCE";
+    }
+
+    await this.session.command(command);
   }
 
   async setNickname(nickname: string): Promise<void> {
@@ -1514,7 +1574,7 @@ function sanitizeCallsign(value: string): string {
 }
 
 const INVALID_CLIENT_STATION_CHARS =
-  /[\*#@!%^&.,;:?\"\)(+=`'~<>|\\[\]{}]+/g;
+  /[*#@!%^&.,;:?")(+=`'~<>|\\[\]{}]+/g;
 
 function sanitizeClientStationName(value: string): string {
   return value.replace(INVALID_CLIENT_STATION_CHARS, "");
@@ -1578,4 +1638,19 @@ function normalizeProfileName(raw: string): string {
 
 function escapeProfileName(value: string): string {
   return value.replace(/(["\\])/g, "\\$1");
+}
+
+function normalizeSliceCreatePanStreamId(streamId: string): string {
+  const trimmed = streamId.trim();
+  if (!trimmed) {
+    throw new FlexError("Panadapter stream id cannot be empty");
+  }
+  const withoutPrefix =
+    trimmed.startsWith("0x") || trimmed.startsWith("0X")
+      ? trimmed.slice(2)
+      : trimmed;
+  if (!/^[0-9a-fA-F]+$/.test(withoutPrefix)) {
+    throw new FlexError(`Invalid panadapter stream id: ${streamId}`);
+  }
+  return `0x${withoutPrefix.toUpperCase().padStart(8, "0")}`;
 }

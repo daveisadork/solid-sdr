@@ -1206,9 +1206,14 @@ export function Slice(props: { sliceIndex: string }) {
                       </SelectTrigger>
                       <SelectContent />
                     </Select>
-                    {/* <div onClick={() => sliceController().close()}> */}
-                    {/*   <BaselineDelete /> */}
-                    {/* </div> */}
+                    <div
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        sliceController().close();
+                      }}
+                    >
+                      <BaselineDelete />
+                    </div>
                   </div>
                 </div>
               </div>

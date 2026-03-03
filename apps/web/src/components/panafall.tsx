@@ -31,6 +31,15 @@ import { createFullscreen } from "@solid-primitives/fullscreen";
 import { createElementSize } from "@solid-primitives/resize-observer";
 import { TabToSignal } from "./tab-to-signal";
 import { SidebarTrigger } from "./ui/sidebar";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+  ContextMenuGroupLabel,
+  ContextMenuPortal,
+} from "./ui/context-menu";
 
 export function Panafall() {
   const { colorMode, setColorMode } = useColorMode();
@@ -251,33 +260,58 @@ export function Panafall() {
               {/* <Show when={state.selectedPanadapter} keyed> */}
               {/*   {(streamId) => <TabToSignal streamId={streamId} />} */}
               {/* </Show> */}
-              <div
-                classList={{
-                  "cursor-grabbing": dragState.dragging,
-                  "cursor-crosshair": !dragState.dragging,
-                }}
-                class="absolute inset-0 select-none"
-                onDblClick={async (e) => {
-                  if (dragState.dragging) return;
-                  setDragState("originX", 0);
-                  const streamId = panStreamId();
-                  if (!streamId) return;
-                  const { bandwidthMHz, width } =
-                    state.status.panadapter[streamId];
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  const x = Math.max(
-                    0,
-                    Math.min(e.clientX - rect.left, width - 1),
-                  );
-                  const mhzPerPx = bandwidthMHz / width;
-                  const freq = (
-                    state.status.panadapter[streamId].centerFrequencyMHz +
-                    (x - width / 2) * mhzPerPx
-                  ).toFixed(3);
-                  panController()?.clickTune(Number(freq));
-                }}
-                ref={setClickRef}
-              />
+              <ContextMenu>
+                <ContextMenuTrigger
+                  classList={{
+                    "cursor-grabbing": dragState.dragging,
+                    "cursor-crosshair": !dragState.dragging,
+                  }}
+                  class="absolute inset-0 select-none"
+                  onDblClick={(e) => {
+                    if (dragState.dragging) return;
+                    setDragState("originX", 0);
+                    const streamId = panStreamId();
+                    if (!streamId) return;
+                    const { bandwidthMHz, width } =
+                      state.status.panadapter[streamId];
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const x = Math.max(
+                      0,
+                      Math.min(e.clientX - rect.left, width - 1),
+                    );
+                    const mhzPerPx = bandwidthMHz / width;
+                    const freq = (
+                      state.status.panadapter[streamId].centerFrequencyMHz +
+                      (x - width / 2) * mhzPerPx
+                    ).toFixed(3);
+                    panController()?.clickTune(Number(freq));
+                  }}
+                  ref={setClickRef}
+                />
+                <ContextMenuPortal>
+                  <ContextMenuContent>
+                    <ContextMenuItem
+                      onClick={() => {
+                        const { x } = pos;
+                        const streamId = panStreamId();
+                        const { bandwidthMHz, centerFrequencyMHz, width } =
+                          state.status.panadapter[streamId];
+                        const mhzPerPx = bandwidthMHz / width;
+                        const freq = (
+                          centerFrequencyMHz +
+                          (x - width / 2) * mhzPerPx
+                        ).toFixed(3);
+                        radio().requestSlice({
+                          panadapterStreamId: streamId,
+                          frequencyMHz: Number(freq),
+                        });
+                      }}
+                    >
+                      Create Slice
+                    </ContextMenuItem>
+                  </ContextMenuContent>
+                </ContextMenuPortal>
+              </ContextMenu>
             </div>
             <div class="absolute bottom-2 left-2 grid grid-cols-2 gap-0.5 text-xs">
               <Tooltip>

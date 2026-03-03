@@ -17,6 +17,7 @@ import type { LinearScaleTick } from "./linear-scale";
 import { PanadapterGrid } from "./panadapter-grid";
 import { buildFrequencyGrid } from "./scale";
 import type { FrequencyGridTick } from "./scale";
+import { parseColor } from "@kobalte/core/colors";
 
 export function Panadapter(props: { streamId: string }) {
   const streamId = () => props.streamId;
@@ -340,6 +341,16 @@ export function Panadapter(props: { streamId: string }) {
     onCleanup(subscription.unsubscribe);
   });
 
+  const txBackgroundColor = createMemo(() =>
+    state.status.radio.interlockState === "TRANSMITTING"
+      ? // shift the hue of the background color to 0 (red) when transmitting, but keep saturation and lightness the same
+        parseColor(state.display.panBackgroundColor)
+          .toFormat("hsl")
+          .withChannelValue("hue", 0)
+          .toString("css")
+      : state.display.panBackgroundColor,
+  );
+
   return (
     <div
       ref={setWrapper}
@@ -347,7 +358,7 @@ export function Panadapter(props: { streamId: string }) {
       style={{
         "--panadapter-available-height": `${wrapperSize.height}px`,
         "--panadapter-available-width": `${wrapperSize.width}px`,
-        "--panadapter-background-color": state.display.panBackgroundColor,
+        "--panadapter-background-color": txBackgroundColor(),
       }}
     >
       <PanadapterGrid

@@ -399,9 +399,9 @@ export function Waterfall(props: { streamId: string }) {
                 labelClass="text-[10px] font-semibold scale-text-shadow"
                 lineClass="bg-primary/25"
                 tickLength={9}
-                tickSpacing={60}
+                tickSpacing={50}
                 showTicks={false}
-                showMin={false}
+                showMin={true}
                 showMax={false}
                 format={formatSeconds}
               />

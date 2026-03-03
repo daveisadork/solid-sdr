@@ -6,6 +6,8 @@ import {
   mergeProps,
   createSignal,
   createEffect,
+  Match,
+  Switch,
 } from "solid-js";
 import { createElementSize } from "@solid-primitives/resize-observer";
 import { cn } from "~/lib/utils";
@@ -229,106 +231,105 @@ export function LinearScale(props: LinearScaleProps) {
     <div
       ref={setContainer}
       class={cn(
-        "relative flex select-none font-mono text-xs text-primary/80",
-        merged.orientation === "vertical"
-          ? "h-full w-full flex-col"
-          : "h-full w-full",
+        "relative size-full flex select-none font-mono text-xs text-primary/80",
         merged.class,
       )}
+      classList={{
+        "flex-col": merged.orientation === "vertical",
+      }}
     >
-      {merged.orientation === "vertical" ? (
-        <div class="relative h-full w-full">
-          <For each={ticks()}>
-            {(tick) => {
-              const translateY =
-                tick.isEdge === "max"
-                  ? "0%"
-                  : tick.isEdge === "min"
+      <Switch>
+        <Match when={merged.orientation === "vertical"}>
+          <div class="relative h-full w-full">
+            <For each={ticks()}>
+              {(tick) => {
+                const length = resolveLength(merged.tickLength) ?? "100%";
+                const showTickLine = !!merged.showTicks;
+                return (
+                  <div
+                    class={cn(
+                      "absolute inset-x-0 top-(--tick-position)",
+                      merged.tickClass,
+                    )}
+                    style={{ "--tick-position": `${tick.position * 100}%` }}
+                  >
+                    <div class="relative h-0">
+                      <Show when={showTickLine}>
+                        <div
+                          class={cn(
+                            "block h-px rounded-full bg-primary/25",
+                            merged.lineClass,
+                            tick.isEdge ? "bg-primary/35" : "",
+                          )}
+                          style={{
+                            width: length,
+                            transform: "translateY(-0.5px)",
+                          }}
+                        />
+                      </Show>
+                      <div
+                        class={cn(
+                          "absolute right-0 top-0 whitespace-nowrap text-xs font-medium text-primary scale-label-shadow -translate-y-1/2",
+                          merged.labelClass,
+                        )}
+                      >
+                        {tick.label}
+                      </div>
+                    </div>
+                  </div>
+                );
+              }}
+            </For>
+          </div>
+        </Match>
+        <Match when={merged.orientation === "horizontal"}>
+          <div class="relative h-full w-full">
+            <For each={ticks()}>
+              {(tick) => {
+                const translateX =
+                  tick.isEdge === "max"
                     ? "-100%"
-                    : "-50%";
-              const length = resolveLength(merged.tickLength) ?? "100%";
-              const showTickLine = !!merged.showTicks;
-              return (
-                <div
-                  class={cn("absolute left-0 right-0", merged.tickClass)}
-                  style={{ top: `${tick.position * 100}%` }}
-                >
-                  <div class="relative h-0">
-                    <Show when={showTickLine}>
+                    : tick.isEdge === "min"
+                      ? "0%"
+                      : "-50%";
+                const length = resolveLength(merged.tickLength) ?? "100%";
+                const showTickLine = !!merged.showTicks;
+                return (
+                  <div
+                    class={cn("absolute top-0 bottom-0", merged.tickClass)}
+                    style={{ left: `${tick.position * 100}%` }}
+                  >
+                    <div class="relative w-0">
+                      <Show when={showTickLine}>
+                        <div
+                          class={cn(
+                            "block w-px rounded-full bg-primary/25",
+                            merged.lineClass,
+                            tick.isEdge ? "bg-primary/35" : "",
+                          )}
+                          style={{
+                            height: length,
+                            transform: "translateX(-0.5px)",
+                          }}
+                        />
+                      </Show>
                       <div
                         class={cn(
-                          "block h-px rounded-full bg-primary/25",
-                          merged.lineClass,
-                          tick.isEdge ? "bg-primary/35" : "",
+                          "absolute left-0 top-0 whitespace-nowrap text-xs font-medium text-primary scale-label-shadow",
+                          merged.labelClass,
                         )}
-                        style={{
-                          width: length,
-                          transform: "translateY(-0.5px)",
-                        }}
-                      />
-                    </Show>
-                    <div
-                      class={cn(
-                        "absolute right-0 top-0 whitespace-nowrap text-xs font-medium text-primary scale-label-shadow",
-                        merged.labelClass,
-                      )}
-                      style={{ transform: `translateY(${translateY})` }}
-                    >
-                      {tick.label}
+                        style={{ transform: `translateX(${translateX})` }}
+                      >
+                        {tick.label}
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            }}
-          </For>
-        </div>
-      ) : (
-        <div class="relative h-full w-full">
-          <For each={ticks()}>
-            {(tick) => {
-              const translateX =
-                tick.isEdge === "max"
-                  ? "-100%"
-                  : tick.isEdge === "min"
-                    ? "0%"
-                    : "-50%";
-              const length = resolveLength(merged.tickLength) ?? "100%";
-              const showTickLine = !!merged.showTicks;
-              return (
-                <div
-                  class={cn("absolute top-0 bottom-0", merged.tickClass)}
-                  style={{ left: `${tick.position * 100}%` }}
-                >
-                  <div class="relative w-0">
-                    <Show when={showTickLine}>
-                      <div
-                        class={cn(
-                          "block w-px rounded-full bg-primary/25",
-                          merged.lineClass,
-                          tick.isEdge ? "bg-primary/35" : "",
-                        )}
-                        style={{
-                          height: length,
-                          transform: "translateX(-0.5px)",
-                        }}
-                      />
-                    </Show>
-                    <div
-                      class={cn(
-                        "absolute left-0 top-0 whitespace-nowrap text-xs font-medium text-primary scale-label-shadow",
-                        merged.labelClass,
-                      )}
-                      style={{ transform: `translateX(${translateX})` }}
-                    >
-                      {tick.label}
-                    </div>
-                  </div>
-                </div>
-              );
-            }}
-          </For>
-        </div>
-      )}
+                );
+              }}
+            </For>
+          </div>
+        </Match>
+      </Switch>
     </div>
   );
 }

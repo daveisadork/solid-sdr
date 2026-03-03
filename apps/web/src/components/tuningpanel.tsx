@@ -139,7 +139,8 @@ export function TuningPanel(props: { streamId: string }) {
     const rawColor = rawPanBackgroundColor();
     if (rawColor === state.display.panBackgroundColor) return;
     try {
-      parseColor(rawColor);
+      const color = parseColor(rawColor);
+      console.log(color.toString("css"));
       setState("display", "panBackgroundColor", rawColor);
     } catch (_e) {
       // Invalid color, ignore

@@ -376,7 +376,7 @@ export function Panadapter(props: { streamId: string }) {
           </div>
         </Portal>
       </Show>
-      <div class="absolute top-0 left-0 h-(--panadapter-available-height) w-(--panafall-available-width)">
+      <div class="absolute top-0 left-(--panafall-left) h-(--panadapter-available-height) w-(--panafall-available-width)">
         <div class="absolute inset-y-0 right-0 w-10">
           <div class="relative h-full px-1.5 flex items-center">
             <LinearScale
@@ -401,10 +401,12 @@ export function Panadapter(props: { streamId: string }) {
             <div>WIDE</div>
           </Show>
         </div>
+        <DetachedSlices streamId={streamId()} />
+      </div>
+      <div class="absolute inset-0">
         <For each={slices()}>
           {(sliceIndex) => <Slice sliceIndex={sliceIndex} />}
         </For>
-        <DetachedSlices streamId={streamId()} />
       </div>
     </div>
   );

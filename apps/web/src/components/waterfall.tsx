@@ -336,7 +336,11 @@ export function Waterfall(props: { streamId: string }) {
         setBinBandwidth(binBandwidth);
         setLastCalculatedCenter(calculatedCenter);
         const panStreamId = waterfall().panadapterStreamId;
-        if (panStreamId && state.status.panadapter[panStreamId]) {
+        if (
+          panStreamId &&
+          state.status.panadapter[panStreamId] &&
+          state.display.smoothScroll
+        ) {
           // Data packets reflect the new tuning; mark the panadapter center as settled.
           const centerMHz = Number((calculatedCenter / 1_000_000).toFixed(6));
           setState(
@@ -388,7 +392,7 @@ export function Waterfall(props: { streamId: string }) {
         </Portal>
       </Show>
       <Show when={totalSeconds() > 0}>
-        <div class="absolute top-0 left-0 h-full w-(--panafall-available-width)">
+        <div class="absolute inset-y-0 left-(--panafall-left) w-(--panafall-available-width) pointer-events-none">
           <div class="pointer-events-none absolute inset-y-0 right-0 w-10">
             <div class="relative h-full px-1.5 flex items-center">
               <LinearScale

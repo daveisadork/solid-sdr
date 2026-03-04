@@ -451,7 +451,7 @@ export function Slice(props: { sliceIndex: string }) {
     offset: 0,
   });
   const windowSize = createWindowSize();
-  const wrapperSize = createElementSize(wrapper);
+  const wrapperBounds = createElementBounds(wrapper);
   const sentinelBounds = createElementBounds(sentinel);
   const flagBounds = createElementBounds(flag);
 
@@ -464,9 +464,9 @@ export function Slice(props: { sliceIndex: string }) {
     if (slice.diversityChild) {
       return setFlagSide("right");
     }
-    if (flagBounds.left! < 0) {
+    if (flagBounds.left! < wrapperBounds.left!) {
       setFlagSide("right");
-    } else if (flagBounds.right! > wrapperSize.width!) {
+    } else if (flagBounds.right! > wrapperBounds.right!) {
       setFlagSide("left");
     }
   });
@@ -506,9 +506,7 @@ export function Slice(props: { sliceIndex: string }) {
   });
 
   createEffect(() => {
-    const parent = ref()?.parentElement;
-    if (!parent) return;
-    setWrapper(parent);
+    setWrapper(document.getElementById("panafall-sizer"));
   });
 
   createEffect(() => {
@@ -551,7 +549,8 @@ export function Slice(props: { sliceIndex: string }) {
 
   createEffect(() => {
     const detached =
-      sentinelBounds.left! < 0 || sentinelBounds.right! > wrapperSize.width!;
+      sentinelBounds.left! < wrapperBounds.left ||
+      sentinelBounds.right! > wrapperBounds.right!;
     if (detached === slice.isDetached) return;
     setSlice("isDetached", detached);
   });

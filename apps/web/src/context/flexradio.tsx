@@ -91,6 +91,7 @@ export type APD = Omit<MutableProps<ApdSnapshot>, "raw">;
 export type TxBandSetting = Omit<MutableProps<TxBandSettingSnapshot>, "raw">;
 
 export interface DisplaySettings {
+  smoothScroll: boolean;
   scrollOffset: number;
   enableTransparencyEffects: boolean;
   peakStyle: "none" | "points" | "line";
@@ -158,6 +159,7 @@ export const initialState = () =>
     selectedPanadapter: null,
     display: {
       scrollOffset: 0,
+      smoothScroll: true,
       enableTransparencyEffects: true,
       peakStyle: "points",
       fillStyle: "solid",
@@ -535,8 +537,9 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     // the data streams confirm the new frequency.
     const pan = withoutRaw(diff);
     const pendingCenterMHz = pan.centerFrequencyMHz;
-    const centerFrequencyMHz =
-      state.runtime.panSettledCenterMHz[key] ?? pendingCenterMHz;
+    const centerFrequencyMHz = state.display.smoothScroll
+      ? (state.runtime.panSettledCenterMHz[key] ?? pendingCenterMHz)
+      : pendingCenterMHz;
 
     if (centerFrequencyMHz) {
       pan.centerFrequencyMHz = centerFrequencyMHz;

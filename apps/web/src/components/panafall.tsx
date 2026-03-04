@@ -39,7 +39,10 @@ import {
   ContextMenuTrigger,
   ContextMenuGroupLabel,
   ContextMenuPortal,
+  ContextMenuCheckboxItem,
 } from "./ui/context-menu";
+import { createElementBounds } from "@solid-primitives/bounds";
+import { Portal } from "solid-js/web";
 
 export function Panafall() {
   const { colorMode, setColorMode } = useColorMode();
@@ -47,7 +50,7 @@ export function Panafall() {
   const themeSequence = ["system", "light", "dark"] as const;
   const [modePreference, setModePreference] = createSignal<
     (typeof themeSequence)[number]
-  >(storageManager.get("system") ?? "system");
+  >(storageManager.get("system") ?? "dark");
 
   createEffect(() => {
     const preference = modePreference();
@@ -72,7 +75,7 @@ export function Panafall() {
     setModePreference(next);
   };
 
-  const { radio, state } = useFlexRadio();
+  const { radio, state, setState } = useFlexRadio();
   const [fs, setFullscreen] = createSignal(false);
   const fullscreen = createFullscreen(() => document.documentElement, fs);
   const [clickRef, setClickRef] = createSignal<HTMLElement>();
@@ -91,9 +94,8 @@ export function Panafall() {
     originFreq: 0,
     offset: 0,
   });
-  const [smoothScroll, setSmoothScroll] = createSignal(true);
   const pos = createMousePosition(clickRef);
-  const panafallSize = createElementSize(sizeRef);
+  const panafallBounds = createElementBounds(sizeRef);
 
   const selectedPan = createMemo(() => {
     const streamId = panStreamId();
@@ -141,7 +143,10 @@ export function Panafall() {
         return;
       }
       setDragState("dragging", false);
-      if (!smoothScroll()) return;
+      if (!state.display.smoothScroll) {
+        setDragState("originX", 0);
+        return;
+      }
       const newOffset = event.x - dragState.originX;
       const freq = dragState.originFreq - newOffset / pxPerMHz();
       setPanCenter(freq);
@@ -169,10 +174,10 @@ export function Panafall() {
       }
       const newOffset = event.x - dragState.originX;
       const freq = dragState.originFreq - newOffset / pxPerMHz();
-      if (smoothScroll()) {
+      if (state.display.smoothScroll) {
         setDragState("offset", newOffset);
       }
-      setPanCenter(freq, smoothScroll());
+      setPanCenter(freq, state.display.smoothScroll);
     },
     onUp: finalizeDrag,
     onLeave: finalizeDrag,
@@ -183,12 +188,14 @@ export function Panafall() {
       return;
     }
     const deltaPx = (newCenter - prevCenter) * pxPerMHz();
-    let offset = smoothScroll() ? Math.round(dragState.offset + deltaPx) : 0;
+    let offset = state.display.smoothScroll
+      ? Math.round(dragState.offset + deltaPx)
+      : 0;
     let originX = dragState.down ? dragState.originX - deltaPx : 0;
-    if (Math.abs(deltaPx) > (panafallSize.width ?? 0)) {
+    if (Math.abs(deltaPx) > (panafallBounds.width ?? 0)) {
       // this typically happens when changing bands
       offset = 0;
-      originX = (panafallSize.width ?? 0) / 2;
+      originX = (panafallBounds.width ?? 0) / 2;
     }
     setDragState({ offset, originX, originFreq: newCenter });
   };
@@ -220,235 +227,256 @@ export function Panafall() {
   });
 
   return (
-    <div
-      ref={setSizeRef}
-      class="relative size-full overflow-visible"
-      style={{
-        "--panafall-available-width": `${panafallSize.width}px`,
-        "--panafall-available-height": `${panafallSize.height}px`,
-        "--drag-offset": `${dragState.offset}px`,
-      }}
-    >
-      <Show when={selectedPan()}>
-        {(pan) => (
-          <>
-            <div class="absolute top-0 left-0 w-dvw h-dvh overflow-clip select-none">
-              <Resizable
-                class="size-full overflow-clip select-none"
-                orientation="vertical"
-              >
-                <ResizablePanel
-                  class="overflow-clip select-none"
-                  initialSize={0.25}
+    <>
+      <div
+        class="absolute inset-0 overflow-visible"
+        style={{
+          "--panafall-available-width": `${panafallBounds.width}px`,
+          "--panafall-available-height": `${panafallBounds.height}px`,
+          "--panafall-left": `${panafallBounds.left}px`,
+          "--panafall-top": `${panafallBounds.top}px`,
+          "--panafall-right": `${panafallBounds.right}px`,
+          "--panafall-bottom": `${panafallBounds.bottom}px`,
+
+          "--drag-offset": `${dragState.offset}px`,
+        }}
+      >
+        <Show when={selectedPan()}>
+          {(pan) => (
+            <>
+              <div class="absolute top-0 left-0 w-dvw h-dvh overflow-clip select-none">
+                <Resizable
+                  class="size-full overflow-clip select-none"
+                  orientation="vertical"
                 >
+                  <ResizablePanel
+                    class="overflow-clip select-none"
+                    initialSize={0.25}
+                  >
+                    <Show when={state.selectedPanadapter} keyed>
+                      {(streamId) => <Panadapter streamId={streamId} />}
+                    </Show>
+                  </ResizablePanel>
                   <Show when={state.selectedPanadapter} keyed>
-                    {(streamId) => <Panadapter streamId={streamId} />}
+                    {(streamId) => <Scale streamId={streamId} />}
                   </Show>
-                </ResizablePanel>
-                <Show when={state.selectedPanadapter} keyed>
-                  {(streamId) => <Scale streamId={streamId} />}
-                </Show>
-                <ResizablePanel
-                  class="overflow-clip select-none"
-                  initialSize={0.75}
-                >
-                  <Show when={waterfallStreamId()} keyed>
-                    {(streamId) => <Waterfall streamId={streamId} />}
-                  </Show>
-                </ResizablePanel>
-              </Resizable>
-              {/* <Show when={state.selectedPanadapter} keyed> */}
-              {/*   {(streamId) => <TabToSignal streamId={streamId} />} */}
-              {/* </Show> */}
-              <ContextMenu>
-                <ContextMenuTrigger
-                  classList={{
-                    "cursor-grabbing": dragState.dragging,
-                    "cursor-crosshair": !dragState.dragging,
-                  }}
-                  class="absolute inset-0 select-none"
-                  onDblClick={(e) => {
-                    if (dragState.dragging) return;
-                    setDragState("originX", 0);
-                    const streamId = panStreamId();
-                    if (!streamId) return;
-                    const { bandwidthMHz, width } =
-                      state.status.panadapter[streamId];
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    const x = Math.max(
-                      0,
-                      Math.min(e.clientX - rect.left, width - 1),
-                    );
-                    const mhzPerPx = bandwidthMHz / width;
-                    const freq = (
-                      state.status.panadapter[streamId].centerFrequencyMHz +
-                      (x - width / 2) * mhzPerPx
-                    ).toFixed(3);
-                    panController()?.clickTune(Number(freq));
-                  }}
-                  ref={setClickRef}
-                />
-                <ContextMenuPortal>
-                  <ContextMenuContent>
-                    <ContextMenuItem
+                  <ResizablePanel
+                    class="overflow-clip select-none"
+                    initialSize={0.75}
+                  >
+                    <Show when={waterfallStreamId()} keyed>
+                      {(streamId) => <Waterfall streamId={streamId} />}
+                    </Show>
+                  </ResizablePanel>
+                </Resizable>
+                {/* <Show when={state.selectedPanadapter} keyed> */}
+                {/*   {(streamId) => <TabToSignal streamId={streamId} />} */}
+                {/* </Show> */}
+                <ContextMenu>
+                  <ContextMenuTrigger
+                    classList={{
+                      "cursor-grabbing": dragState.dragging,
+                      "cursor-crosshair": !dragState.dragging,
+                    }}
+                    class="absolute inset-0 select-none"
+                    onDblClick={(e) => {
+                      if (dragState.dragging) return;
+                      setDragState("originX", 0);
+                      const streamId = panStreamId();
+                      if (!streamId) return;
+                      const { bandwidthMHz, width } =
+                        state.status.panadapter[streamId];
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const x = Math.max(
+                        0,
+                        Math.min(e.clientX - rect.left, width - 1),
+                      );
+                      const mhzPerPx = bandwidthMHz / width;
+                      const freq = (
+                        state.status.panadapter[streamId].centerFrequencyMHz +
+                        (x - width / 2) * mhzPerPx
+                      ).toFixed(3);
+                      panController()?.clickTune(Number(freq));
+                    }}
+                    ref={setClickRef}
+                  />
+                  <ContextMenuPortal>
+                    <ContextMenuContent>
+                      <ContextMenuCheckboxItem
+                        checked={state.settings.showTuningGuide}
+                        onChange={(checked) => {
+                          setState("settings", "showTuningGuide", checked);
+                        }}
+                      >
+                        Show Tuning Guide
+                      </ContextMenuCheckboxItem>
+                      <ContextMenuItem
+                        onClick={() => {
+                          const { x } = pos;
+                          const streamId = panStreamId();
+                          const { bandwidthMHz, centerFrequencyMHz, width } =
+                            state.status.panadapter[streamId];
+                          const mhzPerPx = bandwidthMHz / width;
+                          const freq = (
+                            centerFrequencyMHz +
+                            (x - width / 2) * mhzPerPx
+                          ).toFixed(3);
+                          radio().requestSlice({
+                            panadapterStreamId: streamId,
+                            frequencyMHz: Number(freq),
+                          });
+                        }}
+                      >
+                        Create Slice
+                      </ContextMenuItem>
+                    </ContextMenuContent>
+                  </ContextMenuPortal>
+                </ContextMenu>
+              </div>
+              <Portal mount={sizeRef()}>
+                <div class="absolute bottom-2 left-2 grid grid-cols-2 gap-0.5 text-xs">
+                  <Tooltip>
+                    <TooltipTrigger
+                      as={Button}
+                      size="icon"
+                      variant="ghost"
+                      class="size-5"
+                      classList={{
+                        "fancy-bg-background": !pan().isBandZoomOn,
+                        "fancy-bg-primary text-primary-foreground":
+                          pan().isBandZoomOn,
+                      }}
                       onClick={() => {
-                        const { x } = pos;
-                        const streamId = panStreamId();
-                        const { bandwidthMHz, centerFrequencyMHz, width } =
-                          state.status.panadapter[streamId];
-                        const mhzPerPx = bandwidthMHz / width;
-                        const freq = (
-                          centerFrequencyMHz +
-                          (x - width / 2) * mhzPerPx
-                        ).toFixed(3);
-                        radio().requestSlice({
-                          panadapterStreamId: streamId,
-                          frequencyMHz: Number(freq),
-                        });
+                        const zoom = pan().isBandZoomOn;
+                        panController()?.setBandZoom(!zoom);
                       }}
                     >
-                      Create Slice
-                    </ContextMenuItem>
-                  </ContextMenuContent>
-                </ContextMenuPortal>
-              </ContextMenu>
-            </div>
-            <div class="absolute bottom-2 left-2 grid grid-cols-2 gap-0.5 text-xs">
-              <Tooltip>
-                <TooltipTrigger
-                  as={Button}
-                  size="icon"
-                  variant="ghost"
-                  class="size-5"
-                  classList={{
-                    "fancy-bg-background": !pan().isBandZoomOn,
-                    "fancy-bg-primary text-primary-foreground":
-                      pan().isBandZoomOn,
-                  }}
-                  onClick={() => {
-                    const zoom = pan().isBandZoomOn;
-                    panController()?.setBandZoom(!zoom);
-                  }}
-                >
-                  B
-                </TooltipTrigger>
-                <TooltipContent>Band Zoom</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger
-                  as={Button}
-                  size="icon"
-                  variant="ghost"
-                  class="size-5"
-                  classList={{
-                    "fancy-bg-background": !pan().isSegmentZoomOn,
-                    "fancy-bg-primary text-primary-foreground":
-                      pan().isSegmentZoomOn,
-                  }}
-                  onClick={() => {
-                    const zoom = pan().isSegmentZoomOn;
-                    panController()?.setSegmentZoom(!zoom);
-                  }}
-                >
-                  S
-                </TooltipTrigger>
-                <TooltipContent>Segment Zoom</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger
-                  as={Button}
-                  size="icon"
-                  variant="ghost"
-                  class="fancy-bg-background size-5"
-                  onClick={() => {
-                    const controller = panController();
-                    if (!controller) return;
-                    controller.setBandwidth(controller.bandwidthMHz * 2);
-                  }}
-                >
-                  <ArrowCollapseHorizontal />
-                </TooltipTrigger>
-                <TooltipContent>
-                  Zoom Out (from {frequencyToLabel(pan().bandwidthMHz)} to{" "}
-                  {frequencyToLabel(pan().bandwidthMHz * 2)})
-                </TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger
-                  as={Button}
-                  size="icon"
-                  variant="ghost"
-                  class="fancy-bg-background size-5"
-                  onClick={() => {
-                    const controller = panController();
-                    if (!controller) return;
-                    controller.setBandwidth(controller.bandwidthMHz / 2);
-                  }}
-                >
-                  <ArrowExpandHorizontal />
-                </TooltipTrigger>
-                <TooltipContent>
-                  Zoom In (from {frequencyToLabel(pan().bandwidthMHz)} to{" "}
-                  {frequencyToLabel(pan().bandwidthMHz / 2)})
-                </TooltipContent>
-              </Tooltip>
-            </div>
+                      B
+                    </TooltipTrigger>
+                    <TooltipContent>Band Zoom</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger
+                      as={Button}
+                      size="icon"
+                      variant="ghost"
+                      class="size-5"
+                      classList={{
+                        "fancy-bg-background": !pan().isSegmentZoomOn,
+                        "fancy-bg-primary text-primary-foreground":
+                          pan().isSegmentZoomOn,
+                      }}
+                      onClick={() => {
+                        const zoom = pan().isSegmentZoomOn;
+                        panController()?.setSegmentZoom(!zoom);
+                      }}
+                    >
+                      S
+                    </TooltipTrigger>
+                    <TooltipContent>Segment Zoom</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger
+                      as={Button}
+                      size="icon"
+                      variant="ghost"
+                      class="fancy-bg-background size-5"
+                      onClick={() => {
+                        const controller = panController();
+                        if (!controller) return;
+                        controller.setBandwidth(controller.bandwidthMHz * 2);
+                      }}
+                    >
+                      <ArrowCollapseHorizontal />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      Zoom Out (from {frequencyToLabel(pan().bandwidthMHz)} to{" "}
+                      {frequencyToLabel(pan().bandwidthMHz * 2)})
+                    </TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger
+                      as={Button}
+                      size="icon"
+                      variant="ghost"
+                      class="fancy-bg-background size-5"
+                      onClick={() => {
+                        const controller = panController();
+                        if (!controller) return;
+                        controller.setBandwidth(controller.bandwidthMHz / 2);
+                      }}
+                    >
+                      <ArrowExpandHorizontal />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      Zoom In (from {frequencyToLabel(pan().bandwidthMHz)} to{" "}
+                      {frequencyToLabel(pan().bandwidthMHz / 2)})
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
 
-            <div class="absolute bottom-2 right-12 flex gap-2">
-              <Tooltip>
-                <TooltipTrigger
-                  as={Button}
-                  size="icon"
-                  variant="ghost"
-                  class="fancy-bg-background size-5"
-                  onClick={cycleTheme}
-                  aria-label="Toggle theme"
-                >
-                  <ThemeLightDark />
-                </TooltipTrigger>
-                <TooltipContent>
-                  Theme: {modePreference()} ({colorMode()} active)
-                </TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger
-                  as={Button}
-                  size="icon"
-                  variant="ghost"
-                  class="fancy-bg-background size-5"
-                  onClick={() => setFullscreen(!fullscreen())}
-                  aria-label={
-                    fullscreen() ? "Exit fullscreen" : "Enter fullscreen"
-                  }
-                >
-                  <Show when={fullscreen()} fallback={<Fullscreen />}>
-                    <FullscreenExit />
-                  </Show>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {fullscreen() ? "Exit" : "Enter"} Fullscreen
-                </TooltipContent>
-              </Tooltip>
-            </div>
-            <Show
-              when={
-                state.settings.showTuningGuide && pos.sourceType === "mouse"
-              }
-            >
-              <div
-                class="absolute inset-y-0 w-px translate-x-(--cursor-x) pointer-events-none will-change-transform backdrop-invert-100"
-                classList={{
-                  "opacity-100": pos.isInside,
-                  "opacity-0": !pos.isInside,
-                }}
-                style={{
-                  "--cursor-x": `${pos.x}px`,
-                }}
-              />
-            </Show>
-          </>
-        )}
-      </Show>
-    </div>
+                <div class="absolute bottom-2 right-12 flex gap-2">
+                  <Tooltip>
+                    <TooltipTrigger
+                      as={Button}
+                      size="icon"
+                      variant="ghost"
+                      class="fancy-bg-background size-5"
+                      onClick={cycleTheme}
+                      aria-label="Toggle theme"
+                    >
+                      <ThemeLightDark />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      Theme: {modePreference()} ({colorMode()} active)
+                    </TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger
+                      as={Button}
+                      size="icon"
+                      variant="ghost"
+                      class="fancy-bg-background size-5"
+                      onClick={() => setFullscreen(!fullscreen())}
+                      aria-label={
+                        fullscreen() ? "Exit fullscreen" : "Enter fullscreen"
+                      }
+                    >
+                      <Show when={fullscreen()} fallback={<Fullscreen />}>
+                        <FullscreenExit />
+                      </Show>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {fullscreen() ? "Exit" : "Enter"} Fullscreen
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+              </Portal>
+              <Show
+                when={
+                  state.settings.showTuningGuide && pos.sourceType === "mouse"
+                }
+              >
+                <div
+                  class="absolute inset-y-0 w-px translate-x-(--cursor-x) pointer-events-none will-change-transform backdrop-invert-100"
+                  classList={{
+                    "opacity-100": pos.isInside,
+                    "opacity-0": !pos.isInside,
+                  }}
+                  style={{
+                    "--cursor-x": `${pos.x}px`,
+                  }}
+                />
+              </Show>
+            </>
+          )}
+        </Show>
+      </div>
+      <div
+        ref={setSizeRef}
+        id="panafall-sizer"
+        class="relative size-full pointer-events-none *:pointer-events-auto"
+      />
+    </>
   );
 }

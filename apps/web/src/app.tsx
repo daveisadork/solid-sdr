@@ -13,6 +13,7 @@ import {
   ColorModeScript,
   createLocalStorageManager,
 } from "@kobalte/core/color-mode";
+import { RightSidebar } from "./components/right-sidebar";
 const Panafall = lazy(() =>
   import("./components/panafall").then((mod) => ({ default: mod.Panafall })),
 );
@@ -34,11 +35,15 @@ function App() {
           <FlexRadioProvider>
             <div class="flex flex-col relative items-stretch size-full">
               <SidebarProvider class="relative grow h-auto overflow-visible min-h-0 bg-transparent">
-                <Suspense fallback={<div>Loading...</div>}>
-                  <Panafall />
-                </Suspense>
                 <SidebarTrigger class="z-50 absolute right-2 top-4 select-none backdrop-blur-lg" />
-                <AppSidebar />
+                <SidebarProvider class="relative grow h-auto overflow-visible min-h-0 bg-transparent">
+                  <AppSidebar />
+                  <Suspense fallback={<div>Loading...</div>}>
+                    <Panafall />
+                  </Suspense>
+                  <SidebarTrigger class="z-50 absolute left-2 top-4 select-none backdrop-blur-lg" />
+                </SidebarProvider>
+                <RightSidebar />
               </SidebarProvider>
               <StatusBar />
             </div>

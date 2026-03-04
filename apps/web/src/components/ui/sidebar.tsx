@@ -289,6 +289,7 @@ const SidebarTrigger = <T extends ValidComponent = "button">(
   props: SidebarTriggerProps<T>,
 ) => {
   const [local, others] = splitProps(props as SidebarTriggerProps, [
+    "children",
     "class",
     "onClick",
   ]);
@@ -306,19 +307,28 @@ const SidebarTrigger = <T extends ValidComponent = "button">(
       }}
       {...others}
     >
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        class="size-4"
+      <Show
+        when={local.children}
+        fallback={
+          <>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="size-4"
+            >
+              <rect width="18" height="18" x="3" y="3" rx="2" />
+              <path d="M9 3v18" />
+            </svg>
+            <span class="sr-only">Toggle Sidebar</span>
+          </>
+        }
       >
-        <rect width="18" height="18" x="3" y="3" rx="2" />
-        <path d="M9 3v18" />
-      </svg>
-      <span class="sr-only">Toggle Sidebar</span>
+        {local.children}
+      </Show>
     </Button>
   );
 };

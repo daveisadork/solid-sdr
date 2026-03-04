@@ -9,9 +9,9 @@ export function AppSidebar() {
   return (
     <Sidebar
       gap={true}
-      side="right"
+      side="left"
       variant="floating"
-      class="absolute h-full bg-transparent pointer-events-none"
+      class="absolute h-full bg-transparent pointer-events-none z-50"
     >
       <SidebarContent class="h-full py-4 overflow-clip pointer-events-auto">
         <Show when={state.selectedPanadapter} keyed={true}>

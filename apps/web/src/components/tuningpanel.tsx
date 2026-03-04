@@ -178,6 +178,13 @@ export function TuningPanel(props: { streamId: string }) {
         label="Blur Effects"
       />
       <SimpleSwitch
+        checked={state.display.smoothScroll}
+        onChange={(isChecked) => {
+          setState("display", "smoothScroll", isChecked);
+        }}
+        label="Smooth Scroll"
+      />
+      <SimpleSwitch
         checked={state.settings.showTuningGuide}
         onChange={(isChecked) => {
           setState("settings", "showTuningGuide", isChecked);

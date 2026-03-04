@@ -8,7 +8,7 @@ import {
 } from "~/components/ui/accordion";
 import * as MeterPrimitive from "@kobalte/core/meter";
 
-import useFlexRadio, { Meter } from "~/context/flexradio";
+import useFlexRadio from "~/context/flexradio";
 import { SimpleSlider } from "./ui/simple-slider";
 import {
   Select,
@@ -78,11 +78,7 @@ export function RightSidebar() {
               <AccordionTrigger>Transmit</AccordionTrigger>
               <AccordionContent>
                 <div class="flex flex-col gap-3">
-                  <Show
-                    when={Object.values(state.status.meter).find(
-                      (meter) => meter.name === "FWDPWR",
-                    )}
-                  >
+                  <Show when={fwdPwrMeter()}>
                     {(acc) => {
                       const meter = acc();
                       const STOPS = [
@@ -119,7 +115,7 @@ export function RightSidebar() {
                               <div class="grow" />
                               <MeterPrimitive.ValueLabel />
                             </div>
-                            <MeterPrimitive.Track class="relative w-full h-2.5">
+                            <MeterPrimitive.Track class="relative w-full h-3">
                               <div
                                 class="absolute inset-0 border border-transparent rounded-xl bg-linear-to-r/decreasing from-blue-500 via-yellow-300 via-75% to-red-500 bg-origin-border"
                                 style={{
@@ -179,8 +175,8 @@ export function RightSidebar() {
                           value={swr()}
                           minValue={1}
                           maxValue={3}
-                          getValueLabel={({ value }) =>
-                            `${(Math.round(value * 10) / 10).toFixed(1)}:1`
+                          getValueLabel={() =>
+                            `${(Math.round(swr() * 10) / 10).toFixed(1)}:1`
                           }
                           class="flex flex-col gap-0.5 w-full items-center"
                         >
@@ -192,7 +188,7 @@ export function RightSidebar() {
                               <div class="grow" />
                               <MeterPrimitive.ValueLabel />
                             </div>
-                            <MeterPrimitive.Track class="relative w-full h-2.5">
+                            <MeterPrimitive.Track class="relative w-full h-3">
                               <div
                                 class="absolute inset-0 border border-transparent rounded-xl bg-linear-to-r/decreasing from-blue-500 via-yellow-300 via-75% to-red-500 bg-origin-border"
                                 style={{
@@ -318,31 +314,15 @@ export function RightSidebar() {
                     }}
                     label="Tune"
                   />
-
-                  <SegmentedControl
-                    value={state.status.radio.tuneMode}
-                    onChange={(value: "single_tone" | "two_tone") => {
-                      console.log(value);
-                      if (!value) return;
-                      radio()?.setTuneMode(value);
-                    }}
-                  >
-                    <SegmentedControlLabel>Tune Mode</SegmentedControlLabel>
-                    <SegmentedControlGroup>
-                      <SegmentedControlIndicator />
-                      <SegmentedControlItemsList>
-                        <For each={["single_tone", "two_tone"]}>
-                          {(mode) => (
-                            <SegmentedControlItem value={mode}>
-                              <SegmentedControlItemLabel class="capitalize">
-                                {mode.replaceAll("_", " ")}
-                              </SegmentedControlItemLabel>
-                            </SegmentedControlItem>
-                          )}
-                        </For>
-                      </SegmentedControlItemsList>
-                    </SegmentedControlGroup>
-                  </SegmentedControl>
+                  {/* <SimpleSwitch */}
+                  {/*   checked={state.status.radio.tuneMode === "two_tone"} */}
+                  {/*   onChange={(isChecked) => { */}
+                  {/*     radio()?.setTuneMode( */}
+                  {/*       isChecked ? "two_tone" : "single_tone", */}
+                  {/*     ); */}
+                  {/*   }} */}
+                  {/*   label="Two-Tone Tune" */}
+                  {/* /> */}
                   <div class="flex flex-col">
                     <SimpleSwitch
                       checked={
@@ -383,7 +363,7 @@ export function RightSidebar() {
                     onChange={(isChecked) => {
                       radio()?.apd().setEnabled(isChecked);
                     }}
-                    label={`APD (${state.status.apd.equalizerActive ? "Active" : state.status.apd.equalizerCalibrating ? "Calibrating" : state.status.apd.configurable ? "Available" : "Unavailable"})`}
+                    label={`APD ${state.status.apd.enabled && !state.status.apd.equalizerActive ? "(Calibrating)" : ""}`}
                     tooltip="Adaptive Pre-Distortion"
                   />
                 </div>

@@ -62,7 +62,7 @@ const SelectContent = <T extends ValidComponent = "div">(
     <SelectPrimitive.Portal>
       <SelectPrimitive.Content
         class={cn(
-          "relative z-50 min-w-32 overflow-auto rounded-md border bg-popover text-popover-foreground shadow-md animate-in fade-in-80 max-h-[var(--kb-popper-content-available-height)]",
+          "relative z-50 min-w-32 overflow-auto rounded-md border fancy-bg-popover text-popover-foreground shadow-md animate-in fade-in-80 max-h-(--kb-popper-content-available-height)",
           local.class,
         )}
         {...others}
@@ -89,7 +89,7 @@ const SelectItem = <T extends ValidComponent = "li">(
   return (
     <SelectPrimitive.Item
       class={cn(
-        "relative mt-0 flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-2 pr-8 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+        "relative mt-0 flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-2 pr-8 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50",
         local.class,
       )}
       {...others}

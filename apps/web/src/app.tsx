@@ -17,6 +17,8 @@ import { RightSidebar } from "./components/right-sidebar";
 const Panafall = lazy(() =>
   import("./components/panafall").then((mod) => ({ default: mod.Panafall })),
 );
+import BaselineDisplaySettings from "~icons/ic/baseline-display-settings";
+import BaselineViewSidebar from "~icons/ic/baseline-view-sidebar";
 
 function App() {
   const storageManager = createLocalStorageManager("vite-ui-theme");
@@ -35,15 +37,22 @@ function App() {
           <FlexRadioProvider>
             <div class="flex flex-col relative items-stretch size-full">
               <SidebarProvider class="relative grow h-auto overflow-visible min-h-0 bg-transparent">
-                <SidebarTrigger class="z-50 absolute right-2 top-4 select-none backdrop-blur-lg" />
-                <SidebarProvider class="relative grow h-auto overflow-visible min-h-0 bg-transparent">
+                <SidebarProvider
+                  class="relative grow h-auto overflow-visible min-h-0 bg-transparent"
+                  defaultOpen={false}
+                >
                   <AppSidebar />
+                  <SidebarTrigger class="z-50 absolute left-2 top-4 select-none backdrop-blur-lg">
+                    <BaselineDisplaySettings />
+                  </SidebarTrigger>
                   <Suspense fallback={<div>Loading...</div>}>
                     <Panafall />
                   </Suspense>
-                  <SidebarTrigger class="z-50 absolute left-2 top-4 select-none backdrop-blur-lg" />
                 </SidebarProvider>
                 <RightSidebar />
+                <SidebarTrigger class="z-50 absolute right-2 top-4 select-none backdrop-blur-lg">
+                  <BaselineViewSidebar />
+                </SidebarTrigger>
               </SidebarProvider>
               <StatusBar />
             </div>

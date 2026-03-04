@@ -142,7 +142,7 @@ export const LevelMeter = <T extends ValidComponent = "div">(
             "relative flex gap-1 w-full items-center select-none cursor-default",
             local.class,
           )}
-          value={scaleMeterValue()(meter.value)}
+          value={scaleMeterValue()(meter.value ?? -133)}
           minValue={-133} // This would actually be 6dB below S0
           // The official app's signal meter is non-linear.
           // The actual range is from -133 dBm (6 dB below S0) to -13 dBm (S9 + 60 dB),

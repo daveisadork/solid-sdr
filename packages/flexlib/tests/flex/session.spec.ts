@@ -417,6 +417,9 @@ describe("FlexClient", () => {
     channel.emit(makeStatus(gpsStatus));
     channel.emit(makeStatus(radioStatus));
     channel.emit(makeStatus(atuStatus));
+    channel.emit(
+      makeStatus("S4E48881B|transmit mic_selection=MIC mic_level=40"),
+    );
 
     const radioSnapshot = session.getRadio();
     expect(radioSnapshot?.gpsLatitude).toBeCloseTo(38.433731667, 9);
@@ -464,6 +467,24 @@ describe("FlexClient", () => {
     expect(radio.atuMemoriesEnabled).toBe(true);
     expect(radio.atuUsingMemory).toBe(true);
     expect(radio.atuTuneStatus).toBe("TUNE_SUCCESSFUL");
+    expect(radio.micSelection).toBe("MIC");
+
+    channel.prepareResponse({ message: "MIC,BAL,LINE,ACC,PC" });
+    await radio.refreshMicList();
+    expect(channel.commands.at(-1)?.command).toBe("mic list");
+    expect(radio.micInputList).toEqual(["MIC", "BAL", "LINE", "ACC", "PC"]);
+
+    await radio.setMicSelection("PC");
+    expect(channel.commands.at(-1)?.command).toBe("mic input PC");
+    expect(radio.micSelection).toBe("PC");
+
+    await radio.setMicSelection("line");
+    expect(channel.commands.at(-1)?.command).toBe("mic input LINE");
+    expect(radio.micSelection).toBe("LINE");
+
+    await expect(radio.setMicSelection("   ")).rejects.toThrow(
+      "Mic selection cannot be empty",
+    );
 
     await radio.setNickname("New Nick!");
     expect(channel.commands.at(-1)?.command).toBe("radio name New Nick");

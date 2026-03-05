@@ -1,13 +1,6 @@
 import useFlexRadio from "~/context/flexradio";
 import { Resizable, ResizablePanel } from "./ui/resizable";
-import {
-  batch,
-  createEffect,
-  createMemo,
-  createSignal,
-  Show,
-  onCleanup,
-} from "solid-js";
+import { batch, createEffect, createSignal, Show, onCleanup } from "solid-js";
 import { Panadapter } from "./panadapter";
 import { Waterfall } from "./waterfall";
 import { Scale } from "./scale";
@@ -119,6 +112,51 @@ export function Panafall() {
     }
     _setPanCenterDebounced.clear();
     return _setPanCenter(newCenter);
+  };
+
+  const fitPanadapterToPanafallBounds = () => {
+    const pan = panadapter();
+    const boundsWidth = panafallBounds.width;
+    const boundsLeft = panafallBounds.left;
+
+    const fullWidth = pan.width;
+    const currentCenter = pan.centerFrequencyMHz;
+    const currentBandwidth = pan.bandwidthMHz;
+
+    const targetBandwidth = (currentBandwidth * fullWidth) / boundsWidth;
+    const targetMhzPerPixel = targetBandwidth / fullWidth;
+    const boundsCenterX = boundsLeft + boundsWidth / 2;
+    const targetCenter =
+      currentCenter - (boundsCenterX - fullWidth / 2) * targetMhzPerPixel;
+
+    panadapterController().update({
+      centerFrequencyMHz: targetCenter,
+      bandwidthMHz: targetBandwidth,
+    });
+  };
+
+  const expandPanafallBoundsToFullPanadapter = () => {
+    const pan = panadapter();
+    const boundsWidth = panafallBounds.width;
+    const boundsLeft = panafallBounds.left;
+
+    const fullWidth = pan.width;
+    const currentCenter = pan.centerFrequencyMHz;
+    const currentBandwidth = pan.bandwidthMHz;
+    const mhzPerPixel = currentBandwidth / fullWidth;
+    const boundsRight = boundsLeft + boundsWidth;
+    const boundedLeftFrequency =
+      currentCenter + (boundsLeft - fullWidth / 2) * mhzPerPixel;
+    const boundedRightFrequency =
+      currentCenter + (boundsRight - fullWidth / 2) * mhzPerPixel;
+
+    const targetBandwidth = boundedRightFrequency - boundedLeftFrequency;
+    const targetCenter = (boundedLeftFrequency + boundedRightFrequency) / 2;
+
+    panadapterController().update({
+      centerFrequencyMHz: targetCenter,
+      bandwidthMHz: targetBandwidth,
+    });
   };
 
   const finalizeDrag = (event: PointerEvent) => {
@@ -259,17 +297,6 @@ export function Panafall() {
                     onDblClick={(e: PointerEvent) => {
                       if (dragState.dragging) return;
                       setDragState("originX", 0);
-                      // const { bandwidthMHz, centerFrequencyMHz, width } = pan();
-                      // const rect = clickRef().getBoundingClientRect();
-                      // const x = Math.max(
-                      //   0,
-                      //   Math.min(e.clientX - rect.left, width - 1),
-                      // );
-                      // const mhzPerPx = bandwidthMHz / width;
-                      // const freq = (
-                      //   centerFrequencyMHz +
-                      //   (x - width / 2) * mhzPerPx
-                      // ).toFixed(3);
                       const freq = roundToDecimals(xToFreq(e.clientX), 3);
                       panadapterController()?.clickTune(freq);
                     }}
@@ -352,6 +379,10 @@ export function Panafall() {
                           pan().bandwidthMHz * 2,
                         )
                       }
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        fitPanadapterToPanafallBounds();
+                      }}
                     >
                       <ArrowCollapseHorizontal />
                     </TooltipTrigger>
@@ -371,6 +402,10 @@ export function Panafall() {
                           pan().bandwidthMHz / 2,
                         )
                       }
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        expandPanafallBoundsToFullPanadapter();
+                      }}
                     >
                       <ArrowExpandHorizontal />
                     </TooltipTrigger>

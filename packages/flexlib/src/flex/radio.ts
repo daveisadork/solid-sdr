@@ -90,6 +90,7 @@ export interface RadioController {
   get txCount(): number;
   get rxAntennaList(): readonly string[];
   get micInputList(): readonly string[];
+  get micSelection(): string | undefined;
   get profileMicList(): readonly string[];
   get profileTxList(): readonly string[];
   get profileDisplayList(): readonly string[];
@@ -230,6 +231,7 @@ export interface RadioController {
   setTxFilterLowHz(lowHz: number): Promise<void>;
   setTxFilterHighHz(highHz: number): Promise<void>;
   setAmCarrierLevel(level: number): Promise<void>;
+  setMicSelection(selection: string): Promise<void>;
   setMicLevel(level: number): Promise<void>;
   setMicBoost(enabled: boolean): Promise<void>;
   setHwAlcEnabled(enabled: boolean): Promise<void>;
@@ -404,6 +406,10 @@ export class RadioControllerImpl implements RadioController {
 
   get micInputList(): readonly string[] {
     return this.current()?.micInputList ?? EMPTY_STRING_LIST;
+  }
+
+  get micSelection(): string | undefined {
+    return this.current()?.micSelection;
   }
 
   get profileMicList(): readonly string[] {
@@ -1148,6 +1154,17 @@ export class RadioControllerImpl implements RadioController {
       100,
       "AM carrier level",
     );
+  }
+
+  async setMicSelection(selection: string): Promise<void> {
+    const trimmed = selection.trim();
+    if (!trimmed) {
+      throw new FlexError("Mic selection cannot be empty");
+    }
+    const normalized = trimmed.toUpperCase();
+    await this.commandAndPatch(`mic input ${normalized}`, {
+      mic_selection: normalized,
+    }, { source: "transmit" });
   }
 
   async setMicLevel(level: number): Promise<void> {

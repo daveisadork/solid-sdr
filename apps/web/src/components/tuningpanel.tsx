@@ -1,4 +1,8 @@
-import useFlexRadio, { Meter } from "~/context/flexradio";
+import useFlexRadio, {
+  Meter,
+  Panadapter,
+  Waterfall,
+} from "~/context/flexradio";
 import { createEffect, createSignal, For } from "solid-js";
 import { createStore } from "solid-js/store";
 import {
@@ -42,6 +46,8 @@ import * as MeterPrimitive from "@kobalte/core/meter";
 import { ColorField, ColorFieldInput, ColorFieldLabel } from "./ui/color-field";
 import { ColorSwatch } from "@kobalte/core/color-swatch";
 import { parseColor } from "@kobalte/core/colors";
+import { usePanafall } from "~/context/panafall";
+import { PanadapterController, WaterfallController } from "@repo/flexlib";
 
 const BANDS: { id: string; label: string }[] = [
   { id: "160", label: "160m" },
@@ -110,23 +116,26 @@ function createGradientStyle(
     .join(", ")})`;
 }
 
-export function TuningPanel(props: { streamId: string }) {
-  const streamId = () => props.streamId;
+export function TuningPanel(props: {
+  panadapter: Panadapter;
+  waterfall: Waterfall;
+  panadapterController: PanadapterController;
+  waterfallController: WaterfallController;
+}) {
   const { radio, state, setState } = useFlexRadio();
-  const [pan] = createStore(state.status.panadapter[streamId()]);
-  const panController = () => radio()?.panadapter(streamId());
-  const waterfallId = () => pan.waterfallStreamId;
-  const wfController = () => radio()?.waterfall(waterfallId());
-  const [waterfall] = createStore(state.status.waterfall[waterfallId()]);
   const [gradients] = createStore(state.palette.gradients);
   const [rawFrequency, setRawFrequency] = createSignal(
-    panController().centerFrequencyMHz,
+    props.panadapterController.centerFrequencyMHz,
   );
   const [rawBandwidth, setRawBandwidth] = createSignal(
-    panController().bandwidthMHz,
+    props.panadapterController.bandwidthMHz,
   );
-  const [rawHighDbm, setRawHighDbm] = createSignal(panController().highDbm);
-  const [rawLowDbm, setRawLowDbm] = createSignal(panController().lowDbm);
+  const [rawHighDbm, setRawHighDbm] = createSignal(
+    props.panadapterController.highDbm,
+  );
+  const [rawLowDbm, setRawLowDbm] = createSignal(
+    props.panadapterController.lowDbm,
+  );
   const [rawPanBackgroundColor, setRawPanBackgroundColor] = createSignal(
     state.display.panBackgroundColor,
   );
@@ -270,10 +279,10 @@ export function TuningPanel(props: { streamId: string }) {
       </SegmentedControl>
       <Select
         class="flex flex-col gap-2 select-none"
-        value={waterfall.gradientIndex}
+        value={props.waterfall.gradientIndex}
         onChange={(value: number) => {
-          if (value !== waterfall.gradientIndex)
-            wfController().setGradientIndex(value);
+          if (value !== props.waterfall.gradientIndex)
+            props.waterfallController.setGradientIndex(value);
         }}
         options={gradients.map((_, index) => index)}
         itemComponent={(props) => {
@@ -303,14 +312,14 @@ export function TuningPanel(props: { streamId: string }) {
       </Select>
       <Select
         class="flex flex-col gap-2 select-none"
-        value={pan.rxAntenna}
+        value={props.panadapter.rxAntenna}
         onChange={(value: string) => {
           if (!value) return;
-          if (value !== pan.rxAntenna) {
-            panController()?.setRxAntenna(value);
+          if (value !== props.panadapter.rxAntenna) {
+            props.panadapterController.setRxAntenna(value);
           }
         }}
-        options={Array.from(pan.rxAntennas)}
+        options={Array.from(props.panadapter.rxAntennas)}
         itemComponent={(props) => (
           <SelectItem item={props.item}>{props.item.rawValue}</SelectItem>
         )}
@@ -323,10 +332,10 @@ export function TuningPanel(props: { streamId: string }) {
       </Select>
       <Select
         class="flex flex-col gap-2 select-none"
-        value={pan.band}
+        value={props.panadapter.band}
         onChange={(value: string) => {
-          if (!value || value === pan.band) return;
-          panController()?.setBand(value);
+          if (!value || value === props.panadapter.band) return;
+          props.panadapterController.setBand(value);
         }}
         options={BANDS.map((b) => b.id)}
         itemComponent={(props) => (
@@ -347,13 +356,13 @@ export function TuningPanel(props: { streamId: string }) {
       </Select>
       <NumberField
         class="flex flex-col gap-2 select-none"
-        rawValue={pan.centerFrequencyMHz}
-        step={pan.bandwidthMHz / 10}
-        largeStep={pan.bandwidthMHz}
+        rawValue={props.panadapter.centerFrequencyMHz}
+        step={props.panadapter.bandwidthMHz / 10}
+        largeStep={props.panadapter.bandwidthMHz}
         onFocusOut={() => {
           const value = rawFrequency();
-          if (value !== pan.centerFrequencyMHz) {
-            panController()?.setCenterFrequency(value);
+          if (value !== props.panadapter.centerFrequencyMHz) {
+            props.panadapterController.setCenterFrequency(value);
           }
         }}
         onRawValueChange={setRawFrequency}
@@ -367,15 +376,15 @@ export function TuningPanel(props: { streamId: string }) {
       </NumberField>
       <NumberField
         class="flex flex-col gap-2 select-none"
-        rawValue={pan.bandwidthMHz}
-        step={pan.bandwidthMHz / 2}
-        largeStep={pan.bandwidthMHz}
-        minValue={pan.minBandwidthMHz}
-        maxValue={pan.maxBandwidthMHz}
+        rawValue={props.panadapter.bandwidthMHz}
+        step={props.panadapter.bandwidthMHz / 2}
+        largeStep={props.panadapter.bandwidthMHz}
+        minValue={props.panadapter.minBandwidthMHz}
+        maxValue={props.panadapter.maxBandwidthMHz}
         onFocusOut={() => {
           const value = rawBandwidth();
-          if (value !== pan.bandwidthMHz) {
-            panController()?.setBandwidth(value);
+          if (value !== props.panadapter.bandwidthMHz) {
+            props.panadapterController.setBandwidth(value);
           }
         }}
         onRawValueChange={setRawBandwidth}
@@ -389,11 +398,11 @@ export function TuningPanel(props: { streamId: string }) {
       </NumberField>
       <NumberField
         class="flex flex-col gap-2 select-none"
-        rawValue={pan.highDbm}
+        rawValue={props.panadapter.highDbm}
         onFocusOut={() => {
           const high = rawHighDbm();
-          if (high !== pan.highDbm) {
-            panController()?.setDbmRange({ high, low: rawLowDbm() });
+          if (high !== props.panadapter.highDbm) {
+            props.panadapterController.setDbmRange({ high, low: rawLowDbm() });
           }
         }}
         onRawValueChange={setRawHighDbm}
@@ -407,11 +416,11 @@ export function TuningPanel(props: { streamId: string }) {
       </NumberField>
       <NumberField
         class="flex flex-col gap-2 select-none"
-        rawValue={pan.lowDbm}
+        rawValue={props.panadapter.lowDbm}
         onFocusOut={() => {
           const low = rawLowDbm();
-          if (low !== pan.lowDbm) {
-            panController()?.setDbmRange({ high: rawHighDbm(), low });
+          if (low !== props.panadapter.lowDbm) {
+            props.panadapterController.setDbmRange({ high: rawHighDbm(), low });
           }
         }}
         onRawValueChange={setRawLowDbm}
@@ -431,46 +440,46 @@ export function TuningPanel(props: { streamId: string }) {
         label="Show TX in Waterfall"
       />
       <SimpleSwitch
-        checked={pan.isBandZoomOn}
+        checked={props.panadapter.isBandZoomOn}
         onChange={(isChecked) => {
-          panController()?.setBandZoom(isChecked);
+          props.panadapterController.setBandZoom(isChecked);
         }}
         label="Band Zoom"
       />
       <SimpleSwitch
-        checked={pan.isSegmentZoomOn}
+        checked={props.panadapter.isSegmentZoomOn}
         onChange={(isChecked) => {
-          panController()?.setSegmentZoom(isChecked);
+          props.panadapterController.setSegmentZoom(isChecked);
         }}
         label="Segment Zoom"
       />
       <SimpleSwitch
-        checked={waterfall.autoBlackLevelEnabled}
+        checked={props.waterfall.autoBlackLevelEnabled}
         onChange={(isChecked) => {
-          wfController()?.setAutoBlackLevelEnabled(isChecked);
+          props.waterfallController.setAutoBlackLevelEnabled(isChecked);
         }}
         label="Auto Black Level"
       />
       <SimpleSwitch
-        checked={pan.weightedAverage}
+        checked={props.panadapter.weightedAverage}
         onChange={(isChecked) => {
-          panController()?.setWeightedAverage(isChecked);
+          props.panadapterController.setWeightedAverage(isChecked);
         }}
         label="Weighted Average"
       />
       <SliderToggle
         label="Noise Floor"
-        switchChecked={pan.noiseFloorPositionEnabled}
+        switchChecked={props.panadapter.noiseFloorPositionEnabled}
         onSwitchChange={(isChecked) => {
-          panController()?.setNoiseFloorPositionEnabled(isChecked);
+          props.panadapterController.setNoiseFloorPositionEnabled(isChecked);
         }}
         minValue={0}
         maxValue={100}
-        value={[100 - pan.noiseFloorPosition]}
+        value={[100 - props.panadapter.noiseFloorPosition]}
         onChange={([value]) => {
           const position = 100 - value;
-          if (position === pan.noiseFloorPosition) return;
-          panController()?.setNoiseFloorPosition(position);
+          if (position === props.panadapter.noiseFloorPosition) return;
+          props.panadapterController.setNoiseFloorPosition(position);
         }}
         getValueLabel={(params) => `${params.values[0]}%`}
       />
@@ -478,10 +487,10 @@ export function TuningPanel(props: { streamId: string }) {
       <SimpleSlider
         minValue={0}
         maxValue={100}
-        value={[pan.average]}
+        value={[props.panadapter.average]}
         onChange={([value]) => {
-          if (value === pan.average) return;
-          panController()?.setAverage(Math.floor(value));
+          if (value === props.panadapter.average) return;
+          props.panadapterController.setAverage(Math.floor(value));
         }}
         getValueLabel={(params) => params.values[0].toString()}
         label="Average"
@@ -489,10 +498,10 @@ export function TuningPanel(props: { streamId: string }) {
       <SimpleSlider
         minValue={1}
         maxValue={60}
-        value={[pan.fps]}
+        value={[props.panadapter.fps]}
         onChange={([value]) => {
-          if (value === pan.fps) return;
-          panController()?.setFps(value);
+          if (value === props.panadapter.fps) return;
+          props.panadapterController.setFps(value);
         }}
         getValueLabel={(params) => params.values[0].toString()}
         label="FPS"
@@ -500,22 +509,22 @@ export function TuningPanel(props: { streamId: string }) {
       <SimpleSlider
         minValue={0}
         maxValue={100}
-        value={[100 - waterfall.lineSpeed]}
+        value={[100 - props.waterfall.lineSpeed]}
         onChange={([value]) => {
           const speed = 100 - value;
-          if (speed === waterfall.lineSpeed) return;
-          wfController()?.setLineSpeed(speed);
+          if (speed === props.waterfall.lineSpeed) return;
+          props.waterfallController.setLineSpeed(speed);
         }}
-        getValueLabel={() => `${waterfall.lineDurationMs} ms`}
+        getValueLabel={() => `${props.waterfall.lineDurationMs} ms`}
         label="Line Duration"
       />
       <SimpleSlider
         minValue={0}
         maxValue={100}
-        value={[waterfall.colorGain]}
+        value={[props.waterfall.colorGain]}
         onChange={([value]) => {
-          if (value === waterfall.colorGain) return;
-          wfController()?.setColorGain(Math.floor(value));
+          if (value === props.waterfall.colorGain) return;
+          props.waterfallController.setColorGain(Math.floor(value));
         }}
         getValueLabel={(params) => {
           const gain =
@@ -527,11 +536,11 @@ export function TuningPanel(props: { streamId: string }) {
       <SimpleSlider
         minValue={0}
         maxValue={100}
-        disabled={waterfall.autoBlackLevelEnabled}
-        value={[waterfall.blackLevel]}
+        disabled={props.waterfall.autoBlackLevelEnabled}
+        value={[props.waterfall.blackLevel]}
         onChange={([value]) => {
-          if (value === waterfall.blackLevel) return;
-          wfController()?.setBlackLevel(Math.floor(value));
+          if (value === props.waterfall.blackLevel) return;
+          props.waterfallController.setBlackLevel(Math.floor(value));
         }}
         getValueLabel={(params) => params.values[0].toString()}
         label="Black Level"

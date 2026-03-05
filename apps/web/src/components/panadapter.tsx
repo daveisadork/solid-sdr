@@ -6,34 +6,35 @@ import {
   onCleanup,
   Show,
 } from "solid-js";
-import useFlexRadio, { type UdpPacketEvent } from "~/context/flexradio";
+import useFlexRadio, {
+  Panadapter as PanadapterState,
+  Waterfall,
+  type UdpPacketEvent,
+} from "~/context/flexradio";
 import { DetachedSlices, Slice } from "./slice";
 import { debounce } from "@solid-primitives/scheduled";
 import { createElementSize } from "@solid-primitives/resize-observer";
 import { Portal } from "solid-js/web";
-import { createKeyedSubstore } from "~/lib/keyed-substore";
 import { LinearScale } from "./linear-scale";
 import type { LinearScaleTick } from "./linear-scale";
 import { PanadapterGrid } from "./panadapter-grid";
 import { buildFrequencyGrid } from "./scale";
 import type { FrequencyGridTick } from "./scale";
 import { parseColor } from "@kobalte/core/colors";
+import { PanadapterController } from "@repo/flexlib";
+import { usePanafall } from "~/context/panafall";
 
-export function Panadapter(props: { streamId: string }) {
-  const streamId = () => props.streamId;
-  const { radio, state, setState } = useFlexRadio();
-  const [pan] = createKeyedSubstore(
-    () => state.status.panadapter,
-    streamId,
-    setState,
-    ["status", "pan"],
-  );
+export function Panadapter(props: {
+  pan: PanadapterState;
+  waterfall: Waterfall;
+  controller: PanadapterController;
+}) {
+  const { state } = useFlexRadio();
 
   const [canvasRef, setCanvasRef] = createSignal<HTMLCanvasElement>();
   const [wrapper, setWrapper] = createSignal<HTMLDivElement>();
   const wrapperSize = createElementSize(wrapper);
   const [updating, setUpdating] = createSignal(false);
-  const [slices, setSlices] = createSignal([] as string[]);
   const [palette, setPalette] = createSignal(new Uint8ClampedArray(0x400));
   const [paletteCss, setPaletteCss] = createSignal<string[]>([]);
   const [offscreenCanvasRef, setOffscreenCanvasRef] =
@@ -45,10 +46,8 @@ export function Panadapter(props: { streamId: string }) {
 
   const frequencyTicks = createMemo<FrequencyGridTick[]>(() => {
     const width = wrapperSize.width;
-    if (!width) return [];
-    const currentPan = pan();
-    if (!currentPan) return [];
-    const { centerFrequencyMHz, bandwidthMHz } = currentPan;
+    if (!(width && props.pan)) return [];
+    const { centerFrequencyMHz, bandwidthMHz } = props.pan;
     return buildFrequencyGrid({
       centerFrequencyMHz,
       bandwidthMHz,
@@ -57,15 +56,8 @@ export function Panadapter(props: { streamId: string }) {
     });
   });
 
-  createEffect(() => {
-    setSlices(
-      Object.keys(state.status.slice).filter(
-        (key) =>
-          state.status.slice[key].panadapterStreamId === streamId() &&
-          state.status.slice[key].isInUse,
-      ),
-    );
-  });
+  const { slices } = usePanafall();
+
   createEffect(() => {
     const canvas = canvasRef();
     if (!canvas) return;
@@ -74,10 +66,8 @@ export function Panadapter(props: { streamId: string }) {
 
   createEffect(() => {
     const { gradients } = state.palette;
-    const { gradientIndex: gradient_index } =
-      state.status.waterfall[pan().waterfallStreamId];
-    const { stops } = gradients[gradient_index];
-    const offscreen = new OffscreenCanvas(1, pan().height);
+    const { stops } = gradients[props.waterfall.gradientIndex];
+    const offscreen = new OffscreenCanvas(1, props.pan.height);
     const ctx = offscreen.getContext("2d");
     if (!ctx) return;
     const gradient = ctx.createLinearGradient(
@@ -112,14 +102,12 @@ export function Panadapter(props: { streamId: string }) {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     const { gradients } = state.palette;
-    const waterfall = state.status.waterfall[pan().waterfallStreamId];
-    if (!waterfall) return;
-    const gradient = ctx.createLinearGradient(0, pan().height, 0, 0);
+    const gradient = ctx.createLinearGradient(0, props.pan.height, 0, 0);
     if (state.display.gradientStyle === "classic") {
       gradient.addColorStop(0, "rgba(255, 255, 255, 0.2)");
       gradient.addColorStop(1, "rgba(255, 255, 255, 1)");
     } else {
-      const { stops } = gradients[waterfall.gradientIndex];
+      const { stops } = gradients[props.waterfall.gradientIndex];
       stops.forEach(({ offset, color }) => {
         gradient.addColorStop(offset, color);
       });
@@ -128,9 +116,8 @@ export function Panadapter(props: { streamId: string }) {
   });
 
   const resizeCallback = debounce(async (width: number, height: number) => {
-    const controller = radio()?.panadapter(streamId());
     setUpdating(true);
-    await controller?.setSize({ width, height });
+    await props.controller.setSize({ width, height });
     setUpdating(false);
   }, 250);
 
@@ -336,7 +323,7 @@ export function Panadapter(props: { streamId: string }) {
   createEffect(() => {
     const handler = onPanadapter();
     if (!handler) return;
-    const subscription = radio()?.panadapter(streamId())?.on("data", handler);
+    const subscription = props.controller.on("data", handler);
     if (!subscription) return;
     onCleanup(subscription.unsubscribe);
   });
@@ -380,8 +367,8 @@ export function Panadapter(props: { streamId: string }) {
         <div class="absolute inset-y-0 right-0 w-10">
           <div class="relative h-full px-1.5 flex items-center">
             <LinearScale
-              min={pan().lowDbm}
-              max={pan().highDbm}
+              min={props.pan.lowDbm}
+              max={props.pan.highDbm}
               class="h-full"
               tickClass="pr-0.5"
               labelClass="text-[10px] font-semibold scale-text-shadow"
@@ -396,16 +383,16 @@ export function Panadapter(props: { streamId: string }) {
           </div>
         </div>
         <div class="flex pointer-events-none absolute top-4 right-12 text-fg text-xl font-bold opacity-50 space-x-2">
-          <div>{pan().preampSetting}</div>
-          <Show when={pan().wideEnabled}>
+          <div>{props.pan.preampSetting}</div>
+          <Show when={props.pan.wideEnabled}>
             <div>WIDE</div>
           </Show>
         </div>
-        <DetachedSlices streamId={streamId()} />
+        <DetachedSlices pan={props.pan} slices={slices()} />
       </div>
       <div class="absolute inset-0">
         <For each={slices()}>
-          {(sliceIndex) => <Slice sliceIndex={sliceIndex} />}
+          {(slice) => <Slice slice={slice} pan={props.pan} />}
         </For>
       </div>
     </div>

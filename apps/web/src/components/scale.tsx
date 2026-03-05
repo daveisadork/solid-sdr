@@ -10,7 +10,7 @@ import {
   splitProps,
   ValidComponent,
 } from "solid-js";
-import useFlexRadio from "~/context/flexradio";
+import { type Panadapter } from "~/context/flexradio";
 import { cn } from "~/lib/utils";
 
 const stepSizes = [
@@ -98,7 +98,7 @@ export function buildFrequencyGrid(params: {
 type ResizableHandleProps<T extends ValidComponent = "button"> =
   HandleProps<T> & {
     class?: string;
-    streamId: string;
+    pan: Panadapter;
     onGridChange?: (ticks: FrequencyGridTick[]) => void;
   };
 
@@ -107,22 +107,21 @@ export const Scale = <T extends ValidComponent = "button">(
 ) => {
   const [local, rest] = splitProps(props as ResizableHandleProps, [
     "class",
-    "streamId",
+    "pan",
     "onGridChange",
   ]);
-  const { state } = useFlexRadio();
   const [gridFreqs, setGridFreqs] = createSignal<FrequencyGridTick[]>([]);
   const [ref, setRef] = createSignal<HTMLDivElement>();
   const size = createElementSize(ref);
 
   createEffect(() => {
-    if (!size.width) return;
-    const { centerFrequencyMHz, bandwidthMHz } =
-      state.status.panadapter[local.streamId];
+    const { width } = size;
+    if (!width) return;
+    const { centerFrequencyMHz, bandwidthMHz } = local.pan;
     const ticks = buildFrequencyGrid({
-      centerFrequencyMHz,
       bandwidthMHz,
-      width: size.width,
+      centerFrequencyMHz,
+      width,
     });
     setGridFreqs(ticks);
   });
@@ -130,6 +129,7 @@ export const Scale = <T extends ValidComponent = "button">(
   createEffect(() => {
     local.onGridChange?.(gridFreqs());
   });
+
   return (
     <ResizablePrimitive.Handle
       class={cn(
@@ -146,7 +146,6 @@ export const Scale = <T extends ValidComponent = "button">(
             style={{ "--offset": `${offset}px` }}
           >
             {label}
-            {/* <span class="relative right-1/2">{label}</span> */}
           </div>
         )}
       </For>

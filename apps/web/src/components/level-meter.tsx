@@ -39,7 +39,7 @@ type LevelMeterProps<T extends ValidComponent = "div"> =
     compressionThreshold?: number | undefined;
     compressionFactor?: number | undefined;
     hideValueLabel?: boolean | undefined;
-    sliceIndex?: string | undefined;
+    meter: Meter;
   };
 
 export const LevelMeter = <T extends ValidComponent = "div">(
@@ -47,36 +47,16 @@ export const LevelMeter = <T extends ValidComponent = "div">(
 ) => {
   const [local, rest] = splitProps(props, [
     "class",
-    "sliceIndex",
+    "meter",
     "compressionThreshold",
     "compressionFactor",
     "hideValueLabel",
   ]);
   const { state, setState } = useFlexRadio();
-  const [meterId, setMeterId] = createSignal<string>();
-
-  createEffect(() => {
-    const sliceIndex = Number(local.sliceIndex);
-    if (state.status.slice[meterId()!]) {
-      return;
-    }
-    for (const meterId in state.status.meter) {
-      const meter: Meter = state.status.meter[meterId];
-      if (
-        meter &&
-        meter.source === "SLC" &&
-        meter.sourceIndex === sliceIndex &&
-        meter.name === "LEVEL"
-      ) {
-        setMeterId(meterId);
-        return;
-      }
-    }
-    setMeterId(undefined);
-  });
 
   const scaleMeterValue = createMemo(() => {
-    const { compressionFactor, compressionThreshold } = local;
+    const compressionFactor = local.compressionFactor;
+    const compressionThreshold = local.compressionThreshold;
     if (
       compressionFactor === undefined ||
       compressionFactor === 1 ||
@@ -92,7 +72,8 @@ export const LevelMeter = <T extends ValidComponent = "div">(
   });
 
   const unscaleMeterValue = createMemo(() => {
-    const { compressionFactor, compressionThreshold } = local;
+    const compressionFactor = local.compressionFactor;
+    const compressionThreshold = local.compressionThreshold;
     if (
       compressionFactor === undefined ||
       compressionFactor === 1 ||
@@ -135,72 +116,68 @@ export const LevelMeter = <T extends ValidComponent = "div">(
   );
 
   return (
-    <Show when={state.status.meter[meterId()]} keyed>
-      {(meter) => (
-        <MeterPrimitive.Root
-          class={cn(
-            "relative flex gap-1 w-full items-center select-none cursor-default",
-            local.class,
-          )}
-          value={scaleMeterValue()(meter.value ?? -133)}
-          minValue={-133} // This would actually be 6dB below S0
-          // The official app's signal meter is non-linear.
-          // The actual range is from -133 dBm (6 dB below S0) to -13 dBm (S9 + 60 dB),
-          // but the app compresses the range above S9.
-          maxValue={scaleMeterValue()(-13)} // S9+60
-          onClick={() => setState("settings", "sMeterEnabled", (v) => !v)}
-          getValueLabel={getValueLabel()}
-          {...rest}
-        >
-          <div class="relative flex flex-col w-full gap-0.5">
-            <MeterPrimitive.Track class="relative w-full h-2.5">
-              <div
-                class="absolute inset-0 border border-transparent rounded-xl bg-linear-to-r/decreasing from-blue-500 via-yellow-300 via-50% to-red-500 to-70% bg-origin-border"
-                style={{
-                  mask: "linear-gradient(black 0 0) padding-box, linear-gradient(black 0 0)",
-                  "mask-composite": "exclude",
-                }}
-              />
-              <MeterPrimitive.Fill
-                class="absolute inset-0 rounded-xl bg-linear-to-r/decreasing from-blue-500 via-yellow-300 via-50% to-red-500 to-70%"
-                style={{
-                  "will-change": "clip-path",
-                  "clip-path":
-                    "inset(0 calc(100% - var(--kb-meter-fill-width)) 0 0)",
-                  transition: `clip-path ${1 / (meter.fps || 4)}s linear`,
-                }}
-              />
-              <div class="absolute inset-px flex">
-                <For each={STOPS.filter((_, i) => i % 2)}>
-                  {(value) => (
-                    <div class="size-full translate-x-1/2 flex flex-col items-center">
-                      <Show when={value}>
-                        <hr class="h-full w-px bg-foreground/50 border-none" />
-                      </Show>
-                    </div>
-                  )}
-                </For>
-              </div>
-            </MeterPrimitive.Track>
-            <div class="w-full border-x border-transparent text-[0.5rem] flex font-sans">
-              <For each={STOPS.filter((_, i) => i % 2)}>
-                {(value) => (
-                  <div class="min-w-0 grow shrink basis-0 h-1.5 translate-x-1/2 flex flex-col items-center justify-center">
-                    <Show when={value}>
-                      <span class="textbox-edge-cap-alphabetic textbox-trim-both">
-                        {value}
-                      </span>
-                    </Show>
-                  </div>
-                )}
-              </For>
-            </div>
-          </div>
-          <Show when={!local.hideValueLabel}>
-            <MeterPrimitive.ValueLabel class="font-medium text-xs/tight whitespace-pre textbox-edge-cap-alphabetic textbox-trim-both" />
-          </Show>
-        </MeterPrimitive.Root>
+    <MeterPrimitive.Root
+      class={cn(
+        "relative flex gap-1 w-full items-center select-none cursor-default",
+        local.class,
       )}
-    </Show>
+      value={scaleMeterValue()(props.meter?.value ?? -133)}
+      minValue={-133} // This would actually be 6dB below S0
+      // The official app's signal meter is non-linear.
+      // The actual range is from -133 dBm (6 dB below S0) to -13 dBm (S9 + 60 dB),
+      // but the app compresses the range above S9.
+      maxValue={scaleMeterValue()(-13)} // S9+60
+      onClick={() => setState("settings", "sMeterEnabled", (v) => !v)}
+      getValueLabel={getValueLabel()}
+      {...rest}
+    >
+      <div class="relative flex flex-col w-full gap-0.5">
+        <MeterPrimitive.Track class="relative w-full h-2.5">
+          <div
+            class="absolute inset-0 border border-transparent rounded-xl bg-linear-to-r/decreasing from-blue-500 via-yellow-300 via-50% to-red-500 to-70% bg-origin-border"
+            style={{
+              mask: "linear-gradient(black 0 0) padding-box, linear-gradient(black 0 0)",
+              "mask-composite": "exclude",
+            }}
+          />
+          <MeterPrimitive.Fill
+            class="absolute inset-0 rounded-xl bg-linear-to-r/decreasing from-blue-500 via-yellow-300 via-50% to-red-500 to-70%"
+            style={{
+              "will-change": "clip-path",
+              "clip-path":
+                "inset(0 calc(100% - var(--kb-meter-fill-width)) 0 0)",
+              transition: `clip-path ${1 / (props.meter?.fps || 4)}s linear`,
+            }}
+          />
+          <div class="absolute inset-px flex">
+            <For each={STOPS.filter((_, i) => i % 2)}>
+              {(value) => (
+                <div class="size-full translate-x-1/2 flex flex-col items-center">
+                  <Show when={value}>
+                    <hr class="h-full w-px bg-foreground/50 border-none" />
+                  </Show>
+                </div>
+              )}
+            </For>
+          </div>
+        </MeterPrimitive.Track>
+        <div class="w-full border-x border-transparent text-[0.5rem] flex font-sans">
+          <For each={STOPS.filter((_, i) => i % 2)}>
+            {(value) => (
+              <div class="min-w-0 grow shrink basis-0 h-1.5 translate-x-1/2 flex flex-col items-center justify-center">
+                <Show when={value}>
+                  <span class="textbox-edge-cap-alphabetic textbox-trim-both">
+                    {value}
+                  </span>
+                </Show>
+              </div>
+            )}
+          </For>
+        </div>
+      </div>
+      <Show when={!local.hideValueLabel}>
+        <MeterPrimitive.ValueLabel class="font-medium text-xs/tight whitespace-pre textbox-edge-cap-alphabetic textbox-trim-both" />
+      </Show>
+    </MeterPrimitive.Root>
   );
 };

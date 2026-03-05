@@ -26,23 +26,19 @@ import {
   createLocalStorageManager,
   useColorMode,
 } from "@kobalte/core/color-mode";
-import { frequencyToLabel } from "~/lib/utils";
+import { frequencyToLabel, roundToDecimals } from "~/lib/utils";
 import { createFullscreen } from "@solid-primitives/fullscreen";
-import { createElementSize } from "@solid-primitives/resize-observer";
-import { TabToSignal } from "./tab-to-signal";
-import { SidebarTrigger } from "./ui/sidebar";
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
-  ContextMenuSeparator,
   ContextMenuTrigger,
-  ContextMenuGroupLabel,
   ContextMenuPortal,
   ContextMenuCheckboxItem,
 } from "./ui/context-menu";
 import { createElementBounds } from "@solid-primitives/bounds";
 import { Portal } from "solid-js/web";
+import { usePanafall } from "~/context/panafall";
 
 export function Panafall() {
   const { colorMode, setColorMode } = useColorMode();
@@ -80,12 +76,7 @@ export function Panafall() {
   const fullscreen = createFullscreen(() => document.documentElement, fs);
   const [clickRef, setClickRef] = createSignal<HTMLElement>();
   const [sizeRef, setSizeRef] = createSignal<HTMLElement>();
-  const [panStreamId, setPanStreamId] = createSignal<string | null>(null);
-  const [waterfallStreamId, setWaterfallStreamId] = createSignal<string | null>(
-    null,
-  );
 
-  const panController = () => radio()?.panadapter(panStreamId());
   const [dragState, setDragState] = createStore({
     down: false,
     dragging: false,
@@ -97,29 +88,26 @@ export function Panafall() {
   const pos = createMousePosition(clickRef);
   const panafallBounds = createElementBounds(sizeRef);
 
-  const selectedPan = createMemo(() => {
-    const streamId = panStreamId();
-    if (!streamId) return null;
-    return state.status.panadapter[streamId] || null;
-  });
-
-  const pxPerMHz = createMemo(() => {
-    const pan = selectedPan();
-    if (!pan || !pan.bandwidthMHz || !pan.width) return 0;
-    return pan.width / pan.bandwidthMHz;
-  });
+  const {
+    panadapter,
+    waterfall,
+    panadapterController,
+    waterfallController,
+    pxPerMHz,
+    pxToMHz,
+    mhzToPx,
+    xToFreq,
+  } = usePanafall();
 
   createEffect(() => setFullscreen(fullscreen()));
 
   const _setPanCenter = (newCenter: number) => {
-    const streamId = panStreamId();
-    if (!streamId) return;
     newCenter = parseFloat(newCenter.toFixed(6));
-    if (newCenter === selectedPan()?.centerFrequencyMHz) {
+    if (newCenter === panadapter()?.centerFrequencyMHz) {
       if (!dragState.down) setDragState("originX", 0);
       return;
     }
-    panController()?.setCenterFrequency(newCenter);
+    panadapterController()?.setCenterFrequency(newCenter);
   };
 
   // eslint-disable-next-line solid/reactivity
@@ -148,7 +136,7 @@ export function Panafall() {
         return;
       }
       const newOffset = event.x - dragState.originX;
-      const freq = dragState.originFreq - newOffset / pxPerMHz();
+      const freq = dragState.originFreq - pxToMHz(newOffset);
       setPanCenter(freq);
     });
   };
@@ -161,7 +149,7 @@ export function Panafall() {
       setDragState({
         down: true,
         downX: x,
-        originFreq: selectedPan()?.centerFrequencyMHz,
+        originFreq: panadapter()?.centerFrequencyMHz,
       });
     },
     onMove(event) {
@@ -173,7 +161,7 @@ export function Panafall() {
         });
       }
       const newOffset = event.x - dragState.originX;
-      const freq = dragState.originFreq - newOffset / pxPerMHz();
+      const freq = dragState.originFreq - pxToMHz(newOffset);
       if (state.display.smoothScroll) {
         setDragState("offset", newOffset);
       }
@@ -187,7 +175,7 @@ export function Panafall() {
     if (dragState.offset === 0) {
       return;
     }
-    const deltaPx = (newCenter - prevCenter) * pxPerMHz();
+    const deltaPx = mhzToPx(newCenter - prevCenter);
     let offset = state.display.smoothScroll
       ? Math.round(dragState.offset + deltaPx)
       : 0;
@@ -203,7 +191,7 @@ export function Panafall() {
   createEffect((prev?: { center?: number; pxPerMHz?: number }) => {
     const prevCenter = prev?.center;
     const prevPxPerMHz = prev?.pxPerMHz;
-    const newCenter = selectedPan()?.centerFrequencyMHz;
+    const newCenter = panadapter()?.centerFrequencyMHz;
     if (prevPxPerMHz !== pxPerMHz()) {
       // bandwidth changed or screen resize
       setDragState("offset", 0);
@@ -211,19 +199,6 @@ export function Panafall() {
       updateScroll(prevCenter, newCenter);
     }
     return { center: newCenter, pxPerMHz: pxPerMHz() };
-  });
-
-  createEffect(() => {
-    const streamId = state.selectedPanadapter;
-    const panadapter = streamId ? state.status.panadapter[streamId] : null;
-    setPanStreamId(panadapter?.clientHandle ? streamId : null);
-    const waterfallStreamId = panadapter?.waterfallStreamId ?? null;
-    const waterfall = waterfallStreamId
-      ? state.status.waterfall[waterfallStreamId]
-      : null;
-    setWaterfallStreamId(
-      waterfall?.panadapterStreamId === streamId ? waterfallStreamId : null,
-    );
   });
 
   return (
@@ -241,9 +216,9 @@ export function Panafall() {
           "--drag-offset": `${dragState.offset}px`,
         }}
       >
-        <Show when={selectedPan()}>
+        <Show when={panadapter()}>
           {(pan) => (
-            <>
+            <Show when={waterfall()}>
               <div class="absolute top-0 left-0 w-dvw h-dvh overflow-clip select-none">
                 <Resizable
                   class="size-full overflow-clip select-none"
@@ -253,20 +228,22 @@ export function Panafall() {
                     class="overflow-clip select-none"
                     initialSize={0.25}
                   >
-                    <Show when={state.selectedPanadapter} keyed>
-                      {(streamId) => <Panadapter streamId={streamId} />}
-                    </Show>
+                    <Panadapter
+                      pan={pan()}
+                      waterfall={waterfall()}
+                      controller={panadapterController()}
+                    />
                   </ResizablePanel>
-                  <Show when={state.selectedPanadapter} keyed>
-                    {(streamId) => <Scale streamId={streamId} />}
-                  </Show>
+                  <Scale pan={pan()} />
                   <ResizablePanel
                     class="overflow-clip select-none"
                     initialSize={0.75}
                   >
-                    <Show when={waterfallStreamId()} keyed>
-                      {(streamId) => <Waterfall streamId={streamId} />}
-                    </Show>
+                    <Waterfall
+                      pan={pan()}
+                      waterfall={waterfall()}
+                      controller={waterfallController()}
+                    />
                   </ResizablePanel>
                 </Resizable>
                 {/* <Show when={state.selectedPanadapter} keyed> */}
@@ -279,24 +256,22 @@ export function Panafall() {
                       "cursor-crosshair": !dragState.dragging,
                     }}
                     class="absolute inset-0 select-none"
-                    onDblClick={(e) => {
+                    onDblClick={(e: PointerEvent) => {
                       if (dragState.dragging) return;
                       setDragState("originX", 0);
-                      const streamId = panStreamId();
-                      if (!streamId) return;
-                      const { bandwidthMHz, width } =
-                        state.status.panadapter[streamId];
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      const x = Math.max(
-                        0,
-                        Math.min(e.clientX - rect.left, width - 1),
-                      );
-                      const mhzPerPx = bandwidthMHz / width;
-                      const freq = (
-                        state.status.panadapter[streamId].centerFrequencyMHz +
-                        (x - width / 2) * mhzPerPx
-                      ).toFixed(3);
-                      panController()?.clickTune(Number(freq));
+                      // const { bandwidthMHz, centerFrequencyMHz, width } = pan();
+                      // const rect = clickRef().getBoundingClientRect();
+                      // const x = Math.max(
+                      //   0,
+                      //   Math.min(e.clientX - rect.left, width - 1),
+                      // );
+                      // const mhzPerPx = bandwidthMHz / width;
+                      // const freq = (
+                      //   centerFrequencyMHz +
+                      //   (x - width / 2) * mhzPerPx
+                      // ).toFixed(3);
+                      const freq = roundToDecimals(xToFreq(e.clientX), 3);
+                      panadapterController()?.clickTune(freq);
                     }}
                     ref={setClickRef}
                   />
@@ -312,18 +287,9 @@ export function Panafall() {
                       </ContextMenuCheckboxItem>
                       <ContextMenuItem
                         onClick={() => {
-                          const { x } = pos;
-                          const streamId = panStreamId();
-                          const { bandwidthMHz, centerFrequencyMHz, width } =
-                            state.status.panadapter[streamId];
-                          const mhzPerPx = bandwidthMHz / width;
-                          const freq = (
-                            centerFrequencyMHz +
-                            (x - width / 2) * mhzPerPx
-                          ).toFixed(3);
                           radio().requestSlice({
-                            panadapterStreamId: streamId,
-                            frequencyMHz: Number(freq),
+                            panadapterStreamId: pan().streamId,
+                            frequencyMHz: roundToDecimals(xToFreq(pos.x), 3),
                           });
                         }}
                       >
@@ -346,10 +312,9 @@ export function Panafall() {
                         "fancy-bg-primary text-primary-foreground":
                           pan().isBandZoomOn,
                       }}
-                      onClick={() => {
-                        const zoom = pan().isBandZoomOn;
-                        panController()?.setBandZoom(!zoom);
-                      }}
+                      onClick={() =>
+                        panadapterController()?.setBandZoom(!pan().isBandZoomOn)
+                      }
                     >
                       B
                     </TooltipTrigger>
@@ -366,10 +331,11 @@ export function Panafall() {
                         "fancy-bg-primary text-primary-foreground":
                           pan().isSegmentZoomOn,
                       }}
-                      onClick={() => {
-                        const zoom = pan().isSegmentZoomOn;
-                        panController()?.setSegmentZoom(!zoom);
-                      }}
+                      onClick={() =>
+                        panadapterController()?.setSegmentZoom(
+                          !pan().isSegmentZoomOn,
+                        )
+                      }
                     >
                       S
                     </TooltipTrigger>
@@ -381,11 +347,11 @@ export function Panafall() {
                       size="icon"
                       variant="ghost"
                       class="fancy-bg-background size-5"
-                      onClick={() => {
-                        const controller = panController();
-                        if (!controller) return;
-                        controller.setBandwidth(controller.bandwidthMHz * 2);
-                      }}
+                      onClick={() =>
+                        panadapterController()?.setBandwidth(
+                          pan().bandwidthMHz * 2,
+                        )
+                      }
                     >
                       <ArrowCollapseHorizontal />
                     </TooltipTrigger>
@@ -400,11 +366,11 @@ export function Panafall() {
                       size="icon"
                       variant="ghost"
                       class="fancy-bg-background size-5"
-                      onClick={() => {
-                        const controller = panController();
-                        if (!controller) return;
-                        controller.setBandwidth(controller.bandwidthMHz / 2);
-                      }}
+                      onClick={() =>
+                        panadapterController()?.setBandwidth(
+                          pan().bandwidthMHz / 2,
+                        )
+                      }
                     >
                       <ArrowExpandHorizontal />
                     </TooltipTrigger>
@@ -468,7 +434,7 @@ export function Panafall() {
                   }}
                 />
               </Show>
-            </>
+            </Show>
           )}
         </Show>
       </div>

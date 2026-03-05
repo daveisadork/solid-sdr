@@ -30,7 +30,9 @@ export default function Connect() {
     }, {}),
   );
 
-  const [open, setOpen] = createSignal(true);
+  const [open, setOpen] = createSignal(
+    state.connectModal.status === ConnectionState.disconnected,
+  );
 
   createEffect((lastOpen) => {
     if (open() && !lastOpen) {

@@ -19,6 +19,8 @@ const Panafall = lazy(() =>
 );
 import BaselineDisplaySettings from "~icons/ic/baseline-display-settings";
 import BaselineViewSidebar from "~icons/ic/baseline-view-sidebar";
+import { PanafallProvider } from "./context/panafall";
+import { TestThing } from "./components/test";
 
 function App() {
   const storageManager = createLocalStorageManager("vite-ui-theme");
@@ -36,24 +38,27 @@ function App() {
         <RtcProvider>
           <FlexRadioProvider>
             <div class="flex flex-col relative items-stretch size-full">
-              <SidebarProvider class="relative grow h-auto overflow-visible min-h-0 bg-transparent">
-                <SidebarProvider
-                  class="relative grow h-auto overflow-visible min-h-0 bg-transparent"
-                  defaultOpen={false}
-                >
-                  <AppSidebar />
-                  <SidebarTrigger class="z-50 absolute left-2 top-4 select-none backdrop-blur-lg">
-                    <BaselineDisplaySettings />
+              <PanafallProvider>
+                <SidebarProvider class="relative grow h-auto overflow-visible min-h-0 bg-transparent">
+                  <SidebarProvider
+                    class="relative grow h-auto overflow-visible min-h-0 bg-transparent"
+                    defaultOpen={false}
+                  >
+                    <AppSidebar />
+                    <SidebarTrigger class="z-50 absolute left-2 top-4 select-none backdrop-blur-lg">
+                      <BaselineDisplaySettings />
+                    </SidebarTrigger>
+                    <Suspense fallback={<div>Loading...</div>}>
+                      <Panafall />
+                    </Suspense>
+                  </SidebarProvider>
+                  <RightSidebar />
+                  <SidebarTrigger class="z-50 absolute right-2 top-4 select-none backdrop-blur-lg">
+                    <BaselineViewSidebar />
                   </SidebarTrigger>
-                  <Suspense fallback={<div>Loading...</div>}>
-                    <Panafall />
-                  </Suspense>
                 </SidebarProvider>
-                <RightSidebar />
-                <SidebarTrigger class="z-50 absolute right-2 top-4 select-none backdrop-blur-lg">
-                  <BaselineViewSidebar />
-                </SidebarTrigger>
-              </SidebarProvider>
+                {/* <TestThing /> */}
+              </PanafallProvider>
               <StatusBar />
             </div>
             <RtcAudio /> {/* keeps audio elements mounted */}

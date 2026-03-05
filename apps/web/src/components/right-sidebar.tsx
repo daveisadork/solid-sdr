@@ -1,4 +1,4 @@
-import { createEffect, For, Show } from "solid-js";
+import { createEffect, createMemo, For, Show } from "solid-js";
 import { Sidebar, SidebarContent } from "~/components/ui/sidebar";
 import {
   Accordion,
@@ -30,26 +30,38 @@ import {
   SegmentedControlLabel,
 } from "./ui/segmented-control";
 
-function dbmToWatts(dbm: number) {
-  return Math.round(Math.pow(10, (dbm - 30) / 10) * 10) / 10;
+function dbmToWatts(dbm: number, decimalPlaces?: number) {
+  const watts = Math.pow(10, (dbm - 30) / 10);
+  if (decimalPlaces === undefined) return watts;
+  const factor = Math.pow(10, decimalPlaces);
+  return Math.round(watts * factor) / factor;
 }
 
 export function RightSidebar() {
   const { state, radio } = useFlexRadio();
   const [txProfiles, setTxProfiles] = createStore<string[]>([]);
 
-  const fwdPwrMeter = () =>
-    Object.values(state.status.meter).find((meter) => meter.name === "FWDPWR");
+  const fwdPwrMeter = createMemo(() =>
+    Object.values(state.status.meter).find((meter) => meter.name === "FWDPWR"),
+  );
 
-  const refPwrMeter = () =>
-    Object.values(state.status.meter).find((meter) => meter.name === "REFPWR");
+  const refPwrMeter = createMemo(() =>
+    Object.values(state.status.meter).find((meter) => meter.name === "REFPWR"),
+  );
 
-  const swr = () => {
-    const fwdPwr = dbmToWatts(fwdPwrMeter()?.value ?? 0);
-    if (!fwdPwr) return 1;
-    const v = Math.sqrt(dbmToWatts(refPwrMeter()?.value ?? 0) / fwdPwr);
-    return (1 + v) / (1 - v);
-  };
+  const fwdPwrWatts = createMemo(() =>
+    dbmToWatts(fwdPwrMeter()?.value ?? 0, 1),
+  );
+  const refPwrWatts = createMemo(() =>
+    dbmToWatts(refPwrMeter()?.value ?? 0, 1),
+  );
+
+  const swr = createMemo(() => {
+    const fwdWatts = fwdPwrWatts();
+    if (fwdWatts === 0) return 1;
+    const x = Math.sqrt(refPwrWatts() / fwdWatts);
+    return (1 + x) / (1 - x);
+  });
 
   createEffect(() => setTxProfiles(state?.status?.radio?.profileTxList ?? []));
 
@@ -97,9 +109,7 @@ export function RightSidebar() {
                       ];
                       return (
                         <MeterPrimitive.Root
-                          value={Math.round(
-                            Math.pow(10, ((meter.value ?? 0) - 30) / 10),
-                          )}
+                          value={dbmToWatts(meter.value, 0)}
                           minValue={0}
                           maxValue={
                             state.status.radio.maxInternalPaPowerWatts * 1.2
@@ -175,9 +185,11 @@ export function RightSidebar() {
                           value={swr()}
                           minValue={1}
                           maxValue={3}
-                          getValueLabel={() =>
-                            `${(Math.round(swr() * 10) / 10).toFixed(1)}:1`
-                          }
+                          getValueLabel={() => {
+                            // We don't use the passed in value because it's clamped to the maxValue,
+                            // and we want to show the actual SWR even if it exceeds the max.
+                            return `${(Math.round(swr() * 10) / 10).toFixed(1)}:1`;
+                          }}
                           class="flex flex-col gap-0.5 w-full items-center"
                         >
                           <div class="relative flex flex-col w-full gap-0.5">
@@ -314,15 +326,15 @@ export function RightSidebar() {
                     }}
                     label="Tune"
                   />
-                  {/* <SimpleSwitch */}
-                  {/*   checked={state.status.radio.tuneMode === "two_tone"} */}
-                  {/*   onChange={(isChecked) => { */}
-                  {/*     radio()?.setTuneMode( */}
-                  {/*       isChecked ? "two_tone" : "single_tone", */}
-                  {/*     ); */}
-                  {/*   }} */}
-                  {/*   label="Two-Tone Tune" */}
-                  {/* /> */}
+                  <SimpleSwitch
+                    checked={state.status.radio.tuneMode === "two_tone"}
+                    onChange={(isChecked) => {
+                      radio()?.setTuneMode(
+                        isChecked ? "two_tone" : "single_tone",
+                      );
+                    }}
+                    label="Two-Tone Tune"
+                  />
                   <div class="flex flex-col">
                     <SimpleSwitch
                       checked={

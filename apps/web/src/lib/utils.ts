@@ -43,6 +43,12 @@ export function roundToDevicePixels(px: number) {
   return Math.round(px * dpr) / dpr;
 }
 
+export function roundToDecimals(num: number, decimals?: number) {
+  if (decimals === undefined) return num;
+  const factor = 10 ** decimals;
+  return Math.round(num * factor) / factor;
+}
+
 const packRGBA = (r: number, g: number, b: number, a: number) =>
   (a << 24) | (b << 16) | (g << 8) | (r << 0);
 

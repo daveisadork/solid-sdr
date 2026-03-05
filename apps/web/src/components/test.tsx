@@ -6,6 +6,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
+import { usePanafall } from "~/context/panafall";
 
 type colorSpace =
   | "srgb"
@@ -36,6 +37,7 @@ const colorSpaces: colorSpace[] = [
 export function TestThing() {
   const [base, setBase] = createSignal<colorSpace>("srgb");
   const [compare, setCompare] = createSignal<colorSpace>("lab");
+  const { activeSlice } = usePanafall();
 
   return (
     <div
@@ -45,6 +47,7 @@ export function TestThing() {
           "#f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00, #ff0, #0f0, #0ff, #00f",
       }}
     >
+      <span>{activeSlice()?.indexLetter}</span>
       {/* <img src="/public/gradients/gradient.png" /> */}
       <div
         class="w-512 h-3"

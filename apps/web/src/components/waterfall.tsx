@@ -7,14 +7,20 @@ import {
   Show,
 } from "solid-js";
 import { Portal } from "solid-js/web";
-import useFlexRadio, { type UdpPacketEvent } from "~/context/flexradio";
+import useFlexRadio, {
+  type Panadapter,
+  type Waterfall as WaterfallState,
+  type UdpPacketEvent,
+} from "~/context/flexradio";
 import { LinearScale } from "./linear-scale";
+import { WaterfallController } from "@repo/flexlib";
 
-export function Waterfall(props: { streamId: string }) {
-  const streamId = () => props.streamId;
-  const { radio, state, setState } = useFlexRadio();
-  const waterfall = () => state.status.waterfall[streamId()];
-  const pan = () => state.status.panadapter[waterfall().panadapterStreamId];
+export function Waterfall(props: {
+  waterfall: WaterfallState;
+  pan: Panadapter;
+  controller: WaterfallController;
+}) {
+  const { state, setState } = useFlexRadio();
 
   const [canvasWidth, setCanvasWidth] = createSignal(1);
   const [canvasHeight, setCanvasHeight] = createSignal(1);
@@ -26,11 +32,6 @@ export function Waterfall(props: { streamId: string }) {
   const [lastBandwidth, setLastBandwidth] = createSignal(0);
   const [autoBlackLevel, setAutoBlackLevel] = createSignal(0);
   const [black, setBlack] = createSignal("#000000");
-  const [lineDurationMs, setLineDurationMs] = createSignal(
-    waterfall().lineDurationMs ?? 0,
-  );
-
-  const waterfallController = () => radio()?.waterfall(streamId());
 
   // 4096 colors to stay under canvas size limits on iOS
   const paletteCanvas = new OffscreenCanvas(4096, 1);
@@ -46,7 +47,6 @@ export function Waterfall(props: { streamId: string }) {
   const paletteDivisor = Math.round(0x10000 / paletteCanvas.width);
 
   const wrapperSize = createElementSize(wrapper);
-  const canvasSize = createElementSize(canvasRef);
 
   const frameTimes: number[] = [];
   const [fps, setFps] = createSignal(0);
@@ -54,7 +54,7 @@ export function Waterfall(props: { streamId: string }) {
   createEffect(() => {
     // translate the configured color gain into a colorMax value
     const { colorMin } = state.palette;
-    const colorGain = waterfall().colorGain;
+    const colorGain = props.waterfall.colorGain;
     const range = 1 - colorMin;
     const gain = Math.pow(1 - colorGain / 100, 3);
     const colorMax = colorMin + range * gain;
@@ -66,11 +66,11 @@ export function Waterfall(props: { streamId: string }) {
   });
 
   createEffect(() => {
-    const { autoBlackLevelEnabled, blackLevel } = waterfall();
+    const { autoBlackLevelEnabled, blackLevel } = props.waterfall;
     if (autoBlackLevelEnabled) {
       // Copy the auto black level to the waterfall black level,
       // so the display is consistent when toggling auto black off.
-      waterfallController()?.setBlackLevel(
+      props.controller.setBlackLevel(
         Math.round((autoBlackLevel() / 0x4000) * 100),
       );
     }
@@ -88,7 +88,7 @@ export function Waterfall(props: { streamId: string }) {
     });
     if (!paletteCtx) return;
     const { gradients, colorMin, colorMax } = state.palette;
-    const { stops } = gradients[waterfall().gradientIndex];
+    const { stops } = gradients[props.waterfall.gradientIndex];
     setBlack(stops[0].color);
     const gradient = paletteCtx.createLinearGradient(
       0,
@@ -129,17 +129,14 @@ export function Waterfall(props: { streamId: string }) {
 
   createEffect(() => {
     setWidthMultiplier(
-      (binBandwidth() * wrapperSize.width) / (pan().bandwidthMHz * 1_000_000),
+      (binBandwidth() * wrapperSize.width) /
+        (props.pan.bandwidthMHz * 1_000_000),
     );
-  });
-
-  createEffect(() => {
-    setLineDurationMs(waterfall().lineDurationMs ?? 0);
   });
 
   const totalSeconds = createMemo(() => {
     const { height } = wrapperSize;
-    const duration = lineDurationMs();
+    const duration = props.waterfall.lineDurationMs;
     if (!height || !duration) return 0;
     return (height * duration) / 1000;
   });
@@ -211,9 +208,6 @@ export function Waterfall(props: { streamId: string }) {
       const frame = tile.timecode;
       const height = tile.height;
       const bins = tile.data;
-      if (tile.lineDurationMs > 0) {
-        setLineDurationMs(tile.lineDurationMs);
-      }
 
       if (startingBin === 0) {
         frameStartTime = performance.now();
@@ -335,7 +329,7 @@ export function Waterfall(props: { streamId: string }) {
 
         setBinBandwidth(binBandwidth);
         setLastCalculatedCenter(calculatedCenter);
-        const panStreamId = waterfall().panadapterStreamId;
+        const panStreamId = props.waterfall.panadapterStreamId;
         if (
           panStreamId &&
           state.status.panadapter[panStreamId] &&
@@ -365,7 +359,7 @@ export function Waterfall(props: { streamId: string }) {
   createEffect(() => {
     const handler = onWaterfall();
     if (!handler) return;
-    const subscription = waterfallController()?.on("data", handler);
+    const subscription = props.controller.on("data", handler);
     if (!subscription) return;
     onCleanup(subscription.unsubscribe);
   });

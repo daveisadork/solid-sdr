@@ -1,4 +1,4 @@
-import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, Show } from "solid-js";
 import { Sidebar, SidebarContent } from "~/components/ui/sidebar";
 import {
   Accordion,
@@ -6,7 +6,6 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "~/components/ui/accordion";
-import * as MeterPrimitive from "@kobalte/core/meter";
 
 import useFlexRadio from "~/context/flexradio";
 import { SimpleSlider } from "./ui/simple-slider";
@@ -214,7 +213,7 @@ function TxSection() {
               }}
               label="ATU"
             />
-            <span class="text-muted-foreground text-xs capitalize">
+            <span class="text-foreground/60 text-xs capitalize">
               {state.status.radio.atuTuneStatus
                 .replaceAll("_", " ")
                 .toLowerCase()}
@@ -274,9 +273,7 @@ function PcwSection() {
                   meter={meter}
                   minValue={-40}
                   maxValue={0}
-                  getValueLabel={() =>
-                    `${roundToDecimals(meter.value, 1).toFixed(1)} dB`
-                  }
+                  getValueLabel={() => `${Math.round(meter.value)} dB`}
                   label="Level"
                   showTicks
                   showTickLabels
@@ -348,7 +345,7 @@ export function RightSidebar() {
       class="absolute h-full bg-transparent pointer-events-none"
     >
       <SidebarContent
-        class="gap-0 py-4 overflow-y-auto overflow-x-hidden pointer-events-auto"
+        class="gap-0 my-4 overflow-y-auto overflow-x-hidden pointer-events-auto"
         style={{
           "scrollbar-gutter": "stable",
           "scrollbar-width": "thin",

@@ -14,6 +14,8 @@ type MeterProps = MeterPrimitive.MeterRootOptions & {
   showTicks?: boolean;
   showTickLabels?: boolean;
   containTickLabels?: boolean;
+  description?: JSXElement;
+  showDescription?: boolean;
   tickLabelFilter?: (label: {
     value: string | number;
     index: number;
@@ -24,7 +26,37 @@ type MeterProps = MeterPrimitive.MeterRootOptions & {
 };
 
 const STEP_SIZES = [
-  0.1, 0.2, 0.25, 0.5, 1, 2, 3, 5, 10, 20, 25, 50, 100,
+  ...range(1024, 0, -1),
+  0.1,
+  0.2,
+  0.25,
+  0.5,
+  1,
+  2,
+  3,
+  5,
+  6,
+  10,
+  15,
+  20,
+  25,
+  30,
+  32,
+  50,
+  60,
+  64,
+  100,
+  120,
+  128,
+  150,
+  200,
+  250,
+  256,
+  300,
+  500,
+  512,
+  1000,
+  1024,
 ].toReversed();
 
 export function SimpleMeter(props: MeterProps) {
@@ -33,10 +65,17 @@ export function SimpleMeter(props: MeterProps) {
     const min = props.minValue ?? props.meter.low;
     const max = props.maxValue ?? props.meter.high;
     const valRange = max - min;
-    const minStops = props.minStops ?? 8;
-    const step = STEP_SIZES.find(
-      (step) => valRange % step === 0 && valRange / step >= minStops,
-    );
+    const minStops = props.minStops ?? 9;
+    const maxStops = 16;
+    const step =
+      STEP_SIZES.find(
+        (step) =>
+          valRange % step === 0 &&
+          valRange / step >= minStops &&
+          valRange / step <= maxStops,
+      ) ?? valRange / 8;
+
+    if (!step) return [min, max];
     return range(min, max + step, step);
   });
 
@@ -78,7 +117,8 @@ export function SimpleMeter(props: MeterProps) {
       <div class="relative flex flex-col w-full gap-0.5 items-center">
         <div class="flex w-full items-baseline text-xs font-medium">
           <MeterPrimitive.Label>
-            {props.label ?? props.meter.name}
+            {props.label ??
+              `${props.meter.name} ${props.meter.source} ${props.meter.sourceIndex}`}
           </MeterPrimitive.Label>
           <div class="grow" />
           <MeterPrimitive.ValueLabel class="font-mono" />
@@ -90,7 +130,7 @@ export function SimpleMeter(props: MeterProps) {
               props.class,
             )}
             style={{
-              mask: "linear-gradient(#000e 0 0) padding-box, linear-gradient(black 0 0)",
+              mask: "linear-gradient(#000d 0 0) padding-box, linear-gradient(black 0 0)",
               "mask-composite": "exclude",
             }}
           />
@@ -147,6 +187,11 @@ export function SimpleMeter(props: MeterProps) {
                 </div>
               )}
             </For>
+          </div>
+        </Show>
+        <Show when={props.showDescription}>
+          <div class="w-full justify-self-start text-xs text-foreground/60">
+            {props.description ?? props.meter.description}
           </div>
         </Show>
       </div>

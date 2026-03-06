@@ -1,14 +1,5 @@
 import useFlexRadio, { Meter } from "~/context/flexradio";
-import {
-  Component,
-  createEffect,
-  createMemo,
-  createSignal,
-  For,
-  Show,
-  splitProps,
-  ValidComponent,
-} from "solid-js";
+import { createMemo, For, Show, splitProps, ValidComponent } from "solid-js";
 
 import * as MeterPrimitive from "@kobalte/core/meter";
 import { cn } from "~/lib/utils";
@@ -136,7 +127,7 @@ export const LevelMeter = <T extends ValidComponent = "div">(
           <div
             class="absolute inset-0 border border-transparent rounded-xl bg-linear-to-r/decreasing from-blue-500 via-yellow-300 via-50% to-red-500 to-70% bg-origin-border"
             style={{
-              mask: "linear-gradient(black 0 0) padding-box, linear-gradient(black 0 0)",
+              mask: "linear-gradient(#000d 0 0) padding-box, linear-gradient(black 0 0)",
               "mask-composite": "exclude",
             }}
           />

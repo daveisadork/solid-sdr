@@ -48,6 +48,7 @@ import { ColorSwatch } from "@kobalte/core/color-swatch";
 import { parseColor } from "@kobalte/core/colors";
 import { usePanafall } from "~/context/panafall";
 import { PanadapterController, WaterfallController } from "@repo/flexlib";
+import { SimpleMeter } from "./ui/simple-meter";
 
 const BANDS: { id: string; label: string }[] = [
   { id: "160", label: "160m" },
@@ -165,7 +166,10 @@ export function TuningPanel(props: {
   });
 
   return (
-    <div class="flex flex-col px-4 gap-4 size-full text-sm overflow-y-auto overflow-x-hidden select-none overscroll-y-contain">
+    <div
+      class="flex flex-col px-4 gap-4 size-full text-sm overflow-y-auto overflow-x-hidden select-none overscroll-y-contain"
+      style={{ "scrollbar-width": "thin" }}
+    >
       <Dialog>
         <DialogTrigger>Show Meters</DialogTrigger>
         <DialogContent class="size-full max-h-[90vh] overflow-y-hidden pr-3">
@@ -174,7 +178,16 @@ export function TuningPanel(props: {
           </DialogHeader>
           <div class="flex flex-col gap-4 overflow-y-auto pr-3">
             <For each={Object.values(state.status.meter)}>
-              {(meter) => <MeterElement meter={meter} />}
+              {(meter) => (
+                <SimpleMeter
+                  meter={meter}
+                  showDescription
+                  showTicks
+                  showTickLabels
+                  containTickLabels
+                  minStops={6}
+                />
+              )}
             </For>
           </div>
         </DialogContent>

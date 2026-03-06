@@ -1,0 +1,155 @@
+import { createMemo, For, JSX, JSXElement, Show } from "solid-js";
+import * as MeterPrimitive from "@kobalte/core/meter";
+
+import { type Meter } from "~/context/flexradio";
+import { cn, range } from "~/lib/utils";
+
+type MeterProps = MeterPrimitive.MeterRootOptions & {
+  class?: string | undefined;
+  meter: Meter;
+  style?: JSX.CSSProperties;
+  label?: JSXElement;
+  stops?: Array<string | number>;
+  minStops?: number;
+  showTicks?: boolean;
+  showTickLabels?: boolean;
+  containTickLabels?: boolean;
+  tickLabelFilter?: (label: {
+    value: string | number;
+    index: number;
+    isEdge: boolean;
+    isMax: boolean;
+    isMin: boolean;
+  }) => boolean;
+};
+
+const STEP_SIZES = [
+  0.1, 0.2, 0.25, 0.5, 1, 2, 3, 5, 10, 20, 25, 50, 100,
+].toReversed();
+
+export function SimpleMeter(props: MeterProps) {
+  const stops = createMemo(() => {
+    if (Array.isArray(props.stops)) return props.stops;
+    const min = props.minValue ?? props.meter.low;
+    const max = props.maxValue ?? props.meter.high;
+    const valRange = max - min;
+    const minStops = props.minStops ?? 8;
+    const step = STEP_SIZES.find(
+      (step) => valRange % step === 0 && valRange / step >= minStops,
+    );
+    return range(min, max + step, step);
+  });
+
+  const ticks = createMemo(() =>
+    props.showTicks
+      ? [
+          false,
+          ...stops()
+            .slice(1, -1)
+            .map(() => true),
+          false,
+        ]
+      : [],
+  );
+
+  const tickLabels = createMemo(() =>
+    props.showTickLabels
+      ? stops().map((value, index, arr) => ({
+          value,
+          index,
+          isEdge: index === 0 || index === arr.length - 1,
+          isMax: index === arr.length - 1,
+          isMin: index === 0,
+        }))
+      : [],
+  );
+
+  return (
+    <MeterPrimitive.Root
+      value={props.value ?? props.meter.value}
+      minValue={props.minValue ?? props.meter.low}
+      maxValue={props.maxValue ?? props.meter.high}
+      getValueLabel={
+        props.getValueLabel ??
+        (({ value }) => `${value.toFixed(1)} ${props.meter.units}`)
+      }
+      class="flex flex-col gap-0.5 w-full items-center"
+    >
+      <div class="relative flex flex-col w-full gap-0.5 items-center">
+        <div class="flex w-full items-baseline text-xs font-medium">
+          <MeterPrimitive.Label>
+            {props.label ?? props.meter.name}
+          </MeterPrimitive.Label>
+          <div class="grow" />
+          <MeterPrimitive.ValueLabel class="font-mono" />
+        </div>
+        <MeterPrimitive.Track class="relative w-full h-3">
+          <div
+            class={cn(
+              "absolute inset-0 border border-transparent rounded-xl bg-linear-to-r/decreasing from-blue-500 via-yellow-300 via-75% to-red-500 bg-origin-border",
+              props.class,
+            )}
+            style={{
+              mask: "linear-gradient(#000e 0 0) padding-box, linear-gradient(black 0 0)",
+              "mask-composite": "exclude",
+            }}
+          />
+          <MeterPrimitive.Fill
+            class={cn(
+              "absolute inset-0 rounded-xl bg-linear-to-r/decreasing from-blue-500 via-yellow-300 via-75% to-red-500",
+              props.class,
+            )}
+            style={{
+              "will-change": "clip-path",
+              "clip-path":
+                "inset(0 calc(100% - var(--kb-meter-fill-width)) 0 0)",
+              transition: `clip-path ${1 / (props.meter.fps || 4)}s linear`,
+              ...props.style,
+            }}
+          />
+          <Show when={props.showTicks}>
+            <div class="absolute inset-px flex justify-between">
+              <For each={ticks()}>
+                {(tick) => (
+                  <div class="h-full w-0 flex flex-col items-center">
+                    <Show when={tick}>
+                      <hr class="h-full w-px bg-foreground/50 border-none" />
+                    </Show>
+                  </div>
+                )}
+              </For>
+            </div>
+          </Show>
+        </MeterPrimitive.Track>
+        <Show when={props.showTickLabels}>
+          <div class="w-full pt-0.5 border-x border-transparent text-[0.5rem] flex justify-between font-sans items-center">
+            <For each={tickLabels()}>
+              {(label) => (
+                <div
+                  class="w-0 basis-0 flex flex-col"
+                  classList={{
+                    "items-center": !(label.isEdge && props.containTickLabels),
+                    "items-start": label.isMin && props.containTickLabels,
+                    "items-end": label.isMax && props.containTickLabels,
+                  }}
+                >
+                  <Show
+                    when={
+                      props.tickLabelFilter
+                        ? props.tickLabelFilter(label)
+                        : true
+                    }
+                  >
+                    <div class="textbox-edge-cap-alphabetic textbox-trim-both select-none">
+                      {label.value}
+                    </div>
+                  </Show>
+                </div>
+              )}
+            </For>
+          </div>
+        </Show>
+      </div>
+    </MeterPrimitive.Root>
+  );
+}

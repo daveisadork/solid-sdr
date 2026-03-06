@@ -35,7 +35,7 @@ const SegmentedControlItemsList: Component<ComponentProps<"div">> = (props) => {
     <div
       role="presentation"
       class={cn(
-        "flex group-aria-[orientation=vertical]/segmented-control:flex-col group-aria-[orientation=horizontal]/segmented-control:flex-row items-center justify-between rounded-md bg-muted p-1 text-muted-foreground list-none",
+        "flex group-aria-[orientation=vertical]/segmented-control:flex-col group-aria-[orientation=horizontal]/segmented-control:flex-row items-center justify-between rounded-md bg-muted/50 p-1 text-muted-foreground list-none",
         local.class,
       )}
       {...others}
@@ -48,7 +48,10 @@ const SegmentedControlGroup: Component<ComponentProps<"div">> = (props) => {
   return (
     <div
       role="presentation"
-      class={cn("relative rounded-md border m-0 p-0 w-full", local.class)}
+      class={cn(
+        "relative rounded-md border border-foreground/50 m-0 p-0 w-full",
+        local.class,
+      )}
       {...others}
     />
   );

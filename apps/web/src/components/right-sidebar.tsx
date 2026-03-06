@@ -1,4 +1,4 @@
-import { createEffect, createMemo, For, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import { Sidebar, SidebarContent } from "~/components/ui/sidebar";
 import {
   Accordion,
@@ -20,20 +20,33 @@ import {
 } from "./ui/select";
 import { createStore } from "solid-js/store";
 import { SimpleSwitch } from "./ui/simple-switch";
-import {
-  SegmentedControl,
-  SegmentedControlGroup,
-  SegmentedControlIndicator,
-  SegmentedControlItem,
-  SegmentedControlItemLabel,
-  SegmentedControlItemsList,
-  SegmentedControlLabel,
-} from "./ui/segmented-control";
 import { dbmToWatts, roundToDecimals } from "~/lib/utils";
+import { debounce } from "@solid-primitives/scheduled";
+import { SimpleMeter } from "./ui/simple-meter";
 
 function TxSection() {
   const { state, radio } = useFlexRadio();
   const [txProfiles, setTxProfiles] = createStore<string[]>([]);
+  const [rawRfPower, setRawRfPower] = createSignal(0);
+
+  const setRfPower = (value: number) => {
+    if (value !== state.status.radio.rfPower) {
+      radio()?.setRfPower(value);
+    }
+  };
+
+  const debouncedSetRfPower = debounce(setRfPower, 200);
+
+  createEffect(() => setRawRfPower(state.status.radio.rfPower));
+
+  createEffect(() => {
+    if (rawRfPower() === state.status.radio.rfPower) return;
+    const updateFunc =
+      state.status.radio.interlockState === "TRANSMITTING"
+        ? setRfPower
+        : debouncedSetRfPower;
+    updateFunc(rawRfPower());
+  });
 
   const fwdPwrMeter = createMemo(() =>
     Object.values(state.status.meter).find((meter) => meter.name === "FWDPWR"),
@@ -63,172 +76,55 @@ function TxSection() {
     <AccordionItem value="tx">
       <AccordionTrigger>Transmit</AccordionTrigger>
       <AccordionContent>
-        <div class="flex flex-col gap-3">
+        <div class="flex flex-col gap-3 overflow-visible">
           <Show when={fwdPwrMeter()}>
             {(acc) => {
               const meter = acc();
-              const STOPS = [
-                10,
-                20,
-                30,
-                40,
-                50,
-                60,
-                70,
-                80,
-                90,
-                100,
-                110,
-                null,
-              ];
               return (
-                <MeterPrimitive.Root
-                  value={dbmToWatts(meter.value, 0)}
-                  minValue={0}
+                <SimpleMeter
+                  meter={meter}
                   maxValue={state.status.radio.maxInternalPaPowerWatts * 1.2}
+                  value={dbmToWatts(meter.value, 0)}
                   getValueLabel={({ value }) => `${value} W`}
-                  class="flex flex-col gap-0.5 w-full items-center"
-                >
-                  <div class="relative flex flex-col w-full gap-0.5">
-                    <div class="flex font-mono text-xs w-full">
-                      <MeterPrimitive.Label>
-                        {meter.description}
-                      </MeterPrimitive.Label>
-                      <div class="grow" />
-                      <MeterPrimitive.ValueLabel />
-                    </div>
-                    <MeterPrimitive.Track class="relative w-full h-3">
-                      <div
-                        class="absolute inset-0 border border-transparent rounded-xl bg-linear-to-r/decreasing from-blue-500 via-yellow-300 via-75% to-red-500 bg-origin-border"
-                        style={{
-                          mask: "linear-gradient(black 0 0) padding-box, linear-gradient(black 0 0)",
-                          "mask-composite": "exclude",
-                        }}
-                      />
-                      <MeterPrimitive.Fill
-                        class="absolute inset-0 rounded-xl bg-linear-to-r/decreasing from-blue-500 via-yellow-300 via-75% to-red-500"
-                        style={{
-                          "will-change": "clip-path",
-                          "clip-path":
-                            "inset(0 calc(100% - var(--kb-meter-fill-width)) 0 0)",
-                          transition: `clip-path ${1 / (meter.fps || 4)}s linear`,
-                        }}
-                      />
-                      <div class="absolute inset-px flex">
-                        <For each={STOPS}>
-                          {(value) => (
-                            <div class="size-full translate-x-1/2 flex flex-col items-center">
-                              <Show when={value}>
-                                <hr class="h-full w-px bg-foreground/50 border-none" />
-                              </Show>
-                            </div>
-                          )}
-                        </For>
-                      </div>
-                    </MeterPrimitive.Track>
-                    <div class="w-full border-x border-transparent text-[0.5rem] flex font-sans">
-                      <For each={STOPS.filter((_, i) => i % 2)}>
-                        {(value) => (
-                          <div class="min-w-0 grow shrink basis-0 h-1.5 translate-x-1/2 flex flex-col items-center justify-center">
-                            <Show when={value}>
-                              <span class="textbox-edge-cap-alphabetic textbox-trim-both select-none">
-                                {value}
-                              </span>
-                            </Show>
-                          </div>
-                        )}
-                      </For>
-                    </div>
-                  </div>
-                </MeterPrimitive.Root>
+                  label="RF Power"
+                  showTicks
+                  showTickLabels
+                  containTickLabels
+                  tickLabelFilter={({ index }) => index % 2 === 0}
+                />
               );
             }}
           </Show>
-          <Show
-            when={Object.values(state.status.meter).find(
-              (meter) => meter.name === "SWR",
-            )}
-          >
+          <Show when={refPwrMeter()}>
             {(acc) => {
               const meter = acc();
-              const STOPS = [1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, null];
               return (
-                <MeterPrimitive.Root
-                  value={swr()}
+                <SimpleMeter
+                  meter={meter}
                   minValue={1}
                   maxValue={3}
+                  value={swr()}
                   getValueLabel={() => {
                     // We don't use the passed in value because it's clamped to the maxValue,
                     // and we want to show the actual SWR even if it exceeds the max.
                     return `${(Math.round(swr() * 10) / 10).toFixed(1)}:1`;
                   }}
-                  class="flex flex-col gap-0.5 w-full items-center"
-                >
-                  <div class="relative flex flex-col w-full gap-0.5">
-                    <div class="flex font-mono text-xs w-full">
-                      <MeterPrimitive.Label>
-                        {meter.description}
-                      </MeterPrimitive.Label>
-                      <div class="grow" />
-                      <MeterPrimitive.ValueLabel />
-                    </div>
-                    <MeterPrimitive.Track class="relative w-full h-3">
-                      <div
-                        class="absolute inset-0 border border-transparent rounded-xl bg-linear-to-r/decreasing from-blue-500 via-yellow-300 via-75% to-red-500 bg-origin-border"
-                        style={{
-                          mask: "linear-gradient(black 0 0) padding-box, linear-gradient(black 0 0)",
-                          "mask-composite": "exclude",
-                        }}
-                      />
-                      <MeterPrimitive.Fill
-                        class="absolute inset-0 rounded-xl bg-linear-to-r/decreasing from-blue-500 via-yellow-300 via-75% to-red-500"
-                        style={{
-                          "will-change": "clip-path",
-                          "clip-path":
-                            "inset(0 calc(100% - var(--kb-meter-fill-width)) 0 0)",
-                          transition: `clip-path ${1 / (meter.fps || 4)}s linear`,
-                        }}
-                      />
-                      <div class="absolute inset-px flex">
-                        <For each={STOPS}>
-                          {(value) => (
-                            <div class="size-full translate-x-1/2 flex flex-col items-center">
-                              <Show when={value}>
-                                <hr class="h-full w-px bg-foreground/50 border-none" />
-                              </Show>
-                            </div>
-                          )}
-                        </For>
-                      </div>
-                    </MeterPrimitive.Track>
-                    <div class="w-full border-x border-transparent text-[0.5rem] flex font-sans">
-                      <For each={STOPS.filter((_, i) => i % 2)}>
-                        {(value) => (
-                          <div class="min-w-0 grow shrink basis-0 h-1.5 translate-x-1/2 flex flex-col items-center justify-center">
-                            <Show when={value}>
-                              <span class="textbox-edge-cap-alphabetic textbox-trim-both select-none">
-                                {value}
-                              </span>
-                            </Show>
-                          </div>
-                        )}
-                      </For>
-                    </div>
-                  </div>
-                </MeterPrimitive.Root>
+                  label="RF SWR"
+                  showTicks
+                  showTickLabels
+                  containTickLabels
+                  tickLabelFilter={({ index }) => index % 2 === 0}
+                />
               );
             }}
           </Show>
-
           <SimpleSlider
             minValue={0}
             maxValue={100}
-            value={[state.status.radio.rfPower]}
+            step={1}
+            value={[rawRfPower()]}
             disabled={!state.status.radio.txRfPowerChangesAllowed}
-            onChange={([value]) => {
-              if (value === state.status.radio.rfPower) return;
-              radio()?.setRfPower(value);
-            }}
+            onChange={([value]) => setRawRfPower(value)}
             getValueLabel={({ values }) => {
               const watts = Math.round(
                 (values[0] / 100) * state.status.radio.maxInternalPaPowerWatts,
@@ -240,11 +136,13 @@ function TxSection() {
           <SimpleSlider
             minValue={0}
             maxValue={100}
+            step={1}
             value={[state.status.radio.tunePower]}
             disabled={!state.status.radio.txRfPowerChangesAllowed}
             onChange={([value]) => {
-              if (value === state.status.radio.rfPower) return;
-              radio()?.setTunePower(value);
+              if (value !== state.status.radio.tunePower) {
+                radio()?.setTunePower(value);
+              }
             }}
             getValueLabel={({ values }) => {
               const watts = Math.round(
@@ -292,13 +190,13 @@ function TxSection() {
             }}
             label="Tune"
           />
-          <SimpleSwitch
-            checked={state.status.radio.tuneMode === "two_tone"}
-            onChange={(isChecked) => {
-              radio()?.setTuneMode(isChecked ? "two_tone" : "single_tone");
-            }}
-            label="Two-Tone Tune"
-          />
+          {/* <SimpleSwitch */}
+          {/*   checked={state.status.radio.tuneMode === "two_tone"} */}
+          {/*   onChange={(isChecked) => { */}
+          {/*     radio()?.setTuneMode(isChecked ? "two_tone" : "single_tone"); */}
+          {/*   }} */}
+          {/*   label="Two-Tone Tune" */}
+          {/* /> */}
           <div class="flex flex-col">
             <SimpleSwitch
               checked={
@@ -371,134 +269,44 @@ function PcwSection() {
           <Show when={micMeter()}>
             {(acc) => {
               const meter = acc();
-              const STOPS = [-35, -30, -25, -20, -15, -10, -5, 0];
               return (
-                <MeterPrimitive.Root
-                  value={meter.value}
+                <SimpleMeter
+                  meter={meter}
                   minValue={-40}
                   maxValue={0}
                   getValueLabel={() =>
                     `${roundToDecimals(meter.value, 1).toFixed(1)} dB`
                   }
-                  class="flex flex-col gap-0.5 w-full items-center"
-                >
-                  <div class="relative flex flex-col w-full gap-0.5">
-                    <div class="flex font-mono text-xs w-full">
-                      <MeterPrimitive.Label>Level</MeterPrimitive.Label>
-                      <div class="grow" />
-                      <MeterPrimitive.ValueLabel />
-                    </div>
-                    <MeterPrimitive.Track class="relative w-full h-3">
-                      <div
-                        class="absolute inset-0 border border-transparent rounded-xl bg-linear-to-r/decreasing from-blue-500 via-yellow-300 via-75% to-red-500 bg-origin-border"
-                        style={{
-                          mask: "linear-gradient(black 0 0) padding-box, linear-gradient(black 0 0)",
-                          "mask-composite": "exclude",
-                        }}
-                      />
-                      <MeterPrimitive.Fill
-                        class="absolute inset-0 rounded-xl bg-linear-to-r/decreasing from-blue-500 via-yellow-300 via-75% to-red-500"
-                        style={{
-                          "will-change": "clip-path",
-                          "clip-path":
-                            "inset(0 calc(100% - var(--kb-meter-fill-width)) 0 0)",
-                          transition: `clip-path ${1 / (meter.fps || 4)}s linear`,
-                        }}
-                      />
-                      <div class="absolute inset-px flex">
-                        <For each={STOPS}>
-                          {(value) => (
-                            <div class="size-full translate-x-1/2 flex flex-col items-center">
-                              <Show when={value}>
-                                <hr class="h-full w-px bg-foreground/50 border-none" />
-                              </Show>
-                            </div>
-                          )}
-                        </For>
-                      </div>
-                    </MeterPrimitive.Track>
-                    <div class="w-full border-x border-transparent text-[0.5rem] flex font-sans">
-                      <For each={STOPS}>
-                        {(value) => (
-                          <div class="min-w-0 grow shrink basis-0 h-1.5 translate-x-1/2 flex flex-col items-center justify-center">
-                            <Show when={value}>
-                              <span class="textbox-edge-cap-alphabetic textbox-trim-both select-none">
-                                {value}
-                              </span>
-                            </Show>
-                          </div>
-                        )}
-                      </For>
-                    </div>
-                  </div>
-                </MeterPrimitive.Root>
+                  label="Level"
+                  showTicks
+                  showTickLabels
+                  containTickLabels
+                  tickLabelFilter={({ index }) => index % 2 === 0}
+                />
               );
             }}
           </Show>
           <Show when={compPeakMeter()}>
             {(acc) => {
               const meter = acc();
-              const STOPS = [-20, -15, -10, -5, 0];
               return (
-                <MeterPrimitive.Root
-                  value={meter.value}
+                <SimpleMeter
+                  meter={meter}
                   minValue={-25}
                   maxValue={0}
                   getValueLabel={() =>
                     `${roundToDecimals(meter.value ?? 0, 1).toFixed(1)} dB`
                   }
-                  class="flex flex-col gap-0.5 w-full items-center"
-                >
-                  <div class="relative flex flex-col w-full gap-0.5">
-                    <div class="flex font-mono text-xs w-full">
-                      <MeterPrimitive.Label>Compression</MeterPrimitive.Label>
-                      <div class="grow" />
-                      <MeterPrimitive.ValueLabel />
-                    </div>
-                    <MeterPrimitive.Track class="relative w-full h-3">
-                      <div
-                        class="absolute inset-0 border border-transparent rounded-xl bg-linear-to-r/increasing from-red-500 via-yellow-300 via-25% to-blue-500 bg-origin-border"
-                        style={{
-                          mask: "linear-gradient(black 0 0) padding-box, linear-gradient(black 0 0)",
-                          "mask-composite": "exclude",
-                        }}
-                      />
-                      <MeterPrimitive.Fill
-                        class="absolute inset-0 rounded-xl bg-linear-to-r/increasing from-red-500 via-yellow-300 via-25% to-blue-500"
-                        style={{
-                          "will-change": "clip-path",
-                          "clip-path":
-                            "inset(0 0 0 var(--kb-meter-fill-width))",
-                          transition: `clip-path ${1 / (meter.fps || 4)}s linear`,
-                        }}
-                      />
-                      <div class="absolute inset-px flex">
-                        <For each={STOPS}>
-                          {(value) => (
-                            <div class="size-full translate-x-1/2 flex flex-col items-center">
-                              <Show when={value}>
-                                <hr class="h-full w-px bg-foreground/50 border-none" />
-                              </Show>
-                            </div>
-                          )}
-                        </For>
-                      </div>
-                    </MeterPrimitive.Track>
-                    <div class="w-full border-x border-transparent text-[0.5rem] flex font-sans">
-                      <For each={STOPS}>
-                        {(value) => (
-                          <div class="min-w-0 grow shrink basis-0 h-1.5 translate-x-1/2 flex flex-col items-center justify-center">
-                            <Show when={value}>
-                              <span class="textbox-edge-cap-alphabetic textbox-trim-both select-none">
-                                {value}
-                              </span>
-                            </Show>
-                          </div>
-                        )}
-                      </For>
-                    </div>
-                  </div>
-                </MeterPrimitive.Root>
+                  label="Compression"
+                  class="bg-linear-to-l/decreasing"
+                  style={{
+                    "clip-path": "inset(0 0 0 var(--kb-meter-fill-width))",
+                  }}
+                  showTicks
+                  showTickLabels
+                  minStops={5}
+                  containTickLabels
+                />
               );
             }}
           </Show>
@@ -539,51 +347,55 @@ export function RightSidebar() {
       variant="floating"
       class="absolute h-full bg-transparent pointer-events-none"
     >
-      <Show when={state.selectedPanadapter}>
-        <SidebarContent class="size-full gap-0 py-4 overflow-y-auto overflow-x-visible pointer-events-auto">
-          <Accordion
-            multiple
-            collapsible
-            defaultValue={[
-              "tx",
-              "p-cw",
-              // "phone",
-              // "rx",
-              // "eq",
-            ]}
-            class="w-full select-none"
-          >
-            <TxSection />
-            <PcwSection />
-            <AccordionItem value="phone">
-              <AccordionTrigger>Phone</AccordionTrigger>
-              <AccordionContent>
-                Yes. It's animated by default, but you can disable it if you
-                prefer.
-              </AccordionContent>
-            </AccordionItem>
-            <AccordionItem value="rx">
-              <AccordionTrigger>Receive</AccordionTrigger>
-              <AccordionContent>
-                <SimpleSwitch
-                  checked={state.status.radio.fullDuplexEnabled}
-                  onChange={(isChecked) => {
-                    radio()?.setFullDuplexEnabled(isChecked);
-                  }}
-                  label="Full Duplex"
-                />
-              </AccordionContent>
-            </AccordionItem>
-            <AccordionItem value="eq">
-              <AccordionTrigger>Equalizer</AccordionTrigger>
-              <AccordionContent>
-                Yes. It's animated by default, but you can disable it if you
-                prefer.
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
-        </SidebarContent>
-      </Show>
+      <SidebarContent
+        class="gap-0 py-4 overflow-y-auto overflow-x-hidden pointer-events-auto"
+        style={{
+          "scrollbar-gutter": "stable",
+          "scrollbar-width": "thin",
+        }}
+      >
+        <Accordion
+          multiple
+          collapsible
+          defaultValue={[
+            "tx",
+            "p-cw",
+            // "phone",
+            "rx",
+            // "eq"
+          ]}
+          class="select-none"
+        >
+          <TxSection />
+          <PcwSection />
+          <AccordionItem value="phone">
+            <AccordionTrigger>Phone</AccordionTrigger>
+            <AccordionContent>
+              Yes. It's animated by default, but you can disable it if you
+              prefer.
+            </AccordionContent>
+          </AccordionItem>
+          <AccordionItem value="rx">
+            <AccordionTrigger>Receive</AccordionTrigger>
+            <AccordionContent>
+              <SimpleSwitch
+                checked={state.status.radio.fullDuplexEnabled}
+                onChange={(isChecked) => {
+                  radio()?.setFullDuplexEnabled(isChecked);
+                }}
+                label="Full Duplex"
+              />
+            </AccordionContent>
+          </AccordionItem>
+          <AccordionItem value="eq">
+            <AccordionTrigger>Equalizer</AccordionTrigger>
+            <AccordionContent>
+              Yes. It's animated by default, but you can disable it if you
+              prefer.
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      </SidebarContent>
     </Sidebar>
   );
 }

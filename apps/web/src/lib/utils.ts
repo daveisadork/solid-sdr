@@ -107,3 +107,12 @@ export function dbmToWatts(dbm: number, decimalPlaces?: number) {
   const watts = Math.pow(10, (dbm - 30) / 10);
   return roundToDecimals(watts, decimalPlaces);
 }
+
+export function range(start: number, end?: number, step = 1): number[] {
+  if (end === undefined) {
+    end = start;
+    start = 0;
+  }
+  const length = Math.max(Math.ceil((end - start) / step), 0);
+  return Array.from({ length }, (_, i) => start + i * step);
+}

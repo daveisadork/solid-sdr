@@ -342,7 +342,7 @@ export function RightSidebar() {
       gap={true}
       side="right"
       variant="floating"
-      class="absolute h-full bg-transparent pointer-events-none"
+      class="absolute h-full bg-transparent pointer-events-none z-50"
     >
       <SidebarContent
         class="gap-0 my-4 overflow-y-auto overflow-x-hidden pointer-events-auto"

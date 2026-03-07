@@ -450,15 +450,16 @@ export function Slice(props: { slice: SliceState; pan: Panadapter }) {
       return setFlagSide("right");
     }
 
-    if (wrapperBounds.width < flagBounds.width * 2) {
-      // prevent infinite loop
-      return;
-    }
-
-    if (flagBounds.left! < wrapperBounds.left!) {
-      setFlagSide("right");
-    } else if (flagBounds.right! > wrapperBounds.right!) {
-      setFlagSide("left");
+    if (
+      flagBounds.left < wrapperBounds.left ||
+      flagBounds.right > wrapperBounds.right
+    ) {
+      setFlagSide(
+        wrapperBounds.right - sentinelBounds.left >=
+          sentinelBounds.left - wrapperBounds.left
+          ? "right"
+          : "left",
+      );
     }
   });
 
@@ -1222,7 +1223,7 @@ export function Slice(props: { slice: SliceState; pan: Panadapter }) {
       </Show>
       <div
         ref={setSentinel}
-        class="absolute border border-green-500 translate-x-(--slice-offset) pointer-events-none"
+        class="absolute translate-x-(--slice-offset) pointer-events-none"
         style={{
           "--slice-offset": `calc(var(--drag-offset) + ${offset()}px)`,
         }}

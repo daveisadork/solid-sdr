@@ -449,6 +449,12 @@ export function Slice(props: { slice: SliceState; pan: Panadapter }) {
     if (props.slice.diversityChild) {
       return setFlagSide("right");
     }
+
+    if (wrapperBounds.width < flagBounds.width * 2) {
+      // prevent infinite loop
+      return;
+    }
+
     if (flagBounds.left! < wrapperBounds.left!) {
       setFlagSide("right");
     } else if (flagBounds.right! > wrapperBounds.right!) {
@@ -1216,7 +1222,7 @@ export function Slice(props: { slice: SliceState; pan: Panadapter }) {
       </Show>
       <div
         ref={setSentinel}
-        class="absolute translate-x-(--slice-offset) pointer-events-none"
+        class="absolute border border-green-500 translate-x-(--slice-offset) pointer-events-none"
         style={{
           "--slice-offset": `calc(var(--drag-offset) + ${offset()}px)`,
         }}

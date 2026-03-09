@@ -46,9 +46,17 @@ func New(sessions *core.SessionManager, opt Options) *Server {
 	if opt.ICEPortStart == opt.ICEPortEnd {
 		// ---- single fixed port => create mux ----
 		port := opt.ICEPortStart
-		if mux, err := ice.NewMultiUDPMuxFromPort(port); err == nil {
+		if mux, err := ice.NewMultiUDPMuxFromPort(
+			port,
+			ice.UDPMuxFromPortWithNetworks(ice.NetworkTypeUDP4, ice.NetworkTypeUDP6),
+		); err == nil {
 			se.SetICEUDPMux(mux)
-			log.Printf("[rtc] using UDP mux on all interfaces, port %d\n", port)
+			hasUDP4, hasUDP6, listeners := summarizeMuxListeners(mux.GetListenAddresses())
+			log.Printf("[rtc] using single-port UDP mux on port %d (udp4=%t udp6=%t listeners=%s)",
+				port, hasUDP4, hasUDP6, strings.Join(listeners, ","))
+			if !hasUDP4 || !hasUDP6 {
+				log.Printf("[rtc] warning: requested dual-stack UDP mux but only udp4=%t udp6=%t listeners were created", hasUDP4, hasUDP6)
+			}
 		} else {
 			log.Fatalf("[rtc] failed to create UDP mux on port %d: %v", port, err)
 		}
@@ -71,7 +79,13 @@ func New(sessions *core.SessionManager, opt Options) *Server {
 	}
 
 	if len(opt.NAT1To1IPs) > 0 {
-		se.SetNAT1To1IPs(opt.NAT1To1IPs, webrtc.ICECandidateTypeHost)
+		if err := se.SetICEAddressRewriteRules(webrtc.ICEAddressRewriteRule{
+			External:        append([]string(nil), opt.NAT1To1IPs...),
+			AsCandidateType: webrtc.ICECandidateTypeHost,
+			Mode:            webrtc.ICEAddressRewriteReplace,
+		}); err != nil {
+			log.Fatalf("[rtc] invalid ICE address rewrite config: %v", err)
+		}
 	}
 
 	api := webrtc.NewAPI(
@@ -88,6 +102,26 @@ func New(sessions *core.SessionManager, opt Options) *Server {
 		ICEServers: iceServers,
 		api:        api,
 	}
+}
+
+func summarizeMuxListeners(addrs []net.Addr) (hasUDP4 bool, hasUDP6 bool, listeners []string) {
+	listeners = make([]string, 0, len(addrs))
+	for _, addr := range addrs {
+		listeners = append(listeners, addr.String())
+
+		udpAddr, ok := addr.(*net.UDPAddr)
+		if !ok || udpAddr.IP == nil {
+			continue
+		}
+
+		if udpAddr.IP.To4() != nil {
+			hasUDP4 = true
+		} else if udpAddr.IP.To16() != nil {
+			hasUDP6 = true
+		}
+	}
+
+	return hasUDP4, hasUDP6, listeners
 }
 
 // ---------- HTTP: /rtc/offer ----------
@@ -116,7 +150,7 @@ func (s *Server) OfferHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ans, err := s.handleOffer(handle, offerSDP)
+	ans, err := s.handleOffer(handle, offerSDP, clientIPFromRequest(r))
 	if err != nil {
 		log.Printf("[rtc] handleOffer failed: %v", err)
 		w.WriteHeader(http.StatusConflict)
@@ -139,7 +173,7 @@ func normalizeHandle(h string) string {
 
 // ---------- SDP + transport wiring ----------
 
-func (s *Server) handleOffer(handleHex, offerSDP string) (string, error) {
+func (s *Server) handleOffer(handleHex, offerSDP, clientIP string) (string, error) {
 	rs := s.Sessions.Get(handleHex)
 	if rs == nil || rs.TCP == nil {
 		return "", stepErr("no-tcp-session", fmt.Errorf("no TCP session for handle %s", handleHex))
@@ -152,6 +186,7 @@ func (s *Server) handleOffer(handleHex, offerSDP string) (string, error) {
 			return "", stepErr("new-pc", err)
 		}
 		rs.PC = pc
+		log.Printf("[rtc] new client connection: handle=%s client_ip=%s", handleHex, clientIP)
 
 		// Capture client-created datachannel "udp".
 		rs.PC.OnDataChannel(func(dc *webrtc.DataChannel) {
@@ -206,6 +241,58 @@ func (s *Server) handleOffer(handleHex, offerSDP string) (string, error) {
 	}
 
 	return ld.SDP, nil
+}
+
+func clientIPFromRequest(r *http.Request) string {
+	if r == nil {
+		return "unknown"
+	}
+
+	for _, header := range []string{"CF-Connecting-IP", "X-Forwarded-For", "X-Real-IP"} {
+		if ip := firstValidIP(r.Header.Get(header)); ip != "" {
+			return ip
+		}
+	}
+
+	if ip := firstValidIP(r.RemoteAddr); ip != "" {
+		return ip
+	}
+
+	return "unknown"
+}
+
+func firstValidIP(raw string) string {
+	if raw == "" {
+		return ""
+	}
+
+	for _, candidate := range strings.Split(raw, ",") {
+		ip := parsePotentialIP(candidate)
+		if ip != "" {
+			return ip
+		}
+	}
+
+	return ""
+}
+
+func parsePotentialIP(raw string) string {
+	v := strings.TrimSpace(strings.Trim(raw, `"`))
+	if v == "" || strings.EqualFold(v, "unknown") {
+		return ""
+	}
+
+	if host, _, err := net.SplitHostPort(v); err == nil {
+		v = host
+	}
+	v = strings.Trim(v, "[]")
+
+	ip := net.ParseIP(v)
+	if ip == nil {
+		return ""
+	}
+
+	return ip.String()
 }
 
 func (s *Server) postAnswerPlumbing(rs *core.RadioSession) {

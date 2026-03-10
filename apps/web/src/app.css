@@ -5,6 +5,7 @@
 /* @import url("https://fonts.googleapis.com/css2?family=Noto+Sans+Mono:wght@100..900&family=Noto+Sans:ital,wght@0,100..900;1,100..900&display=swap"); */
 @import "tailwindcss";
 @tailwind utilities;
+@custom-variant dark (&:where(.dark, .dark *, [data-kb-theme="dark"], [data-kb-theme="dark"] *));
 @plugin "tailwindcss-animate";
 
 /* :root { */
@@ -228,6 +229,12 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+  --animate-content-show: content-show 0.2s ease-out;
+  --animate-content-hide: content-hide 0.2s ease-out;
+  --animate-caret-blink: caret-blink 1.25s ease-out infinite;
+
   @keyframes accordion-down {
     from {
       height: 0;
@@ -269,6 +276,19 @@
     to {
       opacity: 0;
       transform: scale(0.96);
+    }
+  }
+
+  @keyframes caret-blink {
+    0%,
+    70%,
+    100% {
+      opacity: 1;
+    }
+
+    20%,
+    50% {
+      opacity: 0;
     }
   }
   /* --font-mono: "Noto Sans Mono", ui-monospace, monospace; */
@@ -323,6 +343,42 @@
     "ex",
     [*]
   );
+}
+
+@utility container {
+  width: 100%;
+  margin-inline: auto;
+  padding-inline: 2rem;
+}
+
+@media (width >= 40rem) {
+  .container {
+    max-width: 40rem;
+  }
+}
+
+@media (width >= 48rem) {
+  .container {
+    max-width: 48rem;
+  }
+}
+
+@media (width >= 64rem) {
+  .container {
+    max-width: 64rem;
+  }
+}
+
+@media (width >= 80rem) {
+  .container {
+    max-width: 80rem;
+  }
+}
+
+@media (width >= 87.5rem) {
+  .container {
+    max-width: 87.5rem;
+  }
 }
 
 @media (max-width: 640px) {

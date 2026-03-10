@@ -37,7 +37,7 @@ function App() {
       >
         <RtcProvider>
           <FlexRadioProvider>
-            <div class="flex flex-col relative items-stretch size-full">
+            <div class="absolute inset-0 flex flex-col items-stretch">
               <PanafallProvider>
                 <SidebarProvider class="relative grow h-auto overflow-visible min-h-0 bg-transparent">
                   <SidebarProvider

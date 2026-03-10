@@ -32,6 +32,7 @@ import {
 import { createElementBounds } from "@solid-primitives/bounds";
 import { Portal } from "solid-js/web";
 import { usePanafall } from "~/context/panafall";
+import { createWindowSize } from "@solid-primitives/resize-observer";
 
 export function Panafall() {
   const { colorMode, setColorMode } = useColorMode();
@@ -80,6 +81,7 @@ export function Panafall() {
   });
   const pos = createMousePosition(clickRef);
   const panafallBounds = createElementBounds(sizeRef);
+  const windowSize = createWindowSize();
 
   const {
     panadapter,
@@ -93,6 +95,25 @@ export function Panafall() {
   } = usePanafall();
 
   createEffect(() => setFullscreen(fullscreen()));
+  createEffect(
+    (lastSize: { width: number; height: number }) => {
+      if (
+        windowSize.width !== lastSize.width ||
+        windowSize.height !== lastSize.height
+      ) {
+        setDragState({
+          down: false,
+          dragging: false,
+          downX: 0,
+          originX: 0,
+          originFreq: 0,
+          offset: 0,
+        });
+      }
+      return { ...windowSize };
+    },
+    { width: 0, height: 0 },
+  );
 
   const _setPanCenter = (newCenter: number) => {
     newCenter = parseFloat(newCenter.toFixed(6));

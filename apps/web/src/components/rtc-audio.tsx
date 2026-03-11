@@ -1,4 +1,4 @@
-import { createEffect, createSignal, For, onMount } from "solid-js";
+import { createEffect, createSignal, For, onCleanup, onMount } from "solid-js";
 import { useRtc } from "../context/rtc";
 import {
   Select,
@@ -9,12 +9,13 @@ import {
 } from "./ui/select";
 import { createSpeakers } from "@solid-primitives/devices";
 import useFlexRadio from "~/context/flexradio";
+import { usePreferences } from "~/context/preferences";
 
 export default function RtcAudio() {
   const { session, tracks } = useRtc();
   const { state, radio } = useFlexRadio();
+  const { preferences, setPreferences } = usePreferences();
   const outputs = createSpeakers();
-  const [outputDeviceId, setOutputDeviceId] = createSignal<string>("default");
   const [remoteAudioRxStreamId, setRemoteAudioRxStreamId] = createSignal<
     string | undefined
   >();
@@ -47,27 +48,30 @@ export default function RtcAudio() {
     setRemoteAudioRxStreamId(streamId);
   });
 
+  createEffect(() => {
+    if (!state.clientHandle) return;
+    if (!preferences.enableRemoteAudio && remoteAudioRxStreamId()) {
+      radio()?.audioStream(remoteAudioRxStreamId()!)?.close();
+    }
+    if (preferences.enableRemoteAudio && !remoteAudioRxStreamId()) {
+      radio()?.createRemoteAudioRxStream({ compression: "OPUS" });
+    }
+  });
+
   return (
     <div class="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-2">
       <div
-        class="size-4 rounded-full border border-foreground"
+        class="size-4 rounded-full border"
         classList={{
           "bg-foreground": Boolean(remoteAudioRxStreamId()),
         }}
-        onClick={async () => {
-          const streamId = remoteAudioRxStreamId();
-          if (streamId) {
-            await radio().audioStream(streamId)?.close();
-          } else {
-            await radio().createRemoteAudioRxStream({ compression: "OPUS" });
-          }
-        }}
+        onClick={() => setPreferences("enableRemoteAudio", (v) => !v)}
       />
       <Select
-        value={outputDeviceId()}
+        value={preferences.outputDeviceId}
         onChange={(value: string) => {
           if (!value) return;
-          setOutputDeviceId(value);
+          setPreferences("outputDeviceId", value);
         }}
         options={outputs().map((d) => d.deviceId)}
         itemComponent={(props) => {
@@ -90,7 +94,9 @@ export default function RtcAudio() {
       </Select>
       <div class="sr-only" aria-hidden="true">
         <For each={tracks()}>
-          {(t) => <AudioSink stream={t.stream} output={outputDeviceId()} />}
+          {(t) => (
+            <AudioSink stream={t.stream} output={preferences.outputDeviceId} />
+          )}
         </For>
       </div>
     </div>

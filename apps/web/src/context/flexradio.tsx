@@ -605,7 +605,6 @@ export const FlexRadioProvider: ParentComponent = (props) => {
             : null,
           clientId: radio.clientId,
         });
-        await radio.createRemoteAudioRxStream({ compression: "OPUS" });
       } catch (error) {
         console.error("Failed to connect to radio", error);
         showToast({

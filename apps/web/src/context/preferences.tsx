@@ -26,6 +26,8 @@ export interface Preferences {
   sMeterEnabled: boolean;
   showTuningGuide: boolean;
   palette: PaletteSettings;
+  enableRemoteAudio: boolean;
+  outputDeviceId: string;
 }
 
 const PreferencesContext = createContext<{
@@ -45,6 +47,8 @@ const initialPreferences = () =>
     showFps: false,
     sMeterEnabled: true,
     showTuningGuide: false,
+    enableRemoteAudio: true,
+    outputDeviceId: "default",
     palette: {
       colorMin: 0.0,
       colorMax: 1.0,

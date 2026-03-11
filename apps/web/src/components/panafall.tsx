@@ -489,7 +489,13 @@ export function Panafall() {
                 }
               >
                 <div
-                  class="absolute inset-y-0 w-px translate-x-(--cursor-x) pointer-events-none will-change-transform border-x border-l-foreground border-r-background opacity-75"
+                  class="absolute inset-y-0 w-px translate-x-(--cursor-x) pointer-events-none will-change-transform"
+                  classList={{
+                    "backdrop-invert-100":
+                      preferences.enableTransparencyEffects,
+                    "border-x border-l-foreground border-r-background opacity-75":
+                      !preferences.enableTransparencyEffects,
+                  }}
                   style={{
                     "--cursor-x": `${pos.x}px`,
                   }}

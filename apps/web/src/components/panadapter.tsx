@@ -340,7 +340,7 @@ export function Panadapter(props: {
     return state.status.radio.interlockState === "TRANSMITTING"
       ? // shift the hue of the background color to 0 (red) when transmitting, but keep saturation and lightness the same
         color.withChannelValue("hue", 0).toString("css")
-      : color.withChannelValue("hue", 60).toString("css");
+      : color.withChannelValue("hue", 30).toString("css");
   });
 
   return (

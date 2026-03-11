@@ -3,6 +3,7 @@ import { createMemo, For, Show, splitProps, ValidComponent } from "solid-js";
 
 import * as MeterPrimitive from "@kobalte/core/meter";
 import { cn } from "~/lib/utils";
+import { usePreferences } from "~/context/preferences";
 
 const S9 = -73;
 const STOPS = [
@@ -43,7 +44,7 @@ export const LevelMeter = <T extends ValidComponent = "div">(
     "compressionFactor",
     "hideValueLabel",
   ]);
-  const { state, setState } = useFlexRadio();
+  const { preferences, setPreferences } = usePreferences();
 
   const scaleMeterValue = createMemo(() => {
     const compressionFactor = local.compressionFactor;
@@ -82,7 +83,7 @@ export const LevelMeter = <T extends ValidComponent = "div">(
   const getValueLabel = createMemo(
     (): MeterPrimitive.MeterRootOptions["getValueLabel"] => {
       const unscale = unscaleMeterValue();
-      if (!state.settings.sMeterEnabled) {
+      if (!preferences.sMeterEnabled) {
         return (params) => `${Math.round(unscale(params.value))}dBm`;
       }
       return (params) => {
@@ -118,7 +119,7 @@ export const LevelMeter = <T extends ValidComponent = "div">(
       // The actual range is from -133 dBm (6 dB below S0) to -13 dBm (S9 + 60 dB),
       // but the app compresses the range above S9.
       maxValue={scaleMeterValue()(-13)} // S9+60
-      onClick={() => setState("settings", "sMeterEnabled", (v) => !v)}
+      onClick={() => setPreferences("sMeterEnabled", (v) => !v)}
       getValueLabel={getValueLabel()}
       {...rest}
     >

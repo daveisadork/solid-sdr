@@ -273,12 +273,6 @@ function PcwSection() {
     ),
   );
 
-  createEffect(() => {
-    console.log(
-      `0x${state.status.radio.interlockTxClientHandle?.toString(16)} - ${state.status.radio.interlockState}`,
-    );
-  });
-
   return (
     <AccordionItem value="p-cw">
       <AccordionTrigger>P/CW</AccordionTrigger>

@@ -14,6 +14,7 @@ import useFlexRadio, {
 } from "~/context/flexradio";
 import { LinearScale } from "./linear-scale";
 import { WaterfallController } from "@repo/flexlib";
+import { usePreferences } from "~/context/preferences";
 
 export function Waterfall(props: {
   waterfall: WaterfallState;
@@ -21,6 +22,7 @@ export function Waterfall(props: {
   controller: WaterfallController;
 }) {
   const { state, setState } = useFlexRadio();
+  const { preferences } = usePreferences();
 
   const [canvasWidth, setCanvasWidth] = createSignal(1);
   const [canvasHeight, setCanvasHeight] = createSignal(1);
@@ -53,7 +55,7 @@ export function Waterfall(props: {
 
   createEffect(() => {
     // translate the configured color gain into a colorMax value
-    const { colorMin } = state.palette;
+    const { colorMin } = state.runtime;
     const colorGain = props.waterfall.colorGain;
     const range = 1 - colorMin;
     const gain = Math.pow(1 - colorGain / 100, 3);
@@ -62,7 +64,7 @@ export function Waterfall(props: {
     // const high = colorMax * 256 - 150;
     // console.log("colorMin:", colorMin, "colorMax:", colorMax, "->", low, high);
     // radio()?.panadapter(pan().streamId)?.setDbmRange({ low, high });
-    setState("palette", "colorMax", colorMax);
+    setState("runtime", "colorMax", colorMax);
   });
 
   createEffect(() => {
@@ -76,7 +78,7 @@ export function Waterfall(props: {
     }
 
     setState(
-      "palette",
+      "runtime",
       "colorMin",
       autoBlackLevelEnabled ? autoBlackLevel() / 0xffff : blackLevel / 400,
     );
@@ -87,7 +89,8 @@ export function Waterfall(props: {
       willReadFrequently: true,
     });
     if (!paletteCtx) return;
-    const { gradients, colorMin, colorMax } = state.palette;
+    const { gradients } = preferences.palette;
+    const { colorMin, colorMax } = state.runtime;
     const { stops } = gradients[props.waterfall.gradientIndex];
     setBlack(stops[0].color);
     const gradient = paletteCtx.createLinearGradient(
@@ -150,7 +153,7 @@ export function Waterfall(props: {
   };
 
   const targetCanvasHeight = createMemo(() =>
-    state.display.enableTransparencyEffects
+    preferences.enableTransparencyEffects
       ? window.screen.height
       : wrapperSize.height,
   );
@@ -319,7 +322,7 @@ export function Waterfall(props: {
           requestAnimationFrame(paint);
         }
 
-        if (state.settings.showFps) {
+        if (preferences.showFps) {
           frameTimes.push(performance.now() - frameStartTime);
           if (frameTimes.length > 10) frameTimes.shift();
           const avgFrameTime =
@@ -333,7 +336,7 @@ export function Waterfall(props: {
         if (
           panStreamId &&
           state.status.panadapter[panStreamId] &&
-          state.display.smoothScroll
+          preferences.smoothScroll
         ) {
           // Data packets reflect the new tuning; mark the panadapter center as settled.
           const centerMHz = Number((calculatedCenter / 1_000_000).toFixed(6));
@@ -378,7 +381,7 @@ export function Waterfall(props: {
           "--width-multiplier": widthMultiplier(),
         }}
       />
-      <Show when={state.settings.showFps}>
+      <Show when={preferences.showFps}>
         <Portal>
           <div class="fixed top-12 left-2 -z-50 text-lg font-mono whitespace-pre font-bold text-emerald-400/50">
             W: {fps().toString().padStart(4, " ")}

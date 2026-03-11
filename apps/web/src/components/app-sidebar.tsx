@@ -1,12 +1,12 @@
 import { Sidebar, SidebarContent } from "~/components/ui/sidebar";
 import { TuningPanel } from "./tuningpanel";
-import useFlexRadio from "~/context/flexradio";
 import { Show } from "solid-js";
 import { FPSCounter } from "./fps";
 import { usePanafall } from "~/context/panafall";
+import { usePreferences } from "~/context/preferences";
 
 export function AppSidebar() {
-  const { state } = useFlexRadio();
+  const { preferences } = usePreferences();
   const { waterfall, panadapter, waterfallController, panadapterController } =
     usePanafall();
   return (
@@ -24,7 +24,7 @@ export function AppSidebar() {
           panadapterController={panadapterController()}
         />
       </SidebarContent>
-      <Show when={state.settings.showFps}>
+      <Show when={preferences.showFps}>
         <FPSCounter />
       </Show>
     </Sidebar>

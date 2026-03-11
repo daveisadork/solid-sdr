@@ -23,6 +23,7 @@ import type { FrequencyGridTick } from "./scale";
 import { parseColor } from "@kobalte/core/colors";
 import { PanadapterController } from "@repo/flexlib";
 import { usePanafall } from "~/context/panafall";
+import { usePreferences } from "~/context/preferences";
 
 export function Panadapter(props: {
   pan: PanadapterState;
@@ -30,6 +31,7 @@ export function Panadapter(props: {
   controller: PanadapterController;
 }) {
   const { state } = useFlexRadio();
+  const { preferences } = usePreferences();
 
   const [canvasRef, setCanvasRef] = createSignal<HTMLCanvasElement>();
   const [wrapper, setWrapper] = createSignal<HTMLDivElement>();
@@ -65,7 +67,7 @@ export function Panadapter(props: {
   });
 
   createEffect(() => {
-    const { gradients } = state.palette;
+    const { gradients } = preferences.palette;
     const { stops } = gradients[props.waterfall.gradientIndex];
     const offscreen = new OffscreenCanvas(1, props.pan.height);
     const ctx = offscreen.getContext("2d");
@@ -101,9 +103,9 @@ export function Panadapter(props: {
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    const { gradients } = state.palette;
+    const { gradients } = preferences.palette;
     const gradient = ctx.createLinearGradient(0, props.pan.height, 0, 0);
-    if (state.display.gradientStyle === "classic") {
+    if (preferences.gradientStyle === "classic") {
       gradient.addColorStop(0, "rgba(255, 255, 255, 0.2)");
       gradient.addColorStop(1, "rgba(255, 255, 255, 1)");
     } else {
@@ -224,7 +226,7 @@ export function Panadapter(props: {
         height + 1,
       );
       offscreenCtx.lineWidth = 1;
-      const { peakStyle, fillStyle } = state.display;
+      const { peakStyle, fillStyle } = preferences;
       if (fillStyle === "gradient") {
         const gradient = fillGradient();
         if (peakStyle === "points") {
@@ -309,7 +311,7 @@ export function Panadapter(props: {
           cancelAnimationFrame(rafId);
         }
         rafId = requestAnimationFrame(flushFrame);
-        if (state.settings.showFps) {
+        if (preferences.showFps) {
           frameTimes.push(performance.now() - frameStartTime);
           if (frameTimes.length > 10) frameTimes.shift();
           const avgFrameTime =
@@ -330,10 +332,10 @@ export function Panadapter(props: {
 
   const txBackgroundColor = createMemo(() => {
     if (state.status.radio.interlockTxClientHandle !== state.clientHandleInt) {
-      return state.display.panBackgroundColor;
+      return preferences.panBackgroundColor;
     }
 
-    const color = parseColor(state.display.panBackgroundColor).toFormat("hsl");
+    const color = parseColor(preferences.panBackgroundColor).toFormat("hsl");
 
     return state.status.radio.interlockState === "TRANSMITTING"
       ? // shift the hue of the background color to 0 (red) when transmitting, but keep saturation and lightness the same
@@ -359,7 +361,7 @@ export function Panadapter(props: {
         ref={setCanvasRef}
         class="absolute size-full translate-x-(--drag-offset) select-none"
       />
-      <Show when={state.settings.showFps}>
+      <Show when={preferences.showFps}>
         <Portal>
           <div class="fixed top-7 left-2 -z-50 text-lg font-mono whitespace-pre font-bold text-indigo-400/50">
             P: {fps().toString().padStart(4, " ")}

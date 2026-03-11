@@ -13,6 +13,7 @@ import ArrowExpandHorizontal from "~icons/mdi/arrow-expand-horizontal";
 import Fullscreen from "~icons/mdi/fullscreen";
 import FullscreenExit from "~icons/mdi/fullscreen-exit";
 import ThemeLightDark from "~icons/mdi/theme-light-dark";
+import MaterialSymbolsAddCommentOutlineRounded from "~icons/material-symbols/add-comment-outline-rounded";
 import { Button } from "./ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import {
@@ -33,8 +34,10 @@ import { createElementBounds } from "@solid-primitives/bounds";
 import { Portal } from "solid-js/web";
 import { usePanafall } from "~/context/panafall";
 import { createWindowSize } from "@solid-primitives/resize-observer";
+import { usePreferences } from "~/context/preferences";
 
 export function Panafall() {
+  const { preferences, setPreferences } = usePreferences();
   const { colorMode, setColorMode } = useColorMode();
   const storageManager = createLocalStorageManager("vite-ui-theme");
   const themeSequence = ["system", "light", "dark"] as const;
@@ -190,7 +193,7 @@ export function Panafall() {
         return;
       }
       setDragState("dragging", false);
-      if (!state.display.smoothScroll) {
+      if (!preferences.smoothScroll) {
         setDragState("originX", 0);
         return;
       }
@@ -221,10 +224,10 @@ export function Panafall() {
       }
       const newOffset = event.x - dragState.originX;
       const freq = dragState.originFreq - pxToMHz(newOffset);
-      if (state.display.smoothScroll) {
+      if (preferences.smoothScroll) {
         setDragState("offset", newOffset);
       }
-      setPanCenter(freq, state.display.smoothScroll);
+      setPanCenter(freq, preferences.smoothScroll);
     },
     onUp: finalizeDrag,
     onLeave: finalizeDrag,
@@ -235,7 +238,7 @@ export function Panafall() {
       return;
     }
     const deltaPx = mhzToPx(newCenter - prevCenter);
-    let offset = state.display.smoothScroll
+    let offset = preferences.smoothScroll
       ? Math.round(dragState.offset + deltaPx)
       : 0;
     let originX = dragState.down ? dragState.originX - deltaPx : 0;
@@ -326,9 +329,9 @@ export function Panafall() {
                   <ContextMenuPortal>
                     <ContextMenuContent>
                       <ContextMenuCheckboxItem
-                        checked={state.settings.showTuningGuide}
+                        checked={preferences.showTuningGuide}
                         onChange={(checked) => {
-                          setState("settings", "showTuningGuide", checked);
+                          setPreferences("showTuningGuide", checked);
                         }}
                       >
                         Show Tuning Guide
@@ -342,7 +345,9 @@ export function Panafall() {
                           });
                         }}
                       >
-                        <div class="absolute left-2 flex size-3.5 items-center justify-center" />
+                        <div class="absolute left-2 flex size-3.5 items-center justify-center">
+                          <MaterialSymbolsAddCommentOutlineRounded />
+                        </div>
                         Create Slice
                       </ContextMenuItem>
                     </ContextMenuContent>
@@ -478,7 +483,7 @@ export function Panafall() {
               </Portal>
               <Show
                 when={
-                  state.settings.showTuningGuide &&
+                  preferences.showTuningGuide &&
                   pos.sourceType === "mouse" &&
                   pos.isInside
                 }

@@ -21,12 +21,13 @@ import BaselineDisplaySettings from "~icons/ic/baseline-display-settings";
 import BaselineViewSidebar from "~icons/ic/baseline-view-sidebar";
 import { PanafallProvider } from "./context/panafall";
 import { TestThing } from "./components/test";
+import { PreferencesProvider } from "./context/preferences";
 
 function App() {
   const storageManager = createLocalStorageManager("vite-ui-theme");
 
   return (
-    <>
+    <PreferencesProvider>
       <ColorModeScript
         initialColorMode="dark"
         storageType={storageManager.type}
@@ -66,7 +67,7 @@ function App() {
           </FlexRadioProvider>
         </RtcProvider>
       </ColorModeProvider>
-    </>
+    </PreferencesProvider>
   );
 }
 

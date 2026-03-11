@@ -49,6 +49,7 @@ import { parseColor } from "@kobalte/core/colors";
 import { usePanafall } from "~/context/panafall";
 import { PanadapterController, WaterfallController } from "@repo/flexlib";
 import { SimpleMeter } from "./ui/simple-meter";
+import { usePreferences } from "~/context/preferences";
 
 const BANDS: { id: string; label: string }[] = [
   { id: "160", label: "160m" },
@@ -124,7 +125,7 @@ export function TuningPanel(props: {
   waterfallController: WaterfallController;
 }) {
   const { radio, state, setState } = useFlexRadio();
-  const [gradients] = createStore(state.palette.gradients);
+  const { preferences, setPreferences } = usePreferences();
   const [rawFrequency, setRawFrequency] = createSignal(
     props.panadapterController.centerFrequencyMHz,
   );
@@ -138,27 +139,25 @@ export function TuningPanel(props: {
     props.panadapterController.lowDbm,
   );
   const [rawPanBackgroundColor, setRawPanBackgroundColor] = createSignal(
-    state.display.panBackgroundColor,
+    preferences.panBackgroundColor,
   );
 
-  createEffect(() =>
-    setRawPanBackgroundColor(state.display.panBackgroundColor),
-  );
+  createEffect(() => setRawPanBackgroundColor(preferences.panBackgroundColor));
 
   createEffect(() => {
     const rawColor = rawPanBackgroundColor();
-    if (rawColor === state.display.panBackgroundColor) return;
+    if (rawColor === preferences.panBackgroundColor) return;
     try {
       const color = parseColor(rawColor);
       console.log(color.toString("css"));
-      setState("display", "panBackgroundColor", rawColor);
+      setPreferences("panBackgroundColor", rawColor);
     } catch (_e) {
       // Invalid color, ignore
     }
   });
 
   createEffect(() => {
-    if (!state.display.enableTransparencyEffects) {
+    if (!preferences.enableTransparencyEffects) {
       document.documentElement.classList.add("disable-transparency-effects");
     } else {
       document.documentElement.classList.remove("disable-transparency-effects");
@@ -193,39 +192,38 @@ export function TuningPanel(props: {
         </DialogContent>
       </Dialog>
       <SimpleSwitch
-        checked={state.display.enableTransparencyEffects}
+        checked={preferences.enableTransparencyEffects}
         onChange={(isChecked) => {
-          setState("display", "enableTransparencyEffects", isChecked);
+          setPreferences("enableTransparencyEffects", isChecked);
         }}
         label="Blur Effects"
       />
       <SimpleSwitch
-        checked={state.display.smoothScroll}
+        checked={preferences.smoothScroll}
         onChange={(isChecked) => {
-          setState("display", "smoothScroll", isChecked);
+          setPreferences("smoothScroll", isChecked);
         }}
         label="Smooth Scroll"
       />
       <SimpleSwitch
-        checked={state.settings.showTuningGuide}
+        checked={preferences.showTuningGuide}
         onChange={(isChecked) => {
-          setState("settings", "showTuningGuide", isChecked);
+          setPreferences("showTuningGuide", isChecked);
         }}
         label="Tuning Guide"
       />
       <SimpleSwitch
-        checked={state.settings.showFps}
+        checked={preferences.showFps}
         onChange={(isChecked) => {
-          setState("settings", "showFps", isChecked);
+          setPreferences("showFps", isChecked);
         }}
         label="Show FPS"
       />
       <SegmentedControl
-        value={state.display.peakStyle}
+        value={preferences.peakStyle}
         onChange={(value) => {
-          console.log(value);
           if (!value) return;
-          setState("display", "peakStyle", value as "none" | "points" | "line");
+          setPreferences("peakStyle", value as "none" | "points" | "line");
         }}
       >
         <SegmentedControlLabel>Peak Style</SegmentedControlLabel>
@@ -243,15 +241,10 @@ export function TuningPanel(props: {
         </SegmentedControlGroup>
       </SegmentedControl>
       <SegmentedControl
-        value={state.display.fillStyle}
+        value={preferences.fillStyle}
         onChange={(value) => {
-          console.log(value);
           if (!value) return;
-          setState(
-            "display",
-            "fillStyle",
-            value as "none" | "solid" | "gradient",
-          );
+          setPreferences("fillStyle", value as "none" | "solid" | "gradient");
         }}
       >
         <SegmentedControlLabel>Fill Style</SegmentedControlLabel>
@@ -269,11 +262,10 @@ export function TuningPanel(props: {
         </SegmentedControlGroup>
       </SegmentedControl>
       <SegmentedControl
-        value={state.display.gradientStyle}
+        value={preferences.gradientStyle}
         onChange={(value) => {
-          console.log(value);
           if (!value) return;
-          setState("display", "gradientStyle", value as "color" | "classic");
+          setPreferences("gradientStyle", value as "color" | "classic");
         }}
       >
         <SegmentedControlLabel>Gradient Style</SegmentedControlLabel>
@@ -297,9 +289,11 @@ export function TuningPanel(props: {
           if (value !== props.waterfall.gradientIndex)
             props.waterfallController.setGradientIndex(value);
         }}
-        options={gradients.map((_, index) => index)}
+        options={preferences.palette.gradients.map((_, index) => index)}
         itemComponent={(props) => {
-          const gradient = gradients.at(props.item.rawValue);
+          const gradient = preferences.palette.gradients.at(
+            props.item.rawValue,
+          );
           return (
             <SelectItem item={props.item}>
               <div class="flex items-center gap-2">
@@ -318,7 +312,9 @@ export function TuningPanel(props: {
         <SelectLabel>Waterfall Gradient</SelectLabel>
         <SelectTrigger>
           <SelectValue<number>>
-            {(state) => gradients.at(state.selectedOption())?.name}
+            {(state) =>
+              preferences.palette.gradients.at(state.selectedOption())?.name
+            }
           </SelectValue>
         </SelectTrigger>
         <SelectContent />
@@ -568,7 +564,7 @@ export function TuningPanel(props: {
           <ColorFieldInput />
           <ColorSwatch
             class="absolute top-2 right-2 rounded-sm w-6 h-6"
-            value={parseColor(state.display.panBackgroundColor)}
+            value={parseColor(preferences.panBackgroundColor)}
           />
         </div>
       </ColorField>

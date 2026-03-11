@@ -45,6 +45,7 @@ import {
 } from "@repo/flexlib";
 import { createWebSocketFlexControlFactory } from "~/lib/flex-control";
 import { useRtc } from "./rtc";
+import { usePreferences } from "./preferences";
 
 export enum ConnectionState {
   disconnected,
@@ -90,23 +91,6 @@ export type Equalizer = Omit<MutableProps<EqualizerSnapshot>, "raw">;
 export type APD = Omit<MutableProps<ApdSnapshot>, "raw">;
 export type TxBandSetting = Omit<MutableProps<TxBandSettingSnapshot>, "raw">;
 
-export interface DisplaySettings {
-  smoothScroll: boolean;
-  scrollOffset: number;
-  enableTransparencyEffects: boolean;
-  peakStyle: "none" | "points" | "line";
-  fillStyle: "none" | "solid" | "gradient";
-  gradientStyle: "color" | "classic";
-  meterStyle: "instant" | "smooth" | "ballistic";
-  panBackgroundColor: string;
-}
-
-export interface PaletteSettings {
-  colorMin: number;
-  colorMax: number;
-  gradients: Gradient[];
-}
-
 export interface ConnectModalState {
   status: ConnectionState;
   selectedRadio: string | null;
@@ -127,26 +111,19 @@ export interface StatusState {
   txBandSetting: Record<string, TxBandSetting>;
 }
 
-export interface SettingsState {
-  showFps: boolean;
-  sMeterEnabled: boolean;
-  showTuningGuide: boolean;
-}
-
 export interface AppState {
   clientHandle: string | null;
   clientHandleInt: number | null;
   clientId: string | null;
   selectedPanadapter: string | null;
-  display: DisplaySettings;
-  palette: PaletteSettings;
   connectModal: ConnectModalState;
   status: StatusState;
   runtime: RuntimeState;
-  settings: SettingsState;
 }
 
 interface RuntimeState {
+  colorMin: number;
+  colorMax: number;
   panSettledCenterMHz: Record<string, number | undefined>;
   panPendingCenterMHz: Record<string, number | undefined>;
 }
@@ -157,218 +134,12 @@ export const initialState = () =>
     clientHandleInt: null,
     clientId: null,
     selectedPanadapter: null,
-    display: {
-      scrollOffset: 0,
-      smoothScroll: true,
-      enableTransparencyEffects: true,
-      peakStyle: "points",
-      fillStyle: "solid",
-      gradientStyle: "color",
-      meterStyle: "smooth",
-      panBackgroundColor: "#02517e",
-    },
-    palette: {
-      colorMin: 0.0,
-      colorMax: 1.0,
-      gradients: [
-        {
-          name: "SmartSDR",
-          stops: [
-            { color: "#000000", offset: 0.0 },
-            { color: "#0000ff", offset: 0.15 },
-            { color: "#00ffff", offset: 0.25 },
-            { color: "#00ff00", offset: 0.35 },
-            { color: "#ffff00", offset: 0.55 },
-            { color: "#ff0000", offset: 0.9 },
-            { color: "#ffffff", offset: 1.0 },
-          ],
-        },
-        {
-          name: "SmartSDR + Purple",
-          stops: [
-            { color: "#000000", offset: 0.0 },
-            { color: "#0000ff", offset: 0.15 },
-            { color: "#00ffff", offset: 0.225 },
-            { color: "#00ff00", offset: 0.3 },
-            { color: "#ffff00", offset: 0.45 },
-            { color: "#ff0000", offset: 0.6 },
-            { color: "#ff00ff", offset: 0.75 },
-            { color: "#ffffff", offset: 1.0 },
-          ],
-        },
-
-        {
-          name: "Dark",
-          stops: [
-            { color: "#000000", offset: 0.0 },
-            { color: "#0000ff", offset: 0.65 },
-            { color: "#00ff00", offset: 0.9 },
-            { color: "#ff0000", offset: 0.95 },
-            { color: "#ffb6c1", offset: 1.0 },
-          ],
-        },
-        {
-          name: "Grayscale",
-          stops: [
-            { color: "#000000", offset: 0.0 },
-            { color: "#ffffff", offset: 1.0 },
-          ],
-        },
-        {
-          name: "Deuteranopia",
-          stops: [
-            { color: "#000000", offset: 0.0 },
-            { color: "#083c6b", offset: 0.15 },
-            { color: "#84a2d6", offset: 0.5 },
-            { color: "#a59673", offset: 0.65 },
-            { color: "#ffff00", offset: 0.75 },
-            { color: "#ffff00", offset: 0.95 },
-            { color: "#ffffff", offset: 1.0 },
-          ],
-        },
-        {
-          name: "Tritanopia",
-          stops: [
-            { color: "#000000", offset: 0.0 },
-            { color: "#004552", offset: 0.15 },
-            { color: "#6bbad6", offset: 0.45 },
-            { color: "#4a0818", offset: 0.46 },
-            { color: "#ff0000", offset: 0.9 },
-            { color: "#d67984", offset: 0.99 },
-            { color: "#ffffff", offset: 1.0 },
-          ],
-        },
-        {
-          name: "Vintage Warm",
-          stops: [
-            { color: "#000000", offset: 0.0 },
-            { color: "#1d4877", offset: 0.15 },
-            { color: "#1ba4a1", offset: 0.25 },
-            { color: "#1b8a5a", offset: 0.35 },
-            { color: "#fbb021", offset: 0.55 },
-            { color: "#ee3e32", offset: 0.6 },
-            { color: "#ffffff", offset: 1.0 },
-          ],
-        },
-        {
-          name: "Vintage Warm + Pink",
-          stops: [
-            { color: "#000000", offset: 0.0 },
-            { color: "#1d4877", offset: 0.15 },
-            { color: "#1ba4a1", offset: 0.225 },
-            { color: "#1b8a5a", offset: 0.3 },
-            { color: "#fbb021", offset: 0.45 },
-            { color: "#f68838", offset: 0.525 },
-            { color: "#ee3e32", offset: 0.6 },
-            { color: "#f36a82", offset: 0.75 },
-            { color: "#ffffff", offset: 1.0 },
-          ],
-        },
-        {
-          name: "CMYK",
-          stops: [
-            { color: "#000000", offset: 0.0 },
-            { color: "#00ffff", offset: 0.25 },
-            { color: "#ffff00", offset: 0.5 },
-            { color: "#ff00ff", offset: 0.75 },
-            { color: "#ffffff", offset: 1.0 },
-          ],
-        },
-        {
-          name: "RGB",
-          stops: [
-            { color: "#000000", offset: 0.0 },
-            { color: "#0000ff", offset: 0.25 },
-            { color: "#00ff00", offset: 0.5 },
-            { color: "#ff0000", offset: 0.75 },
-            { color: "#ffffff", offset: 1.0 },
-          ],
-        },
-        {
-          name: "Solarized",
-          stops: [
-            { color: "#002b36", offset: 0.0 },
-            { color: "#268bd2", offset: 0.15 },
-            { color: "#2aa198", offset: 0.25 },
-            { color: "#859900", offset: 0.35 },
-            { color: "#b58900", offset: 0.55 },
-            { color: "#dc322f", offset: 0.9 },
-            { color: "#ffffff", offset: 1.0 },
-          ],
-        },
-        {
-          name: "Solarized + Pink",
-          stops: [
-            { color: "#002b36", offset: 0.0 },
-            { color: "#268bd2", offset: 0.15 },
-            { color: "#2aa198", offset: 0.225 },
-            { color: "#859900", offset: 0.3 },
-            { color: "#b58900", offset: 0.45 },
-            { color: "#cb4b16", offset: 0.525 },
-            { color: "#dc322f", offset: 0.6 },
-            { color: "#d33682", offset: 0.75 },
-            { color: "#ffffff", offset: 1.0 },
-          ],
-        },
-        {
-          name: "High Contrast",
-          stops: [
-            { color: "#000000", offset: 0.0 },
-            { color: "#000080", offset: 0.15 },
-            { color: "#00ffff", offset: 0.25 },
-            { color: "#00ff00", offset: 0.3 },
-            { color: "#ffff00", offset: 0.45 },
-            { color: "#ff0000", offset: 0.6 },
-            { color: "#ff00ff", offset: 0.75 },
-            { color: "#ffffff", offset: 1.0 },
-          ],
-        },
-        {
-          name: "Contrasty",
-          stops: [
-            { color: "#000000", offset: 0.1 },
-            // { color: "#400040", offset: 0.2 },
-            { color: "#2a1049", offset: 0.2 },
-            // { color: "#1f6a96", offset: 0.3 },
-            { color: "#0090e2", offset: 0.4 },
-            { color: "#009bb1", offset: 0.5 },
-            { color: "#bedf0d", offset: 0.6 },
-            // { color: "#ff0000", offset: 0.6 },
-            { color: "#ff00ff", offset: 0.7 },
-            { color: "#ffffff", offset: 1.0 },
-          ],
-        },
-        {
-          name: "Spectral",
-          stops: [
-            { color: "#000000", offset: 0.1 },
-            { color: "#330033", offset: 0.2 },
-            { color: "#00ffff", offset: 0.3 },
-            { color: "#ffff00", offset: 0.5 },
-            { color: "#ff00ff", offset: 0.7 },
-            { color: "#ffffff", offset: 1.0 },
-          ],
-        },
-        {
-          name: "Aurora",
-          stops: [
-            { color: "#000000", offset: 0.1 },
-            { color: "#5f2a84", offset: 0.2 },
-            { color: "#524096", offset: 0.3 },
-            { color: "#2082a6", offset: 0.4 },
-            { color: "#01cbae", offset: 0.5 },
-            { color: "#01efac", offset: 0.6 },
-            // { color: "#ff0000", offset: 0.6 },
-            // { color: "#ff00ff", offset: 0.7 },
-            { color: "#ffffff", offset: 1.0 },
-          ],
-        },
-      ],
-    },
     connectModal: {
       status: ConnectionState.disconnected,
     },
     runtime: {
+      colorMin: 0.0,
+      colorMax: 1.0,
       panSettledCenterMHz: {},
       panPendingCenterMHz: {},
     },
@@ -380,49 +151,10 @@ export const initialState = () =>
       panadapter: {},
       waterfall: {},
       guiClient: {},
-      radio: {
-        // // slices: 4,
-        // // panadapters: 4,
-        // // lineout_gain: 60,
-        // // lineout_mute: false,
-        // // headphone_gain: 50,
-        // // headphone_mute: false,
-        // // remote_on_enabled: false,
-        // // pll_done: 0,
-        // // freq_error_ppb: 0,
-        // // cal_freq: 15.0,
-        // // tnf_enabled: true,
-        // // nickname: "FLEX-8600",
-        // // callsign: "KF0SMY",
-        // // binaural_rx: false,
-        // // full_duplex_enabled: false,
-        // // band_persistence_enabled: true,
-        // // rtty_mark_default: 2125,
-        // // enforce_private_ip_connections: true,
-        // // backlight: 50,
-        // // mute_local_audio_when_remote: true,
-        // // daxiq_capacity: 16,
-        // // daxiq_available: 16,
-        // // alpha: 0,
-        // // low_latency_digital_modes: true,
-        // // mf_enable: true,
-        // // auto_save: true,
-        // oscillator: {},
-        // static_net_params: {},
-        // filter_sharpness: {
-        //   VOICE: {},
-        //   CW: {},
-        //   DIGITAL: {},
-        // },
-      },
+      radio: {},
       featureLicense: {},
       audioStream: {},
       txBandSetting: {},
-    },
-    settings: {
-      showFps: false,
-      sMeterEnabled: true,
-      showTuningGuide: false,
     },
   }) as AppState;
 
@@ -443,6 +175,7 @@ const FlexRadioContext = createContext<{
 
 export const FlexRadioProvider: ParentComponent = (props) => {
   const [state, setState] = createStore(initialState());
+  const { preferences } = usePreferences();
   const { connect: connectRTC, disconnect: disconnectRTC } = useRtc();
   const [activeRadio, setActiveRadio] = createSignal<RadioHandle | null>(null);
 
@@ -537,7 +270,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     // the data streams confirm the new frequency.
     const pan = withoutRaw(diff);
     const pendingCenterMHz = pan.centerFrequencyMHz;
-    const centerFrequencyMHz = state.display.smoothScroll
+    const centerFrequencyMHz = preferences.smoothScroll
       ? (state.runtime.panSettledCenterMHz[key] ?? pendingCenterMHz)
       : pendingCenterMHz;
 

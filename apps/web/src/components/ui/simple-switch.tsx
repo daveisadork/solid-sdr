@@ -7,8 +7,8 @@ type TooltipProps = ComponentProps<typeof Tooltip>;
 
 type SimpleSwitchProps = ComponentProps<typeof Switch> & {
   class?: string;
-  label?: JSX.Element | string;
-  tooltip?: JSX.Element | string;
+  label?: JSX.Element;
+  tooltip?: JSX.Element;
   tooltipProps?: TooltipProps;
 };
 

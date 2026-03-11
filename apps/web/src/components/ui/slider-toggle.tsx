@@ -16,8 +16,8 @@ import { cn } from "../../lib/utils";
 import { Tooltip, TooltipTrigger, TooltipContent } from "./tooltip";
 
 type SliderToggleProps = ComponentProps<typeof Slider> & {
-  label: JSX.Element | string;
-  tooltip?: JSX.Element | string;
+  label: JSX.Element;
+  tooltip?: JSX.Element;
   switchChecked: boolean;
   onSwitchChange: (checked: boolean) => void;
   switchClass?: string;

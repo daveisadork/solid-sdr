@@ -10,20 +10,20 @@ import { cva } from "class-variance-authority";
 import { cn } from "~/lib/utils";
 
 const toastVariants = cva(
-  "group pointer-events-auto relative flex w-full items-center justify-between space-x-4 overflow-hidden rounded-md border p-6 pr-8 shadow-lg backdrop-blur-lg transition-all data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--kb-toast-swipe-end-x)] data-[swipe=move]:translate-x-[var(--kb-toast-swipe-move-x)] data-[swipe=move]:transition-none data-[opened]:animate-in data-[closed]:animate-out data-[swipe=end]:animate-out data-[closed]:fade-out-80 data-[closed]:slide-out-to-right-full data-[opened]:slide-in-from-top-full data-[opened]:sm:slide-in-from-bottom-full",
+  "group pointer-events-auto relative flex w-full items-center justify-between space-x-4 overflow-hidden rounded-md border p-6 pr-8 shadow-lg transition-all data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--kb-toast-swipe-end-x)] data-[swipe=move]:translate-x-[var(--kb-toast-swipe-move-x)] data-[swipe=move]:transition-none data-[opened]:animate-in data-[closed]:animate-out data-[swipe=end]:animate-out data-[closed]:fade-out-80 data-[closed]:slide-out-to-right-full data-[opened]:slide-in-from-top-full data-[opened]:sm:slide-in-from-bottom-full",
   {
     variants: {
       variant: {
-        default: "border bg-background/50 text-foreground",
+        default: "border fancy-bg-background text-foreground",
         destructive:
-          "destructive group border-destructive bg-destructive/50 text-destructive-foreground",
-        info: "info border-info-foreground bg-info/50 text-info-foreground",
+          "destructive group border-destructive fancy-bg-destructive text-destructive-foreground",
+        info: "info border-info-foreground fancy-bg-info text-info-foreground",
         success:
-          "success border-success-foreground bg-success/50 text-success-foreground",
+          "success border-success-foreground fancy-bg-success text-success-foreground",
         warning:
-          "warning border-warning-foreground bg-warning/50 text-warning-foreground",
+          "warning border-warning-foreground fancy-bg-warning text-warning-foreground",
         error:
-          "error border-error-foreground bg-error/50 text-error-foreground",
+          "error border-error-foreground fancy-bg-error text-error-foreground",
       },
     },
     defaultVariants: {
@@ -86,7 +86,7 @@ const ToastClose = <T extends ValidComponent = "button">(
   return (
     <ToastPrimitive.CloseButton
       class={cn(
-        "absolute right-2 top-2 rounded-md p-1 text-foreground/50 opacity-0 transition-opacity focus:opacity-100 focus:outline-none focus:ring-2 group-hover:opacity-100 group-[.destructive]:text-destructive-foreground group-[.error]:text-error-foreground group-[.success]:text-success-foreground group-[.warning]:text-warning-foreground",
+        "absolute right-2 top-2 rounded-md p-1 text-foreground opacity-0 transition-opacity focus:opacity-100 focus:outline-none focus:ring-2 group-hover:opacity-100 group-[.destructive]:text-destructive-foreground group-[.error]:text-error-foreground group-[.success]:text-success-foreground group-[.warning]:text-warning-foreground",
         local.class,
       )}
       {...others}

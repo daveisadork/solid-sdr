@@ -1,6 +1,5 @@
 import {
   createMemo,
-  JSX,
   For,
   Show,
   mergeProps,
@@ -8,6 +7,7 @@ import {
   createEffect,
   Match,
   Switch,
+  JSX,
 } from "solid-js";
 import { createElementSize } from "@solid-primitives/resize-observer";
 import { cn } from "~/lib/utils";
@@ -38,7 +38,7 @@ export type LinearScaleProps = {
 
 export type LinearScaleTick = {
   value: number;
-  label: string | JSX.Element;
+  label: JSX.Element;
   position: number;
   isEdge: "min" | "max" | null;
 };

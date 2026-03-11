@@ -1,4 +1,4 @@
-import { createMemo, For, JSX, JSXElement, Show } from "solid-js";
+import { createMemo, For, JSX, Show } from "solid-js";
 import * as MeterPrimitive from "@kobalte/core/meter";
 
 import { type Meter } from "~/context/flexradio";
@@ -8,13 +8,13 @@ type MeterProps = MeterPrimitive.MeterRootOptions & {
   class?: string | undefined;
   meter: Meter;
   style?: JSX.CSSProperties;
-  label?: JSXElement;
+  label?: JSX.Element;
   stops?: Array<string | number>;
   minStops?: number;
   showTicks?: boolean;
   showTickLabels?: boolean;
   containTickLabels?: boolean;
-  description?: JSXElement;
+  description?: JSX.Element;
   showDescription?: boolean;
   tickLabelFilter?: (label: {
     value: string | number;
@@ -153,7 +153,7 @@ export function SimpleMeter(props: MeterProps) {
                 {(tick) => (
                   <div class="h-full w-0 flex flex-col items-center">
                     <Show when={tick}>
-                      <hr class="h-full w-px bg-foreground/50 border-none" />
+                      <hr class="h-full w-px bg-border border-none" />
                     </Show>
                   </div>
                 )}
@@ -190,7 +190,7 @@ export function SimpleMeter(props: MeterProps) {
           </div>
         </Show>
         <Show when={props.showDescription}>
-          <div class="w-full justify-self-start text-xs text-foreground/60">
+          <div class="w-full justify-self-start text-xs text-muted-foreground">
             {props.description ?? props.meter.description}
           </div>
         </Show>

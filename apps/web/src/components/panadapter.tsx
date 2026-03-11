@@ -328,15 +328,18 @@ export function Panadapter(props: {
     onCleanup(subscription.unsubscribe);
   });
 
-  const txBackgroundColor = createMemo(() =>
-    state.status.radio.interlockState === "TRANSMITTING"
+  const txBackgroundColor = createMemo(() => {
+    if (state.status.radio.interlockTxClientHandle !== state.clientHandleInt) {
+      return state.display.panBackgroundColor;
+    }
+
+    const color = parseColor(state.display.panBackgroundColor).toFormat("hsl");
+
+    return state.status.radio.interlockState === "TRANSMITTING"
       ? // shift the hue of the background color to 0 (red) when transmitting, but keep saturation and lightness the same
-        parseColor(state.display.panBackgroundColor)
-          .toFormat("hsl")
-          .withChannelValue("hue", 0)
-          .toString("css")
-      : state.display.panBackgroundColor,
-  );
+        color.withChannelValue("hue", 0).toString("css")
+      : color.withChannelValue("hue", 60).toString("css");
+  });
 
   return (
     <div
@@ -382,7 +385,7 @@ export function Panadapter(props: {
             />
           </div>
         </div>
-        <div class="flex pointer-events-none absolute top-4 right-12 text-fg text-xl font-bold opacity-50 space-x-2">
+        <div class="flex pointer-events-none absolute top-4 right-14 text-fg text-xl font-bold opacity-50 space-x-2">
           <div>{props.pan.preampSetting}</div>
           <Show when={props.pan.wideEnabled}>
             <div>WIDE</div>

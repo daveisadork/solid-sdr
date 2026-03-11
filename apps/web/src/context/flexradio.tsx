@@ -422,7 +422,7 @@ export const initialState = () =>
     settings: {
       showFps: false,
       sMeterEnabled: true,
-      showTuningGuide: true,
+      showTuningGuide: false,
     },
   }) as AppState;
 

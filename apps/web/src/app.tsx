@@ -45,7 +45,7 @@ function App() {
                     defaultOpen={false}
                   >
                     <AppSidebar />
-                    <SidebarTrigger class="z-50 absolute left-2 top-4 select-none backdrop-blur-lg">
+                    <SidebarTrigger class="z-50 absolute left-4 top-4 select-none backdrop-blur-lg">
                       <BaselineDisplaySettings />
                     </SidebarTrigger>
                     <Suspense fallback={<div>Loading...</div>}>
@@ -53,7 +53,7 @@ function App() {
                     </Suspense>
                   </SidebarProvider>
                   <RightSidebar />
-                  <SidebarTrigger class="z-50 absolute right-2 top-4 select-none backdrop-blur-lg">
+                  <SidebarTrigger class="z-50 absolute right-4 top-4 select-none backdrop-blur-lg">
                     <BaselineViewSidebar />
                   </SidebarTrigger>
                 </SidebarProvider>

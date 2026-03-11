@@ -83,7 +83,12 @@ function TxSection() {
                 <SimpleMeter
                   meter={meter}
                   maxValue={state.status.radio.maxInternalPaPowerWatts * 1.2}
-                  value={dbmToWatts(meter.value, 0)}
+                  value={
+                    state.status.radio.interlockTxClientHandle ===
+                    state.clientHandleInt
+                      ? dbmToWatts(meter.value, 0)
+                      : 0
+                  }
                   getValueLabel={({ value }) => `${value} W`}
                   label="RF Power"
                   showTicks
@@ -102,7 +107,12 @@ function TxSection() {
                   meter={meter}
                   minValue={1}
                   maxValue={3}
-                  value={swr()}
+                  value={
+                    state.status.radio.interlockTxClientHandle ===
+                    state.clientHandleInt
+                      ? swr()
+                      : 1
+                  }
                   getValueLabel={() => {
                     // We don't use the passed in value because it's clamped to the maxValue,
                     // and we want to show the actual SWR even if it exceeds the max.
@@ -173,13 +183,13 @@ function TxSection() {
             <SelectContent />
           </Select>
           <SimpleSwitch
-            checked={state.status.radio.mox && !state.status.radio.txTune}
+            checked={state.status.radio.mox}
             disabled={!state.status.radio.txAllowed}
             onChange={(isChecked) => {
               radio()?.setMox(isChecked);
             }}
             label="MOX"
-            tooltip="Manually Operated Transmit"
+            tooltip="Key and unkey the transmitter (Manually Operated Transmit)"
           />
           <SimpleSwitch
             checked={state.status.radio.txTune}
@@ -188,6 +198,7 @@ function TxSection() {
               radio()?.setTxTune(isChecked);
             }}
             label="Tune"
+            tooltip="Transmit a carrier for tuning"
           />
           {/* <SimpleSwitch */}
           {/*   checked={state.status.radio.tuneMode === "two_tone"} */}
@@ -212,8 +223,9 @@ function TxSection() {
                 }
               }}
               label="ATU"
+              tooltip="Bypass or engage the Automatic Tuning Unit (ATU)"
             />
-            <span class="text-foreground/60 text-xs capitalize">
+            <span class="text-muted-foreground text-xs capitalize">
               {state.status.radio.atuTuneStatus
                 .replaceAll("_", " ")
                 .toLowerCase()}
@@ -225,6 +237,7 @@ function TxSection() {
               radio()?.setAtuMemoriesEnabled(isChecked);
             }}
             label="ATU Memory"
+            tooltip="Enable memories for the ATU."
           />
           <SimpleSwitch
             checked={state.status.apd.enabled}
@@ -233,7 +246,7 @@ function TxSection() {
               radio()?.apd().setEnabled(isChecked);
             }}
             label={`APD ${state.status.apd.enabled && !state.status.apd.equalizerActive ? "(Calibrating)" : ""}`}
-            tooltip="Adaptive Pre-Distortion"
+            tooltip="Toggle SmartSignal (Adaptive Pre-Distortion)"
           />
         </div>
       </AccordionContent>
@@ -259,6 +272,12 @@ function PcwSection() {
       (meter) => meter.name === "COMPPEAK",
     ),
   );
+
+  createEffect(() => {
+    console.log(
+      `0x${state.status.radio.interlockTxClientHandle?.toString(16)} - ${state.status.radio.interlockState}`,
+    );
+  });
 
   return (
     <AccordionItem value="p-cw">
@@ -289,10 +308,15 @@ function PcwSection() {
               return (
                 <SimpleMeter
                   meter={meter}
+                  // this meter is a little different in that it shows the amount of gain reduction
+                  // being applied by the compressor, with the meter filling from the right instead of the left.
+                  // the radio won't send a null value, instead doing something like value ?? meter.low, when
+                  // in this case we'd rather have meter.high. so we do a small hack.
+                  value={meter.value > meter.low ? meter.value : 0}
                   minValue={-25}
                   maxValue={0}
-                  getValueLabel={() =>
-                    `${roundToDecimals(meter.value ?? 0, 1).toFixed(1)} dB`
+                  getValueLabel={({ value }) =>
+                    `${roundToDecimals(value, 1).toFixed(1)} dB`
                   }
                   label="Compression"
                   class="bg-linear-to-l/decreasing"

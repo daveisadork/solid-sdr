@@ -334,6 +334,7 @@ export function Panafall() {
                         Show Tuning Guide
                       </ContextMenuCheckboxItem>
                       <ContextMenuItem
+                        class="pl-8"
                         onClick={() => {
                           radio().requestSlice({
                             panadapterStreamId: pan().streamId,
@@ -341,6 +342,7 @@ export function Panafall() {
                           });
                         }}
                       >
+                        <div class="absolute left-2 flex size-3.5 items-center justify-center" />
                         Create Slice
                       </ContextMenuItem>
                     </ContextMenuContent>
@@ -476,15 +478,13 @@ export function Panafall() {
               </Portal>
               <Show
                 when={
-                  state.settings.showTuningGuide && pos.sourceType === "mouse"
+                  state.settings.showTuningGuide &&
+                  pos.sourceType === "mouse" &&
+                  pos.isInside
                 }
               >
                 <div
-                  class="absolute inset-y-0 w-px translate-x-(--cursor-x) pointer-events-none will-change-transform backdrop-invert-100"
-                  classList={{
-                    "opacity-100": pos.isInside,
-                    "opacity-0": !pos.isInside,
-                  }}
+                  class="absolute inset-y-0 w-px translate-x-(--cursor-x) pointer-events-none will-change-transform border-x border-l-foreground border-r-background opacity-75"
                   style={{
                     "--cursor-x": `${pos.x}px`,
                   }}

@@ -634,7 +634,7 @@ export function Slice(props: { slice: SliceState; pan: Panadapter }) {
                 ref={setFlag}
               >
                 <div
-                  class="border border-foreground/50 rounded-md overflow-hidden flex flex-col p-1.5 gap-1 pointer-events-auto text-sm font-mono drop-shadow-black fancy-bg-background"
+                  class="border rounded-md overflow-hidden flex flex-col p-1.5 gap-1 pointer-events-auto text-sm font-mono drop-shadow-black fancy-bg-background"
                   classList={{
                     "drop-shadow-lg": props.slice.isActive,
                     "drop-shadow-md": !props.slice.isActive,

@@ -145,7 +145,7 @@ export const LevelMeter = <T extends ValidComponent = "div">(
               {(value) => (
                 <div class="size-full translate-x-1/2 flex flex-col items-center">
                   <Show when={value}>
-                    <hr class="h-full w-px bg-foreground/50 border-none" />
+                    <hr class="h-full w-px bg-border border-none" />
                   </Show>
                 </div>
               )}

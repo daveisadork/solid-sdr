@@ -38,10 +38,7 @@ const SliderTrack = <T extends ValidComponent = "div">(
   const [local, others] = splitProps(props as SliderTrackProps, ["class"]);
   return (
     <SliderPrimitive.Track
-      class={cn(
-        "relative h-2 w-full grow rounded-full bg-foreground/20",
-        local.class,
-      )}
+      class={cn("relative h-2 w-full grow rounded-full bg-input", local.class)}
       {...others}
     />
   );

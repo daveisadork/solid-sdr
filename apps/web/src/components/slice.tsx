@@ -76,8 +76,8 @@ import {
 import { LevelMeter } from "./level-meter";
 import { SliceController } from "@repo/flexlib";
 
-const filterMaxHz = 12_000;
-const filterMinHz = -filterMaxHz;
+const FILTER_MAX_HZ = 12_000;
+const FILTER_MIN_HZ = -FILTER_MAX_HZ;
 
 export interface FilterPreset {
   name: string;
@@ -116,25 +116,45 @@ export const filterPresets: Record<string, FilterPreset[]> = {
     { name: "4.0K", lowCut: -4100, highCut: -100 },
     { name: "6.0K", lowCut: -6100, highCut: -100 },
   ],
+  // DIGU: [
+  //   { name: "100", lowCut: -50, highCut: 50 },
+  //   { name: "300", lowCut: -150, highCut: 150 },
+  //   { name: "600", lowCut: -300, highCut: 300 },
+  //   { name: "1.0K", lowCut: -500, highCut: 500 },
+  //   { name: "1.5K", lowCut: -750, highCut: 750 },
+  //   { name: "2.0K", lowCut: -1000, highCut: 1000 },
+  //   { name: "3.0K", lowCut: -1500, highCut: 1500 },
+  //   { name: "6.0K", lowCut: -3000, highCut: 3000 },
+  // ],
+  // DIGL: [
+  //   { name: "100", lowCut: -50, highCut: 50 },
+  //   { name: "300", lowCut: -150, highCut: 150 },
+  //   { name: "600", lowCut: -300, highCut: 300 },
+  //   { name: "1.0K", lowCut: -500, highCut: 500 },
+  //   { name: "1.5K", lowCut: -750, highCut: 750 },
+  //   { name: "2.0K", lowCut: -1000, highCut: 1000 },
+  //   { name: "3.0K", lowCut: -1500, highCut: 1500 },
+  //   { name: "6.0K", lowCut: -3000, highCut: 3000 },
+  // ],
   DIGU: [
-    { name: "100", lowCut: -50, highCut: 50 },
-    { name: "300", lowCut: -150, highCut: 150 },
-    { name: "600", lowCut: -300, highCut: 300 },
-    { name: "1.0K", lowCut: -500, highCut: 500 },
-    { name: "1.5K", lowCut: -750, highCut: 750 },
-    { name: "2.0K", lowCut: -1000, highCut: 1000 },
-    { name: "3.0K", lowCut: -1500, highCut: 1500 },
-    { name: "6.0K", lowCut: -3000, highCut: 3000 },
+    { name: "100", lowCut: 1450, highCut: 1550 },
+    { name: "300", lowCut: 1350, highCut: 1650 },
+    { name: "600", lowCut: 1200, highCut: 1800 },
+    { name: "1.0K", lowCut: 1000, highCut: 2000 },
+    { name: "1.5K", lowCut: 750, highCut: 2250 },
+    { name: "2.0K", lowCut: 500, highCut: 2500 },
+    { name: "3.0K", lowCut: 0, highCut: 3000 },
+    { name: "6.0K", lowCut: 0, highCut: 6000 },
   ],
   DIGL: [
-    { name: "100", lowCut: -50, highCut: 50 },
-    { name: "300", lowCut: -150, highCut: 150 },
-    { name: "600", lowCut: -300, highCut: 300 },
-    { name: "1.0K", lowCut: -500, highCut: 500 },
-    { name: "1.5K", lowCut: -750, highCut: 750 },
-    { name: "2.0K", lowCut: -1000, highCut: 1000 },
-    { name: "3.0K", lowCut: -1500, highCut: 1500 },
-    { name: "6.0K", lowCut: -3000, highCut: 3000 },
+    { name: "100", lowCut: -1550, highCut: -1450 },
+    { name: "300", lowCut: -1650, highCut: -1350 },
+    { name: "600", lowCut: -1800, highCut: -1200 },
+    { name: "1.0K", lowCut: -2000, highCut: -1000 },
+    { name: "1.5K", lowCut: -2250, highCut: -750 },
+    { name: "2.0K", lowCut: -2500, highCut: -500 },
+    { name: "3.0K", lowCut: -3000, highCut: 0 },
+    { name: "6.0K", lowCut: -6000, highCut: 0 },
   ],
   RTTY: [
     { name: "250", lowCut: -125, highCut: 125 },
@@ -156,6 +176,16 @@ export const filterPresets: Record<string, FilterPreset[]> = {
     { name: "1.0K", lowCut: -500, highCut: 500 },
     { name: "3.0K", lowCut: -1500, highCut: 1500 },
   ],
+  SAM: [
+    { name: "5.6K", lowCut: -2800, highCut: 2800 },
+    { name: "6.0K", lowCut: -3000, highCut: 3000 },
+    { name: "8.0K", lowCut: -4000, highCut: 4000 },
+    { name: "10K", lowCut: -5000, highCut: 5000 },
+    { name: "12K", lowCut: -6000, highCut: 6000 },
+    { name: "14K", lowCut: -7000, highCut: 7000 },
+    { name: "16K", lowCut: -8000, highCut: 8000 },
+    { name: "20K", lowCut: -10000, highCut: 10000 },
+  ],
   DFM: [
     { name: "6.0K", lowCut: -3000, highCut: 3000 },
     { name: "8.0K", lowCut: -4000, highCut: 4000 },
@@ -175,10 +205,11 @@ export interface FilterConstraint {
 
 const filterConstraints: Record<string, FilterConstraint> = {
   AM: { low: -10_000, high: 10_000 },
+  SAM: { low: -10_000, high: 10_000 },
   USB: { low: 0, high: 10_000 },
   LSB: { low: -10_000, high: 0 },
-  DIGU: { low: -3_000, high: 3_000 },
-  DIGL: { low: -3_000, high: 3_000 },
+  DIGU: { low: 0, high: 12_000 },
+  DIGL: { low: -12_000, high: 0 },
   RTTY: { low: -1_500, high: 1_500 },
   CW: { low: -1_500, high: 1_500 },
   DFM: { low: -10_000, high: 10_000 },
@@ -286,11 +317,19 @@ const SliceFilter = (props: {
   });
 
   const selectedPreset = createMemo(() =>
-    filterPresets[props.slice.mode].find(
+    filterPresets[props.slice?.mode]?.find(
       (preset) =>
         preset.lowCut === props.slice?.filterLowHz &&
         preset.highCut === props.slice?.filterHighHz,
     ),
+  );
+
+  const filterMinHz = createMemo(
+    () => filterConstraints[props.slice?.mode]?.low ?? FILTER_MIN_HZ,
+  );
+
+  const filterMaxHz = createMemo(
+    () => filterConstraints[props.slice?.mode]?.high ?? FILTER_MAX_HZ,
   );
 
   return (
@@ -308,10 +347,8 @@ const SliceFilter = (props: {
                 onChange={(preset: string) => {
                   const presetObj = presets().find((p) => p.name === preset);
                   if (!presetObj) return;
-                  props.controller.setFilter(
-                    presetObj.lowCut,
-                    presetObj.highCut,
-                  );
+                  const { lowCut, highCut } = presetObj;
+                  props.controller.setFilter(lowCut, highCut);
                 }}
                 class="grid grid-cols-4"
               >
@@ -320,7 +357,7 @@ const SliceFilter = (props: {
                     <ToggleGroupItem
                       variant="outline"
                       size="sm"
-                      class="border-muted-foreground data-pressed:bg-primary data-pressed:text-primary-foreground"
+                      class="border data-pressed:bg-primary data-pressed:text-primary-foreground"
                       value={preset.name}
                     >
                       {preset.name}
@@ -336,7 +373,7 @@ const SliceFilter = (props: {
                 class="flex w-24 flex-col gap-2 select-none font-mono"
                 rawValue={rawFilterLow()}
                 format={false}
-                minValue={filterMinHz}
+                minValue={filterMinHz()}
                 maxValue={props.slice.filterHighHz}
                 onRawValueChange={setRawFilterLow}
                 onFocusOut={applyFilterLow}
@@ -357,9 +394,7 @@ const SliceFilter = (props: {
                 rawValue={rawFilterHigh()}
                 minValue={props.slice.filterLowHz}
                 format={false}
-                maxValue={
-                  filterConstraints[props.slice.mode]?.high ?? filterMaxHz
-                }
+                maxValue={filterMaxHz()}
                 onRawValueChange={setRawFilterHigh}
                 onFocusOut={applyFilterHigh}
               >
@@ -375,8 +410,8 @@ const SliceFilter = (props: {
             </div>
           </div>
           <Slider
-            minValue={filterConstraints[props.slice.mode]?.low ?? filterMinHz}
-            maxValue={filterConstraints[props.slice.mode]?.high ?? filterMaxHz}
+            minValue={filterMinHz()}
+            maxValue={filterMaxHz()}
             step={25}
             value={[props.slice.filterLowHz, props.slice.filterHighHz]}
             onChange={([low, high]) => props.controller.setFilter(low, high)}
@@ -387,13 +422,10 @@ const SliceFilter = (props: {
               <div
                 class="absolute w-0.75 bg-red-500 h-[200%] rounded-sm -translate-y-1/4"
                 classList={{
-                  "left-0 -translate-x-1/2":
-                    filterConstraints[props.slice.mode]?.low === 0,
-                  "right-0 translate-x-1/2":
-                    filterConstraints[props.slice.mode]?.high === 0,
+                  "left-0 -translate-x-1/2": filterMinHz() === 0,
+                  "right-0 translate-x-1/2": filterMaxHz() === 0,
                   "left-1/2 -translate-x-1/2":
-                    filterConstraints[props.slice.mode]?.low < 0 &&
-                    filterConstraints[props.slice.mode]?.high > 0,
+                    filterMinHz() < 0 && filterMaxHz() > 0,
                 }}
               />
               <SliderThumb />

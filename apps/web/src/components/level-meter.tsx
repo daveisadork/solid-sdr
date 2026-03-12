@@ -1,9 +1,18 @@
-import useFlexRadio, { Meter } from "~/context/flexradio";
-import { createMemo, For, Show, splitProps, ValidComponent } from "solid-js";
+import { Meter } from "~/context/flexradio";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  Show,
+  splitProps,
+  ValidComponent,
+} from "solid-js";
 
 import * as MeterPrimitive from "@kobalte/core/meter";
 import { cn } from "~/lib/utils";
 import { usePreferences } from "~/context/preferences";
+import { createStore } from "solid-js/store";
 
 const S9 = -73;
 const STOPS = [
@@ -25,12 +34,25 @@ const STOPS = [
   "",
 ];
 
+const dbmToSLabel = (dbm: number) => {
+  // This meter is in dBm. S9 is -73 dBm, and each S unit is 6 dB.
+  // We start by subtracting -73 so S9 is 0. That way the rest of the math
+  // is a little easier, we can divide by 6 and add 9 to get the S unit.
+  // Anything above S9 is S9 + the number of dB over S9.
+  const adjustedValue = Math.round(dbm - S9);
+  const label =
+    adjustedValue > 0
+      ? `S9+${adjustedValue}`
+      : `S${Math.max(Math.floor(adjustedValue / 6) + 9, 0)}`;
+  return label.padEnd(5, " ");
+};
+
 type LevelMeterProps<T extends ValidComponent = "div"> =
   MeterPrimitive.MeterRootProps<T> & {
     class?: string | undefined;
     compressionThreshold?: number | undefined;
     compressionFactor?: number | undefined;
-    hideValueLabel?: boolean | undefined;
+    labelStyle?: "peak" | "instant" | "none";
     meter: Meter;
   };
 
@@ -42,9 +64,10 @@ export const LevelMeter = <T extends ValidComponent = "div">(
     "meter",
     "compressionThreshold",
     "compressionFactor",
-    "hideValueLabel",
+    "labelStyle",
   ]);
   const { preferences, setPreferences } = usePreferences();
+  const [peakValue, setPeakValue] = createSignal(-133);
 
   const scaleMeterValue = createMemo(() => {
     const compressionFactor = local.compressionFactor;
@@ -83,29 +106,29 @@ export const LevelMeter = <T extends ValidComponent = "div">(
   const getValueLabel = createMemo(
     (): MeterPrimitive.MeterRootOptions["getValueLabel"] => {
       const unscale = unscaleMeterValue();
-      if (!preferences.sMeterEnabled) {
-        return (params) => `${Math.round(unscale(params.value))}dBm`;
+      switch (local.labelStyle) {
+        case "none":
+          return () => null;
+        case "instant":
+          return ({ value }) =>
+            preferences.sMeterEnabled
+              ? dbmToSLabel(unscale(value))
+              : `${Math.round(unscale(value))}dBm`;
+        case "peak":
+        default:
+          return () =>
+            preferences.sMeterEnabled
+              ? dbmToSLabel(peakValue())
+              : `${Math.round(unscaleMeterValue()(peakValue()))}dBm`;
       }
-      return (params) => {
-        const value = unscale(params.value);
-        // This meter is in dBm. S9 is -73 dBm, and each S unit is 6 dB.
-        // We start by subtracting -73 so S9 is 0. That way the rest of the math
-        // is a little easier, we can divide by 6 and add 9 to get the S unit.
-        // Anything above S9 is S9 + the number of dB over S9.
-        const adjustedValue = Math.round(value - S9);
-        // const overS9 =
-        //   adjustedValue > 0
-        //     ? `+${adjustedValue.toString().padStart(2, " ")}`
-        //     : "";
-        // return ` S${Math.min(9, Math.max(0, Math.floor(adjustedValue / 6) + 9))}\n${overS9.padEnd(3, " ")}`;
-        const label =
-          adjustedValue > 0
-            ? `S9+${adjustedValue}`
-            : `S${Math.max(Math.floor(adjustedValue / 6) + 9, 0)}`;
-        return label.padEnd(5, " ");
-      };
     },
   );
+
+  createEffect((expires: number) => {
+    if (props.meter.value < peakValue() && Date.now() < expires) return expires;
+    setPeakValue(props.meter.value);
+    return Date.now() + 1000;
+  }, 0);
 
   return (
     <MeterPrimitive.Root
@@ -167,7 +190,7 @@ export const LevelMeter = <T extends ValidComponent = "div">(
           </For>
         </div>
       </div>
-      <Show when={!local.hideValueLabel}>
+      <Show when={local.labelStyle !== "none"}>
         <MeterPrimitive.ValueLabel class="font-medium text-xs/tight whitespace-pre textbox-edge-cap-alphabetic textbox-trim-both" />
       </Show>
     </MeterPrimitive.Root>

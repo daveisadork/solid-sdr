@@ -8,8 +8,6 @@ export interface Gradient {
 }
 
 export interface PaletteSettings {
-  colorMin: number;
-  colorMax: number;
   gradients: Gradient[];
 }
 
@@ -25,6 +23,7 @@ export interface Preferences {
   showFps: boolean;
   sMeterEnabled: boolean;
   showTuningGuide: boolean;
+  preventScreenSleep: boolean;
   palette: PaletteSettings;
   enableRemoteAudio: boolean;
   outputDeviceId: string;
@@ -47,11 +46,10 @@ const initialPreferences = () =>
     showFps: false,
     sMeterEnabled: true,
     showTuningGuide: false,
+    preventScreenSleep: false,
     enableRemoteAudio: true,
     outputDeviceId: "default",
     palette: {
-      colorMin: 0.0,
-      colorMax: 1.0,
       gradients: [
         {
           name: "SmartSDR",
@@ -250,10 +248,10 @@ const initialPreferences = () =>
   }) as Preferences;
 
 export const PreferencesProvider: ParentComponent = (props) => {
-  const [preferences, setPreferences] = makePersisted(
-    createStore(initialPreferences()),
-    { name: "preferences" },
-  );
+  const [store, setStore] = createStore(initialPreferences());
+  const [preferences, setPreferences] = makePersisted([store, setStore], {
+    name: "preferences",
+  });
   return (
     <PreferencesContext.Provider value={{ preferences, setPreferences }}>
       {props.children}

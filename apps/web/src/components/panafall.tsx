@@ -1,6 +1,18 @@
 import useFlexRadio from "~/context/flexradio";
 import { Resizable, ResizablePanel } from "./ui/resizable";
-import { batch, createEffect, createSignal, Show, onCleanup } from "solid-js";
+import {
+  batch,
+  createEffect,
+  createSignal,
+  Show,
+  onCleanup,
+  JSX,
+  ComponentProps,
+  splitProps,
+  ValidComponent,
+  Switch,
+  Match,
+} from "solid-js";
 import { Panadapter } from "./panadapter";
 import { Waterfall } from "./waterfall";
 import { Scale } from "./scale";
@@ -13,6 +25,8 @@ import ArrowExpandHorizontal from "~icons/mdi/arrow-expand-horizontal";
 import Fullscreen from "~icons/mdi/fullscreen";
 import FullscreenExit from "~icons/mdi/fullscreen-exit";
 import ThemeLightDark from "~icons/mdi/theme-light-dark";
+import LightMode from "~icons/material-symbols/light-mode-outline";
+import DarkMode from "~icons/material-symbols/dark-mode-outline";
 import MaterialSymbolsAddCommentOutlineRounded from "~icons/material-symbols/add-comment-outline-rounded";
 import { Button } from "./ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
@@ -20,7 +34,7 @@ import {
   createLocalStorageManager,
   useColorMode,
 } from "@kobalte/core/color-mode";
-import { frequencyToLabel, roundToDecimals } from "~/lib/utils";
+import { cn, frequencyToLabel, roundToDecimals } from "~/lib/utils";
 import { createFullscreen } from "@solid-primitives/fullscreen";
 import {
   ContextMenu,
@@ -30,11 +44,67 @@ import {
   ContextMenuPortal,
   ContextMenuCheckboxItem,
 } from "./ui/context-menu";
-import { createElementBounds } from "@solid-primitives/bounds";
 import { Portal } from "solid-js/web";
 import { usePanafall } from "~/context/panafall";
 import { createWindowSize } from "@solid-primitives/resize-observer";
 import { usePreferences } from "~/context/preferences";
+import { Toggle } from "./ui/toggle";
+
+type PanafallButtonProps<T extends ValidComponent = "button"> = ComponentProps<
+  typeof TooltipTrigger<T>
+> &
+  ComponentProps<typeof Button<T>> & {
+    tooltip?: JSX.Element;
+    class?: JSX.ElementClass;
+  };
+
+export function PanafallButton(props: PanafallButtonProps) {
+  const [local, others] = splitProps(props, ["class", "tooltip"]);
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        as={Button}
+        size="icon"
+        variant="ghost"
+        class={cn(
+          "aspect-square fancy-bg-background not-pointer-coarse:size-5 pointer-coarse:border",
+          local.class,
+        )}
+        {...others}
+      />
+      <Show when={local.tooltip}>
+        <TooltipContent>{local.tooltip}</TooltipContent>
+      </Show>
+    </Tooltip>
+  );
+}
+
+type PanafallToggleButtonProps = ComponentProps<typeof TooltipTrigger> &
+  ComponentProps<typeof Toggle> & {
+    tooltip?: JSX.Element;
+    class?: JSX.ElementClass;
+  };
+
+export function PanafallToggleButton(props: PanafallToggleButtonProps) {
+  const [local, others] = splitProps(props, ["class", "tooltip"]);
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        as={Toggle}
+        size="icon"
+        variant="ghost"
+        class={cn(
+          "aspect-square not-pointer-coarse:size-5 pointer-coarse:border fancy-bg-background data-pressed:fancy-bg-primary data-pressed:text-primary-foreground",
+          local.class,
+        )}
+        {...others}
+      />
+      <Show when={local.tooltip}>
+        <TooltipContent>{local.tooltip}</TooltipContent>
+      </Show>
+    </Tooltip>
+  );
+}
 
 export function Panafall() {
   const { preferences, setPreferences } = usePreferences();
@@ -68,11 +138,10 @@ export function Panafall() {
     setModePreference(next);
   };
 
-  const { radio, state, setState } = useFlexRadio();
+  const { radio } = useFlexRadio();
   const [fs, setFullscreen] = createSignal(false);
   const fullscreen = createFullscreen(() => document.documentElement, fs);
   const [clickRef, setClickRef] = createSignal<HTMLElement>();
-  const [sizeRef, setSizeRef] = createSignal<HTMLElement>();
 
   const [dragState, setDragState] = createStore({
     down: false,
@@ -83,7 +152,6 @@ export function Panafall() {
     offset: 0,
   });
   const pos = createMousePosition(clickRef);
-  const panafallBounds = createElementBounds(sizeRef);
   const windowSize = createWindowSize();
 
   const {
@@ -95,6 +163,9 @@ export function Panafall() {
     pxToMHz,
     mhzToPx,
     xToFreq,
+    sizeRef,
+    setSizeRef,
+    panafallBounds,
   } = usePanafall();
 
   createEffect(() => setFullscreen(fullscreen()));
@@ -356,129 +427,93 @@ export function Panafall() {
               </div>
               <Portal mount={sizeRef()}>
                 <div class="absolute bottom-2 left-2 grid grid-cols-2 gap-0.5 text-xs">
-                  <Tooltip>
-                    <TooltipTrigger
-                      as={Button}
-                      size="icon"
-                      variant="ghost"
-                      class="size-5"
-                      classList={{
-                        "fancy-bg-background": !pan().isBandZoomOn,
-                        "fancy-bg-primary text-primary-foreground":
-                          pan().isBandZoomOn,
-                      }}
-                      onClick={() =>
-                        panadapterController()?.setBandZoom(!pan().isBandZoomOn)
-                      }
-                    >
-                      B
-                    </TooltipTrigger>
-                    <TooltipContent>Band Zoom</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger
-                      as={Button}
-                      size="icon"
-                      variant="ghost"
-                      class="size-5"
-                      classList={{
-                        "fancy-bg-background": !pan().isSegmentZoomOn,
-                        "fancy-bg-primary text-primary-foreground":
-                          pan().isSegmentZoomOn,
-                      }}
-                      onClick={() =>
-                        panadapterController()?.setSegmentZoom(
-                          !pan().isSegmentZoomOn,
-                        )
-                      }
-                    >
-                      S
-                    </TooltipTrigger>
-                    <TooltipContent>Segment Zoom</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger
-                      as={Button}
-                      size="icon"
-                      variant="ghost"
-                      class="fancy-bg-background size-5"
-                      onClick={() =>
-                        panadapterController()?.setBandwidth(
-                          pan().bandwidthMHz * 2,
-                        )
-                      }
-                      onContextMenu={(e) => {
-                        e.preventDefault();
-                        fitPanadapterToPanafallBounds();
-                      }}
-                    >
-                      <ArrowCollapseHorizontal />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      Zoom Out (from {frequencyToLabel(pan().bandwidthMHz)} to{" "}
-                      {frequencyToLabel(pan().bandwidthMHz * 2)})
-                    </TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger
-                      as={Button}
-                      size="icon"
-                      variant="ghost"
-                      class="fancy-bg-background size-5"
-                      onClick={() =>
-                        panadapterController()?.setBandwidth(
-                          pan().bandwidthMHz / 2,
-                        )
-                      }
-                      onContextMenu={(e) => {
-                        e.preventDefault();
-                        expandPanafallBoundsToFullPanadapter();
-                      }}
-                    >
-                      <ArrowExpandHorizontal />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      Zoom In (from {frequencyToLabel(pan().bandwidthMHz)} to{" "}
-                      {frequencyToLabel(pan().bandwidthMHz / 2)})
-                    </TooltipContent>
-                  </Tooltip>
+                  <PanafallToggleButton
+                    pressed={pan().isBandZoomOn}
+                    onChange={(pressed) =>
+                      panadapterController()?.setBandZoom(pressed)
+                    }
+                    tooltip="Band Zoom"
+                  >
+                    B
+                  </PanafallToggleButton>
+                  <PanafallToggleButton
+                    pressed={pan().isSegmentZoomOn}
+                    onChange={(pressed) =>
+                      panadapterController()?.setSegmentZoom(pressed)
+                    }
+                    tooltip="Segment Zoom"
+                  >
+                    S
+                  </PanafallToggleButton>
+                  <PanafallButton
+                    onClick={() =>
+                      panadapterController()?.setBandwidth(
+                        pan().bandwidthMHz * 2,
+                      )
+                    }
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      fitPanadapterToPanafallBounds();
+                    }}
+                    tooltip={
+                      <>
+                        Zoom Out (from {frequencyToLabel(pan().bandwidthMHz)} to{" "}
+                        {frequencyToLabel(pan().bandwidthMHz * 2)})
+                      </>
+                    }
+                  >
+                    <ArrowCollapseHorizontal />
+                  </PanafallButton>
+                  <PanafallButton
+                    onClick={() =>
+                      panadapterController()?.setBandwidth(
+                        pan().bandwidthMHz / 2,
+                      )
+                    }
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      expandPanafallBoundsToFullPanadapter();
+                    }}
+                    tooltip={
+                      <>
+                        Zoom In (from {frequencyToLabel(pan().bandwidthMHz)} to{" "}
+                        {frequencyToLabel(pan().bandwidthMHz / 2)})
+                      </>
+                    }
+                  >
+                    <ArrowExpandHorizontal />
+                  </PanafallButton>
                 </div>
-
                 <div class="absolute bottom-2 right-12 flex gap-2">
-                  <Tooltip>
-                    <TooltipTrigger
-                      as={Button}
-                      size="icon"
-                      variant="ghost"
-                      class="fancy-bg-background size-5"
-                      onClick={cycleTheme}
-                      aria-label="Toggle theme"
-                    >
-                      <ThemeLightDark />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      Theme: {modePreference()} ({colorMode()} active)
-                    </TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger
-                      as={Button}
-                      size="icon"
-                      variant="ghost"
-                      class="fancy-bg-background size-5"
-                      onClick={() => setFullscreen(!fullscreen())}
-                      aria-label={
-                        fullscreen() ? "Exit fullscreen" : "Enter fullscreen"
-                      }
-                    >
-                      <Show when={fullscreen()} fallback={<Fullscreen />}>
-                        <FullscreenExit />
-                      </Show>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      {fullscreen() ? "Exit" : "Enter"} Fullscreen
-                    </TooltipContent>
-                  </Tooltip>
+                  <PanafallButton
+                    onClick={cycleTheme}
+                    aria-label="Toggle theme"
+                    tooltip={
+                      <>
+                        Theme: {modePreference()} ({colorMode()} active)
+                      </>
+                    }
+                  >
+                    <Switch fallback={<ThemeLightDark />}>
+                      <Match when={modePreference() === "light"}>
+                        <LightMode />
+                      </Match>
+                      <Match when={modePreference() === "dark"}>
+                        <DarkMode />
+                      </Match>
+                    </Switch>
+                  </PanafallButton>
+                  <PanafallButton
+                    onClick={() => setFullscreen(!fullscreen())}
+                    tooltip={<>{fullscreen() ? "Exit" : "Enter"} Fullscreen</>}
+                    aria-label={
+                      fullscreen() ? "Exit fullscreen" : "Enter fullscreen"
+                    }
+                  >
+                    <Show when={fullscreen()} fallback={<Fullscreen />}>
+                      <FullscreenExit />
+                    </Show>
+                  </PanafallButton>
                 </div>
               </Portal>
               <Show
@@ -489,7 +524,7 @@ export function Panafall() {
                 }
               >
                 <div
-                  class="absolute inset-y-0 w-px translate-x-(--cursor-x) pointer-events-none will-change-transform"
+                  class="absolute inset-y-0 w-px translate-x-(--cursor-x) pointer-events-none will-change-transform pointer-coarse:hidden"
                   classList={{
                     "backdrop-invert-100":
                       preferences.enableTransparencyEffects,

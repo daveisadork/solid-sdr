@@ -75,6 +75,7 @@ import {
 } from "./ui/number-field";
 import { LevelMeter } from "./level-meter";
 import { SliceController } from "@repo/flexlib";
+import { usePanafall } from "~/context/panafall";
 
 const FILTER_MAX_HZ = 12_000;
 const FILTER_MIN_HZ = -FILTER_MAX_HZ;
@@ -231,6 +232,8 @@ const Triangle: Component<ComponentProps<"div">> = (props) => {
 
 export function DetachedSlice(props: { slice: SliceState; pan: Panadapter }) {
   const { radio } = useFlexRadio();
+  const { panadapterController } = usePanafall();
+  const sliceController = createMemo(() => radio()?.slice(props.slice.id));
 
   return (
     <Button
@@ -238,10 +241,8 @@ export function DetachedSlice(props: { slice: SliceState; pan: Panadapter }) {
       size="sm"
       class="font-extrabold text-md font-mono z-10 pointer-events-auto text-shadow-md text-shadow-background"
       onClick={() => {
-        radio()
-          ?.panadapter(props.slice.panadapterStreamId)
-          ?.setCenterFrequency(props.slice.frequencyMHz);
-        radio()?.slice(props.slice.id)?.setActive(true);
+        panadapterController()?.setCenterFrequency(props.slice.frequencyMHz);
+        sliceController()?.setActive(true);
       }}
     >
       <Show when={props.slice.frequencyMHz < props.pan.centerFrequencyMHz}>
@@ -439,11 +440,11 @@ const SliceFilter = (props: {
 };
 
 export function Slice(props: { slice: SliceState; pan: Panadapter }) {
-  const { radio: session, state, setState } = useFlexRadio();
-  const sliceController = createMemo(() => session()?.slice(props.slice.id));
+  const { radio, state, setState } = useFlexRadio();
+  const { panafallBounds } = usePanafall();
+  const sliceController = createMemo(() => radio()?.slice(props.slice.id));
   const [offset, setOffset] = createSignal(0);
   const [sentinel, setSentinel] = createSignal<HTMLDivElement>();
-  const [wrapper, setWrapper] = createSignal<HTMLElement>();
   const [flag, setFlag] = createSignal<HTMLElement>();
   const [filterWidth, setFilterWidth] = createSignal(0);
   const [filterOffset, setFilterOffset] = createSignal(0);
@@ -455,7 +456,6 @@ export function Slice(props: { slice: SliceState; pan: Panadapter }) {
     offset: 0,
   });
   const windowSize = createWindowSize();
-  const wrapperBounds = createElementBounds(wrapper);
   const sentinelBounds = createElementBounds(sentinel);
   const flagBounds = createElementBounds(flag);
 
@@ -483,12 +483,12 @@ export function Slice(props: { slice: SliceState; pan: Panadapter }) {
     }
 
     if (
-      flagBounds.left < wrapperBounds.left ||
-      flagBounds.right > wrapperBounds.right
+      flagBounds.left < panafallBounds.left ||
+      flagBounds.right > panafallBounds.right
     ) {
       setFlagSide(
-        wrapperBounds.right - sentinelBounds.left >=
-          sentinelBounds.left - wrapperBounds.left
+        panafallBounds.right - sentinelBounds.left >=
+          sentinelBounds.left - panafallBounds.left
           ? "right"
           : "left",
       );
@@ -527,10 +527,6 @@ export function Slice(props: { slice: SliceState; pan: Panadapter }) {
       setDragState("dragging", false);
     }
     return props.pan.centerFrequencyMHz;
-  });
-
-  createEffect(() => {
-    setWrapper(document.getElementById("panafall-sizer"));
   });
 
   createEffect(() => {
@@ -576,8 +572,8 @@ export function Slice(props: { slice: SliceState; pan: Panadapter }) {
 
   createEffect(() => {
     const detached =
-      sentinelBounds.left! < wrapperBounds.left ||
-      sentinelBounds.right! > wrapperBounds.right!;
+      sentinelBounds.left! < panafallBounds.left ||
+      sentinelBounds.right! > panafallBounds.right!;
     if (detached === props.slice.isDetached) return;
     setState("status", "slice", props.slice.id, "isDetached", detached);
   });

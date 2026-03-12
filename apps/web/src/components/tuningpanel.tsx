@@ -4,7 +4,6 @@ import useFlexRadio, {
   Waterfall,
 } from "~/context/flexradio";
 import { createEffect, createSignal, For } from "solid-js";
-import { createStore } from "solid-js/store";
 import {
   NumberField,
   NumberFieldDecrementTrigger,
@@ -69,46 +68,6 @@ const BANDS: { id: string; label: string }[] = [
   { id: "630", label: "630m" },
 ];
 
-function MeterElement(props: { meter: Meter }) {
-  return (
-    <MeterPrimitive.Root
-      value={props.meter.value}
-      minValue={props.meter.low}
-      maxValue={props.meter.high}
-      getValueLabel={({ value }) => `${value.toFixed(2)} ${props.meter.units}`}
-      class="flex flex-col gap-0.5 w-full items-center"
-    >
-      <div class="flex font-mono text-xs w-full">
-        <MeterPrimitive.Label>
-          {props.meter.name} {props.meter.source} {props.meter.sourceIndex}
-        </MeterPrimitive.Label>
-        <div class="grow" />
-        <MeterPrimitive.ValueLabel />
-      </div>
-      <MeterPrimitive.Track class="relative w-full h-2.5">
-        <div
-          class="absolute inset-0 border border-transparent rounded-xl bg-linear-to-r/decreasing from-blue-500 via-yellow-300 via-60% to-red-500 bg-origin-border"
-          style={{
-            mask: "linear-gradient(black 0 0) padding-box, linear-gradient(black 0 0)",
-            "mask-composite": "exclude",
-          }}
-        />
-        <MeterPrimitive.Fill
-          class="absolute inset-0 rounded-xl bg-linear-to-r/decreasing from-blue-500 via-yellow-300 via-60% to-red-500"
-          style={{
-            "clip-path": "inset(0 calc(100% - var(--kb-meter-fill-width)) 0 0)",
-            "will-change": "clip-path",
-            transition: `clip-path ${1 / (props.meter.fps || 4)}s linear`,
-          }}
-        />
-      </MeterPrimitive.Track>
-      <div class="flex w-full justify-between text-xs text-muted-foreground">
-        {props.meter.description}
-      </div>
-    </MeterPrimitive.Root>
-  );
-}
-
 function createGradientStyle(
   stops: { color: string; offset: number }[],
   to: string = "top",
@@ -124,7 +83,7 @@ export function TuningPanel(props: {
   panadapterController: PanadapterController;
   waterfallController: WaterfallController;
 }) {
-  const { radio, state, setState } = useFlexRadio();
+  const { radio, state } = useFlexRadio();
   const { preferences, setPreferences } = usePreferences();
   const [rawFrequency, setRawFrequency] = createSignal(
     props.panadapterController.centerFrequencyMHz,
@@ -218,6 +177,13 @@ export function TuningPanel(props: {
           setPreferences("showFps", isChecked);
         }}
         label="Show FPS"
+      />
+      <SimpleSwitch
+        checked={preferences.preventScreenSleep}
+        onChange={(isChecked) => {
+          setPreferences("preventScreenSleep", isChecked);
+        }}
+        label="Prevent Screensaver"
       />
       <SegmentedControl
         value={preferences.peakStyle}

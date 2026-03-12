@@ -5,6 +5,8 @@ import {
   Show,
   useContext,
   type Accessor,
+  createSignal,
+  createEffect,
 } from "solid-js";
 import useFlexRadio, {
   type Panadapter,
@@ -15,32 +17,45 @@ import {
   type PanadapterController,
   type WaterfallController,
 } from "@repo/flexlib";
+import { createElementBounds } from "@solid-primitives/bounds";
+import { usePreferences } from "./preferences";
 
 const PanafallContext = createContext<{
-  panadapter: Accessor<Panadapter>;
-  waterfall: Accessor<Waterfall>;
-  panadapterController: Accessor<PanadapterController>;
-  waterfallController: Accessor<WaterfallController>;
-  slices: Accessor<Slice[]>;
   activeSlice: Accessor<Slice | undefined>;
-  pxPerMHz: Accessor<number>;
-  mhzPerPx: Accessor<number>;
-  pxToMHz: (px: number) => number;
-  mhzToPx: (mhz: number) => number;
-  xToFreq: (x: number) => number;
   freqToX: (freq: number) => number;
+  mhzPerPx: Accessor<number>;
+  mhzToPx: (mhz: number) => number;
+  panadapter: Accessor<Panadapter>;
+  panadapterController: Accessor<PanadapterController>;
+  panafallBounds: ReturnType<typeof createElementBounds>;
+  pxPerMHz: Accessor<number>;
+  pxToMHz: (px: number) => number;
+  sizeRef: Accessor<HTMLElement | undefined>;
+  setSizeRef: (el: HTMLElement) => void;
+  slices: Accessor<Slice[]>;
+  waterfall: Accessor<Waterfall>;
+  waterfallController: Accessor<WaterfallController>;
+  xToFreq: (x: number) => number;
 }>();
 
 export const PanafallProvider: ParentComponent = (props) => {
   const { radio, state } = useFlexRadio();
+  const { preferences } = usePreferences();
+  const [sizeRef, setSizeRef] = createSignal<HTMLElement>();
+  const [wakeLock, setWakeLock] = createSignal<WakeLockSentinel>();
+  const panafallBounds = createElementBounds(sizeRef);
   const panadapter = createMemo(
     () => state.status.panadapter[state.selectedPanadapter],
   );
   const waterfall = createMemo(
     () => state.status.waterfall[panadapter()?.waterfallStreamId],
   );
-  const panadapterController = () => radio()?.panadapter(panadapter()?.id);
-  const waterfallController = () => radio()?.waterfall(waterfall()?.id);
+  const panadapterController = createMemo(() =>
+    radio()?.panadapter(panadapter()?.id),
+  );
+  const waterfallController = createMemo(() =>
+    radio()?.waterfall(waterfall()?.id),
+  );
   const slices = createMemo(() => {
     const streamId = panadapter()?.streamId;
     return Object.values(state.status.slice).filter(
@@ -91,6 +106,14 @@ export const PanafallProvider: ParentComponent = (props) => {
     return pan.width / 2 + mhzToPx(offsetMHz);
   };
 
+  createEffect(() => {
+    if (!(preferences.preventScreenSleep && state.clientHandle))
+      return wakeLock()?.release();
+    if (wakeLock()?.released !== false) {
+      navigator.wakeLock?.request("screen").then(setWakeLock);
+    }
+  });
+
   return (
     <Show
       when={
@@ -102,18 +125,21 @@ export const PanafallProvider: ParentComponent = (props) => {
     >
       <PanafallContext.Provider
         value={{
-          panadapter,
-          waterfall,
-          panadapterController,
-          waterfallController,
-          slices,
           activeSlice,
-          pxPerMHz,
-          mhzPerPx,
-          pxToMHz,
-          mhzToPx,
-          xToFreq,
           freqToX,
+          mhzPerPx,
+          mhzToPx,
+          panadapter,
+          panadapterController,
+          panafallBounds,
+          pxPerMHz,
+          pxToMHz,
+          setSizeRef,
+          sizeRef,
+          slices,
+          waterfall,
+          waterfallController,
+          xToFreq,
         }}
       >
         {props.children}

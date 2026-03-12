@@ -48,7 +48,7 @@ const SegmentedControlGroup: Component<ComponentProps<"div">> = (props) => {
   return (
     <div
       role="presentation"
-      class={cn("relative rounded-md m-0 p-0 w-full", local.class)}
+      class={cn("relative m-0 p-0 w-full", local.class)}
       {...others}
     />
   );

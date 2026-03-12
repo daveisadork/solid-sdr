@@ -1014,13 +1014,7 @@ export class RadioControllerImpl implements RadioController {
   }
 
   async setTxDelayMs(delayMs: number): Promise<void> {
-    await this.setInterlockInteger(
-      "tx_delay",
-      delayMs,
-      0,
-      60_000,
-      "TX delay",
-    );
+    await this.setInterlockInteger("tx_delay", delayMs, 0, 60_000, "TX delay");
   }
 
   async setTxReqRcaEnabled(enabled: boolean): Promise<void> {
@@ -1056,33 +1050,15 @@ export class RadioControllerImpl implements RadioController {
   }
 
   async setTx1DelayMs(delayMs: number): Promise<void> {
-    await this.setInterlockInteger(
-      "tx1_delay",
-      delayMs,
-      0,
-      6_000,
-      "TX1 delay",
-    );
+    await this.setInterlockInteger("tx1_delay", delayMs, 0, 6_000, "TX1 delay");
   }
 
   async setTx2DelayMs(delayMs: number): Promise<void> {
-    await this.setInterlockInteger(
-      "tx2_delay",
-      delayMs,
-      0,
-      6_000,
-      "TX2 delay",
-    );
+    await this.setInterlockInteger("tx2_delay", delayMs, 0, 6_000, "TX2 delay");
   }
 
   async setTx3DelayMs(delayMs: number): Promise<void> {
-    await this.setInterlockInteger(
-      "tx3_delay",
-      delayMs,
-      0,
-      6_000,
-      "TX3 delay",
-    );
+    await this.setInterlockInteger("tx3_delay", delayMs, 0, 6_000, "TX3 delay");
   }
 
   async setAccTxDelayMs(delayMs: number): Promise<void> {
@@ -1162,13 +1138,17 @@ export class RadioControllerImpl implements RadioController {
       throw new FlexError("Mic selection cannot be empty");
     }
     const normalized = trimmed.toUpperCase();
-    await this.commandAndPatch(`mic input ${normalized}`, {
-      mic_selection: normalized,
-    }, { source: "transmit" });
+    await this.commandAndPatch(
+      `mic input ${normalized}`,
+      {
+        mic_selection: normalized,
+      },
+      { source: "transmit" },
+    );
   }
 
   async setMicLevel(level: number): Promise<void> {
-    await this.setTransmitInteger("mic_level", level, 0, 100, "Mic level");
+    await this.setTransmitInteger("miclevel", level, 0, 100, "Mic level");
   }
 
   async setMicBoost(enabled: boolean): Promise<void> {
@@ -1188,7 +1168,12 @@ export class RadioControllerImpl implements RadioController {
   }
 
   async setMicAccessoryEnabled(enabled: boolean): Promise<void> {
-    await this.setTransmitBoolean("mic_acc", enabled);
+    const normalized = formatBooleanFlag(enabled);
+    await this.commandAndPatch(
+      `mic acc ${normalized}`,
+      { mic_acc: normalized },
+      { source: "transmit" },
+    );
   }
 
   async setDaxEnabled(enabled: boolean): Promise<void> {
@@ -1491,10 +1476,7 @@ export class RadioControllerImpl implements RadioController {
     await this.sendInterlockValue(key, clamped.toString(10));
   }
 
-  private async sendInterlockValue(
-    key: string,
-    value: string,
-  ): Promise<void> {
+  private async sendInterlockValue(key: string, value: string): Promise<void> {
     await this.commandAndPatch(
       `interlock ${key}=${value}`,
       { [key]: value },
@@ -1531,11 +1513,9 @@ export class RadioControllerImpl implements RadioController {
       ([entryKey, entryValue]) => `${entryKey}=${entryValue}`,
     );
     if (segments.length === 0) return;
-    await this.commandAndPatch(
-      `transmit set ${segments.join(" ")}`,
-      entries,
-      { source: "transmit" },
-    );
+    await this.commandAndPatch(`transmit set ${segments.join(" ")}`, entries, {
+      source: "transmit",
+    });
   }
 
   private async commandAndPatch(
@@ -1590,8 +1570,7 @@ function sanitizeCallsign(value: string): string {
   return value.toUpperCase().replace(/[^0-9A-Z]/g, "");
 }
 
-const INVALID_CLIENT_STATION_CHARS =
-  /[*#@!%^&.,;:?")(+=`'~<>|\\[\]{}]+/g;
+const INVALID_CLIENT_STATION_CHARS = /[*#@!%^&.,;:?")(+=`'~<>|\\[\]{}]+/g;
 
 function sanitizeClientStationName(value: string): string {
   return value.replace(INVALID_CLIENT_STATION_CHARS, "");
@@ -1603,9 +1582,7 @@ const INTERLOCK_MOX_STATE_SET = new Set<RadioInterlockState>([
   "UNKEY_REQUESTED",
 ]);
 
-function isInterlockMoxState(
-  state: RadioInterlockState | undefined,
-): boolean {
+function isInterlockMoxState(state: RadioInterlockState | undefined): boolean {
   if (!state) return false;
   return INTERLOCK_MOX_STATE_SET.has(state);
 }

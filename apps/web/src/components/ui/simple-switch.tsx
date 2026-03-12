@@ -27,7 +27,7 @@ export const SimpleSwitch = (props: SimpleSwitchProps) => {
         class={cn("flex items-center space-x-2 justify-between", local.class)}
         {...switchProps}
       >
-        <SwitchLabel>{local.label}</SwitchLabel>
+        <SwitchLabel class="grow">{local.label}</SwitchLabel>
         <SwitchControl class="origin-right scale-75">
           <SwitchThumb />
         </SwitchControl>

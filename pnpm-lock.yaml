@@ -157,6 +157,9 @@ importers:
       '@solid-primitives/bounds':
         specifier: ^0.1.3
         version: 0.1.3(solid-js@1.9.11)
+      '@solid-primitives/clipboard':
+        specifier: ^1.6.4
+        version: 1.6.4(solid-js@1.9.11)
       '@solid-primitives/devices':
         specifier: ^1.3.1
         version: 1.3.1(solid-js@1.9.11)
@@ -2045,6 +2048,11 @@ packages:
 
   '@solid-primitives/bounds@0.1.3':
     resolution: {integrity: sha512-UbiyKMdSPmtijcEDnYLQL3zzaejpwWDAJJ4Gt5P0hgVs6A72piov0GyNw7V2SroH7NZFwxlYS22YmOr8A5xc1Q==}
+    peerDependencies:
+      solid-js: ^1.6.12
+
+  '@solid-primitives/clipboard@1.6.4':
+    resolution: {integrity: sha512-96SbTfLRKLtKZNTcurIqbjoJIxo/DieP9qaqJDBQEFG/U8WbTHGUAQksBKB8VYmHz4X3GWU4mf4UbQ9VH8Biow==}
     peerDependencies:
       solid-js: ^1.6.12
 
@@ -8234,6 +8242,11 @@ snapshots:
       '@solid-primitives/utils': 6.3.2(solid-js@1.9.11)
       solid-js: 1.9.11
 
+  '@solid-primitives/clipboard@1.6.4(solid-js@1.9.11)':
+    dependencies:
+      '@solid-primitives/utils': 6.4.0(solid-js@1.9.11)
+      solid-js: 1.9.11
+
   '@solid-primitives/deep@0.2.10(solid-js@1.9.9)':
     dependencies:
       '@solid-primitives/memo': 1.4.3(solid-js@1.9.9)
@@ -8288,7 +8301,7 @@ snapshots:
       '@solid-primitives/event-listener': 2.4.3(solid-js@1.9.11)
       '@solid-primitives/rootless': 1.5.2(solid-js@1.9.11)
       '@solid-primitives/static-store': 0.1.2(solid-js@1.9.11)
-      '@solid-primitives/utils': 6.3.2(solid-js@1.9.11)
+      '@solid-primitives/utils': 6.4.0(solid-js@1.9.11)
       solid-js: 1.9.11
 
   '@solid-primitives/media@2.3.3(solid-js@1.9.9)':
@@ -8296,13 +8309,13 @@ snapshots:
       '@solid-primitives/event-listener': 2.4.3(solid-js@1.9.9)
       '@solid-primitives/rootless': 1.5.2(solid-js@1.9.9)
       '@solid-primitives/static-store': 0.1.2(solid-js@1.9.9)
-      '@solid-primitives/utils': 6.3.2(solid-js@1.9.9)
+      '@solid-primitives/utils': 6.4.0(solid-js@1.9.9)
       solid-js: 1.9.9
 
   '@solid-primitives/memo@1.4.3(solid-js@1.9.9)':
     dependencies:
       '@solid-primitives/scheduled': 1.5.2(solid-js@1.9.9)
-      '@solid-primitives/utils': 6.3.2(solid-js@1.9.9)
+      '@solid-primitives/utils': 6.4.0(solid-js@1.9.9)
       solid-js: 1.9.9
 
   '@solid-primitives/mouse@2.1.4(solid-js@1.9.11)':
@@ -8323,7 +8336,7 @@ snapshots:
 
   '@solid-primitives/mutation-observer@1.2.2(solid-js@1.9.9)':
     dependencies:
-      '@solid-primitives/utils': 6.3.2(solid-js@1.9.9)
+      '@solid-primitives/utils': 6.4.0(solid-js@1.9.9)
       solid-js: 1.9.9
 
   '@solid-primitives/pointer@0.3.3(solid-js@1.9.11)':
@@ -8352,12 +8365,12 @@ snapshots:
 
   '@solid-primitives/refs@1.1.2(solid-js@1.9.11)':
     dependencies:
-      '@solid-primitives/utils': 6.3.2(solid-js@1.9.11)
+      '@solid-primitives/utils': 6.4.0(solid-js@1.9.11)
       solid-js: 1.9.11
 
   '@solid-primitives/refs@1.1.2(solid-js@1.9.9)':
     dependencies:
-      '@solid-primitives/utils': 6.3.2(solid-js@1.9.9)
+      '@solid-primitives/utils': 6.4.0(solid-js@1.9.9)
       solid-js: 1.9.9
 
   '@solid-primitives/resize-observer@2.1.3(solid-js@1.9.11)':
@@ -8411,12 +8424,12 @@ snapshots:
 
   '@solid-primitives/trigger@1.2.2(solid-js@1.9.11)':
     dependencies:
-      '@solid-primitives/utils': 6.3.2(solid-js@1.9.11)
+      '@solid-primitives/utils': 6.4.0(solid-js@1.9.11)
       solid-js: 1.9.11
 
   '@solid-primitives/trigger@1.2.2(solid-js@1.9.9)':
     dependencies:
-      '@solid-primitives/utils': 6.3.2(solid-js@1.9.9)
+      '@solid-primitives/utils': 6.4.0(solid-js@1.9.9)
       solid-js: 1.9.9
 
   '@solid-primitives/utils@6.3.2(solid-js@1.9.11)':
@@ -8430,6 +8443,10 @@ snapshots:
   '@solid-primitives/utils@6.4.0(solid-js@1.9.11)':
     dependencies:
       solid-js: 1.9.11
+
+  '@solid-primitives/utils@6.4.0(solid-js@1.9.9)':
+    dependencies:
+      solid-js: 1.9.9
 
   '@solid-primitives/websocket@1.3.1(solid-js@1.9.11)':
     dependencies:

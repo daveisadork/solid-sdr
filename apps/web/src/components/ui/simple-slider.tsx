@@ -30,7 +30,7 @@ export const SimpleSlider = (props: SimpleSliderProps) => {
 
   return (
     <Tooltip {...local.tooltipProps}>
-      <Slider class={cn("space-y-2", local.class)} {...sliderProps}>
+      <Slider class={cn("space-y-2 pb-2", local.class)} {...sliderProps}>
         <TooltipTrigger class="flex w-full justify-between">
           <SliderLabel>{local.label}</SliderLabel>
           <SliderValueLabel />

@@ -16,6 +16,7 @@ type MeterProps = MeterPrimitive.MeterRootOptions & {
   containTickLabels?: boolean;
   description?: JSX.Element;
   showDescription?: boolean;
+  peakValue?: number;
   tickLabelFilter?: (label: {
     value: string | number;
     index: number;
@@ -103,6 +104,14 @@ export function SimpleMeter(props: MeterProps) {
       : [],
   );
 
+  const calculatePeakOffset = createMemo(() => {
+    const minValue = props.minValue ?? props.meter.low;
+    const maxValue = props.maxValue ?? props.meter.high;
+
+    return (value: number) =>
+      `${((value - minValue) / (maxValue - minValue)) * 100}cqw`;
+  });
+
   return (
     <MeterPrimitive.Root
       value={props.value ?? props.meter.value}
@@ -123,7 +132,7 @@ export function SimpleMeter(props: MeterProps) {
           <div class="grow" />
           <MeterPrimitive.ValueLabel class="font-mono" />
         </div>
-        <MeterPrimitive.Track class="relative w-full h-3">
+        <MeterPrimitive.Track class="relative w-full h-3 @container">
           <div
             class={cn(
               "absolute inset-0 border border-transparent rounded-xl bg-linear-to-r/decreasing from-blue-500 via-yellow-300 via-75% to-red-500 bg-origin-border",
@@ -147,6 +156,17 @@ export function SimpleMeter(props: MeterProps) {
               ...props.style,
             }}
           />
+          <Show when={props.peakValue !== undefined}>
+            <div class="absolute inset-0 rounded-xl overflow-hidden">
+              <div
+                class="absolute inset-y-px w-px bg-foreground translate-x-(--peak-position) will-change-transform"
+                style={{
+                  transition: `transform ${1 / (props.meter?.fps || 4)}s linear`,
+                  "--peak-position": calculatePeakOffset()(props.peakValue!),
+                }}
+              />
+            </div>
+          </Show>
           <Show when={props.showTicks}>
             <div class="absolute inset-px flex justify-between">
               <For each={ticks()}>

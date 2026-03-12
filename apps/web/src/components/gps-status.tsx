@@ -11,6 +11,9 @@ import {
   NumberFieldInput,
 } from "./ui/number-field";
 import BaselineGpsFixed from "~icons/ic/baseline-gps-fixed";
+import ClipboardOutline from "~icons/mdi/clipboard-text-outline";
+import { writeClipboard } from "@solid-primitives/clipboard";
+import { Button } from "./ui/button";
 
 export function GpsStatus(props: { class?: string }) {
   const { state } = useFlexRadio();
@@ -75,41 +78,66 @@ export function GpsStatus(props: { class?: string }) {
             </span>
           </HoverCardTrigger>
           <HoverCardContent class="w-80 fancy-bg-background">
-            <div class="flex justify-between space-x-4">
-              <div class="space-y-1">
-                <TextField
-                  class="grid w-full max-w-sm items-center gap-1.5"
-                  value={radio().gpsGrid}
-                  readOnly
-                >
-                  <TextFieldLabel for="grid-square">Grid Square</TextFieldLabel>
-                  <TextFieldInput />
-                </TextField>
-                <NumberField
-                  class="grid w-full max-w-sm items-center gap-1.5"
-                  value={radio().gpsLatitude}
-                  format={false}
-                  step={0.000001}
-                  readOnly
-                >
-                  <NumberFieldLabel for="latitude">Latitude</NumberFieldLabel>
-                  <NumberFieldGroup>
-                    <NumberFieldInput />
-                  </NumberFieldGroup>
-                </NumberField>
-                <NumberField
-                  class="grid w-full max-w-sm items-center gap-1.5"
-                  value={radio().gpsLongitude}
-                  step={0.000001}
-                  format={false}
-                  readOnly
-                >
-                  <NumberFieldLabel for="latitude">Longitude</NumberFieldLabel>
-                  <NumberFieldGroup>
-                    <NumberFieldInput />
-                  </NumberFieldGroup>
-                </NumberField>
-              </div>
+            <div class="flex flex-col gap-4">
+              <TextField
+                class="grid w-full max-w-sm items-center gap-1.5"
+                value={radio().gpsGrid}
+                readOnly
+              >
+                <TextFieldLabel for="grid-square">Grid Square</TextFieldLabel>
+                <div class="flex w-full">
+                  <TextFieldInput class="rounded-r-none border-r-0" />
+                  <Button
+                    variant="outline"
+                    class="rounded-l-none"
+                    onClick={() => writeClipboard(radio().gpsGrid)}
+                  >
+                    <ClipboardOutline />
+                  </Button>
+                </div>
+              </TextField>
+              <NumberField
+                class="grid w-full max-w-sm items-center gap-1.5"
+                value={radio().gpsLatitude}
+                format={false}
+                step={0.000001}
+                readOnly
+              >
+                <NumberFieldLabel for="latitude">Latitude</NumberFieldLabel>
+                <NumberFieldGroup class="flex w-full">
+                  <NumberFieldInput class="rounded-r-none border-r-0" />
+                  <Button
+                    variant="outline"
+                    class="rounded-l-none"
+                    onClick={() =>
+                      writeClipboard(radio().gpsLatitude?.toString())
+                    }
+                  >
+                    <ClipboardOutline />
+                  </Button>
+                </NumberFieldGroup>
+              </NumberField>
+              <NumberField
+                class="grid w-full max-w-sm items-center gap-1.5"
+                value={radio().gpsLongitude}
+                step={0.000001}
+                format={false}
+                readOnly
+              >
+                <NumberFieldLabel for="longitude">Longitude</NumberFieldLabel>
+                <NumberFieldGroup class="flex w-full">
+                  <NumberFieldInput class="rounded-r-none border-r-0" />
+                  <Button
+                    variant="outline"
+                    class="rounded-l-none"
+                    onClick={() =>
+                      writeClipboard(radio().gpsLongitude?.toString())
+                    }
+                  >
+                    <ClipboardOutline />
+                  </Button>
+                </NumberFieldGroup>
+              </NumberField>
             </div>
             <Show when={extraDetails().length > 0}>
               <Separator class="my-3" />

@@ -1283,7 +1283,7 @@ function buildCommandErrorMessage(
 ): string {
   const parts: string[] = [`Flex command rejected`, `command=${command}`];
   if (response.code !== undefined) {
-    parts.push(`code=${response.code}`);
+    parts.push(`code=${response.code.toString(16)}`);
   }
   if (codeDescription) {
     parts.push(`reason=${codeDescription}`);

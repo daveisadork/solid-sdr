@@ -1,4 +1,4 @@
-import { createEffect, createMemo, createSignal, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import { Sidebar, SidebarContent } from "~/components/ui/sidebar";
 import {
   Accordion,
@@ -22,6 +22,18 @@ import { SimpleSwitch } from "./ui/simple-switch";
 import { dbmToWatts, roundToDecimals } from "~/lib/utils";
 import { debounce } from "@solid-primitives/scheduled";
 import { SimpleMeter } from "./ui/simple-meter";
+import { SliderToggle } from "./ui/slider-toggle";
+import {
+  SegmentedControl,
+  SegmentedControlGroup,
+  SegmentedControlIndicator,
+  SegmentedControlItem,
+  SegmentedControlItemLabel,
+  SegmentedControlItemsList,
+  SegmentedControlLabel,
+} from "./ui/segmented-control";
+
+const PROCESSOR_LEVELS = ["Norm", "DX", "DX+"];
 
 function TxSection() {
   const { state, radio } = useFlexRadio();
@@ -165,6 +177,7 @@ function TxSection() {
             class="flex flex-col gap-2 select-none"
             value={state.status.radio.profileTxSelection}
             onChange={(value: string) => {
+              if (!value) return;
               radio()?.loadTxProfile(value);
             }}
             options={txProfiles}
@@ -257,7 +270,12 @@ function TxSection() {
 function PcwSection() {
   const { state, radio } = useFlexRadio();
   const [micInputList, setMicInputList] = createStore<string[]>([]);
+  const [micProfileList, setMicProfileList] = createStore<string[]>([]);
+
   createEffect(() => setMicInputList(state?.status?.radio?.micInputList ?? []));
+  createEffect(() =>
+    setMicProfileList(state?.status?.radio?.profileMicList ?? []),
+  );
 
   const micMeter = createMemo(() =>
     Object.values(state.status.meter).find((meter) => meter.name === "MIC"),
@@ -327,8 +345,31 @@ function PcwSection() {
           </Show>
           <Select
             class="flex flex-col gap-2 select-none"
+            value={state.status.radio.profileMicSelection}
+            onChange={(value: string) => {
+              if (!value) return;
+              radio()?.loadMicProfile(value);
+            }}
+            options={micProfileList}
+            itemComponent={(props) => {
+              return (
+                <SelectItem item={props.item}>{props.item.rawValue}</SelectItem>
+              );
+            }}
+          >
+            <SelectLabel>Mic Profile</SelectLabel>
+            <SelectTrigger>
+              <SelectValue<string>>
+                {(state) => state.selectedOption()}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent />
+          </Select>
+          <Select
+            class="flex flex-col gap-2 select-none"
             value={state.status.radio.micSelection}
             onChange={(value: string) => {
+              if (!value) return;
               radio()?.setMicSelection(value);
             }}
             options={micInputList}
@@ -338,7 +379,7 @@ function PcwSection() {
               );
             }}
           >
-            <SelectLabel>TX Input</SelectLabel>
+            <SelectLabel>AF Input Source</SelectLabel>
             <SelectTrigger>
               <SelectValue<string>>
                 {(state) => state.selectedOption()}
@@ -346,6 +387,85 @@ function PcwSection() {
             </SelectTrigger>
             <SelectContent />
           </Select>
+          <SimpleSwitch
+            checked={state.status.radio.micAccessoryEnabled}
+            onChange={(isChecked) => {
+              radio()?.setMicAccessoryEnabled(isChecked);
+            }}
+            label="Mic Accessory"
+            // tooltip="Enable audio input on Accessory Connector"
+          />
+          <SimpleSwitch
+            checked={state.status.radio.daxEnabled}
+            onChange={(isChecked) => {
+              radio()?.setDaxEnabled(isChecked);
+            }}
+            label="DAX"
+            // tooltip="Use DAX as primary transmit audio source"
+          />
+          <SimpleSlider
+            minValue={0}
+            maxValue={100}
+            value={[state.status.radio.micLevel]}
+            onChange={([value]) => {
+              if (value === state.status.radio.micLevel) return;
+              radio()?.setMicLevel(value);
+            }}
+            getValueLabel={(params) => `${params.values[0]}%`}
+            label="Mic Level"
+          />
+          <div class="flex flex-col gap-1 pb-2">
+            <SimpleSwitch
+              label="Speech Processor"
+              checked={state.status.radio.speechProcessorEnabled}
+              onChange={(isChecked) => {
+                radio()?.setSpeechProcessorEnabled(isChecked);
+              }}
+              // tooltip="Enable processing for TX output in phone modes"
+            />
+            <SegmentedControl
+              disabled={!state.status.radio.speechProcessorEnabled}
+              value={PROCESSOR_LEVELS[state.status.radio.speechProcessorLevel]}
+              onChange={(value) => {
+                if (!value) return;
+                radio()?.setSpeechProcessorLevel(
+                  PROCESSOR_LEVELS.indexOf(value),
+                );
+              }}
+            >
+              <SegmentedControlGroup>
+                <SegmentedControlIndicator />
+                <SegmentedControlItemsList>
+                  <For each={PROCESSOR_LEVELS}>
+                    {(level) => (
+                      <SegmentedControlItem value={level}>
+                        <SegmentedControlItemLabel>
+                          {level}
+                        </SegmentedControlItemLabel>
+                      </SegmentedControlItem>
+                    )}
+                  </For>
+                </SegmentedControlItemsList>
+              </SegmentedControlGroup>
+            </SegmentedControl>
+          </div>
+          <SliderToggle
+            label="TX Monitor"
+            switchDisabled={!state.status.radio.txMonitorAvailable}
+            switchChecked={state.status.radio.txMonitorEnabled}
+            onSwitchChange={(isChecked) => {
+              radio()?.setTxMonitorEnabled(isChecked);
+            }}
+            minValue={0}
+            maxValue={100}
+            value={[state.status.radio.txSbMonitorGain]}
+            onChange={([value]) => {
+              if (value === state.status.radio.txSbMonitorGain) return;
+              radio()?.setTxSbMonitorGain(value);
+            }}
+            getValueLabel={(params) => `${params.values[0]}%`}
+            // tooltip="Monitor transmitted signal (PC mic input cannot be monitored)"
+          />
         </div>
       </AccordionContent>
     </AccordionItem>

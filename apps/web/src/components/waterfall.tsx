@@ -260,16 +260,6 @@ export function Waterfall(props: {
         }
         const yOffset = (frame - lastFrame) * height;
 
-        if (scale > 1.0 && scaleOffset !== 0) {
-          // expand path: draw the scaled image directly, leaving gaps on the sides that we fill with black
-          offscreenCtx.fillRect(
-            scaleOffset > 0 ? 0 : offscreen.width + scaleOffset,
-            yOffset,
-            Math.abs(scaleOffset),
-            offscreen.height,
-          );
-        }
-
         offscreenCtx.drawImage(
           src,
           scaleOffset,
@@ -344,30 +334,32 @@ export function Waterfall(props: {
           setFps(Math.round(1000 / avgFrameTime));
         }
 
-        setBinBandwidth(binBandwidth);
-        setLastCalculatedCenter(calculatedCenter);
-        const panStreamId = props.waterfall.panadapterStreamId;
-        if (
-          panStreamId &&
-          state.status.panadapter[panStreamId] &&
-          preferences.smoothScroll
-        ) {
-          // Data packets reflect the new tuning; mark the panadapter center as settled.
-          const centerMHz = Number((calculatedCenter / 1_000_000).toFixed(6));
-          setState(
-            "status",
-            "panadapter",
-            panStreamId,
-            "centerFrequencyMHz",
-            centerMHz,
-          );
-          setState(
-            "runtime",
-            ["panSettledCenterMHz", "panPendingCenterMHz"],
-            panStreamId,
-            centerMHz,
-          );
-        }
+        batch(() => {
+          setBinBandwidth(binBandwidth);
+          setLastCalculatedCenter(calculatedCenter);
+          const panStreamId = props.waterfall.panadapterStreamId;
+          if (
+            panStreamId &&
+            state.status.panadapter[panStreamId] &&
+            preferences.smoothScroll
+          ) {
+            // Data packets reflect the new tuning; mark the panadapter center as settled.
+            const centerMHz = Number((calculatedCenter / 1_000_000).toFixed(6));
+            setState(
+              "status",
+              "panadapter",
+              panStreamId,
+              "centerFrequencyMHz",
+              centerMHz,
+            );
+            setState(
+              "runtime",
+              ["panSettledCenterMHz", "panPendingCenterMHz"],
+              panStreamId,
+              centerMHz,
+            );
+          }
+        });
         expFrame = Math.max(frame + 1, expFrame);
       }
     };

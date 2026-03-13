@@ -309,9 +309,10 @@ export function Panafall() {
       return;
     }
     const deltaPx = mhzToPx(newCenter - prevCenter);
-    let offset = preferences.smoothScroll
-      ? Math.round(dragState.offset + deltaPx)
-      : 0;
+    let offset =
+      preferences.smoothScroll && dragState.down
+        ? Math.round(dragState.offset + deltaPx)
+        : 0;
     let originX = dragState.down ? dragState.originX - deltaPx : 0;
     if (Math.abs(deltaPx) > (panafallBounds.width ?? 0)) {
       // this typically happens when changing bands

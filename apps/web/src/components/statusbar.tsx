@@ -2,9 +2,11 @@ import useFlexRadio from "~/context/flexradio";
 import { createMemo, Show } from "solid-js";
 import Connect from "./connect";
 import { GpsStatus } from "./gps-status";
+import { usePreferences } from "~/context/preferences";
 
 export function StatusBar() {
   const { state } = useFlexRadio();
+  const { preferences } = usePreferences();
 
   const voltageMeter = createMemo(() =>
     Object.values(state.status.meter).find(
@@ -18,7 +20,12 @@ export function StatusBar() {
   );
 
   return (
-    <div class="flex shrink-0 items-center w-full gap-4 py-2 px-3 text-sm font-mono select-none z-0 fancy-bg-background">
+    <div
+      class="flex shrink-0 items-center w-full gap-4 py-2 px-3 text-sm font-mono select-none z-0 fancy-bg-background"
+      classList={{
+        "border-t": !preferences.enableTransparencyEffects,
+      }}
+    >
       <Connect />
       <Show when={voltageMeter()}>
         {(meter) => (

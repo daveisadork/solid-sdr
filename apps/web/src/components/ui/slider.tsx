@@ -38,7 +38,10 @@ const SliderTrack = <T extends ValidComponent = "div">(
   const [local, others] = splitProps(props as SliderTrackProps, ["class"]);
   return (
     <SliderPrimitive.Track
-      class={cn("relative h-2 w-full grow rounded-full bg-input", local.class)}
+      class={cn(
+        "relative h-2 w-full grow rounded-full bg-input data-disabled:opacity-50",
+        local.class,
+      )}
       {...others}
     />
   );
@@ -55,10 +58,7 @@ const SliderFill = <T extends ValidComponent = "div">(
   const [local, others] = splitProps(props as SliderFillProps, ["class"]);
   return (
     <SliderPrimitive.Fill
-      class={cn(
-        "absolute h-full rounded-full bg-primary data-disabled:opacity-50",
-        local.class,
-      )}
+      class={cn("absolute h-full rounded-full bg-primary", local.class)}
       {...others}
     />
   );
@@ -67,6 +67,8 @@ const SliderFill = <T extends ValidComponent = "div">(
 type SliderThumbProps<T extends ValidComponent = "span"> =
   SliderPrimitive.SliderThumbProps<T> & {
     class?: string | undefined;
+    style?: JSX.CSSProperties | undefined;
+    ref?: T | ((el: T) => void);
     children?: JSX.Element;
   };
 
@@ -76,13 +78,51 @@ const SliderThumb = <T extends ValidComponent = "span">(
   const [local, others] = splitProps(props as SliderThumbProps, [
     "class",
     "children",
+    "style",
   ]);
+  const context = SliderPrimitive.useSliderContext();
+  let ref: HTMLElement | undefined;
+
+  const index = () =>
+    ref ? context.thumbs().findIndex((v) => v.ref() === ref) : -1;
+
+  const position = () => {
+    return context.state.getThumbPercent(index());
+  };
+
+  const transform = () => {
+    /*
+    let value = 50;
+    const isVertical = context.state.orientation() === "vertical";
+
+    if (isVertical) {
+      value *= context.isSlidingFromBottom() ? 1 : -1;
+    } else {
+      value *= context.isSlidingFromLeft() ? -1 : 1;
+    }
+
+    return isVertical ? `translate(-50%, ${value}%)` : `translate(${value}%, -50%)`;
+     */
+    const pos = `${position() * 100}%`;
+
+    if (context.state.orientation() === "vertical") {
+      return context.inverted() ? `translateY(-${pos})` : `translateY(${pos})`;
+    }
+
+    return context.inverted() ? `translateX(${pos})` : `translateX(-${pos})`;
+  };
+
   return (
     <SliderPrimitive.Thumb
       class={cn(
-        "-top-1 block size-4 rounded-full border-2 border-primary bg-background ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 data-disabled:pointer-events-none data-disabled:opacity-0",
+        "-top-1.5 block size-5 rounded-full border-2 border-primary bg-background ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 data-disabled:pointer-events-none",
         local.class,
       )}
+      ref={ref}
+      // style={{
+      //   transform: transform(),
+      //   ...(local.style ?? {}),
+      // }}
       {...others}
     >
       <SliderPrimitive.Input />

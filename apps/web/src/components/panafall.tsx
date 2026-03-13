@@ -335,13 +335,23 @@ export function Panafall() {
   });
 
   return (
-    <>
+    <div
+      class="size-full"
+      classList={{
+        relative: !preferences.enableTransparencyEffects,
+      }}
+      ref={setSizeRef}
+    >
       <div
-        class="absolute inset-0 overflow-visible"
+        class="absolute overflow-visible"
+        classList={{
+          "top-0 left-0 w-dvw h-dvh": preferences.enableTransparencyEffects,
+          "inset-0": !preferences.enableTransparencyEffects,
+        }}
         style={{
           "--panafall-available-width": `${panafallBounds.width}px`,
           "--panafall-available-height": `${panafallBounds.height}px`,
-          "--panafall-left": `${panafallBounds.left}px`,
+          "--panafall-left": `${preferences.enableTransparencyEffects ? panafallBounds.left : 0}px`,
           "--panafall-top": `${panafallBounds.top}px`,
           "--panafall-right": `${panafallBounds.right}px`,
           "--panafall-bottom": `${panafallBounds.bottom}px`,
@@ -352,15 +362,22 @@ export function Panafall() {
         <Show when={panadapter()}>
           {(pan) => (
             <Show when={waterfall()}>
-              <div class="absolute top-0 left-0 w-dvw h-dvh overflow-clip select-none">
+              <div class="relative size-full overflow-clip select-none">
                 <Resizable
                   class="size-full overflow-clip select-none"
                   orientation="vertical"
+                  sizes={[
+                    preferences.panadapterSize,
+                    preferences.waterfallSize,
+                  ]}
+                  initialSizes={[0.25, 0.75]}
+                  onSizesChange={(sizes) => {
+                    if (sizes?.length !== 2) return;
+                    const [panadapterSize, waterfallSize] = sizes;
+                    setPreferences({ panadapterSize, waterfallSize });
+                  }}
                 >
-                  <ResizablePanel
-                    class="overflow-clip select-none"
-                    initialSize={0.25}
-                  >
+                  <ResizablePanel class="overflow-clip select-none">
                     <Panadapter
                       pan={pan()}
                       waterfall={waterfall()}
@@ -368,10 +385,7 @@ export function Panafall() {
                     />
                   </ResizablePanel>
                   <Scale pan={pan()} />
-                  <ResizablePanel
-                    class="overflow-clip select-none"
-                    initialSize={0.75}
-                  >
+                  <ResizablePanel class="overflow-clip select-none">
                     <Waterfall
                       pan={pan()}
                       waterfall={waterfall()}
@@ -545,6 +559,6 @@ export function Panafall() {
         id="panafall-sizer"
         class="relative size-full pointer-events-none *:pointer-events-auto"
       />
-    </>
+    </div>
   );
 }

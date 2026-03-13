@@ -349,7 +349,6 @@ export function Panadapter(props: {
       class="relative shrink size-full flex justify-center overflow-clip select-none bg-radial-[ellipse_at_bottom] from-(--panadapter-background-color) via-(--panadapter-background-color)/70 via-30% to-(--panadapter-background-color)/35 to-85%"
       style={{
         "--panadapter-available-height": `${wrapperSize.height}px`,
-        "--panadapter-available-width": `${wrapperSize.width}px`,
         "--panadapter-background-color": txBackgroundColor(),
       }}
     >

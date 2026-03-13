@@ -115,14 +115,6 @@ export function TuningPanel(props: {
     }
   });
 
-  createEffect(() => {
-    if (!preferences.enableTransparencyEffects) {
-      document.documentElement.classList.add("disable-transparency-effects");
-    } else {
-      document.documentElement.classList.remove("disable-transparency-effects");
-    }
-  });
-
   return (
     <div
       class="flex flex-col px-4 gap-4 size-full text-sm overflow-y-auto overflow-x-hidden select-none overscroll-y-contain"
@@ -154,6 +146,13 @@ export function TuningPanel(props: {
         checked={preferences.enableTransparencyEffects}
         onChange={(isChecked) => {
           setPreferences("enableTransparencyEffects", isChecked);
+        }}
+        label="Transparency Effects"
+      />
+      <SimpleSwitch
+        checked={preferences.enableBlurEffects}
+        onChange={(isChecked) => {
+          setPreferences("enableBlurEffects", isChecked);
         }}
         label="Blur Effects"
       />

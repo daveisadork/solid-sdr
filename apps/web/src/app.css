@@ -424,8 +424,13 @@ body,
   background-color: --alpha(--value(--color-*) / 50%);
   @apply backdrop-blur-xl;
 
-  .disable-transparency-effects & {
+  .disable-blur-effects & {
     background-color: --alpha(--value(--color-*) / 80%);
+    @apply backdrop-blur-none;
+  }
+
+  .disable-transparency-effects & {
+    background-color: --value(--color-*);
     @apply backdrop-blur-none;
   }
 }

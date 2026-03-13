@@ -30,8 +30,8 @@ import {
   SegmentedControlItem,
   SegmentedControlItemLabel,
   SegmentedControlItemsList,
-  SegmentedControlLabel,
 } from "./ui/segmented-control";
+import { usePreferences } from "~/context/preferences";
 
 const PROCESSOR_LEVELS = ["Norm", "DX", "DX+"];
 
@@ -87,7 +87,7 @@ function TxSection() {
     <AccordionItem value="tx">
       <AccordionTrigger>Transmit</AccordionTrigger>
       <AccordionContent>
-        <div class="flex flex-col gap-3 overflow-visible">
+        <div class="text-sm flex flex-col gap-3 overflow-visible">
           <Show when={fwdPwrMeter()}>
             {(acc) => {
               const meter = acc();
@@ -304,7 +304,9 @@ function PcwSection() {
                   meter={meter}
                   minValue={-40}
                   maxValue={0}
-                  getValueLabel={() => `${Math.round(meter.value)} dB`}
+                  getValueLabel={() =>
+                    `${roundToDecimals(meter.value, 1).toFixed(1)} dB`
+                  }
                   label="Level"
                   showTicks
                   showTickLabels
@@ -474,12 +476,13 @@ function PcwSection() {
 
 export function RightSidebar() {
   const { state, radio } = useFlexRadio();
+  const { preferences } = usePreferences();
 
   return (
     <Sidebar
-      gap={true}
+      gap
       side="right"
-      variant="floating"
+      variant={preferences.enableTransparencyEffects ? "floating" : "sidebar"}
       class="absolute h-full bg-transparent pointer-events-none z-50"
     >
       <SidebarContent

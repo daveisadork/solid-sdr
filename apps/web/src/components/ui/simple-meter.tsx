@@ -124,7 +124,7 @@ export function SimpleMeter(props: MeterProps) {
       class="flex flex-col gap-0.5 w-full items-center"
     >
       <div class="relative flex flex-col w-full gap-0.5 items-center">
-        <div class="flex w-full items-baseline text-xs font-medium">
+        <div class="flex w-full items-baseline font-medium">
           <MeterPrimitive.Label>
             {props.label ??
               `${props.meter.name} ${props.meter.source} ${props.meter.sourceIndex}`}

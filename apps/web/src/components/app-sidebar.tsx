@@ -13,7 +13,7 @@ export function AppSidebar() {
     <Sidebar
       gap={true}
       side="left"
-      variant="floating"
+      variant={preferences.enableTransparencyEffects ? "floating" : "sidebar"}
       class="absolute h-full bg-transparent pointer-events-none z-50"
     >
       <SidebarContent class="h-full py-4 overflow-clip pointer-events-auto">

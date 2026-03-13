@@ -1,5 +1,6 @@
 import { createElementSize } from "@solid-primitives/resize-observer";
 import {
+  batch,
   createEffect,
   createMemo,
   createSignal,
@@ -257,8 +258,18 @@ export function Waterfall(props: {
           src = canvas;
           offscreenCtx.fillRect(0, 0, offscreen.width, offscreen.height);
         }
-
         const yOffset = (frame - lastFrame) * height;
+
+        if (scale > 1.0 && scaleOffset !== 0) {
+          // expand path: draw the scaled image directly, leaving gaps on the sides that we fill with black
+          offscreenCtx.fillRect(
+            scaleOffset > 0 ? 0 : offscreen.width + scaleOffset,
+            yOffset,
+            Math.abs(scaleOffset),
+            offscreen.height,
+          );
+        }
+
         offscreenCtx.drawImage(
           src,
           scaleOffset,
@@ -267,7 +278,8 @@ export function Waterfall(props: {
           src.height,
         );
 
-        if (scaleOffset !== 0) {
+        if (scale <= 1.0 && scaleOffset !== 0) {
+          // shrink/normal path with horizontal shift: fill the gap left by the shift with black
           offscreenCtx.fillRect(
             scaleOffset > 0 ? 0 : offscreen.width + scaleOffset,
             yOffset,
@@ -308,13 +320,15 @@ export function Waterfall(props: {
       }
 
       if (startingBin + binsInThisFrame >= totalBins) {
-        if (canvas.width !== offscreen.width) {
-          setCanvasWidth(offscreen.width);
-        }
+        batch(() => {
+          if (canvas.width !== offscreen.width) {
+            setCanvasWidth(offscreen.width);
+          }
 
-        if (canvas.height !== offscreen.height) {
-          setCanvasHeight(offscreen.height);
-        }
+          if (canvas.height !== offscreen.height) {
+            setCanvasHeight(offscreen.height);
+          }
+        });
 
         // Coalesce to one paint per frame
         if (!paintScheduled) {

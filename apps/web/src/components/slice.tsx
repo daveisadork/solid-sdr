@@ -76,6 +76,8 @@ import {
 import { LevelMeter } from "./level-meter";
 import { SliceController } from "@repo/flexlib";
 import { usePanafall } from "~/context/panafall";
+import { Separator } from "./ui/separator";
+import { usePreferences } from "~/context/preferences";
 
 const FILTER_MAX_HZ = 12_000;
 const FILTER_MIN_HZ = -FILTER_MAX_HZ;
@@ -289,15 +291,17 @@ export function DetachedSlices(props: {
   );
 }
 
-const SliceFilter = (props: {
+export function FilterControls(props: {
   slice: SliceState;
   controller: SliceController;
-}) => {
-  const [rawFilterLow, setRawFilterLow] = createSignal(0);
-  const [rawFilterHigh, setRawFilterHigh] = createSignal(0);
+}) {
+  const [rawFilterLow, setRawFilterLow] = createSignal(props.slice.filterLowHz);
+  const [rawFilterHigh, setRawFilterHigh] = createSignal(
+    props.slice.filterHighHz,
+  );
 
-  createEffect(() => setRawFilterLow(props.slice?.filterLowHz ?? 0));
-  createEffect(() => setRawFilterHigh(props.slice?.filterHighHz ?? 0));
+  createEffect(() => setRawFilterLow(props.slice.filterLowHz));
+  createEffect(() => setRawFilterHigh(props.slice.filterHighHz));
 
   const applyFilterLow = () =>
     rawFilterLow() !== props.slice.filterLowHz
@@ -309,6 +313,124 @@ const SliceFilter = (props: {
       ? props.controller.setFilterHigh(rawFilterHigh())
       : null;
 
+  const selectedPreset = createMemo(() =>
+    filterPresets[props.slice.mode]?.find(
+      (preset) =>
+        preset.lowCut === props.slice.filterLowHz &&
+        preset.highCut === props.slice.filterHighHz,
+    ),
+  );
+
+  const filterMinHz = createMemo(
+    () => filterConstraints[props.slice.mode]?.low ?? FILTER_MIN_HZ,
+  );
+
+  const filterMaxHz = createMemo(
+    () => filterConstraints[props.slice.mode]?.high ?? FILTER_MAX_HZ,
+  );
+
+  return (
+    <>
+      <Show when={filterPresets[props.slice.mode]}>
+        {(presets) => (
+          <ToggleGroup
+            value={selectedPreset()?.name}
+            onChange={(preset: string) => {
+              const presetObj = presets().find((p) => p.name === preset);
+              if (!presetObj) return;
+              const { lowCut, highCut } = presetObj;
+              props.controller.setFilter(lowCut, highCut);
+            }}
+            class="grid grid-cols-4"
+          >
+            <For each={presets()}>
+              {(preset) => (
+                <ToggleGroupItem
+                  variant="outline"
+                  size="sm"
+                  class="border data-pressed:bg-primary data-pressed:text-primary-foreground"
+                  value={preset.name}
+                >
+                  {preset.name}
+                </ToggleGroupItem>
+              )}
+            </For>
+          </ToggleGroup>
+        )}
+      </Show>
+      <div class="flex justify-between">
+        <div>
+          <NumberField
+            class="flex w-24 flex-col gap-2 select-none font-mono"
+            rawValue={rawFilterLow()}
+            format={false}
+            minValue={filterMinHz()}
+            maxValue={props.slice.filterHighHz}
+            onRawValueChange={setRawFilterLow}
+            onFocusOut={applyFilterLow}
+          >
+            <NumberFieldDescription class="select-none">
+              Low Hz
+            </NumberFieldDescription>
+            <NumberFieldGroup class="select-none">
+              <NumberFieldInput />
+              <NumberFieldIncrementTrigger class="select-none" />
+              <NumberFieldDecrementTrigger class="select-none" />
+            </NumberFieldGroup>
+          </NumberField>
+        </div>
+        <div>
+          <NumberField
+            class="flex w-24 flex-col gap-2 select-none font-mono"
+            rawValue={rawFilterHigh()}
+            minValue={props.slice.filterLowHz}
+            format={false}
+            maxValue={filterMaxHz()}
+            onRawValueChange={setRawFilterHigh}
+            onFocusOut={applyFilterHigh}
+          >
+            <NumberFieldDescription class="select-none text-right">
+              High Hz
+            </NumberFieldDescription>
+            <NumberFieldGroup class="select-none">
+              <NumberFieldInput size={6} />
+              <NumberFieldIncrementTrigger class="select-none" />
+              <NumberFieldDecrementTrigger class="select-none" />
+            </NumberFieldGroup>
+          </NumberField>
+        </div>
+      </div>
+      <Slider
+        minValue={filterMinHz()}
+        maxValue={filterMaxHz()}
+        step={25}
+        value={[props.slice.filterLowHz, props.slice.filterHighHz]}
+        onChange={([low, high]) => props.controller.setFilter(low, high)}
+        class="space-y-3"
+      >
+        <SliderTrack>
+          <SliderFill />
+          <div
+            class="absolute w-0.75 bg-red-500 h-[200%] rounded-sm -translate-y-1/4"
+            classList={{
+              "left-0 -translate-x-1/2": filterMinHz() === 0,
+              "right-0 translate-x-1/2": filterMaxHz() === 0,
+              "left-1/2 -translate-x-1/2":
+                filterMinHz() < 0 && filterMaxHz() > 0,
+            }}
+          />
+          <SliderThumb />
+          <SliderThumb />
+        </SliderTrack>
+      </Slider>
+    </>
+  );
+}
+
+const SliceFilter = (props: {
+  slice: SliceState;
+  controller: SliceController;
+}) => {
   const filterText = createMemo(() => {
     let filterWidth =
       (props.slice?.filterHighHz ?? 0) - (props.slice?.filterLowHz ?? 0);
@@ -316,22 +438,6 @@ const SliceFilter = (props: {
     if (filterWidth >= 1000) filterWidth /= 1000;
     return `${filterWidth}${unit}`;
   });
-
-  const selectedPreset = createMemo(() =>
-    filterPresets[props.slice?.mode]?.find(
-      (preset) =>
-        preset.lowCut === props.slice?.filterLowHz &&
-        preset.highCut === props.slice?.filterHighHz,
-    ),
-  );
-
-  const filterMinHz = createMemo(
-    () => filterConstraints[props.slice?.mode]?.low ?? FILTER_MIN_HZ,
-  );
-
-  const filterMaxHz = createMemo(
-    () => filterConstraints[props.slice?.mode]?.high ?? FILTER_MAX_HZ,
-  );
 
   return (
     <Popover>
@@ -341,98 +447,7 @@ const SliceFilter = (props: {
       <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 fancy-bg-popover">
         <PopoverArrow />
         <div class="p-4 flex flex-col space-y-6 max-h-(--kb-popper-content-available-height) overflow-x-auto">
-          <Show when={filterPresets[props.slice.mode]}>
-            {(presets) => (
-              <ToggleGroup
-                value={selectedPreset()?.name}
-                onChange={(preset: string) => {
-                  const presetObj = presets().find((p) => p.name === preset);
-                  if (!presetObj) return;
-                  const { lowCut, highCut } = presetObj;
-                  props.controller.setFilter(lowCut, highCut);
-                }}
-                class="grid grid-cols-4"
-              >
-                <For each={presets()}>
-                  {(preset) => (
-                    <ToggleGroupItem
-                      variant="outline"
-                      size="sm"
-                      class="border data-pressed:bg-primary data-pressed:text-primary-foreground"
-                      value={preset.name}
-                    >
-                      {preset.name}
-                    </ToggleGroupItem>
-                  )}
-                </For>
-              </ToggleGroup>
-            )}
-          </Show>
-          <div class="flex justify-between">
-            <div>
-              <NumberField
-                class="flex w-24 flex-col gap-2 select-none font-mono"
-                rawValue={rawFilterLow()}
-                format={false}
-                minValue={filterMinHz()}
-                maxValue={props.slice.filterHighHz}
-                onRawValueChange={setRawFilterLow}
-                onFocusOut={applyFilterLow}
-              >
-                <NumberFieldDescription class="select-none">
-                  Low Hz
-                </NumberFieldDescription>
-                <NumberFieldGroup class="select-none">
-                  <NumberFieldInput />
-                  <NumberFieldIncrementTrigger class="select-none" />
-                  <NumberFieldDecrementTrigger class="select-none" />
-                </NumberFieldGroup>
-              </NumberField>
-            </div>
-            <div>
-              <NumberField
-                class="flex w-24 flex-col gap-2 select-none font-mono"
-                rawValue={rawFilterHigh()}
-                minValue={props.slice.filterLowHz}
-                format={false}
-                maxValue={filterMaxHz()}
-                onRawValueChange={setRawFilterHigh}
-                onFocusOut={applyFilterHigh}
-              >
-                <NumberFieldDescription class="select-none text-right">
-                  High Hz
-                </NumberFieldDescription>
-                <NumberFieldGroup class="select-none">
-                  <NumberFieldInput size={6} />
-                  <NumberFieldIncrementTrigger class="select-none" />
-                  <NumberFieldDecrementTrigger class="select-none" />
-                </NumberFieldGroup>
-              </NumberField>
-            </div>
-          </div>
-          <Slider
-            minValue={filterMinHz()}
-            maxValue={filterMaxHz()}
-            step={25}
-            value={[props.slice.filterLowHz, props.slice.filterHighHz]}
-            onChange={([low, high]) => props.controller.setFilter(low, high)}
-            class="space-y-3"
-          >
-            <SliderTrack>
-              <SliderFill />
-              <div
-                class="absolute w-0.75 bg-red-500 h-[200%] rounded-sm -translate-y-1/4"
-                classList={{
-                  "left-0 -translate-x-1/2": filterMinHz() === 0,
-                  "right-0 translate-x-1/2": filterMaxHz() === 0,
-                  "left-1/2 -translate-x-1/2":
-                    filterMinHz() < 0 && filterMaxHz() > 0,
-                }}
-              />
-              <SliderThumb />
-              <SliderThumb />
-            </SliderTrack>
-          </Slider>
+          <FilterControls slice={props.slice} controller={props.controller} />
         </div>
       </PopoverContent>
     </Popover>
@@ -458,6 +473,7 @@ export function Slice(props: { slice: SliceState; pan: Panadapter }) {
   const windowSize = createWindowSize();
   const sentinelBounds = createElementBounds(sentinel);
   const flagBounds = createElementBounds(flag);
+  const { preferences } = usePreferences();
 
   const levelMeter = createMemo(() => {
     const sliceIndex = Number(props.slice.id);
@@ -530,8 +546,13 @@ export function Slice(props: { slice: SliceState; pan: Panadapter }) {
   });
 
   createEffect(() => {
-    const { width } = windowSize;
+    const { width } = preferences.enableTransparencyEffects
+      ? windowSize
+      : panafallBounds;
     if (!width) return;
+    const sidebarOffset = preferences.enableTransparencyEffects
+      ? 0
+      : panafallBounds.left;
     const leftFreq = props.pan.centerFrequencyMHz - props.pan.bandwidthMHz / 2;
     const offsetMhz = props.slice.frequencyMHz - leftFreq;
     const offsetPixels = (offsetMhz / props.pan.bandwidthMHz) * width;
@@ -791,7 +812,7 @@ export function Slice(props: { slice: SliceState; pan: Panadapter }) {
                         </PopoverTrigger>
                         <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 fancy-bg-popover">
                           <PopoverArrow />
-                          <div class="p-4 flex flex-col space-y-6 max-h-(--kb-popper-content-available-height) overflow-x-auto">
+                          <div class="p-4 flex flex-col space-y-4 max-h-(--kb-popper-content-available-height) overflow-x-auto">
                             <ToggleGroup
                               value={props.slice.mode}
                               onChange={(mode: string) => {
@@ -813,6 +834,11 @@ export function Slice(props: { slice: SliceState; pan: Panadapter }) {
                                 )}
                               </For>
                             </ToggleGroup>
+                            <Separator />
+                            <FilterControls
+                              slice={props.slice}
+                              controller={sliceController()}
+                            />
                           </div>
                         </PopoverContent>
                       </Popover>
@@ -1029,7 +1055,7 @@ export function Slice(props: { slice: SliceState; pan: Panadapter }) {
                       </PopoverTrigger>
                       <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 fancy-bg-popover">
                         <PopoverArrow />
-                        <div class="relative p-4 flex flex-col space-y-6 max-h-(--kb-popper-content-available-height) overflow-x-auto">
+                        <div class="elative p-4 flex flex-col space-y-6 max-h-(--kb-popper-content-available-height) overflow-x-auto">
                           <SliderToggle
                             disabled={!props.slice.wnbEnabled}
                             minValue={0}
@@ -1063,12 +1089,14 @@ export function Slice(props: { slice: SliceState; pan: Panadapter }) {
                           <SliderToggle
                             disabled={!props.slice.nrEnabled}
                             minValue={0}
-                            maxValue={100}
+                            maxValue={99}
                             value={[props.slice.nrLevel]}
                             onChange={([value]) => {
                               sliceController().setNrLevel(value);
                             }}
-                            getValueLabel={(params) => `${params.values[0]}%`}
+                            getValueLabel={(params) =>
+                              `${params.values[0] + 1}%`
+                            }
                             label="Noise Reduction (NR)"
                             switchChecked={props.slice.nrEnabled}
                             onSwitchChange={(isChecked) => {
@@ -1099,12 +1127,14 @@ export function Slice(props: { slice: SliceState; pan: Panadapter }) {
                           <SliderToggle
                             disabled={!props.slice.anfEnabled}
                             minValue={0}
-                            maxValue={100}
+                            maxValue={99}
                             value={[props.slice.anfLevel]}
                             onChange={([value]) => {
                               sliceController().setAnfLevel(value);
                             }}
-                            getValueLabel={(params) => `${params.values[0]}%`}
+                            getValueLabel={(params) =>
+                              `${params.values[0] + 1}%`
+                            }
                             label="Automatic Notch Filter (ANF)"
                             switchChecked={props.slice.anfEnabled}
                             onSwitchChange={(isChecked) => {

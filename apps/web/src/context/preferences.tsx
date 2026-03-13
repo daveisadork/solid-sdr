@@ -1,5 +1,11 @@
 import { makePersisted } from "@solid-primitives/storage";
-import { createContext, type ParentComponent, useContext } from "solid-js";
+import {
+  createContext,
+  type ParentComponent,
+  useContext,
+  createEffect,
+  onMount,
+} from "solid-js";
 import { createStore, SetStoreFunction } from "solid-js/store";
 
 export interface Gradient {
@@ -14,6 +20,7 @@ export interface PaletteSettings {
 export interface Preferences {
   smoothScroll: boolean;
   scrollOffset: number;
+  enableBlurEffects: boolean;
   enableTransparencyEffects: boolean;
   peakStyle: "none" | "points" | "line";
   fillStyle: "none" | "solid" | "gradient";
@@ -27,6 +34,8 @@ export interface Preferences {
   palette: PaletteSettings;
   enableRemoteAudio: boolean;
   outputDeviceId: string;
+  panadapterSize: number;
+  waterfallSize: number;
 }
 
 const PreferencesContext = createContext<{
@@ -37,6 +46,7 @@ const PreferencesContext = createContext<{
 const initialPreferences = () =>
   ({
     smoothScroll: true,
+    enableBlurEffects: true,
     enableTransparencyEffects: true,
     peakStyle: "points",
     fillStyle: "solid",
@@ -47,6 +57,8 @@ const initialPreferences = () =>
     sMeterEnabled: true,
     showTuningGuide: false,
     preventScreenSleep: false,
+    panadapterSize: 0.25,
+    waterfallSize: 0.75,
     enableRemoteAudio: true,
     outputDeviceId: "default",
     palette: {
@@ -248,10 +260,37 @@ const initialPreferences = () =>
   }) as Preferences;
 
 export const PreferencesProvider: ParentComponent = (props) => {
+  const initial = initialPreferences();
   const [store, setStore] = createStore(initialPreferences());
   const [preferences, setPreferences] = makePersisted([store, setStore], {
     name: "preferences",
   });
+
+  onMount(() => {
+    Object.keys(preferences)
+      .filter((key) => !(key in initial))
+      .forEach((key) => {
+        console.log(`Removing old preference key: ${key}`);
+        setPreferences(key, undefined);
+      });
+  });
+
+  createEffect(() => {
+    if (!preferences.enableTransparencyEffects) {
+      document.documentElement.classList.add("disable-transparency-effects");
+    } else {
+      document.documentElement.classList.remove("disable-transparency-effects");
+    }
+  });
+
+  createEffect(() => {
+    if (!preferences.enableBlurEffects) {
+      document.documentElement.classList.add("disable-blur-effects");
+    } else {
+      document.documentElement.classList.remove("disable-blur-effects");
+    }
+  });
+
   return (
     <PreferencesContext.Provider value={{ preferences, setPreferences }}>
       {props.children}

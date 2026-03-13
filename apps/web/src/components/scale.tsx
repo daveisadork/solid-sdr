@@ -11,6 +11,7 @@ import {
   ValidComponent,
 } from "solid-js";
 import { type Panadapter } from "~/context/flexradio";
+import { usePreferences } from "~/context/preferences";
 import { cn } from "~/lib/utils";
 
 const stepSizes = [
@@ -113,6 +114,7 @@ export const Scale = <T extends ValidComponent = "button">(
   const [gridFreqs, setGridFreqs] = createSignal<FrequencyGridTick[]>([]);
   const [ref, setRef] = createSignal<HTMLDivElement>();
   const size = createElementSize(ref);
+  const { preferences } = usePreferences();
 
   createEffect(() => {
     const { width } = size;
@@ -131,24 +133,35 @@ export const Scale = <T extends ValidComponent = "button">(
   });
 
   return (
-    <ResizablePrimitive.Handle
-      class={cn(
-        "relative flex w-full h-4 justify-around select-none font-mono z-10 translate-x-(--drag-offset)",
-        local.class,
-      )}
-      ref={setRef}
-      {...rest}
+    <div
+      class="relative overflow-visible w-full"
+      classList={{
+        "h-0": preferences.enableTransparencyEffects,
+        "h-4": !preferences.enableTransparencyEffects,
+      }}
     >
-      <For each={gridFreqs()}>
-        {({ label, offset }) => (
-          <div
-            class="text-xs absolute top-0 left-(--offset) -translate-x-1/2"
-            style={{ "--offset": `${offset}px` }}
-          >
-            {label}
-          </div>
+      <ResizablePrimitive.Handle
+        class={cn(
+          "fancy-bg-background flex w-full h-4 justify-around select-none font-mono z-10 translate-x-(--drag-offset)",
+          local.class,
         )}
-      </For>
-    </ResizablePrimitive.Handle>
+        classList={{
+          "bottom-4": preferences.enableTransparencyEffects,
+        }}
+        ref={setRef}
+        {...rest}
+      >
+        <For each={gridFreqs()}>
+          {({ label, offset }) => (
+            <div
+              class="text-xs absolute top-0 left-(--offset) -translate-x-1/2 textbox-edge-cap-alphabetic"
+              style={{ "--offset": `${offset}px` }}
+            >
+              {label}
+            </div>
+          )}
+        </For>
+      </ResizablePrimitive.Handle>
+    </div>
   );
 };

@@ -125,8 +125,9 @@ export const LevelMeter = <T extends ValidComponent = "div">(
   );
 
   createEffect((expires: number) => {
-    if (props.meter.value < peakValue() && Date.now() < expires) return expires;
-    setPeakValue(props.meter.value);
+    if (props.meter?.value < peakValue() && Date.now() < expires)
+      return expires;
+    setPeakValue(props.meter?.value);
     return Date.now() + 1000;
   }, 0);
 

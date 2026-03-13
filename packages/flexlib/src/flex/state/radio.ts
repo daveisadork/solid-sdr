@@ -20,9 +20,7 @@ export interface RadioLogModule {
   readonly level: string;
 }
 
-const EMPTY_LOG_MODULES = Object.freeze(
-  [],
-) as readonly RadioLogModule[];
+const EMPTY_LOG_MODULES = Object.freeze([]) as readonly RadioLogModule[];
 
 export type RadioFilterSharpnessMode = "voice" | "cw" | "digital";
 
@@ -735,6 +733,7 @@ function applyTransmitAttributes(
         );
         break;
       case "mic_level":
+      case "miclevel":
         partial.micLevel = parseBoundedInteger(value, 0, 100, "transmit", key);
         break;
       case "mic_selection":
@@ -831,32 +830,16 @@ function applyTransmitAttributes(
         partial.txMonitorEnabled = isTruthy(value);
         break;
       case "mon_gain_cw":
-        partial.txCwMonitorGain = parseIntegerAttribute(
-          value,
-          "transmit",
-          key,
-        );
+        partial.txCwMonitorGain = parseIntegerAttribute(value, "transmit", key);
         break;
       case "mon_gain_sb":
-        partial.txSbMonitorGain = parseIntegerAttribute(
-          value,
-          "transmit",
-          key,
-        );
+        partial.txSbMonitorGain = parseIntegerAttribute(value, "transmit", key);
         break;
       case "mon_pan_cw":
-        partial.txCwMonitorPan = parseIntegerAttribute(
-          value,
-          "transmit",
-          key,
-        );
+        partial.txCwMonitorPan = parseIntegerAttribute(value, "transmit", key);
         break;
       case "mon_pan_sb":
-        partial.txSbMonitorPan = parseIntegerAttribute(
-          value,
-          "transmit",
-          key,
-        );
+        partial.txSbMonitorPan = parseIntegerAttribute(value, "transmit", key);
         break;
       case "speech_processor_enable":
         partial.speechProcessorEnabled = isTruthy(value);
@@ -874,22 +857,10 @@ function applyTransmitAttributes(
         partial.voxEnabled = isTruthy(value);
         break;
       case "vox_level":
-        partial.voxLevel = parseBoundedInteger(
-          value,
-          0,
-          100,
-          "transmit",
-          key,
-        );
+        partial.voxLevel = parseBoundedInteger(value, 0, 100, "transmit", key);
         break;
       case "vox_delay":
-        partial.voxDelay = parseBoundedInteger(
-          value,
-          0,
-          100,
-          "transmit",
-          key,
-        );
+        partial.voxDelay = parseBoundedInteger(value, 0, 100, "transmit", key);
         break;
       case "tune":
         partial.txTune = isTruthy(value);
@@ -999,9 +970,7 @@ function parseInterlockReason(
   return INTERLOCK_REASON_BY_TOKEN[value.toUpperCase()];
 }
 
-function parsePttSource(
-  value: string | undefined,
-): RadioPttSource | undefined {
+function parsePttSource(value: string | undefined): RadioPttSource | undefined {
   if (!value) return undefined;
   return PTT_SOURCE_BY_TOKEN[value.toUpperCase()];
 }

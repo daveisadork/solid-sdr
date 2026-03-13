@@ -16,6 +16,7 @@ import useFlexRadio, {
 import { LinearScale } from "./linear-scale";
 import { WaterfallController } from "@repo/flexlib";
 import { usePreferences } from "~/context/preferences";
+import { usePanafall } from "~/context/panafall";
 
 export function Waterfall(props: {
   waterfall: WaterfallState;
@@ -24,6 +25,7 @@ export function Waterfall(props: {
 }) {
   const { state, setState } = useFlexRadio();
   const { preferences } = usePreferences();
+  const { sizeRef } = usePanafall();
 
   const [canvasWidth, setCanvasWidth] = createSignal(1);
   const [canvasHeight, setCanvasHeight] = createSignal(1);
@@ -388,8 +390,8 @@ export function Waterfall(props: {
         }}
       />
       <Show when={preferences.showFps}>
-        <Portal>
-          <div class="fixed top-12 left-2 -z-50 text-lg font-mono whitespace-pre font-bold text-emerald-400/50">
+        <Portal mount={sizeRef()}>
+          <div class="absolute top-12 left-2 -z-50 text-lg font-mono whitespace-pre font-bold text-emerald-400/50">
             W: {fps().toString().padStart(4, " ")}
           </div>
         </Portal>
@@ -408,7 +410,7 @@ export function Waterfall(props: {
                 tickLength={9}
                 tickSpacing={50}
                 showTicks={false}
-                showMin={true}
+                showMin={false}
                 showMax={false}
                 format={formatSeconds}
               />

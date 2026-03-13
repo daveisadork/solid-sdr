@@ -1,11 +1,13 @@
 import { createEffect, createSignal, onCleanup } from "solid-js";
 import { Portal } from "solid-js/web";
+import { usePanafall } from "~/context/panafall";
 
 export function FPSCounter() {
   const [running, setRunning] = createSignal(true);
   const [fps, setFps] = createSignal(0);
   let lastTime = performance.now();
   const frameTimes: number[] = [];
+  const { sizeRef } = usePanafall();
 
   const handleFrame = (time: number) => {
     frameTimes.push(time - lastTime);
@@ -25,8 +27,8 @@ export function FPSCounter() {
   });
 
   return (
-    <Portal>
-      <div class="fixed top-2 left-2 -z-50 text-lg font-mono whitespace-pre font-bold text-amber-400/50">
+    <Portal mount={sizeRef()}>
+      <div class="absolute top-2 left-2 -z-50 text-lg font-mono whitespace-pre font-bold text-amber-400/50">
         B: {fps().toString().padStart(4, " ")}
       </div>
     </Portal>

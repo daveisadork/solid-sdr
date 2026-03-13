@@ -117,7 +117,8 @@ export function LinearScale(props: LinearScaleProps) {
   });
 
   const ticks = createMemo<LinearScaleTick[]>(() => {
-    const { min, max } = merged;
+    const min = merged.min;
+    const max = merged.max;
     if (!Number.isFinite(min) || !Number.isFinite(max)) return [];
     const target = targetTickCount();
     if (approximateEqual(min, max)) {
@@ -257,9 +258,8 @@ export function LinearScale(props: LinearScaleProps) {
                       <Show when={showTickLine}>
                         <div
                           class={cn(
-                            "block h-px rounded-full bg-primary/25",
+                            "block h-px rounded-full bg-primary/25 -translate-x-1/2",
                             merged.lineClass,
-                            tick.isEdge ? "bg-primary/35" : "",
                           )}
                           style={{
                             width: length,
@@ -286,12 +286,6 @@ export function LinearScale(props: LinearScaleProps) {
           <div class="relative h-full w-full">
             <For each={ticks()}>
               {(tick) => {
-                const translateX =
-                  tick.isEdge === "max"
-                    ? "-100%"
-                    : tick.isEdge === "min"
-                      ? "0%"
-                      : "-50%";
                 const length = resolveLength(merged.tickLength) ?? "100%";
                 const showTickLine = !!merged.showTicks;
                 return (
@@ -318,7 +312,6 @@ export function LinearScale(props: LinearScaleProps) {
                           "absolute left-0 top-0 whitespace-nowrap text-xs font-medium text-primary scale-label-shadow",
                           merged.labelClass,
                         )}
-                        style={{ transform: `translateX(${translateX})` }}
                       >
                         {tick.label}
                       </div>

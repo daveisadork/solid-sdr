@@ -32,6 +32,7 @@ export function Panadapter(props: {
 }) {
   const { state } = useFlexRadio();
   const { preferences } = usePreferences();
+  const { sizeRef } = usePanafall();
 
   const [canvasRef, setCanvasRef] = createSignal<HTMLCanvasElement>();
   const [wrapper, setWrapper] = createSignal<HTMLDivElement>();
@@ -361,8 +362,8 @@ export function Panadapter(props: {
         class="absolute size-full translate-x-(--drag-offset) select-none"
       />
       <Show when={preferences.showFps}>
-        <Portal>
-          <div class="fixed top-7 left-2 -z-50 text-lg font-mono whitespace-pre font-bold text-indigo-400/50">
+        <Portal mount={sizeRef()}>
+          <div class="absolute top-7 left-2 -z-50 text-lg font-mono whitespace-pre font-bold text-indigo-400/50">
             P: {fps().toString().padStart(4, " ")}
           </div>
         </Portal>

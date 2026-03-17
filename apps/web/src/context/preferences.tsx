@@ -36,6 +36,7 @@ export interface Preferences {
   outputDeviceId: string;
   panadapterSize: number;
   waterfallSize: number;
+  sidebarPanels: string[];
 }
 
 const PreferencesContext = createContext<{
@@ -61,6 +62,7 @@ const initialPreferences = () =>
     waterfallSize: 0.75,
     enableRemoteAudio: true,
     outputDeviceId: "default",
+    sidebarPanels: ["tx", "p-cw", "phone", "rx", "eq"],
     palette: {
       gradients: [
         {

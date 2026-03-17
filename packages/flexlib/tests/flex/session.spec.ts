@@ -418,7 +418,9 @@ describe("FlexClient", () => {
     channel.emit(makeStatus(radioStatus));
     channel.emit(makeStatus(atuStatus));
     channel.emit(
-      makeStatus("S4E48881B|transmit mic_selection=MIC mic_level=40"),
+      makeStatus(
+        "S4E48881B|transmit mic_selection=MIC mic_level=40 pitch=500 speed=28 synccwx=1 iambic=1 iambic_mode=2 swap_paddles=0 break_in=1 sidetone=1 cwl_enabled=1 break_in_delay=200",
+      ),
     );
 
     const radioSnapshot = session.getRadio();
@@ -468,6 +470,16 @@ describe("FlexClient", () => {
     expect(radio.atuUsingMemory).toBe(true);
     expect(radio.atuTuneStatus).toBe("TUNE_SUCCESSFUL");
     expect(radio.micSelection).toBe("MIC");
+    expect(radio.cwPitchHz).toBe(500);
+    expect(radio.cwSpeedWpm).toBe(28);
+    expect(radio.syncCwx).toBe(true);
+    expect(radio.cwIambic).toBe(true);
+    expect(radio.cwIambicMode).toBe("strict_b");
+    expect(radio.cwSwapPaddles).toBe(false);
+    expect(radio.cwBreakIn).toBe(true);
+    expect(radio.cwSidetone).toBe(true);
+    expect(radio.cwLeftEnabled).toBe(true);
+    expect(radio.cwBreakInDelayMs).toBe(200);
 
     channel.prepareResponse({ message: "MIC,BAL,LINE,ACC,PC" });
     await radio.refreshMicList();
@@ -596,6 +608,46 @@ describe("FlexClient", () => {
       "radio set cal_freq=15.123457",
     );
     expect(radio.calibrationFrequencyMhz).toBeCloseTo(15.123457, 6);
+
+    await radio.setCwPitchHz(50);
+    expect(channel.commands.at(-1)?.command).toBe("cw pitch 100");
+    expect(radio.cwPitchHz).toBe(100);
+
+    await radio.setCwSpeedWpm(3);
+    expect(channel.commands.at(-1)?.command).toBe("cw wpm 5");
+    expect(radio.cwSpeedWpm).toBe(5);
+
+    await radio.setSyncCwx(false);
+    expect(channel.commands.at(-1)?.command).toBe("cw synccwx 0");
+    expect(radio.syncCwx).toBe(false);
+
+    await radio.setCwIambic(false);
+    expect(channel.commands.at(-1)?.command).toBe("cw iambic 0");
+    expect(radio.cwIambic).toBe(false);
+
+    await radio.setCwIambicMode("bug");
+    expect(channel.commands.at(-1)?.command).toBe("cw mode 3");
+    expect(radio.cwIambicMode).toBe("bug");
+
+    await radio.setCwSwapPaddles(true);
+    expect(channel.commands.at(-1)?.command).toBe("cw swap 1");
+    expect(radio.cwSwapPaddles).toBe(true);
+
+    await radio.setCwBreakIn(false);
+    expect(channel.commands.at(-1)?.command).toBe("cw break_in 0");
+    expect(radio.cwBreakIn).toBe(false);
+
+    await radio.setCwSidetone(false);
+    expect(channel.commands.at(-1)?.command).toBe("cw sidetone 0");
+    expect(radio.cwSidetone).toBe(false);
+
+    await radio.setCwLeftEnabled(false);
+    expect(channel.commands.at(-1)?.command).toBe("cw cwl_enabled 0");
+    expect(radio.cwLeftEnabled).toBe(false);
+
+    await radio.setCwBreakInDelayMs(2500);
+    expect(channel.commands.at(-1)?.command).toBe("cw break_in_delay 2000");
+    expect(radio.cwBreakInDelayMs).toBe(2000);
   });
 
   it("issues gps install and uninstall commands", async () => {

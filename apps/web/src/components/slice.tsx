@@ -446,7 +446,7 @@ const SliceFilter = (props: {
       </PopoverTrigger>
       <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 fancy-bg-popover">
         <PopoverArrow />
-        <div class="p-4 flex flex-col space-y-6 max-h-(--kb-popper-content-available-height) overflow-x-auto">
+        <div class="p-4 flex flex-col space-y-4 max-h-(--kb-popper-content-available-height) overflow-x-auto">
           <FilterControls slice={props.slice} controller={props.controller} />
         </div>
       </PopoverContent>
@@ -872,7 +872,7 @@ export function Slice(props: { slice: SliceState; pan: Panadapter }) {
                       </PopoverTrigger>
                       <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 fancy-bg-popover">
                         <PopoverArrow />
-                        <div class="p-4 flex flex-col space-y-6 max-h-(--kb-popper-content-available-height) overflow-x-auto">
+                        <div class="p-4 flex flex-col space-y-4 max-h-(--kb-popper-content-available-height) overflow-x-auto">
                           <SimpleSwitch
                             checked={props.slice.isMuted}
                             onChange={(isChecked) => {
@@ -1055,7 +1055,7 @@ export function Slice(props: { slice: SliceState; pan: Panadapter }) {
                       </PopoverTrigger>
                       <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 fancy-bg-popover">
                         <PopoverArrow />
-                        <div class="elative p-4 flex flex-col space-y-6 max-h-(--kb-popper-content-available-height) overflow-x-auto">
+                        <div class="elative p-4 flex flex-col space-y-4 max-h-(--kb-popper-content-available-height) overflow-x-auto">
                           <SliderToggle
                             disabled={!props.slice.wnbEnabled}
                             minValue={0}
@@ -1094,9 +1094,7 @@ export function Slice(props: { slice: SliceState; pan: Panadapter }) {
                             onChange={([value]) => {
                               sliceController().setNrLevel(value);
                             }}
-                            getValueLabel={(params) =>
-                              `${params.values[0] + 1}%`
-                            }
+                            getValueLabel={(params) => `${params.values[0]}%`}
                             label="Noise Reduction (NR)"
                             switchChecked={props.slice.nrEnabled}
                             onSwitchChange={(isChecked) => {
@@ -1117,52 +1115,54 @@ export function Slice(props: { slice: SliceState; pan: Panadapter }) {
                             }}
                             label="Noise Reduction Filter (NRF)"
                           />
-                          <SimpleSwitch
-                            checked={props.slice.rnnEnabled}
-                            onChange={(isChecked) => {
-                              sliceController().setRnnEnabled(isChecked);
-                            }}
-                            label="AI Noise Reduction (RNN)"
-                          />
-                          <SliderToggle
-                            disabled={!props.slice.anfEnabled}
-                            minValue={0}
-                            maxValue={99}
-                            value={[props.slice.anfLevel]}
-                            onChange={([value]) => {
-                              sliceController().setAnfLevel(value);
-                            }}
-                            getValueLabel={(params) =>
-                              `${params.values[0] + 1}%`
-                            }
-                            label="Automatic Notch Filter (ANF)"
-                            switchChecked={props.slice.anfEnabled}
-                            onSwitchChange={(isChecked) => {
-                              sliceController().setAnfEnabled(isChecked);
-                            }}
-                          />
-                          <SimpleSwitch
-                            checked={props.slice.anftEnabled}
-                            onChange={(isChecked) => {
-                              sliceController().setAnftEnabled(isChecked);
-                            }}
-                            label=" FFT Auto Notch Filter (ANFT)"
-                          />
-                          <SliderToggle
-                            disabled={!props.slice.apfEnabled}
-                            minValue={0}
-                            maxValue={100}
-                            value={[props.slice.apfLevel]}
-                            onChange={([value]) => {
-                              sliceController().setApfLevel(value);
-                            }}
-                            getValueLabel={(params) => `${params.values[0]}%`}
-                            label="Automatic Peaking Filter (APF)"
-                            switchChecked={props.slice.apfEnabled}
-                            onSwitchChange={(isChecked) => {
-                              sliceController().setApfEnabled(isChecked);
-                            }}
-                          />
+                          <Show when={props.slice.mode !== "CW"}>
+                            <SimpleSwitch
+                              checked={props.slice.rnnEnabled}
+                              onChange={(isChecked) => {
+                                sliceController().setRnnEnabled(isChecked);
+                              }}
+                              label="AI Noise Reduction (RNN)"
+                            />
+                            <SliderToggle
+                              disabled={!props.slice.anfEnabled}
+                              minValue={0}
+                              maxValue={99}
+                              value={[props.slice.anfLevel]}
+                              onChange={([value]) => {
+                                sliceController().setAnfLevel(value);
+                              }}
+                              getValueLabel={(params) => `${params.values[0]}%`}
+                              label="Automatic Notch Filter (ANF)"
+                              switchChecked={props.slice.anfEnabled}
+                              onSwitchChange={(isChecked) => {
+                                sliceController().setAnfEnabled(isChecked);
+                              }}
+                            />
+                            <SimpleSwitch
+                              checked={props.slice.anftEnabled}
+                              onChange={(isChecked) => {
+                                sliceController().setAnftEnabled(isChecked);
+                              }}
+                              label=" FFT Auto Notch Filter (ANFT)"
+                            />
+                          </Show>
+                          <Show when={props.slice.mode === "CW"}>
+                            <SliderToggle
+                              disabled={!props.slice.apfEnabled}
+                              minValue={0}
+                              maxValue={100}
+                              value={[props.slice.apfLevel]}
+                              onChange={([value]) => {
+                                sliceController().setApfLevel(value);
+                              }}
+                              getValueLabel={(params) => `${params.values[0]}%`}
+                              label="Automatic Peaking Filter (APF)"
+                              switchChecked={props.slice.apfEnabled}
+                              onSwitchChange={(isChecked) => {
+                                sliceController().setApfEnabled(isChecked);
+                              }}
+                            />
+                          </Show>
                           <SliderToggle
                             disabled={!props.slice.nrlEnabled}
                             minValue={0}
@@ -1178,21 +1178,23 @@ export function Slice(props: { slice: SliceState; pan: Panadapter }) {
                               sliceController().setNrlEnabled(isChecked);
                             }}
                           />
-                          <SliderToggle
-                            disabled={!props.slice.anflEnabled}
-                            minValue={0}
-                            maxValue={100}
-                            value={[props.slice.anflLevel]}
-                            onChange={([value]) => {
-                              sliceController().setAnflLevel(value);
-                            }}
-                            getValueLabel={(params) => `${params.values[0]}%`}
-                            label="Legacy Auto Notch Filter (ANFL)"
-                            switchChecked={props.slice.anflEnabled}
-                            onSwitchChange={(isChecked) => {
-                              sliceController().setAnflEnabled(isChecked);
-                            }}
-                          />
+                          <Show when={props.slice.mode !== "CW"}>
+                            <SliderToggle
+                              disabled={!props.slice.anflEnabled}
+                              minValue={0}
+                              maxValue={100}
+                              value={[props.slice.anflLevel]}
+                              onChange={([value]) => {
+                                sliceController().setAnflLevel(value);
+                              }}
+                              getValueLabel={(params) => `${params.values[0]}%`}
+                              label="Legacy Auto Notch Filter (ANFL)"
+                              switchChecked={props.slice.anflEnabled}
+                              onSwitchChange={(isChecked) => {
+                                sliceController().setAnflEnabled(isChecked);
+                              }}
+                            />
+                          </Show>
                         </div>
                       </PopoverContent>
                     </Popover>
@@ -1204,7 +1206,7 @@ export function Slice(props: { slice: SliceState; pan: Panadapter }) {
                       </PopoverTrigger>
                       <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 fancy-bg-popover">
                         <PopoverArrow />
-                        <div class="relative p-4 flex flex-col space-y-6 max-h-(--kb-popper-content-available-height) overflow-x-auto">
+                        <div class="relative p-4 flex flex-col space-y-4 max-h-(--kb-popper-content-available-height) overflow-x-auto">
                           <SliderToggle
                             disabled={!props.slice.ritEnabled}
                             minValue={-100}

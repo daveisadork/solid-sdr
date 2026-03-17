@@ -64,6 +64,8 @@ export default function RtcAudio() {
         class="size-4 rounded-full border"
         classList={{
           "bg-foreground": Boolean(remoteAudioRxStreamId()),
+          "bg-foreground/50":
+            preferences.enableRemoteAudio && !Boolean(remoteAudioRxStreamId()),
         }}
         onClick={() => setPreferences("enableRemoteAudio", (v) => !v)}
       />

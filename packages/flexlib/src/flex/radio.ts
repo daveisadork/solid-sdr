@@ -1,6 +1,7 @@
 import type { FlexCommandOptions, FlexCommandResponse } from "./adapters.js";
 import type {
   RadioAtuTuneStatus,
+  RadioCwIambicMode,
   RadioFilterSharpnessMode,
   RadioLogModule,
   RadioInterlockState,
@@ -138,6 +139,16 @@ export interface RadioController {
   get txFilterHighHz(): number;
   get txTune(): boolean;
   get tuneMode(): "single_tone" | "two_tone" | undefined;
+  get cwPitchHz(): number;
+  get cwSpeedWpm(): number;
+  get syncCwx(): boolean;
+  get cwIambic(): boolean;
+  get cwIambicMode(): RadioCwIambicMode | undefined;
+  get cwSwapPaddles(): boolean;
+  get cwBreakIn(): boolean;
+  get cwSidetone(): boolean;
+  get cwLeftEnabled(): boolean;
+  get cwBreakInDelayMs(): number;
   get pllDone(): boolean;
   get tnfEnabled(): boolean;
   get binauralRx(): boolean;
@@ -260,6 +271,16 @@ export interface RadioController {
   setRttyMarkDefaultHz(value: number): Promise<void>;
   setFrequencyErrorPpb(value: number): Promise<void>;
   setCalibrationFrequencyMhz(value: number): Promise<void>;
+  setCwPitchHz(value: number): Promise<void>;
+  setCwSpeedWpm(value: number): Promise<void>;
+  setSyncCwx(enabled: boolean): Promise<void>;
+  setCwIambic(enabled: boolean): Promise<void>;
+  setCwIambicMode(mode: RadioCwIambicMode): Promise<void>;
+  setCwSwapPaddles(enabled: boolean): Promise<void>;
+  setCwBreakIn(enabled: boolean): Promise<void>;
+  setCwSidetone(enabled: boolean): Promise<void>;
+  setCwLeftEnabled(enabled: boolean): Promise<void>;
+  setCwBreakInDelayMs(delayMs: number): Promise<void>;
   setFilterSharpnessLevel(
     mode: RadioFilterSharpnessMode,
     level: number,
@@ -604,6 +625,46 @@ export class RadioControllerImpl implements RadioController {
 
   get tuneMode(): "single_tone" | "two_tone" | undefined {
     return this.current()?.tuneMode;
+  }
+
+  get cwPitchHz(): number {
+    return this.current()?.cwPitchHz ?? 0;
+  }
+
+  get cwSpeedWpm(): number {
+    return this.current()?.cwSpeedWpm ?? 0;
+  }
+
+  get syncCwx(): boolean {
+    return this.current()?.syncCwx ?? false;
+  }
+
+  get cwIambic(): boolean {
+    return this.current()?.cwIambic ?? false;
+  }
+
+  get cwIambicMode(): RadioCwIambicMode | undefined {
+    return this.current()?.cwIambicMode;
+  }
+
+  get cwSwapPaddles(): boolean {
+    return this.current()?.cwSwapPaddles ?? false;
+  }
+
+  get cwBreakIn(): boolean {
+    return this.current()?.cwBreakIn ?? false;
+  }
+
+  get cwSidetone(): boolean {
+    return this.current()?.cwSidetone ?? false;
+  }
+
+  get cwLeftEnabled(): boolean {
+    return this.current()?.cwLeftEnabled ?? false;
+  }
+
+  get cwBreakInDelayMs(): number {
+    return this.current()?.cwBreakInDelayMs ?? 0;
   }
 
   get pllDone(): boolean {
@@ -1313,6 +1374,101 @@ export class RadioControllerImpl implements RadioController {
     });
   }
 
+  async setCwPitchHz(value: number): Promise<void> {
+    const clamped = clampInteger(value, 100, 6_000, "CW pitch");
+    await this.commandAndPatch(
+      `cw pitch ${clamped}`,
+      { pitch: clamped.toString(10) },
+      { source: "transmit" },
+    );
+  }
+
+  async setCwSpeedWpm(value: number): Promise<void> {
+    const clamped = clampInteger(value, 5, 100, "CW speed");
+    await this.commandAndPatch(
+      `cw wpm ${clamped}`,
+      { speed: clamped.toString(10) },
+      { source: "transmit" },
+    );
+  }
+
+  async setSyncCwx(enabled: boolean): Promise<void> {
+    const encoded = formatBooleanFlag(enabled);
+    await this.commandAndPatch(
+      `cw synccwx ${encoded}`,
+      { synccwx: encoded },
+      { source: "transmit" },
+    );
+  }
+
+  async setCwIambic(enabled: boolean): Promise<void> {
+    const encoded = formatBooleanFlag(enabled);
+    await this.commandAndPatch(
+      `cw iambic ${encoded}`,
+      { iambic: encoded },
+      { source: "transmit" },
+    );
+  }
+
+  async setCwIambicMode(mode: RadioCwIambicMode): Promise<void> {
+    const encoded = encodeCwIambicMode(mode);
+    await this.commandAndPatch(
+      `cw mode ${encoded}`,
+      { iambic_mode: encoded.toString(10) },
+      { source: "transmit" },
+    );
+  }
+
+  async setCwSwapPaddles(enabled: boolean): Promise<void> {
+    const encoded = formatBooleanFlag(enabled);
+    await this.commandAndPatch(
+      `cw swap ${encoded}`,
+      { swap_paddles: encoded },
+      { source: "transmit" },
+    );
+  }
+
+  async setCwBreakIn(enabled: boolean): Promise<void> {
+    const encoded = formatBooleanFlag(enabled);
+    await this.commandAndPatch(
+      `cw break_in ${encoded}`,
+      { break_in: encoded },
+      { source: "transmit" },
+    );
+  }
+
+  async setCwSidetone(enabled: boolean): Promise<void> {
+    const encoded = formatBooleanFlag(enabled);
+    await this.commandAndPatch(
+      `cw sidetone ${encoded}`,
+      { sidetone: encoded },
+      { source: "transmit" },
+    );
+  }
+
+  async setCwLeftEnabled(enabled: boolean): Promise<void> {
+    const encoded = formatBooleanFlag(enabled);
+    await this.commandAndPatch(
+      `cw cwl_enabled ${encoded}`,
+      { cwl_enabled: encoded },
+      { source: "transmit" },
+    );
+  }
+
+  async setCwBreakInDelayMs(delayMs: number): Promise<void> {
+    const clamped = clampInteger(
+      delayMs,
+      0,
+      2_000,
+      "CW break-in delay",
+    );
+    await this.commandAndPatch(
+      `cw break_in_delay ${clamped}`,
+      { break_in_delay: clamped.toString(10) },
+      { source: "transmit" },
+    );
+  }
+
   async setFilterSharpnessLevel(
     mode: RadioFilterSharpnessMode,
     level: number,
@@ -1601,6 +1757,19 @@ function normalizeLogLevel(value: string): string {
     throw new FlexError("Log level cannot be empty");
   }
   return trimmed;
+}
+
+function encodeCwIambicMode(mode: RadioCwIambicMode): number {
+  switch (mode) {
+    case "a":
+      return 0;
+    case "b":
+      return 1;
+    case "strict_b":
+      return 2;
+    case "bug":
+      return 3;
+  }
 }
 
 const FILTER_SHARPNESS_MIN_LEVEL = 0;

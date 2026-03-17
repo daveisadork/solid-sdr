@@ -441,7 +441,7 @@ export function Panafall() {
                 </ContextMenu>
               </div>
               <Portal mount={sizeRef()}>
-                <div class="absolute bottom-2 left-2 grid grid-cols-2 gap-0.5 text-xs">
+                <div class="absolute bottom-2 left-2 grid grid-cols-2 gap-1 text-xs">
                   <PanafallToggleButton
                     pressed={pan().isBandZoomOn}
                     onChange={(pressed) =>
@@ -499,7 +499,7 @@ export function Panafall() {
                     <ArrowExpandHorizontal />
                   </PanafallButton>
                 </div>
-                <div class="absolute bottom-2 right-12 flex gap-2">
+                <div class="absolute bottom-2 right-12 grid grid-cols-2 gap-1">
                   <PanafallButton
                     onClick={cycleTheme}
                     aria-label="Toggle theme"

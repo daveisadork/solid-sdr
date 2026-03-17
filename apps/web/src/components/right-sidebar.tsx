@@ -286,7 +286,7 @@ function TxSection() {
   );
 }
 
-function PcwSection() {
+function MicSection() {
   const { state, radio } = useFlexRadio();
   const [micInputList, setMicInputList] = createStore<string[]>([]);
   const [micProfileList, setMicProfileList] = createStore<string[]>([]);
@@ -311,183 +311,312 @@ function PcwSection() {
   );
 
   return (
+    <div class="flex flex-col gap-3">
+      <Show when={micMeter()}>
+        {(acc) => {
+          const meter = acc();
+          return (
+            <SimpleMeter
+              meter={meter}
+              minValue={-40}
+              maxValue={0}
+              getValueLabel={() =>
+                `${roundToDecimals(meter.value, 1).toFixed(1)} dB`
+              }
+              label="AF Input Level"
+              showTicks
+              showTickLabels
+              containTickLabels
+              tickLabelFilter={({ index }) => index % 2 === 0}
+            />
+          );
+        }}
+      </Show>
+      <Show when={compPeakMeter()}>
+        {(acc) => {
+          const meter = acc();
+          return (
+            <SimpleMeter
+              meter={meter}
+              // this meter is a little different in that it shows the amount of gain reduction
+              // being applied by the compressor, with the meter filling from the right instead of the left.
+              // the radio won't send a null value, instead doing something like value ?? meter.low, when
+              // in this case we'd rather have meter.high. so we do a small hack.
+              value={meter.value > meter.low ? meter.value : 0}
+              minValue={-25}
+              maxValue={0}
+              getValueLabel={({ value }) =>
+                `${roundToDecimals(value, 1).toFixed(1)} dB`
+              }
+              label="Compression"
+              class="bg-linear-to-l/decreasing"
+              style={{
+                "clip-path": "inset(0 0 0 var(--kb-meter-fill-width))",
+              }}
+              showTicks
+              showTickLabels
+              minStops={5}
+              containTickLabels
+            />
+          );
+        }}
+      </Show>
+      <Select
+        class="flex flex-col gap-2 select-none"
+        value={state.status.radio.profileMicSelection}
+        onChange={(value: string) => {
+          if (!value) return;
+          radio()?.loadMicProfile(value);
+        }}
+        options={micProfileList}
+        itemComponent={(props) => {
+          return (
+            <SelectItem item={props.item}>{props.item.rawValue}</SelectItem>
+          );
+        }}
+      >
+        <SelectLabel>Mic Profile</SelectLabel>
+        <SelectTrigger>
+          <SelectValue<string>>{(state) => state.selectedOption()}</SelectValue>
+        </SelectTrigger>
+        <SelectContent />
+      </Select>
+      <Select
+        class="flex flex-col gap-2 select-none"
+        value={state.status.radio.micSelection}
+        onChange={(value: string) => {
+          if (!value) return;
+          radio()?.setMicSelection(value);
+        }}
+        options={micInputList}
+        itemComponent={(props) => {
+          return (
+            <SelectItem item={props.item}>{props.item.rawValue}</SelectItem>
+          );
+        }}
+      >
+        <SelectLabel>AF Input Source</SelectLabel>
+        <SelectTrigger>
+          <SelectValue<string>>{(state) => state.selectedOption()}</SelectValue>
+        </SelectTrigger>
+        <SelectContent />
+      </Select>
+      <SimpleSwitch
+        checked={state.status.radio.micAccessoryEnabled}
+        onChange={(isChecked) => {
+          radio()?.setMicAccessoryEnabled(isChecked);
+        }}
+        label="Mic Accessory"
+        // tooltip="Enable audio input on Accessory Connector"
+      />
+      <SimpleSwitch
+        checked={state.status.radio.daxEnabled}
+        onChange={(isChecked) => {
+          radio()?.setDaxEnabled(isChecked);
+        }}
+        label="DAX"
+        // tooltip="Use DAX as primary transmit audio source"
+      />
+      <SimpleSlider
+        minValue={0}
+        maxValue={100}
+        value={[state.status.radio.micLevel]}
+        onChange={([value]) => {
+          if (value === state.status.radio.micLevel) return;
+          radio()?.setMicLevel(value);
+        }}
+        getValueLabel={(params) => `${params.values[0]}%`}
+        label="AF Input Level"
+      />
+      <div class="flex flex-col gap-1 pb-2">
+        <SimpleSwitch
+          label="Speech Processor"
+          checked={state.status.radio.speechProcessorEnabled}
+          onChange={(isChecked) => {
+            radio()?.setSpeechProcessorEnabled(isChecked);
+          }}
+          // tooltip="Enable processing for TX output in phone modes"
+        />
+        <SegmentedControl
+          disabled={!state.status.radio.speechProcessorEnabled}
+          value={PROCESSOR_LEVELS[state.status.radio.speechProcessorLevel]}
+          onChange={(value) => {
+            if (!value) return;
+            radio()?.setSpeechProcessorLevel(PROCESSOR_LEVELS.indexOf(value));
+          }}
+        >
+          <SegmentedControlGroup>
+            <SegmentedControlIndicator />
+            <SegmentedControlItemsList>
+              <For each={PROCESSOR_LEVELS}>
+                {(level) => (
+                  <SegmentedControlItem value={level}>
+                    <SegmentedControlItemLabel>
+                      {level}
+                    </SegmentedControlItemLabel>
+                  </SegmentedControlItem>
+                )}
+              </For>
+            </SegmentedControlItemsList>
+          </SegmentedControlGroup>
+        </SegmentedControl>
+      </div>
+      <SliderToggle
+        label="TX Monitor"
+        switchDisabled={!state.status.radio.txMonitorAvailable}
+        switchChecked={state.status.radio.txMonitorEnabled}
+        onSwitchChange={(isChecked) => {
+          radio()?.setTxMonitorEnabled(isChecked);
+        }}
+        minValue={0}
+        maxValue={100}
+        value={[state.status.radio.txSbMonitorGain]}
+        onChange={([value]) => {
+          if (value === state.status.radio.txSbMonitorGain) return;
+          radio()?.setTxSbMonitorGain(value);
+        }}
+        getValueLabel={(params) => `${params.values[0]}%`}
+        // tooltip="Monitor transmitted signal (PC mic input cannot be monitored)"
+      />
+    </div>
+  );
+}
+
+function CwSection() {
+  const { state, radio } = useFlexRadio();
+
+  const [rawPitch, setRawPitch] = createSignal(state.status.radio.cwPitchHz);
+
+  createEffect(() => setRawPitch(state.status.radio.cwPitchHz));
+
+  const applyPitch = () =>
+    rawPitch() !== state.status.radio.cwPitchHz
+      ? radio()?.setCwPitchHz(rawPitch())
+      : null;
+
+  const alcMeter = createMemo(() =>
+    Object.values(state.status.meter).find((meter) => meter.name === "ALC"),
+  );
+
+  return (
+    <div class="flex flex-col gap-3">
+      <SliderToggle
+        label="Break-in"
+        switchChecked={state.status.radio.cwBreakIn}
+        onSwitchChange={(isChecked) => {
+          radio()?.setCwBreakIn(isChecked);
+        }}
+        minValue={0}
+        maxValue={2000}
+        value={[state.status.radio.cwBreakInDelayMs]}
+        onChange={([value]) => {
+          if (value === state.status.radio.cwBreakInDelayMs) return;
+          radio()?.setCwBreakInDelayMs(value);
+        }}
+        getValueLabel={(params) => `${params.values[0]} ms`}
+      />
+      <SimpleSlider
+        minValue={5}
+        maxValue={100}
+        value={[state.status.radio.cwSpeedWpm]}
+        onChange={([value]) => {
+          if (value === state.status.radio.cwSpeedWpm) return;
+          radio()?.setCwSpeedWpm(value);
+        }}
+        getValueLabel={(params) => `${params.values[0]} WPM`}
+        label="Speed"
+      />
+      <SliderToggle
+        label="Sidetone Level"
+        switchChecked={state.status.radio.cwSidetone}
+        onSwitchChange={(isChecked) => {
+          radio()?.setCwSidetone(isChecked);
+        }}
+        minValue={0}
+        maxValue={100}
+        value={[state.status.radio.txCwMonitorGain]}
+        onChange={([value]) => {
+          if (value === state.status.radio.txCwMonitorGain) return;
+          radio()?.setTxCwMonitorGain(value);
+        }}
+        getValueLabel={(params) => `${params.values[0]}%`}
+      />
+      <Slider
+        minValue={0}
+        maxValue={100}
+        value={[state.status.radio.txCwMonitorPan]}
+        onChange={([value]) => {
+          radio()?.setTxCwMonitorPan(value);
+        }}
+        getValueLabel={(params) => {
+          const value = params.values[0] - 50;
+          if (value === 0) return "Center";
+          return value < 0 ? `L${-value}` : `R${value}`;
+        }}
+        class="space-y-3"
+      >
+        <div class="flex w-full justify-between">
+          <SliderLabel>Sidetone Pan</SliderLabel>
+          <SliderValueLabel />
+        </div>
+        <SliderTrack>
+          <SliderFill
+            style={{
+              right:
+                state.status.radio.txCwMonitorPan > 50
+                  ? `${100 - state.status.radio.txCwMonitorPan}%`
+                  : "50%",
+              left:
+                state.status.radio.txCwMonitorPan <= 50
+                  ? `${state.status.radio.txCwMonitorPan}%`
+                  : "50%",
+            }}
+          />
+          <SliderThumb />
+        </SliderTrack>
+      </Slider>
+      <NumberField
+        class="flex flex-col gap-2 select-none"
+        rawValue={rawPitch()}
+        format={false}
+        minValue={100}
+        maxValue={6000}
+        step={50}
+        onRawValueChange={setRawPitch}
+        onFocusOut={applyPitch}
+      >
+        <NumberFieldLabel class="select-none">Pitch Hz</NumberFieldLabel>
+        <NumberFieldGroup class="select-none">
+          <NumberFieldInput />
+          <NumberFieldIncrementTrigger class="select-none" />
+          <NumberFieldDecrementTrigger class="select-none" />
+        </NumberFieldGroup>
+      </NumberField>
+      <SimpleSwitch
+        checked={state.status.radio.cwIambic}
+        onChange={(isChecked) => {
+          radio()?.setCwIambic(isChecked);
+        }}
+        label="Iambic"
+      />
+    </div>
+  );
+}
+
+function PcwSection() {
+  const { state } = useFlexRadio();
+
+  const activeSlice = createMemo(() =>
+    Object.values(state.status.slice).find((s) => s.isActive && s.isInUse),
+  );
+
+  return (
     <AccordionItem value="p-cw">
       <AccordionTrigger>P/CW</AccordionTrigger>
       <AccordionContent>
-        <div class="flex flex-col gap-3">
-          <Show when={micMeter()}>
-            {(acc) => {
-              const meter = acc();
-              return (
-                <SimpleMeter
-                  meter={meter}
-                  minValue={-40}
-                  maxValue={0}
-                  getValueLabel={() =>
-                    `${roundToDecimals(meter.value, 1).toFixed(1)} dB`
-                  }
-                  label="AF Input Level"
-                  showTicks
-                  showTickLabels
-                  containTickLabels
-                  tickLabelFilter={({ index }) => index % 2 === 0}
-                />
-              );
-            }}
-          </Show>
-          <Show when={compPeakMeter()}>
-            {(acc) => {
-              const meter = acc();
-              return (
-                <SimpleMeter
-                  meter={meter}
-                  // this meter is a little different in that it shows the amount of gain reduction
-                  // being applied by the compressor, with the meter filling from the right instead of the left.
-                  // the radio won't send a null value, instead doing something like value ?? meter.low, when
-                  // in this case we'd rather have meter.high. so we do a small hack.
-                  value={meter.value > meter.low ? meter.value : 0}
-                  minValue={-25}
-                  maxValue={0}
-                  getValueLabel={({ value }) =>
-                    `${roundToDecimals(value, 1).toFixed(1)} dB`
-                  }
-                  label="Compression"
-                  class="bg-linear-to-l/decreasing"
-                  style={{
-                    "clip-path": "inset(0 0 0 var(--kb-meter-fill-width))",
-                  }}
-                  showTicks
-                  showTickLabels
-                  minStops={5}
-                  containTickLabels
-                />
-              );
-            }}
-          </Show>
-          <Select
-            class="flex flex-col gap-2 select-none"
-            value={state.status.radio.profileMicSelection}
-            onChange={(value: string) => {
-              if (!value) return;
-              radio()?.loadMicProfile(value);
-            }}
-            options={micProfileList}
-            itemComponent={(props) => {
-              return (
-                <SelectItem item={props.item}>{props.item.rawValue}</SelectItem>
-              );
-            }}
-          >
-            <SelectLabel>Mic Profile</SelectLabel>
-            <SelectTrigger>
-              <SelectValue<string>>
-                {(state) => state.selectedOption()}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent />
-          </Select>
-          <Select
-            class="flex flex-col gap-2 select-none"
-            value={state.status.radio.micSelection}
-            onChange={(value: string) => {
-              if (!value) return;
-              radio()?.setMicSelection(value);
-            }}
-            options={micInputList}
-            itemComponent={(props) => {
-              return (
-                <SelectItem item={props.item}>{props.item.rawValue}</SelectItem>
-              );
-            }}
-          >
-            <SelectLabel>AF Input Source</SelectLabel>
-            <SelectTrigger>
-              <SelectValue<string>>
-                {(state) => state.selectedOption()}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent />
-          </Select>
-          <SimpleSwitch
-            checked={state.status.radio.micAccessoryEnabled}
-            onChange={(isChecked) => {
-              radio()?.setMicAccessoryEnabled(isChecked);
-            }}
-            label="Mic Accessory"
-            // tooltip="Enable audio input on Accessory Connector"
-          />
-          <SimpleSwitch
-            checked={state.status.radio.daxEnabled}
-            onChange={(isChecked) => {
-              radio()?.setDaxEnabled(isChecked);
-            }}
-            label="DAX"
-            // tooltip="Use DAX as primary transmit audio source"
-          />
-          <SimpleSlider
-            minValue={0}
-            maxValue={100}
-            value={[state.status.radio.micLevel]}
-            onChange={([value]) => {
-              if (value === state.status.radio.micLevel) return;
-              radio()?.setMicLevel(value);
-            }}
-            getValueLabel={(params) => `${params.values[0]}%`}
-            label="AF Input Level"
-          />
-          <div class="flex flex-col gap-1 pb-2">
-            <SimpleSwitch
-              label="Speech Processor"
-              checked={state.status.radio.speechProcessorEnabled}
-              onChange={(isChecked) => {
-                radio()?.setSpeechProcessorEnabled(isChecked);
-              }}
-              // tooltip="Enable processing for TX output in phone modes"
-            />
-            <SegmentedControl
-              disabled={!state.status.radio.speechProcessorEnabled}
-              value={PROCESSOR_LEVELS[state.status.radio.speechProcessorLevel]}
-              onChange={(value) => {
-                if (!value) return;
-                radio()?.setSpeechProcessorLevel(
-                  PROCESSOR_LEVELS.indexOf(value),
-                );
-              }}
-            >
-              <SegmentedControlGroup>
-                <SegmentedControlIndicator />
-                <SegmentedControlItemsList>
-                  <For each={PROCESSOR_LEVELS}>
-                    {(level) => (
-                      <SegmentedControlItem value={level}>
-                        <SegmentedControlItemLabel>
-                          {level}
-                        </SegmentedControlItemLabel>
-                      </SegmentedControlItem>
-                    )}
-                  </For>
-                </SegmentedControlItemsList>
-              </SegmentedControlGroup>
-            </SegmentedControl>
-          </div>
-          <SliderToggle
-            label="TX Monitor"
-            switchDisabled={!state.status.radio.txMonitorAvailable}
-            switchChecked={state.status.radio.txMonitorEnabled}
-            onSwitchChange={(isChecked) => {
-              radio()?.setTxMonitorEnabled(isChecked);
-            }}
-            minValue={0}
-            maxValue={100}
-            value={[state.status.radio.txSbMonitorGain]}
-            onChange={([value]) => {
-              if (value === state.status.radio.txSbMonitorGain) return;
-              radio()?.setTxSbMonitorGain(value);
-            }}
-            getValueLabel={(params) => `${params.values[0]}%`}
-            // tooltip="Monitor transmitted signal (PC mic input cannot be monitored)"
-          />
-        </div>
+        <Show when={activeSlice()?.mode === "CW"} fallback={<MicSection />}>
+          <CwSection />
+        </Show>
       </AccordionContent>
     </AccordionItem>
   );
@@ -649,40 +778,6 @@ function PhoneSection() {
   );
 }
 
-function EqBand() {
-  <Slider
-    minValue={0}
-    maxValue={100}
-    value={[props.slice.audioPan]}
-    onChange={([value]) => {
-      sliceController().setAudioPan(value);
-    }}
-    getValueLabel={(params) => {
-      const value = params.values[0] - 50;
-      if (value === 0) return "Center";
-      return value < 0 ? `L${-value}` : `R${value}`;
-    }}
-    class="space-y-3"
-  >
-    <div class="flex w-full justify-between">
-      <SliderLabel>Audio Pan</SliderLabel>
-      <SliderValueLabel />
-    </div>
-    <SliderTrack>
-      <SliderFill
-        style={{
-          right:
-            props.slice.audioPan > 50
-              ? `${100 - props.slice.audioPan}%`
-              : "50%",
-          left: props.slice.audioPan <= 50 ? `${props.slice.audioPan}%` : "50%",
-        }}
-      />
-      <SliderThumb />
-    </SliderTrack>
-  </Slider>;
-}
-
 function EqSection() {
   const { state, radio } = useFlexRadio();
   return (
@@ -771,7 +866,7 @@ function EqSection() {
 
 export function RightSidebar() {
   const { state, radio } = useFlexRadio();
-  const { preferences } = usePreferences();
+  const { preferences, setPreferences } = usePreferences();
 
   return (
     <Sidebar
@@ -790,7 +885,8 @@ export function RightSidebar() {
         <Accordion
           multiple
           collapsible
-          defaultValue={["tx", "p-cw", "phone", "rx", "eq"]}
+          value={preferences.sidebarPanels}
+          onChange={(value) => setPreferences("sidebarPanels", value)}
           class="select-none"
         >
           <TxSection />

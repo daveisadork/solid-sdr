@@ -1124,7 +1124,7 @@ export class RadioControllerImpl implements RadioController {
 
   async setAmCarrierLevel(level: number): Promise<void> {
     await this.setTransmitInteger(
-      "am_carrier_level",
+      "am_carrier",
       level,
       0,
       100,

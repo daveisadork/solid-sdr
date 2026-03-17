@@ -724,6 +724,7 @@ function applyTransmitAttributes(
         partial.txRfPowerChangesAllowed = isTruthy(value);
         break;
       case "am_carrier_level":
+      case "am_carrier":
         partial.amCarrierLevel = parseBoundedInteger(
           value,
           0,

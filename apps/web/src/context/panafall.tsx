@@ -94,7 +94,10 @@ export const PanafallProvider: ParentComponent = (props) => {
     const pan = panadapter();
     if (!pan || !pan.bandwidthMHz || !pan.width) return 0;
     const centerFreq = pan.centerFrequencyMHz;
-    const offsetMHz = pxToMHz(x - pan.width / 2);
+    const offsetPx = preferences.enableTransparencyEffects
+      ? x
+      : x - panafallBounds.left;
+    const offsetMHz = pxToMHz(offsetPx - pan.width / 2);
     return centerFreq + offsetMHz;
   };
 
@@ -103,7 +106,10 @@ export const PanafallProvider: ParentComponent = (props) => {
     if (!pan || !pan.bandwidthMHz || !pan.width) return 0;
     const centerFreq = pan.centerFrequencyMHz;
     const offsetMHz = freq - centerFreq;
-    return pan.width / 2 + mhzToPx(offsetMHz);
+    const offsetPx = preferences.enableTransparencyEffects
+      ? 0
+      : panafallBounds.left;
+    return pan.width / 2 + mhzToPx(offsetMHz) + offsetPx;
   };
 
   createEffect(() => {

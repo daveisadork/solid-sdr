@@ -422,7 +422,7 @@ body,
 
 @utility fancy-bg-* {
   background-color: --alpha(--value(--color-*) / 50%);
-  @apply backdrop-blur-xl;
+  @apply backdrop-blur-sm;
 
   .disable-blur-effects & {
     background-color: --alpha(--value(--color-*) / 80%);

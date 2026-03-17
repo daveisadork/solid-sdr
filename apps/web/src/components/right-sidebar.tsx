@@ -32,6 +32,25 @@ import {
   SegmentedControlItemsList,
 } from "./ui/segmented-control";
 import { usePreferences } from "~/context/preferences";
+import {
+  NumberField,
+  NumberFieldDecrementTrigger,
+  NumberFieldGroup,
+  NumberFieldIncrementTrigger,
+  NumberFieldInput,
+  NumberFieldLabel,
+} from "./ui/number-field";
+import {
+  Slider,
+  SliderFill,
+  SliderLabel,
+  SliderThumb,
+  SliderTrack,
+  SliderValueLabel,
+} from "./ui/slider";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import { EqualizerBand } from "@repo/flexlib/flex/state/equalizer";
+import { Button } from "./ui/button";
 
 const PROCESSOR_LEVELS = ["Norm", "DX", "DX+"];
 
@@ -152,7 +171,7 @@ function TxSection() {
               );
               return `${watts} W`;
             }}
-            label="TX Power"
+            label="RF Power"
           />
           <SimpleSlider
             minValue={0}
@@ -307,7 +326,7 @@ function PcwSection() {
                   getValueLabel={() =>
                     `${roundToDecimals(meter.value, 1).toFixed(1)} dB`
                   }
-                  label="Level"
+                  label="AF Input Level"
                   showTicks
                   showTickLabels
                   containTickLabels
@@ -414,7 +433,7 @@ function PcwSection() {
               radio()?.setMicLevel(value);
             }}
             getValueLabel={(params) => `${params.values[0]}%`}
-            label="Mic Level"
+            label="AF Input Level"
           />
           <div class="flex flex-col gap-1 pb-2">
             <SimpleSwitch
@@ -474,6 +493,282 @@ function PcwSection() {
   );
 }
 
+function PhoneSection() {
+  const { state, radio } = useFlexRadio();
+
+  const [rawFilterLow, setRawFilterLow] = createSignal(
+    state.status.radio.txFilterLowHz,
+  );
+  const [rawFilterHigh, setRawFilterHigh] = createSignal(
+    state.status.radio.txFilterHighHz,
+  );
+
+  createEffect(() => setRawFilterLow(state.status.radio.txFilterLowHz));
+  createEffect(() => setRawFilterHigh(state.status.radio.txFilterHighHz));
+
+  const applyFilterLow = () =>
+    rawFilterLow() !== state.status.radio.txFilterLowHz
+      ? radio()?.setTxFilterLowHz(rawFilterLow())
+      : null;
+
+  const applyFilterHigh = () =>
+    rawFilterHigh() !== state.status.radio.txFilterHighHz
+      ? radio()?.setTxFilterHighHz(rawFilterHigh())
+      : null;
+
+  return (
+    <AccordionItem value="phone">
+      <AccordionTrigger>Phone</AccordionTrigger>
+      <AccordionContent>
+        <div class="flex flex-col gap-3">
+          <SimpleSlider
+            minValue={0}
+            maxValue={100}
+            value={[state.status.radio.amCarrierLevel]}
+            onChange={([value]) => {
+              if (value === state.status.radio.amCarrierLevel) return;
+              radio()?.setAmCarrierLevel(value);
+            }}
+            getValueLabel={(params) => `${params.values[0]}%`}
+            label="AM Carrier Level"
+          />
+          <SliderToggle
+            label="VOX"
+            switchChecked={state.status.radio.voxEnabled}
+            onSwitchChange={(isChecked) => {
+              radio()?.setVoxEnabled(isChecked);
+            }}
+            minValue={0}
+            maxValue={100}
+            value={[state.status.radio.voxLevel]}
+            onChange={([value]) => {
+              if (value === state.status.radio.voxLevel) return;
+              radio()?.setVoxLevel(value);
+            }}
+            getValueLabel={(params) => `${params.values[0]}%`}
+          />
+          <SimpleSlider
+            minValue={0}
+            maxValue={100}
+            value={[state.status.radio.voxDelay]}
+            onChange={([value]) => {
+              if (value === state.status.radio.voxDelay) return;
+              radio()?.setVoxDelay(value);
+            }}
+            getValueLabel={(params) => `${params.values[0]}%`}
+            label="VOX Delay"
+          />
+          <SliderToggle
+            label="Downward Expander"
+            switchChecked={state.status.radio.companderEnabled}
+            onSwitchChange={(isChecked) => {
+              radio()?.setCompanderEnabled(isChecked);
+            }}
+            minValue={0}
+            maxValue={100}
+            value={[state.status.radio.companderLevel]}
+            onChange={([value]) => {
+              if (value === state.status.radio.companderLevel) return;
+              radio()?.setCompanderLevel(value);
+            }}
+            getValueLabel={(params) => `${params.values[0]}%`}
+          />
+
+          <Slider
+            minValue={0}
+            maxValue={10_000}
+            step={25}
+            value={[
+              state.status.radio.txFilterLowHz,
+              state.status.radio.txFilterHighHz,
+            ]}
+            onChange={([low, high]) => {
+              if (
+                low === state.status.radio.txFilterLowHz &&
+                high === state.status.radio.txFilterHighHz
+              )
+                return;
+              radio()?.setTxFilter(low, high);
+            }}
+            class="space-y-2 pb-3"
+          >
+            <div class="flex w-full justify-between">
+              <SliderLabel>TX Filter</SliderLabel>
+            </div>
+            <SliderTrack>
+              <SliderFill />
+              <SliderThumb />
+              <SliderThumb />
+            </SliderTrack>
+          </Slider>
+          <div class="flex justify-between">
+            <div>
+              <NumberField
+                class="flex w-24 flex-col gap-2 select-none"
+                rawValue={rawFilterLow()}
+                format={false}
+                minValue={0}
+                maxValue={state.status.radio.txFilterHighHz}
+                step={50}
+                onRawValueChange={setRawFilterLow}
+                onFocusOut={applyFilterLow}
+              >
+                <NumberFieldLabel class="select-none">Low Hz</NumberFieldLabel>
+                <NumberFieldGroup class="select-none">
+                  <NumberFieldInput />
+                  <NumberFieldIncrementTrigger class="select-none" />
+                  <NumberFieldDecrementTrigger class="select-none" />
+                </NumberFieldGroup>
+              </NumberField>
+            </div>
+            <div>
+              <NumberField
+                class="flex w-24 flex-col gap-2 select-none"
+                rawValue={rawFilterHigh()}
+                minValue={state.status.radio.txFilterLowHz}
+                format={false}
+                maxValue={10_000}
+                step={50}
+                onRawValueChange={setRawFilterHigh}
+                onFocusOut={applyFilterHigh}
+              >
+                <NumberFieldLabel class="select-none text-right">
+                  High Hz
+                </NumberFieldLabel>
+                <NumberFieldGroup class="select-none">
+                  <NumberFieldInput size={6} />
+                  <NumberFieldIncrementTrigger class="select-none" />
+                  <NumberFieldDecrementTrigger class="select-none" />
+                </NumberFieldGroup>
+              </NumberField>
+            </div>
+          </div>
+        </div>
+      </AccordionContent>
+    </AccordionItem>
+  );
+}
+
+function EqBand() {
+  <Slider
+    minValue={0}
+    maxValue={100}
+    value={[props.slice.audioPan]}
+    onChange={([value]) => {
+      sliceController().setAudioPan(value);
+    }}
+    getValueLabel={(params) => {
+      const value = params.values[0] - 50;
+      if (value === 0) return "Center";
+      return value < 0 ? `L${-value}` : `R${value}`;
+    }}
+    class="space-y-3"
+  >
+    <div class="flex w-full justify-between">
+      <SliderLabel>Audio Pan</SliderLabel>
+      <SliderValueLabel />
+    </div>
+    <SliderTrack>
+      <SliderFill
+        style={{
+          right:
+            props.slice.audioPan > 50
+              ? `${100 - props.slice.audioPan}%`
+              : "50%",
+          left: props.slice.audioPan <= 50 ? `${props.slice.audioPan}%` : "50%",
+        }}
+      />
+      <SliderThumb />
+    </SliderTrack>
+  </Slider>;
+}
+
+function EqSection() {
+  const { state, radio } = useFlexRadio();
+  return (
+    <AccordionItem value="eq">
+      <AccordionTrigger>Equalizer</AccordionTrigger>
+      <AccordionContent>
+        <Tabs defaultValue="rx">
+          <TabsList class="grid w-full grid-cols-2">
+            <TabsTrigger value="rx">RX</TabsTrigger>
+            <TabsTrigger value="tx">TX</TabsTrigger>
+          </TabsList>
+          <For each={Object.values(state.status.equalizer)}>
+            {(eq) => {
+              return (
+                <TabsContent value={eq.id} class="flex flex-col gap-3 py-2">
+                  <SimpleSwitch
+                    label={`Enable ${eq.id.toUpperCase()} Equalizer`}
+                    checked={eq.enabled}
+                    onChange={(isChecked) => {
+                      radio()?.equalizer(eq.id)?.setEnabled(isChecked);
+                    }}
+                  />
+                  <div class="grid w-full grid-cols-8 h-48 text-xs">
+                    <For each={Object.keys(eq.bands)}>
+                      {(band: EqualizerBand) => {
+                        return (
+                          <Slider
+                            orientation="vertical"
+                            minValue={-10}
+                            maxValue={10}
+                            value={[eq.bands[band]]}
+                            onChange={([value]) => {
+                              radio()?.equalizer(eq.id)?.setLevel(band, value);
+                            }}
+                            // getValueLabel={(params) => {
+                            //   return `${params.values[0]}dB`;
+                            // }}
+                            class="w-full space-y-2"
+                          >
+                            <SliderLabel>
+                              {band.replace("000", "k").replace("Hz", "")}
+                            </SliderLabel>
+                            <SliderTrack>
+                              <SliderFill
+                                style={{
+                                  bottom:
+                                    eq.bands[band] <= 0
+                                      ? `${50 + eq.bands[band] * 5}%`
+                                      : "50%",
+                                  top:
+                                    eq.bands[band] > 0
+                                      ? `${50 - eq.bands[band] * 5}%`
+                                      : "50%",
+                                }}
+                              />
+                              <SliderThumb />
+                            </SliderTrack>
+                            <SliderValueLabel />
+                          </Slider>
+                        );
+                      }}
+                    </For>
+                  </div>
+                  <Button
+                    onClick={() =>
+                      radio()
+                        ?.equalizer(eq.id)
+                        ?.setLevels(
+                          Object.fromEntries(
+                            Object.keys(eq.bands).map((band) => [band, 0]),
+                          ),
+                        )
+                    }
+                  >
+                    Reset to Flat
+                  </Button>
+                </TabsContent>
+              );
+            }}
+          </For>
+        </Tabs>
+      </AccordionContent>
+    </AccordionItem>
+  );
+}
+
 export function RightSidebar() {
   const { state, radio } = useFlexRadio();
   const { preferences } = usePreferences();
@@ -495,24 +790,12 @@ export function RightSidebar() {
         <Accordion
           multiple
           collapsible
-          defaultValue={[
-            "tx",
-            "p-cw",
-            // "phone",
-            "rx",
-            // "eq"
-          ]}
+          defaultValue={["tx", "p-cw", "phone", "rx", "eq"]}
           class="select-none"
         >
           <TxSection />
           <PcwSection />
-          <AccordionItem value="phone">
-            <AccordionTrigger>Phone</AccordionTrigger>
-            <AccordionContent>
-              Yes. It's animated by default, but you can disable it if you
-              prefer.
-            </AccordionContent>
-          </AccordionItem>
+          <PhoneSection />
           <AccordionItem value="rx">
             <AccordionTrigger>Receive</AccordionTrigger>
             <AccordionContent>
@@ -525,13 +808,7 @@ export function RightSidebar() {
               />
             </AccordionContent>
           </AccordionItem>
-          <AccordionItem value="eq">
-            <AccordionTrigger>Equalizer</AccordionTrigger>
-            <AccordionContent>
-              Yes. It's animated by default, but you can disable it if you
-              prefer.
-            </AccordionContent>
-          </AccordionItem>
+          <EqSection />
         </Accordion>
       </SidebarContent>
     </Sidebar>

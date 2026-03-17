@@ -84,7 +84,7 @@ export function buildFrequencyGrid(params: {
       fixedPrecision = Math.max(1, precision - 3);
     } else if (value < 1) {
       value = freq * 1_000;
-      unit = "K";
+      unit = "k";
       fixedPrecision = Math.max(1, precision - 3);
     }
 

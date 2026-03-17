@@ -19,7 +19,7 @@ const Slider = <T extends ValidComponent = "div">(
   return (
     <SliderPrimitive.Root
       class={cn(
-        "relative flex w-full touch-none select-none flex-col items-center",
+        "relative flex data-[orientation=horizontal]:w-full data-[orientation=vertical]:h-full touch-none select-none flex-col items-center",
         local.class,
       )}
       {...others}
@@ -39,7 +39,7 @@ const SliderTrack = <T extends ValidComponent = "div">(
   return (
     <SliderPrimitive.Track
       class={cn(
-        "relative h-2 w-full grow rounded-full bg-input data-disabled:opacity-50",
+        "relative data-[orientation=horizontal]:h-2 data-[orientation=horizontal]:w-full data-[orientation=vertical]:w-2 data-[orientation=vertical]:h-full grow rounded-full bg-input data-disabled:opacity-50",
         local.class,
       )}
       {...others}
@@ -58,7 +58,10 @@ const SliderFill = <T extends ValidComponent = "div">(
   const [local, others] = splitProps(props as SliderFillProps, ["class"]);
   return (
     <SliderPrimitive.Fill
-      class={cn("absolute h-full rounded-full bg-primary", local.class)}
+      class={cn(
+        "absolute data-[orientation=horizontal]:h-full data-[orientation=vertical]:w-full rounded-full bg-primary",
+        local.class,
+      )}
       {...others}
     />
   );
@@ -115,7 +118,7 @@ const SliderThumb = <T extends ValidComponent = "span">(
   return (
     <SliderPrimitive.Thumb
       class={cn(
-        "-top-1.5 block size-5 rounded-full border-2 border-primary bg-background ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 data-disabled:pointer-events-none",
+        "data-[orientation=horizontal]:-top-1.5 data-[orientation=vertical]:-left-1.5 block size-5 rounded-full border-2 border-primary bg-background ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 data-disabled:pointer-events-none",
         local.class,
       )}
       ref={ref}

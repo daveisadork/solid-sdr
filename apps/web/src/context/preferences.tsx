@@ -264,20 +264,20 @@ const initialPreferences = () =>
   }) as Preferences;
 
 export const PreferencesProvider: ParentComponent = (props) => {
-  const initial = initialPreferences();
+  // const initial = initialPreferences();
   const [store, setStore] = createStore(initialPreferences());
   const [preferences, setPreferences] = makePersisted([store, setStore], {
     name: "preferences",
   });
 
-  onMount(() => {
-    Object.keys(preferences)
-      .filter((key) => !(key in initial))
-      .forEach((key) => {
-        console.log(`Removing old preference key: ${key}`);
-        setPreferences(key, undefined);
-      });
-  });
+  // onMount(() => {
+  //   Object.keys(preferences)
+  //     .filter((key) => !(key in initial))
+  //     .forEach((key) => {
+  //       console.log(`Removing old preference key: ${key}`);
+  //       setPreferences(key, undefined);
+  //     });
+  // });
 
   createEffect(() => {
     if (!preferences.enableTransparencyEffects) {

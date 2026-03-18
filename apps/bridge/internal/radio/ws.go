@@ -148,6 +148,12 @@ func (h *WSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 			// Observe "stream …" creations and notify RTC
 			if stream, ok := parseAudioStream(line); ok {
+				if stream.Removed {
+					if h.RTC != nil {
+						h.RTC.NoteStreamRemoved(handleHex, stream.StreamID)
+					}
+					continue
+				}
 				if stream.ClientHandle == rs.HandleU32 && h.RTC != nil {
 					h.RTC.NoteStreamCreated(handleHex, stream.StreamID, stream.Type, stream.Compression)
 				}

@@ -1,5 +1,13 @@
-import { createEffect, createSignal, For, onMount, Show } from "solid-js";
+import {
+  createEffect,
+  createSignal,
+  For,
+  onCleanup,
+  onMount,
+  Show,
+} from "solid-js";
 import { useRtc } from "../context/rtc";
+import type { RtcSession } from "../lib/rtc";
 import {
   Select,
   SelectContent,
@@ -33,6 +41,10 @@ export default function RtcAudio() {
   const [remoteAudioTxStreamId, setRemoteAudioTxStreamId] = createSignal<
     string | undefined
   >();
+  const transmitStreams = new Map<string, MediaStream>();
+  let transmitRequestToken = 0;
+  let lastReceiveRenegotiateSession: RtcSession | null = null;
+  let lastReceiveStreamSetKey = "";
 
   createEffect(() => {
     console.log(tracks());
@@ -40,22 +52,61 @@ export default function RtcAudio() {
   });
 
   onMount(() => {
-    navigator.mediaDevices.getUserMedia({ audio: true });
+    void navigator.mediaDevices
+      .getUserMedia({ audio: true })
+      .then((stream) => {
+        stream.getTracks().forEach((track) => track.stop());
+      })
+      .catch(console.error);
   });
 
   createEffect(() => {
-    const pc = session()?.pc;
-    if (!pc) return;
-    const desiredTransceiverCount = Object.values(
-      state.status.audioStream,
-    ).filter((s) => s.clientHandle === state.clientHandleInt).length;
+    const rtc = session();
+    if (!rtc) {
+      lastReceiveRenegotiateSession = null;
+      lastReceiveStreamSetKey = "";
+      return;
+    }
+    if (rtc !== lastReceiveRenegotiateSession) {
+      lastReceiveRenegotiateSession = rtc;
+      lastReceiveStreamSetKey = "";
+    }
+
+    const pc = rtc.pc;
+    const desiredReceiveStreamIds = Object.values(state.status.audioStream)
+      .filter((s) => s.clientHandle === state.clientHandleInt)
+      .filter((s) => s.type === "remote_audio_rx")
+      .map((s) => s.streamId)
+      .sort();
+    const desiredTransceiverCount = desiredReceiveStreamIds.length;
+    let placeholderTransceiverCount = pc
+      .getTransceivers()
+      .filter(
+        (transceiver) =>
+          transceiver.receiver.track?.kind === "audio" &&
+          !transceiver.sender.track,
+      ).length;
     console.log(
       "[rtc audio] ensuring transceivers for remote streams:",
       desiredTransceiverCount,
     );
-    while (pc.getTransceivers().length < desiredTransceiverCount) {
-      pc.addTransceiver("audio", { direction: "sendrecv" });
+    while (placeholderTransceiverCount < desiredTransceiverCount) {
+      pc.addTransceiver("audio", { direction: "recvonly" });
+      placeholderTransceiverCount += 1;
     }
+
+    const nextReceiveStreamSetKey = desiredReceiveStreamIds.join(",");
+    if (nextReceiveStreamSetKey === lastReceiveStreamSetKey) return;
+
+    lastReceiveStreamSetKey = nextReceiveStreamSetKey;
+    void rtc
+      .renegotiate()
+      .catch((error) =>
+        console.error(
+          "[rtc audio] failed to renegotiate receive streams",
+          error,
+        ),
+      );
   });
 
   createEffect(() => {
@@ -94,6 +145,76 @@ export default function RtcAudio() {
       radio()?.createRemoteAudioTxStream({ compression: "OPUS" });
     }
   });
+
+  createEffect(() => {
+    const rtc = session();
+    const streamId = remoteAudioTxStreamId();
+    const enabled = preferences.enableRemoteAudio;
+    const inputDeviceId = preferences.inputDeviceId;
+    const requestToken = ++transmitRequestToken;
+
+    for (const activeStreamId of Array.from(transmitStreams.keys())) {
+      if (!rtc || !enabled || activeStreamId !== streamId) {
+        void clearTransmitStream(activeStreamId, rtc);
+      }
+    }
+
+    if (!rtc || !enabled || !streamId) return;
+
+    void syncTransmitStream(rtc, streamId, inputDeviceId, requestToken);
+  });
+
+  onCleanup(() => {
+    for (const streamId of Array.from(transmitStreams.keys())) {
+      void clearTransmitStream(streamId, session());
+    }
+  });
+
+  async function syncTransmitStream(
+    rtc: RtcSession,
+    streamId: string,
+    inputDeviceId: string,
+    requestToken: number,
+  ) {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio:
+          inputDeviceId && inputDeviceId !== "default"
+            ? { deviceId: { exact: inputDeviceId } }
+            : true,
+      });
+
+      if (
+        requestToken !== transmitRequestToken ||
+        session() !== rtc ||
+        remoteAudioTxStreamId() !== streamId ||
+        !preferences.enableRemoteAudio
+      ) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+
+      const [track] = stream.getAudioTracks();
+      if (!track) {
+        stream.getTracks().forEach((nextTrack) => nextTrack.stop());
+        return;
+      }
+
+      const previousStream = transmitStreams.get(streamId);
+      transmitStreams.set(streamId, stream);
+      await rtc.setTransmitTrack(streamId, track, stream);
+      previousStream?.getTracks().forEach((nextTrack) => nextTrack.stop());
+    } catch (error) {
+      console.error("[rtc audio] failed to sync transmit stream", error);
+    }
+  }
+
+  async function clearTransmitStream(streamId: string, rtc: RtcSession | null) {
+    const stream = transmitStreams.get(streamId);
+    transmitStreams.delete(streamId);
+    await rtc?.clearTransmitTrack(streamId);
+    stream?.getTracks().forEach((track) => track.stop());
+  }
 
   return (
     <div class="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-2">

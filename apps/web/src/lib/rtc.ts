@@ -2,6 +2,12 @@ export type RtcSession = {
   pc: RTCPeerConnection;
   data: RTCDataChannel;
   renegotiate: () => Promise<void>;
+  setTransmitTrack: (
+    streamId: string,
+    track: MediaStreamTrack,
+    stream?: MediaStream,
+  ) => Promise<void>;
+  clearTransmitTrack: (streamId: string) => Promise<void>;
   close: () => void;
 };
 
@@ -19,23 +25,43 @@ export async function startRTC(
     // ],
     // iceTransportPolicy: "relay", // <— TEMP: force TURN to test
   });
+  const transmitTransceivers = new Map<string, RTCRtpTransceiver>();
+  let negotiationInFlight: Promise<void> | null = null;
+  let renegotiateQueued = false;
 
   const renegotiate = async () => {
-    // Create the offer, then MUNGE it to force opus stereo.
-    const offer = await pc.createOffer();
-    const sdp = forceStereoInSDP(offer.sdp!);
-    await pc.setLocalDescription({ ...offer, sdp });
+    if (negotiationInFlight) {
+      renegotiateQueued = true;
+      return negotiationInFlight;
+    }
 
-    // Wait for ICE, post to server, set remote description as usual
-    await waitForIceComplete(pc);
-    const res = await fetch("/rtc/offer", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ sessionId, sdp: pc.localDescription!.sdp }),
-    });
-    const { sdp: answer } = await res.json();
-    await pc.setRemoteDescription({ type: "answer", sdp: answer });
-    await waitForIceConnected(pc);
+    negotiationInFlight = (async () => {
+      do {
+        renegotiateQueued = false;
+
+        // Create the offer, then MUNGE it to force opus stereo.
+        const offer = await pc.createOffer();
+        const sdp = forceStereoInSDP(offer.sdp!);
+        await pc.setLocalDescription({ ...offer, sdp });
+
+        // Wait for ICE, post to server, set remote description as usual
+        await waitForIceComplete(pc);
+        const res = await fetch("/rtc/offer", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ sessionId, sdp: pc.localDescription!.sdp }),
+        });
+        const { sdp: answer } = await res.json();
+        await pc.setRemoteDescription({ type: "answer", sdp: answer });
+        await waitForIceConnected(pc);
+      } while (renegotiateQueued);
+    })();
+
+    try {
+      await negotiationInFlight;
+    } finally {
+      negotiationInFlight = null;
+    }
   };
 
   pc.addEventListener("negotiationneeded", renegotiate);
@@ -58,7 +84,42 @@ export async function startRTC(
     pc,
     data,
     renegotiate,
-    close: () => pc.close(),
+    setTransmitTrack: async (
+      streamId: string,
+      track: MediaStreamTrack,
+      stream?: MediaStream,
+    ) => {
+      const transceiver = transmitTransceivers.get(streamId);
+      if (transceiver) {
+        await transceiver.sender.replaceTrack(track);
+        transceiver.direction = "sendonly";
+        return;
+      }
+
+      const nextTransceiver = pc.addTransceiver(track, {
+        direction: "sendonly",
+        streams: stream ? [stream] : [],
+      });
+      transmitTransceivers.set(streamId, nextTransceiver);
+    },
+    clearTransmitTrack: async (streamId: string) => {
+      const transceiver = transmitTransceivers.get(streamId);
+      if (!transceiver) return;
+
+      try {
+        await transceiver.sender.replaceTrack(null);
+      } catch (error) {
+        console.warn("[rtc] failed to clear transmit track", error);
+      }
+
+      pc.removeTrack(transceiver.sender);
+      transceiver.direction = "inactive";
+      transmitTransceivers.delete(streamId);
+    },
+    close: () => {
+      transmitTransceivers.clear();
+      pc.close();
+    },
   };
 }
 

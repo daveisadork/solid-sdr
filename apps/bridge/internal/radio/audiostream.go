@@ -14,6 +14,7 @@ type AudioStream struct {
 	DAXChannel   uint8
 	Slice        string
 	TX           bool
+	Removed      bool
 }
 
 func parseAudioStream(line string) (stream AudioStream, ok bool) {
@@ -26,6 +27,7 @@ func parseAudioStream(line string) (stream AudioStream, ok bool) {
 		DAXChannel:   extractUint8(line, "dax_channel="),
 		Slice:        extractString(line, "slice="),
 		TX:           extractBool(line, "tx="),
+		Removed:      strings.Contains(line, " removed"),
 	}
 	return stream, stream.StreamID != 0
 }

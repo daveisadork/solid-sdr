@@ -196,6 +196,10 @@ func (s *Server) handleOffer(handleHex, offerSDP, clientIP string) (string, erro
 			rs.DC = dc
 		})
 
+		rs.PC.OnTrack(func(track *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
+			go s.handleIncomingTrack(handleHex, rs, track, receiver)
+		})
+
 		rs.PC.OnConnectionStateChange(func(st webrtc.PeerConnectionState) {
 			log.Printf("[rtc] PeerConnection state: %s (handle %s)", st.String(), handleHex)
 			if st == webrtc.PeerConnectionStateFailed || st == webrtc.PeerConnectionStateClosed {
@@ -266,7 +270,7 @@ func firstValidIP(raw string) string {
 		return ""
 	}
 
-	for _, candidate := range strings.Split(raw, ",") {
+	for candidate := range strings.SplitSeq(raw, ",") {
 		ip := parsePotentialIP(candidate)
 		if ip != "" {
 			return ip
@@ -324,12 +328,19 @@ func (s *Server) NoteStreamCreated(handleHex string, streamID uint32, typ, compr
 	if rs == nil {
 		return
 	}
-	if _, ok := rs.AudioStreams[streamID]; ok {
-		return
-	}
 	stream := fmt.Sprintf("0x%08X", streamID)
 	log.Printf("[rtc] NoteStreamCreated handle: %s, stream %s, type: %s, compression: %s\n", handleHex, stream, typ, compression)
-	if compression != "OPUS" {
+
+	if typ == "remote_audio_tx" {
+		rs.UpsertTXAudioStream(streamID, typ, compression)
+		log.Printf("[rtc] registered inbound tx audio stream %s (handle %s)\n", stream, handleHex)
+		return
+	}
+
+	if typ != "remote_audio_rx" || compression != "OPUS" {
+		return
+	}
+	if rs.HasRXAudioStream(streamID) {
 		return
 	}
 	tr, err := webrtc.NewTrackLocalStaticSample(
@@ -347,11 +358,29 @@ func (s *Server) NoteStreamCreated(handleHex string, streamID uint32, typ, compr
 	if rs.PC == nil {
 		return
 	}
-	if _, err := rs.PC.AddTrack(tr); err != nil {
+	sender, err := rs.PC.AddTrack(tr)
+	if err != nil {
 		return
 	}
-	rs.AudioStreams[streamID] = tr
+	if !rs.AddRXAudioStream(streamID, tr, sender) {
+		rs.PC.RemoveTrack(sender)
+		return
+	}
 	log.Printf("[rtc] added audio track for stream %s (handle %s)\n", stream, handleHex)
+}
+
+func (s *Server) NoteStreamRemoved(handleHex string, streamID uint32) {
+	rs := s.Sessions.Get(strings.ToUpper(handleHex))
+	if rs == nil {
+		return
+	}
+
+	stream := fmt.Sprintf("0x%08X", streamID)
+	if rxStream := rs.RemoveRXAudioStream(streamID); rxStream != nil && rs.PC != nil && rxStream.Sender != nil {
+		rs.PC.RemoveTrack(rxStream.Sender)
+	}
+	rs.RemoveTXAudioStream(streamID)
+	log.Printf("[rtc] removed audio stream %s (handle %s)\n", stream, handleHex)
 }
 
 // ----- small helpers -----

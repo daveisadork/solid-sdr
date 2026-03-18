@@ -1,8 +1,4 @@
-import useFlexRadio, {
-  Meter,
-  Panadapter,
-  Waterfall,
-} from "~/context/flexradio";
+import useFlexRadio, { Panadapter, Waterfall } from "~/context/flexradio";
 import { createEffect, createSignal, For } from "solid-js";
 import {
   NumberField,
@@ -41,11 +37,9 @@ import {
   DialogTrigger,
 } from "./ui/dialog";
 
-import * as MeterPrimitive from "@kobalte/core/meter";
 import { ColorField, ColorFieldInput, ColorFieldLabel } from "./ui/color-field";
 import { ColorSwatch } from "@kobalte/core/color-swatch";
 import { parseColor } from "@kobalte/core/colors";
-import { usePanafall } from "~/context/panafall";
 import { PanadapterController, WaterfallController } from "@repo/flexlib";
 import { SimpleMeter } from "./ui/simple-meter";
 import { usePreferences } from "~/context/preferences";

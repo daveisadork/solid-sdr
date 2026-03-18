@@ -33,6 +33,7 @@ export interface Preferences {
   preventScreenSleep: boolean;
   palette: PaletteSettings;
   enableRemoteAudio: boolean;
+  inputDeviceId: string;
   outputDeviceId: string;
   panadapterSize: number;
   waterfallSize: number;
@@ -61,6 +62,7 @@ const initialPreferences = () =>
     panadapterSize: 0.25,
     waterfallSize: 0.75,
     enableRemoteAudio: true,
+    inputDeviceId: "default",
     outputDeviceId: "default",
     sidebarPanels: ["tx", "p-cw", "phone", "rx", "eq"],
     palette: {

@@ -46,11 +46,6 @@ export default function RtcAudio() {
   let lastReceiveRenegotiateSession: RtcSession | null = null;
   let lastReceiveStreamSetKey = "";
 
-  createEffect(() => {
-    console.log(tracks());
-    console.log(remoteAudioTxStreamId());
-  });
-
   onMount(() => {
     void navigator.mediaDevices
       .getUserMedia({ audio: true })
@@ -146,23 +141,37 @@ export default function RtcAudio() {
     }
   });
 
-  createEffect(() => {
+  createEffect(([lastStreamId, lastInputDeviceId, lastGroupId]) => {
     const rtc = session();
     const streamId = remoteAudioTxStreamId();
-    const enabled = preferences.enableRemoteAudio;
     const inputDeviceId = preferences.inputDeviceId;
     const requestToken = ++transmitRequestToken;
+    const groupId = inputs().find((d) => d.deviceId === inputDeviceId)?.groupId;
 
     for (const activeStreamId of Array.from(transmitStreams.keys())) {
-      if (!rtc || !enabled || activeStreamId !== streamId) {
+      if (!rtc || activeStreamId !== streamId) {
         void clearTransmitStream(activeStreamId, rtc);
       }
     }
 
-    if (!rtc || !enabled || !streamId) return;
+    if (!rtc || !streamId || !groupId)
+      return [streamId, inputDeviceId, groupId];
 
-    void syncTransmitStream(rtc, streamId, inputDeviceId, requestToken);
-  });
+    if (
+      streamId !== lastStreamId ||
+      inputDeviceId !== lastInputDeviceId ||
+      groupId !== lastGroupId
+    ) {
+      void syncTransmitStream(
+        rtc,
+        streamId,
+        inputDeviceId,
+        groupId,
+        requestToken,
+      );
+    }
+    return [streamId, inputDeviceId, groupId];
+  }, []);
 
   onCleanup(() => {
     for (const streamId of Array.from(transmitStreams.keys())) {
@@ -174,14 +183,15 @@ export default function RtcAudio() {
     rtc: RtcSession,
     streamId: string,
     inputDeviceId: string,
+    groupId: string,
     requestToken: number,
   ) {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        audio:
-          inputDeviceId && inputDeviceId !== "default"
-            ? { deviceId: { exact: inputDeviceId } }
-            : true,
+        audio: {
+          deviceId: { ideal: inputDeviceId },
+          groupId: { exact: groupId },
+        },
       });
 
       if (

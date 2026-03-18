@@ -318,6 +318,7 @@ function MicSection() {
           return (
             <SimpleMeter
               meter={meter}
+              peakValue={micPeakMeter()?.value}
               minValue={-40}
               maxValue={0}
               getValueLabel={() =>

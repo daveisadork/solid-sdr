@@ -212,7 +212,7 @@ export default function RtcAudio() {
   });
 
   return (
-    <div class="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-2">
+    <div class="absolute not-pointer-fine:bottom-12 pointer-fine:bottom-0 left-1/2 -translate-x-1/2 flex items-center gap-2 not-pointer-fine:border rounded-md not-pointer-fine:fancy-bg-background h-10 px-3">
       <div
         class="size-4 rounded-full border"
         classList={{

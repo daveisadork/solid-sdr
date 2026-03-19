@@ -1,13 +1,8 @@
 export type RtcSession = {
   pc: RTCPeerConnection;
   data: RTCDataChannel;
-  renegotiate: () => Promise<void>;
-  setTransmitTrack: (
-    streamId: string,
-    track: MediaStreamTrack,
-    stream?: MediaStream,
-  ) => Promise<void>;
-  clearTransmitTrack: (streamId: string) => Promise<void>;
+  audio: RTCRtpTransceiver;
+  setTransmitTrack: (track: MediaStreamTrack) => Promise<void>;
   close: () => void;
 };
 
@@ -25,47 +20,27 @@ export async function startRTC(
     // ],
     // iceTransportPolicy: "relay", // <— TEMP: force TURN to test
   });
-  const transmitTransceivers = new Map<string, RTCRtpTransceiver>();
-  let negotiationInFlight: Promise<void> | null = null;
-  let renegotiateQueued = false;
 
   const renegotiate = async () => {
-    if (negotiationInFlight) {
-      renegotiateQueued = true;
-      return negotiationInFlight;
-    }
+    const offer = await pc.createOffer();
+    const sdp = forceStereoInSDP(offer.sdp!);
+    await pc.setLocalDescription({ ...offer, sdp });
 
-    negotiationInFlight = (async () => {
-      do {
-        renegotiateQueued = false;
-
-        // Create the offer, then MUNGE it to force opus stereo.
-        const offer = await pc.createOffer();
-        const sdp = forceStereoInSDP(offer.sdp!);
-        await pc.setLocalDescription({ ...offer, sdp });
-
-        // Wait for ICE, post to server, set remote description as usual
-        await waitForIceComplete(pc);
-        const res = await fetch("/rtc/offer", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ sessionId, sdp: pc.localDescription!.sdp }),
-        });
-        const { sdp: answer } = await res.json();
-        await pc.setRemoteDescription({ type: "answer", sdp: answer });
-        await waitForIceConnected(pc);
-      } while (renegotiateQueued);
-    })();
-
-    try {
-      await negotiationInFlight;
-    } finally {
-      negotiationInFlight = null;
-    }
+    await waitForIceComplete(pc);
+    const res = await fetch("/rtc/offer", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ sessionId, sdp: pc.localDescription!.sdp }),
+    });
+    const { sdp: answer } = await res.json();
+    await pc.setRemoteDescription({ type: "answer", sdp: answer });
+    await waitForIceConnected(pc);
   };
 
+  if (onTrack) pc.addEventListener("track", onTrack);
   pc.addEventListener("negotiationneeded", renegotiate);
 
+  const audio = pc.addTransceiver("audio", { direction: "sendrecv" });
   const data = pc.createDataChannel("udp", {
     ordered: false, // no head-of-line blocking
     maxRetransmits: 0, // drop instead of retry
@@ -78,46 +53,14 @@ export async function startRTC(
   data.onclose = () => console.log("[dc] closed");
   data.onerror = (e) => console.warn("[dc] error", e);
 
-  if (onTrack) pc.addEventListener("track", onTrack);
-
   return {
     pc,
     data,
-    renegotiate,
-    setTransmitTrack: async (
-      streamId: string,
-      track: MediaStreamTrack,
-      stream?: MediaStream,
-    ) => {
-      const transceiver = transmitTransceivers.get(streamId);
-      if (transceiver) {
-        await transceiver.sender.replaceTrack(track);
-        transceiver.direction = "sendonly";
-        return;
-      }
-
-      const nextTransceiver = pc.addTransceiver(track, {
-        direction: "sendonly",
-        streams: stream ? [stream] : [],
-      });
-      transmitTransceivers.set(streamId, nextTransceiver);
-    },
-    clearTransmitTrack: async (streamId: string) => {
-      const transceiver = transmitTransceivers.get(streamId);
-      if (!transceiver) return;
-
-      try {
-        await transceiver.sender.replaceTrack(null);
-      } catch (error) {
-        console.warn("[rtc] failed to clear transmit track", error);
-      }
-
-      pc.removeTrack(transceiver.sender);
-      transceiver.direction = "inactive";
-      transmitTransceivers.delete(streamId);
-    },
+    audio,
+    setTransmitTrack: audio.sender.replaceTrack.bind(audio.sender),
     close: () => {
-      transmitTransceivers.clear();
+      if (onTrack) pc.removeEventListener("track", onTrack);
+      pc.removeEventListener("negotiationneeded", renegotiate);
       pc.close();
     },
   };

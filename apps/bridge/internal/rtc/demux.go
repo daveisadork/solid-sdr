@@ -43,7 +43,11 @@ func startUDPDemux(rs *core.RadioSession) {
 			}
 
 			// Treat as audio if either it's the announced audio stream or the Opus class code.
-			if stream, ok := rs.RXAudioStream(v.StreamID); ok && v.ClassCode == 0x8005 {
+			if rs.IsActiveRXStream(v.StreamID) && v.ClassCode == 0x8005 {
+				stream := rs.RXAudioTrack()
+				if stream == nil {
+					continue
+				}
 				if len(v.Payload) == 0 {
 					continue
 				}

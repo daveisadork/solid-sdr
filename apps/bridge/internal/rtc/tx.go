@@ -5,7 +5,6 @@ import (
 	"io"
 	"log"
 	"strings"
-	"time"
 
 	"github.com/daveisadork/flex-bridge/internal/core"
 	"github.com/pion/webrtc/v4"
@@ -45,39 +44,15 @@ func (s *Server) handleIncomingTrack(
 		return
 	}
 
-	mid := ""
 	if receiver != nil && receiver.RTPTransceiver() != nil {
-		mid = receiver.RTPTransceiver().Mid()
-	}
-
-	streamID, compression, ok := waitForTXBinding(
-		rs,
-		"remote_audio_tx",
-		track.StreamID(),
-		track.ID(),
-		2*time.Second,
-	)
-	if !ok {
 		log.Printf(
-			"[rtc] no tx stream available for inbound opus track handle=%s mid=%s stream=%s track=%s",
+			"[rtc] reading inbound opus track handle=%s mid=%s stream=%s track=%s",
 			handleHex,
-			mid,
+			receiver.RTPTransceiver().Mid(),
 			track.StreamID(),
 			track.ID(),
 		)
-		return
 	}
-
-	log.Printf(
-		"[rtc] bound inbound opus track handle=%s mid=%s stream=%s track=%s to radio tx stream 0x%08X (compression=%s)",
-		handleHex,
-		mid,
-		track.StreamID(),
-		track.ID(),
-		streamID,
-		compression,
-	)
-	defer rs.ReleaseTXAudioTrackBinding(streamID, track.StreamID(), track.ID())
 
 	for {
 		packet, _, err := track.ReadRTP()
@@ -97,10 +72,9 @@ func (s *Server) handleIncomingTrack(
 			continue
 		}
 
-		packetCount, ok := rs.NextTXPacketCount(streamID)
+		streamID, packetCount, ok := rs.NextTXPacket()
 		if !ok {
-			log.Printf("[rtc] tx stream 0x%08X removed while forwarding inbound audio", streamID)
-			return
+			continue
 		}
 
 		if rs.UDPConn == nil {
@@ -112,26 +86,6 @@ func (s *Server) handleIncomingTrack(
 			log.Printf("[rtc] failed to forward tx opus packet stream=0x%08X err=%v", streamID, err)
 			return
 		}
-	}
-}
-
-func waitForTXBinding(
-	rs *core.RadioSession,
-	typ string,
-	remoteStreamID string,
-	remoteTrackID string,
-	timeout time.Duration,
-) (uint32, string, bool) {
-	deadline := time.Now().Add(timeout)
-
-	for {
-		if streamID, compression, ok := rs.BindTXAudioTrack(typ, remoteStreamID, remoteTrackID); ok {
-			return streamID, compression, true
-		}
-		if time.Now().After(deadline) {
-			return 0, "", false
-		}
-		time.Sleep(50 * time.Millisecond)
 	}
 }
 

@@ -615,8 +615,7 @@ export function Slice(props: { slice: SliceState; pan: Panadapter }) {
           <div
             class="absolute inset-y-0 translate-x-(--filter-offset) w-(--filter-width)"
             classList={{
-              "backdrop-brightness-125 backdrop-contrast-75":
-                !props.slice.diversityChild,
+              "bg-white/20": !props.slice.diversityChild,
               "cursor-grab": !dragState.dragging,
               "cursor-grabbing": dragState.dragging,
             }}
@@ -674,7 +673,7 @@ export function Slice(props: { slice: SliceState; pan: Panadapter }) {
               }}
             >
               <div
-                class="absolute top-0 pt-1 px-1 z-20"
+                class="absolute top-0 pt-1 pb-4 px-1 z-20 overflow-visible pointer-events-none"
                 classList={{
                   "left-px": flagSide() === "right",
                   "right-0": flagSide() === "left",
@@ -692,8 +691,7 @@ export function Slice(props: { slice: SliceState; pan: Panadapter }) {
                   <div
                     class="absolute top-0 left-0 right-0 bottom-0 pointer-events-none rounded-md"
                     classList={{
-                      "backdrop-brightness-75 backdrop-grayscale-25":
-                        !props.slice.isActive,
+                      "bg-background/25": !props.slice.isActive,
                     }}
                   />
                   <div class="flex justify-between items-center gap-1">

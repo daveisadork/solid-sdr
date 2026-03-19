@@ -4,6 +4,7 @@ import {
   ParentComponent,
   createSignal,
   onCleanup,
+  batch,
 } from "solid-js";
 import type { Accessor } from "solid-js";
 import { startRTC, type RtcSession } from "../lib/rtc";
@@ -42,32 +43,18 @@ export const RtcProvider: ParentComponent = (props) => {
     };
   };
 
-  async function connect(sessionId: string) {
+  function connect(sessionId: string) {
     // tear down any previous
     disconnect();
-
-    const s = await startRTC(sessionId, onTrack);
-
-    // Clean listener on close
-    const oldClose = s.close;
-    s.close = () => {
-      s.pc.removeEventListener("track", onTrack);
-      oldClose();
-    };
-
-    setSession(s);
-    return s;
+    return startRTC(sessionId, onTrack).then(setSession);
   }
 
   function disconnect() {
-    const s = session();
-    if (s) {
-      try {
-        s.close();
-      } catch {}
-    }
-    setSession(null);
-    setTracks([]);
+    session()?.close();
+    batch(() => {
+      setSession(null);
+      setTracks([]);
+    });
   }
 
   onCleanup(disconnect);

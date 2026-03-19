@@ -2,24 +2,10 @@ package core
 
 import (
 	"net"
-	"strings"
 	"sync"
 
 	"github.com/pion/webrtc/v4"
 )
-
-type TXAudioStreamState struct {
-	Type                string
-	Compression         string
-	BoundRemoteStreamID string
-	BoundRemoteTrackID  string
-	PacketCount         uint8
-}
-
-type RXAudioStreamState struct {
-	Track  *webrtc.TrackLocalStaticSample
-	Sender *webrtc.RTPSender
-}
 
 type RadioSession struct {
 	stateMu sync.RWMutex
@@ -37,10 +23,13 @@ type RadioSession struct {
 	TCP net.Conn
 
 	// RTC leg (owned by RTC handler)
-	PC           *webrtc.PeerConnection
-	DC           *webrtc.DataChannel
-	AudioStreams map[uint32]*RXAudioStreamState
-	TXStreams    map[uint32]*TXAudioStreamState
+	PC      *webrtc.PeerConnection
+	DC      *webrtc.DataChannel
+	RXTrack *webrtc.TrackLocalStaticSample
+
+	ActiveRXStreamID uint32
+	ActiveTXStreamID uint32
+	TXPacketCount    uint8
 
 	// UDP leg to radio (created by RTC handler, connected to Host:(BasePort+1))
 	UDPConn *net.UDPConn
@@ -61,11 +50,9 @@ func (m *SessionManager) PutTCP(handleHex, host string, basePort int, tcp net.Co
 	rs := m.sess[handleHex]
 	if rs == nil {
 		rs = &RadioSession{
-			HandleHex:    handleHex,
-			Host:         host,
-			BasePort:     basePort,
-			AudioStreams: make(map[uint32]*RXAudioStreamState),
-			TXStreams:    make(map[uint32]*TXAudioStreamState),
+			HandleHex: handleHex,
+			Host:      host,
+			BasePort:  basePort,
 		}
 		m.sess[handleHex] = rs
 	}
@@ -85,117 +72,64 @@ func (m *SessionManager) Delete(handleHex string) {
 	delete(m.sess, handleHex)
 }
 
-func (rs *RadioSession) HasRXAudioStream(streamID uint32) bool {
+func (rs *RadioSession) SetRXTrack(track *webrtc.TrackLocalStaticSample) {
+	rs.stateMu.Lock()
+	defer rs.stateMu.Unlock()
+	rs.RXTrack = track
+}
+
+func (rs *RadioSession) RXAudioTrack() *webrtc.TrackLocalStaticSample {
 	rs.stateMu.RLock()
 	defer rs.stateMu.RUnlock()
-	_, ok := rs.AudioStreams[streamID]
-	return ok
+	return rs.RXTrack
 }
 
-func (rs *RadioSession) AddRXAudioStream(streamID uint32, track *webrtc.TrackLocalStaticSample, sender *webrtc.RTPSender) bool {
+func (rs *RadioSession) SetActiveRXStream(streamID uint32) {
 	rs.stateMu.Lock()
 	defer rs.stateMu.Unlock()
-	if _, ok := rs.AudioStreams[streamID]; ok {
-		return false
-	}
-	rs.AudioStreams[streamID] = &RXAudioStreamState{
-		Track:  track,
-		Sender: sender,
-	}
-	return true
+	rs.ActiveRXStreamID = streamID
 }
 
-func (rs *RadioSession) RXAudioStream(streamID uint32) (*webrtc.TrackLocalStaticSample, bool) {
+func (rs *RadioSession) ClearActiveRXStream(streamID uint32) {
+	rs.stateMu.Lock()
+	defer rs.stateMu.Unlock()
+	if rs.ActiveRXStreamID == streamID {
+		rs.ActiveRXStreamID = 0
+	}
+}
+
+func (rs *RadioSession) IsActiveRXStream(streamID uint32) bool {
 	rs.stateMu.RLock()
 	defer rs.stateMu.RUnlock()
-	stream, ok := rs.AudioStreams[streamID]
-	if !ok || stream == nil || stream.Track == nil {
-		return nil, false
+	return rs.ActiveRXStreamID != 0 && rs.ActiveRXStreamID == streamID
+}
+
+func (rs *RadioSession) SetActiveTXStream(streamID uint32) {
+	rs.stateMu.Lock()
+	defer rs.stateMu.Unlock()
+	rs.ActiveTXStreamID = streamID
+	rs.TXPacketCount = 0
+}
+
+func (rs *RadioSession) ClearActiveTXStream(streamID uint32) {
+	rs.stateMu.Lock()
+	defer rs.stateMu.Unlock()
+	if rs.ActiveTXStreamID == streamID {
+		rs.ActiveTXStreamID = 0
+		rs.TXPacketCount = 0
 	}
-	return stream.Track, true
 }
 
-func (rs *RadioSession) RemoveRXAudioStream(streamID uint32) *RXAudioStreamState {
-	rs.stateMu.Lock()
-	defer rs.stateMu.Unlock()
-	stream := rs.AudioStreams[streamID]
-	delete(rs.AudioStreams, streamID)
-	return stream
-}
-
-func (rs *RadioSession) UpsertTXAudioStream(streamID uint32, typ, compression string) {
-	rs.stateMu.Lock()
-	defer rs.stateMu.Unlock()
-
-	stream, ok := rs.TXStreams[streamID]
-	if !ok {
-		rs.TXStreams[streamID] = &TXAudioStreamState{
-			Type:        typ,
-			Compression: compression,
-		}
-		return
-	}
-
-	stream.Type = typ
-	stream.Compression = compression
-}
-
-func (rs *RadioSession) RemoveTXAudioStream(streamID uint32) {
-	rs.stateMu.Lock()
-	defer rs.stateMu.Unlock()
-	delete(rs.TXStreams, streamID)
-}
-
-func (rs *RadioSession) BindTXAudioTrack(typ, remoteStreamID, remoteTrackID string) (uint32, string, bool) {
+func (rs *RadioSession) NextTXPacket() (uint32, uint8, bool) {
 	rs.stateMu.Lock()
 	defer rs.stateMu.Unlock()
 
-	for streamID, stream := range rs.TXStreams {
-		if stream.BoundRemoteStreamID == remoteStreamID && stream.BoundRemoteTrackID == remoteTrackID {
-			return streamID, stream.Compression, true
-		}
+	if rs.ActiveTXStreamID == 0 {
+		return 0, 0, false
 	}
 
-	for streamID, stream := range rs.TXStreams {
-		if stream.Type != typ || !strings.EqualFold(stream.Compression, "OPUS") {
-			continue
-		}
-		if stream.BoundRemoteStreamID != "" || stream.BoundRemoteTrackID != "" {
-			continue
-		}
-		stream.BoundRemoteStreamID = remoteStreamID
-		stream.BoundRemoteTrackID = remoteTrackID
-		return streamID, stream.Compression, true
-	}
-
-	return 0, "", false
-}
-
-func (rs *RadioSession) ReleaseTXAudioTrackBinding(streamID uint32, remoteStreamID, remoteTrackID string) {
-	rs.stateMu.Lock()
-	defer rs.stateMu.Unlock()
-
-	stream, ok := rs.TXStreams[streamID]
-	if !ok {
-		return
-	}
-	if stream.BoundRemoteStreamID != remoteStreamID || stream.BoundRemoteTrackID != remoteTrackID {
-		return
-	}
-	stream.BoundRemoteStreamID = ""
-	stream.BoundRemoteTrackID = ""
-}
-
-func (rs *RadioSession) NextTXPacketCount(streamID uint32) (uint8, bool) {
-	rs.stateMu.Lock()
-	defer rs.stateMu.Unlock()
-
-	stream, ok := rs.TXStreams[streamID]
-	if !ok {
-		return 0, false
-	}
-
-	packetCount := stream.PacketCount
-	stream.PacketCount = (stream.PacketCount + 1) % 16
-	return packetCount, true
+	streamID := rs.ActiveTXStreamID
+	packetCount := rs.TXPacketCount
+	rs.TXPacketCount = (rs.TXPacketCount + 1) % 16
+	return streamID, packetCount, true
 }

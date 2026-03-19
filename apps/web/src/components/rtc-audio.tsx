@@ -1,13 +1,12 @@
 import {
+  batch,
   createEffect,
+  createMemo,
   createSignal,
   For,
   onCleanup,
-  onMount,
-  Show,
 } from "solid-js";
 import { useRtc } from "../context/rtc";
-import type { RtcSession } from "../lib/rtc";
 import {
   Select,
   SelectContent,
@@ -28,216 +27,111 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import MaterialSymbolsMic from "~icons/material-symbols/mic";
 import MaterialSymbolsSpeaker from "~icons/material-symbols/speaker";
+import { AudioStreamController } from "@repo/flexlib";
 
 export default function RtcAudio() {
   const { session, tracks } = useRtc();
   const { state, radio } = useFlexRadio();
   const { preferences, setPreferences } = usePreferences();
-  const outputs = createSpeakers();
-  const inputs = createMicrophones();
   const [remoteAudioRxStreamId, setRemoteAudioRxStreamId] = createSignal<
     string | undefined
   >();
   const [remoteAudioTxStreamId, setRemoteAudioTxStreamId] = createSignal<
     string | undefined
   >();
-  const transmitStreams = new Map<string, MediaStream>();
-  let transmitRequestToken = 0;
-  let lastReceiveRenegotiateSession: RtcSession | null = null;
-  let lastReceiveStreamSetKey = "";
+  const outputs = createSpeakers();
+  const inputs = createMicrophones();
 
-  onMount(() => {
-    void navigator.mediaDevices
-      .getUserMedia({ audio: true })
+  const preferredInputDevice = createMemo(() =>
+    inputs().find((d) => d.deviceId === preferences.inputDeviceId),
+  );
+
+  const [activeInputDeviceId, setActiveInputDeviceId] = createSignal<string>();
+
+  createEffect(() => console.log(inputs()));
+
+  createEffect(() =>
+    batch(() => {
+      setRemoteAudioRxStreamId(
+        Object.values(state.status.audioStream).find(
+          (stream) =>
+            stream.clientHandle === state.clientHandleInt &&
+            stream.type === "remote_audio_rx",
+        )?.streamId,
+      );
+      setRemoteAudioTxStreamId(
+        Object.values(state.status.audioStream).find(
+          (stream) =>
+            stream.clientHandle === state.clientHandleInt &&
+            stream.type === "remote_audio_tx",
+        )?.streamId,
+      );
+    }),
+  );
+
+  createEffect((promise?: Promise<AudioStreamController>) => {
+    if (!state.clientHandle || !preferences.enableRemoteAudio) return;
+    return remoteAudioRxStreamId()
+      ? onCleanup(() =>
+          promise?.then((stream) => radio()?.audioStream(stream.id)?.close()),
+        )
+      : radio()?.createRemoteAudioRxStream({
+          compression: "OPUS",
+        });
+  });
+
+  createEffect((promise?: Promise<AudioStreamController>) => {
+    if (!state.clientHandle || !preferences.enableRemoteAudio) return;
+    return remoteAudioTxStreamId()
+      ? onCleanup(() =>
+          promise?.then((stream) => radio()?.audioStream(stream.id)?.close()),
+        )
+      : radio()?.createRemoteAudioTxStream({
+          compression: "OPUS",
+        });
+  });
+
+  createEffect(() => {
+    const rtc = session();
+    if (!remoteAudioTxStreamId() || !rtc) return;
+
+    const promise = navigator.mediaDevices.getUserMedia({
+      audio: preferredInputDevice() ?? true,
+    });
+
+    promise
       .then((stream) => {
-        stream.getTracks().forEach((track) => track.stop());
+        rtc.setTransmitTrack(stream.getAudioTracks()[0] ?? null);
+        setActiveInputDeviceId(
+          stream.getAudioTracks()[0]?.getSettings().deviceId,
+        );
       })
-      .catch(console.error);
-  });
-
-  createEffect(() => {
-    const rtc = session();
-    if (!rtc) {
-      lastReceiveRenegotiateSession = null;
-      lastReceiveStreamSetKey = "";
-      return;
-    }
-    if (rtc !== lastReceiveRenegotiateSession) {
-      lastReceiveRenegotiateSession = rtc;
-      lastReceiveStreamSetKey = "";
-    }
-
-    const pc = rtc.pc;
-    const desiredReceiveStreamIds = Object.values(state.status.audioStream)
-      .filter((s) => s.clientHandle === state.clientHandleInt)
-      .filter((s) => s.type === "remote_audio_rx")
-      .map((s) => s.streamId)
-      .sort();
-    const desiredTransceiverCount = desiredReceiveStreamIds.length;
-    let placeholderTransceiverCount = pc
-      .getTransceivers()
-      .filter(
-        (transceiver) =>
-          transceiver.receiver.track?.kind === "audio" &&
-          !transceiver.sender.track,
-      ).length;
-    console.log(
-      "[rtc audio] ensuring transceivers for remote streams:",
-      desiredTransceiverCount,
-    );
-    while (placeholderTransceiverCount < desiredTransceiverCount) {
-      pc.addTransceiver("audio", { direction: "recvonly" });
-      placeholderTransceiverCount += 1;
-    }
-
-    const nextReceiveStreamSetKey = desiredReceiveStreamIds.join(",");
-    if (nextReceiveStreamSetKey === lastReceiveStreamSetKey) return;
-
-    lastReceiveStreamSetKey = nextReceiveStreamSetKey;
-    void rtc
-      .renegotiate()
-      .catch((error) =>
-        console.error(
-          "[rtc audio] failed to renegotiate receive streams",
-          error,
-        ),
-      );
-  });
-
-  createEffect(() => {
-    setRemoteAudioRxStreamId(
-      Object.values(state.status.audioStream).find(
-        (stream) =>
-          stream.clientHandle === state.clientHandleInt &&
-          stream.type === "remote_audio_rx",
-      )?.streamId,
-    );
-    setRemoteAudioTxStreamId(
-      Object.values(state.status.audioStream).find(
-        (stream) =>
-          stream.clientHandle === state.clientHandleInt &&
-          stream.type === "remote_audio_tx",
-      )?.streamId,
-    );
-  });
-
-  createEffect(() => {
-    if (!state.clientHandle) return;
-    if (!preferences.enableRemoteAudio && remoteAudioRxStreamId()) {
-      radio()?.audioStream(remoteAudioRxStreamId()!)?.close();
-    }
-    if (preferences.enableRemoteAudio && !remoteAudioRxStreamId()) {
-      radio()?.createRemoteAudioRxStream({ compression: "OPUS" });
-    }
-  });
-
-  createEffect(() => {
-    if (!state.clientHandle) return;
-    if (!preferences.enableRemoteAudio && remoteAudioTxStreamId()) {
-      radio()?.audioStream(remoteAudioTxStreamId()!)?.close();
-    }
-    if (preferences.enableRemoteAudio && !remoteAudioTxStreamId()) {
-      radio()?.createRemoteAudioTxStream({ compression: "OPUS" });
-    }
-  });
-
-  createEffect(([lastStreamId, lastInputDeviceId, lastGroupId]) => {
-    const rtc = session();
-    const streamId = remoteAudioTxStreamId();
-    const inputDeviceId = preferences.inputDeviceId;
-    const requestToken = ++transmitRequestToken;
-    const groupId = inputs().find((d) => d.deviceId === inputDeviceId)?.groupId;
-
-    for (const activeStreamId of Array.from(transmitStreams.keys())) {
-      if (!rtc || activeStreamId !== streamId) {
-        void clearTransmitStream(activeStreamId, rtc);
-      }
-    }
-
-    if (!rtc || !streamId || !groupId)
-      return [streamId, inputDeviceId, groupId];
-
-    if (
-      streamId !== lastStreamId ||
-      inputDeviceId !== lastInputDeviceId ||
-      groupId !== lastGroupId
-    ) {
-      void syncTransmitStream(
-        rtc,
-        streamId,
-        inputDeviceId,
-        groupId,
-        requestToken,
-      );
-    }
-    return [streamId, inputDeviceId, groupId];
-  }, []);
-
-  onCleanup(() => {
-    for (const streamId of Array.from(transmitStreams.keys())) {
-      void clearTransmitStream(streamId, session());
-    }
-  });
-
-  async function syncTransmitStream(
-    rtc: RtcSession,
-    streamId: string,
-    inputDeviceId: string,
-    groupId: string,
-    requestToken: number,
-  ) {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          deviceId: { ideal: inputDeviceId },
-          groupId: { exact: groupId },
-        },
+      .catch((error) => {
+        console.error("[rtc audio] failed to get transmit stream", error);
       });
 
-      if (
-        requestToken !== transmitRequestToken ||
-        session() !== rtc ||
-        remoteAudioTxStreamId() !== streamId ||
-        !preferences.enableRemoteAudio
-      ) {
-        stream.getTracks().forEach((track) => track.stop());
-        return;
-      }
-
-      const [track] = stream.getAudioTracks();
-      if (!track) {
-        stream.getTracks().forEach((nextTrack) => nextTrack.stop());
-        return;
-      }
-
-      const previousStream = transmitStreams.get(streamId);
-      transmitStreams.set(streamId, stream);
-      await rtc.setTransmitTrack(streamId, track, stream);
-      previousStream?.getTracks().forEach((nextTrack) => nextTrack.stop());
-    } catch (error) {
-      console.error("[rtc audio] failed to sync transmit stream", error);
-    }
-  }
-
-  async function clearTransmitStream(streamId: string, rtc: RtcSession | null) {
-    const stream = transmitStreams.get(streamId);
-    transmitStreams.delete(streamId);
-    await rtc?.clearTransmitTrack(streamId);
-    stream?.getTracks().forEach((track) => track.stop());
-  }
+    onCleanup(() =>
+      promise.then((stream) =>
+        stream.getTracks().forEach((track) => track.stop()),
+      ),
+    );
+  });
 
   return (
     <div class="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-2">
       <div
         class="size-4 rounded-full border"
         classList={{
-          "bg-foreground": Boolean(remoteAudioRxStreamId()),
+          "bg-foreground": Boolean(
+            remoteAudioRxStreamId() && remoteAudioTxStreamId(),
+          ),
           "bg-foreground/50":
-            preferences.enableRemoteAudio && !Boolean(remoteAudioRxStreamId()),
+            preferences.enableRemoteAudio &&
+            !Boolean(remoteAudioRxStreamId() && remoteAudioTxStreamId()),
         }}
         onClick={() => setPreferences("enableRemoteAudio", (v) => !v)}
       />
-      <Dialog>
+      <Dialog modal={false}>
         <DialogTrigger>Audio Settings</DialogTrigger>
         <DialogContent class="max-h-[90vh] overflow-y-hidden pr-3">
           <DialogHeader>
@@ -252,7 +146,7 @@ export default function RtcAudio() {
                 <div class="flex gap-2 items-center w-full">
                   <MaterialSymbolsMic class="size-10" />
                   <Select
-                    value={preferences.inputDeviceId}
+                    value={activeInputDeviceId() ?? preferences.inputDeviceId}
                     onChange={(value: string) => {
                       if (!value) return;
                       setPreferences("inputDeviceId", value);
@@ -345,22 +239,16 @@ export default function RtcAudio() {
         </SelectTrigger>
         <SelectContent />
       </Select>
-      <div class="sr-only" aria-hidden="true">
-        <For each={tracks()}>
-          {(t) => (
-            <Show
-              when={
-                state.status.audioStream[t.streamId]?.type === "remote_audio_rx"
-              }
-            >
-              <AudioSink
-                stream={t.stream}
-                output={preferences.outputDeviceId}
-              />
-            </Show>
-          )}
-        </For>
-      </div>
+      <For each={tracks()}>
+        {(track) => (
+          <div class="sr-only" aria-hidden="true">
+            <AudioSink
+              stream={track.stream}
+              output={preferences.outputDeviceId}
+            />
+          </div>
+        )}
+      </For>
     </div>
   );
 }

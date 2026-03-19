@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/daveisadork/flex-bridge/internal/core"
-	"github.com/daveisadork/flex-bridge/internal/nat"
 	"github.com/pion/ice/v4"
 	"github.com/pion/webrtc/v4"
 )
@@ -67,16 +66,16 @@ func New(sessions *core.SessionManager, opt Options) *Server {
 		}
 	}
 
-	mapper, pubIP, err := nat.Discover()
-	if err != nil {
-		log.Printf("[nat] discovery: %v", err)
-	} else {
-		log.Printf("[nat] external IP: %s", pubIP)
-		if len(opt.NAT1To1IPs) == 0 {
-			opt.NAT1To1IPs = []string{pubIP}
-		}
-		mapper.Close()
-	}
+	// mapper, pubIP, err := nat.Discover()
+	// if err != nil {
+	// 	log.Printf("[nat] discovery: %v", err)
+	// } else {
+	// 	log.Printf("[nat] external IP: %s", pubIP)
+	// 	if len(opt.NAT1To1IPs) == 0 {
+	// 		opt.NAT1To1IPs = []string{pubIP}
+	// 	}
+	// 	mapper.Close()
+	// }
 
 	if len(opt.NAT1To1IPs) > 0 {
 		if err := se.SetICEAddressRewriteRules(webrtc.ICEAddressRewriteRule{
@@ -186,6 +185,9 @@ func (s *Server) handleOffer(handleHex, offerSDP, clientIP string) (string, erro
 			return "", stepErr("new-pc", err)
 		}
 		rs.PC = pc
+		if err := ensureRXTrack(rs); err != nil {
+			return "", stepErr("add-rx-track", err)
+		}
 		log.Printf("[rtc] new client connection: handle=%s client_ip=%s", handleHex, clientIP)
 
 		// Capture client-created datachannel "udp".
@@ -332,7 +334,10 @@ func (s *Server) NoteStreamCreated(handleHex string, streamID uint32, typ, compr
 	log.Printf("[rtc] NoteStreamCreated handle: %s, stream %s, type: %s, compression: %s\n", handleHex, stream, typ, compression)
 
 	if typ == "remote_audio_tx" {
-		rs.UpsertTXAudioStream(streamID, typ, compression)
+		if compression != "OPUS" {
+			return
+		}
+		rs.SetActiveTXStream(streamID)
 		log.Printf("[rtc] registered inbound tx audio stream %s (handle %s)\n", stream, handleHex)
 		return
 	}
@@ -340,33 +345,8 @@ func (s *Server) NoteStreamCreated(handleHex string, streamID uint32, typ, compr
 	if typ != "remote_audio_rx" || compression != "OPUS" {
 		return
 	}
-	if rs.HasRXAudioStream(streamID) {
-		return
-	}
-	tr, err := webrtc.NewTrackLocalStaticSample(
-		webrtc.RTPCodecCapability{
-			MimeType:  webrtc.MimeTypeOpus,
-			ClockRate: 48000,
-			Channels:  2,
-		},
-		typ,
-		stream,
-	)
-	if err != nil {
-		return
-	}
-	if rs.PC == nil {
-		return
-	}
-	sender, err := rs.PC.AddTrack(tr)
-	if err != nil {
-		return
-	}
-	if !rs.AddRXAudioStream(streamID, tr, sender) {
-		rs.PC.RemoveTrack(sender)
-		return
-	}
-	log.Printf("[rtc] added audio track for stream %s (handle %s)\n", stream, handleHex)
+	rs.SetActiveRXStream(streamID)
+	log.Printf("[rtc] activated rx audio stream %s (handle %s)\n", stream, handleHex)
 }
 
 func (s *Server) NoteStreamRemoved(handleHex string, streamID uint32) {
@@ -376,11 +356,32 @@ func (s *Server) NoteStreamRemoved(handleHex string, streamID uint32) {
 	}
 
 	stream := fmt.Sprintf("0x%08X", streamID)
-	if rxStream := rs.RemoveRXAudioStream(streamID); rxStream != nil && rs.PC != nil && rxStream.Sender != nil {
-		rs.PC.RemoveTrack(rxStream.Sender)
-	}
-	rs.RemoveTXAudioStream(streamID)
+	rs.ClearActiveRXStream(streamID)
+	rs.ClearActiveTXStream(streamID)
 	log.Printf("[rtc] removed audio stream %s (handle %s)\n", stream, handleHex)
+}
+
+func ensureRXTrack(rs *core.RadioSession) error {
+	track, err := webrtc.NewTrackLocalStaticSample(
+		webrtc.RTPCodecCapability{
+			MimeType:  webrtc.MimeTypeOpus,
+			ClockRate: 48000,
+			Channels:  2,
+		},
+		"remote_audio_rx",
+		"rtc_audio_rx",
+	)
+	if err != nil {
+		return err
+	}
+
+	_, err = rs.PC.AddTrack(track)
+	if err != nil {
+		return err
+	}
+
+	rs.SetRXTrack(track)
+	return nil
 }
 
 // ----- small helpers -----

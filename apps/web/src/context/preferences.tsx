@@ -17,9 +17,13 @@ export interface PaletteSettings {
   gradients: Gradient[];
 }
 
+export interface DaxRxConfig {
+  enabled: boolean;
+  outputDeviceId: string;
+}
+
 export interface Preferences {
   smoothScroll: boolean;
-  scrollOffset: number;
   enableBlurEffects: boolean;
   enableTransparencyEffects: boolean;
   peakStyle: "none" | "points" | "line";
@@ -38,12 +42,26 @@ export interface Preferences {
   panadapterSize: number;
   waterfallSize: number;
   sidebarPanels: string[];
+  daxRxConfig: Record<number, DaxRxConfig>;
+  daxTxConfig: {
+    enabled: boolean;
+    inputDeviceId: string;
+    reducedBandwidth: boolean;
+  };
 }
 
 const PreferencesContext = createContext<{
   preferences: Preferences;
   setPreferences: SetStoreFunction<Preferences>;
 }>();
+
+const defaultDaxConfig = () => {
+  const config: Record<number, DaxRxConfig> = {};
+  for (let i = 1; i <= 16; i++) {
+    config[i] = { enabled: false, outputDeviceId: "default" };
+  }
+  return config;
+};
 
 const initialPreferences = () =>
   ({
@@ -65,6 +83,12 @@ const initialPreferences = () =>
     inputDeviceId: "default",
     outputDeviceId: "default",
     sidebarPanels: ["tx", "p-cw", "phone", "rx", "eq"],
+    daxRxConfig: defaultDaxConfig(),
+    daxTxConfig: {
+      enabled: false,
+      inputDeviceId: "default",
+      reducedBandwidth: true,
+    },
     palette: {
       gradients: [
         {
@@ -269,6 +293,9 @@ export const PreferencesProvider: ParentComponent = (props) => {
   const [preferences, setPreferences] = makePersisted([store, setStore], {
     name: "preferences",
   });
+
+  // override any missing keys in the loaded preferences with defaults from initialPreferences
+  setPreferences({ ...preferences, ...initialPreferences() });
 
   // onMount(() => {
   //   Object.keys(preferences)

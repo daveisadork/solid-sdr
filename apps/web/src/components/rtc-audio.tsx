@@ -26,6 +26,34 @@ import {
   PopoverTrigger,
   PopoverArrow,
 } from "~/components/ui/popover";
+import { DaxAudioSink } from "~/lib/dax-audio-sink";
+import { DaxAudioTx } from "~/lib/dax-audio-tx";
+import { SimpleSwitch } from "./ui/simple-switch";
+
+function DaxAudioChannel(props: {
+  controller: AudioStreamController;
+  output: MediaDeviceInfo["deviceId"];
+}) {
+  createEffect(() => {
+    const sink = new DaxAudioSink();
+    void sink.setOutputDevice(props.output).catch(console.error);
+
+    const subscription = props.controller.on("data", (event) => {
+      sink.play(event);
+    });
+
+    onCleanup(() => {
+      subscription.unsubscribe();
+      void sink.close().catch(console.error);
+    });
+  });
+
+  return (
+    <div class="sr-only" aria-hidden="true">
+      {/* <AudioSink stream={track.stream} output="default" /> */}
+    </div>
+  );
+}
 
 export default function RtcAudio() {
   const { session, tracks } = useRtc();
@@ -37,11 +65,15 @@ export default function RtcAudio() {
   const [remoteAudioTxStreamId, setRemoteAudioTxStreamId] = createSignal<
     string | undefined
   >();
+  const [daxTxStreamId, setDaxTxStreamId] = createSignal<string | undefined>();
   const outputs = createSpeakers();
   const inputs = createMicrophones();
 
   const preferredInputDevice = createMemo(() =>
     inputs().find((d) => d.deviceId === preferences.inputDeviceId),
+  );
+  const preferredDaxInputDevice = createMemo(() =>
+    inputs().find((d) => d.deviceId === preferences.daxTxConfig.inputDeviceId),
   );
 
   createEffect(() =>
@@ -58,6 +90,13 @@ export default function RtcAudio() {
           (stream) =>
             stream.clientHandle === state.clientHandleInt &&
             stream.type === "remote_audio_tx",
+        )?.streamId,
+      );
+      setDaxTxStreamId(
+        Object.values(state.status.audioStream).find(
+          (stream) =>
+            stream.clientHandle === state.clientHandleInt &&
+            stream.type === "dax_tx",
         )?.streamId,
       );
     }),
@@ -85,6 +124,27 @@ export default function RtcAudio() {
         });
   });
 
+  for (let channel = 1; channel <= 16; channel++) {
+    const thisChannel = channel; // capture for closure
+    createEffect(() => {
+      if (!state.clientHandle || !preferences.daxRxConfig[thisChannel].enabled)
+        return;
+      const promise = radio()?.createDaxRxAudioStream({ daxChannel: 1 });
+      onCleanup(() =>
+        promise?.then((stream) => radio()?.audioStream(stream.id)?.close()),
+      );
+    });
+  }
+
+  createEffect((promise?: Promise<AudioStreamController>) => {
+    if (!state.clientHandle || !preferences.daxTxConfig.enabled) return;
+    return daxTxStreamId()
+      ? onCleanup(() =>
+          promise?.then((stream) => radio()?.audioStream(stream.id)?.close()),
+        )
+      : radio()?.createDaxTxAudioStream();
+  });
+
   createEffect(() => {
     const rtc = session();
     if (!remoteAudioTxStreamId() || !rtc) return;
@@ -107,6 +167,40 @@ export default function RtcAudio() {
       ),
     );
   });
+
+  createEffect(() => {
+    const rtc = session();
+    const streamId = daxTxStreamId();
+    if (!rtc || !streamId) return;
+
+    let tx: DaxAudioTx | undefined;
+    const promise = navigator.mediaDevices.getUserMedia({
+      audio: preferredDaxInputDevice() ?? true,
+    });
+
+    promise
+      .then(async (stream) => {
+        tx = new DaxAudioTx(
+          rtc.data,
+          streamId,
+          preferences.daxTxConfig.reducedBandwidth,
+          stream,
+        );
+        await tx.start();
+      })
+      .catch((error) => {
+        console.error("[dax tx] failed to get transmit stream", error);
+      });
+
+    onCleanup(() => {
+      void tx?.close().catch(console.error);
+      void promise.then((stream) =>
+        stream.getTracks().forEach((track) => track.stop()),
+      );
+    });
+  });
+
+  createEffect(() => {});
 
   return (
     <div class="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-2">
@@ -198,6 +292,98 @@ export default function RtcAudio() {
                 </Select>
               </div>
             </div>
+
+            <div>
+              <SimpleSwitch
+                checked={preferences.daxTxConfig.enabled}
+                onChange={(checked) =>
+                  setPreferences("daxTxConfig", "enabled", checked)
+                }
+                label="DAX TX"
+              />
+              <Select
+                value={preferences.daxTxConfig.inputDeviceId}
+                onChange={(value: string) => {
+                  if (!value) return;
+                  setPreferences("daxTxConfig", "inputDeviceId", value);
+                }}
+                options={inputs().map((d) => d.deviceId)}
+                itemComponent={(props) => {
+                  return (
+                    <SelectItem item={props.item}>
+                      {
+                        inputs().find((d) => d.deviceId === props.item.rawValue)
+                          ?.label
+                      }
+                    </SelectItem>
+                  );
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue class="overflow-hidden text-ellipsis whitespace-nowrap">
+                    {(state) =>
+                      inputs().find(
+                        (d) => d.deviceId === state.selectedOption(),
+                      )?.label || "Select Audio Input"
+                    }
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent />
+              </Select>
+            </div>
+            <For
+              each={Array.from(
+                { length: state.status.radio.sliceCount },
+                (_, i) => i + 1,
+              )}
+            >
+              {(channel) => (
+                <div>
+                  <SimpleSwitch
+                    checked={preferences.daxRxConfig[channel].enabled}
+                    onChange={(checked) =>
+                      setPreferences("daxRxConfig", channel, "enabled", checked)
+                    }
+                    label={`DAX RX Channel ${channel}`}
+                  />
+                  <Select
+                    value={preferences.daxRxConfig[channel].outputDeviceId}
+                    onChange={(value: string) => {
+                      if (!value) return;
+                      setPreferences(
+                        "daxRxConfig",
+                        channel,
+                        "outputDeviceId",
+                        value,
+                      );
+                    }}
+                    options={outputs().map((d) => d.deviceId)}
+                    itemComponent={(props) => {
+                      return (
+                        <SelectItem item={props.item}>
+                          {
+                            outputs().find(
+                              (d) => d.deviceId === props.item.rawValue,
+                            )?.label
+                          }
+                        </SelectItem>
+                      );
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue class="overflow-hidden text-ellipsis whitespace-nowrap">
+                        {(state) =>
+                          outputs().find(
+                            (d) => d.deviceId === state.selectedOption(),
+                          )?.label || "Select Audio Output"
+                        }
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent />
+                  </Select>
+                </div>
+              )}
+            </For>
           </div>
         </PopoverContent>
       </Popover>
@@ -209,6 +395,22 @@ export default function RtcAudio() {
               output={preferences.outputDeviceId}
             />
           </div>
+        )}
+      </For>
+      <For
+        each={Object.values(state.status.audioStream).filter(
+          (s) =>
+            s.clientHandle === state.clientHandleInt && s.type === "dax_rx",
+        )}
+      >
+        {(stream) => (
+          <DaxAudioChannel
+            controller={radio()?.audioStream(stream.id)}
+            output={
+              preferences.daxRxConfig[stream.daxChannel]?.outputDeviceId ??
+              "default"
+            }
+          />
         )}
       </For>
     </div>

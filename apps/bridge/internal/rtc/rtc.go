@@ -196,6 +196,14 @@ func (s *Server) handleOffer(handleHex, offerSDP, clientIP string) (string, erro
 				return
 			}
 			rs.DC = dc
+			dc.OnMessage(func(msg webrtc.DataChannelMessage) {
+				if msg.IsString || len(msg.Data) == 0 || rs.UDPConn == nil {
+					return
+				}
+				if _, err := rs.UDPConn.Write(msg.Data); err != nil {
+					log.Printf("[rtc] failed to forward udp datachannel packet handle=%s err=%v", handleHex, err)
+				}
+			})
 		})
 
 		rs.PC.OnTrack(func(track *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {

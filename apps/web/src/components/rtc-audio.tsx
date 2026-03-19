@@ -81,14 +81,19 @@ export default function RtcAudio() {
   });
 
   const preferredDaxInputDevice = createMemo(() => {
+    const constraints: MediaStreamConstraints["audio"] = {
+      autoGainControl: false,
+      echoCancellation: false,
+      noiseSuppression: false,
+    };
     const device = inputs().find(
       (d) => d.deviceId === preferences.daxTxConfig.inputDeviceId,
     );
-    if (!device) return true;
-    return {
-      deviceId: { exact: device.deviceId },
-      groupId: { exact: device.groupId },
-    } as MediaStreamConstraints["audio"];
+    if (device) {
+      constraints.deviceId = { exact: device.deviceId };
+      constraints.groupId = { exact: device.groupId };
+    }
+    return constraints;
   });
 
   createEffect(() =>

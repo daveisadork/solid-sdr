@@ -221,7 +221,7 @@ function TxSection() {
               radio()?.setMox(isChecked);
             }}
             label="MOX"
-            tooltip="Key and unkey the transmitter (Manually Operated Transmit)"
+            // tooltip="Key and unkey the transmitter (Manually Operated Transmit)"
           />
           <SimpleSwitch
             checked={state.status.radio.txTune}
@@ -230,7 +230,7 @@ function TxSection() {
               radio()?.setTxTune(isChecked);
             }}
             label="Tune"
-            tooltip="Transmit a carrier for tuning"
+            // tooltip="Transmit a carrier for tuning"
           />
           {/* <SimpleSwitch */}
           {/*   checked={state.status.radio.tuneMode === "two_tone"} */}
@@ -255,7 +255,7 @@ function TxSection() {
                 }
               }}
               label="ATU"
-              tooltip="Bypass or engage the Automatic Tuning Unit (ATU)"
+              // tooltip="Bypass or engage the Automatic Tuning Unit (ATU)"
             />
             <span class="text-muted-foreground text-xs capitalize">
               {state.status.radio.atuTuneStatus
@@ -269,7 +269,7 @@ function TxSection() {
               radio()?.setAtuMemoriesEnabled(isChecked);
             }}
             label="ATU Memory"
-            tooltip="Enable memories for the ATU."
+            // tooltip="Enable memories for the ATU."
           />
           <SimpleSwitch
             checked={state.status.apd.enabled}
@@ -278,7 +278,7 @@ function TxSection() {
               radio()?.apd().setEnabled(isChecked);
             }}
             label={`APD ${state.status.apd.enabled && !state.status.apd.equalizerActive ? "(Calibrating)" : ""}`}
-            tooltip="Toggle SmartSignal (Adaptive Pre-Distortion)"
+            // tooltip="Toggle SmartSignal (Adaptive Pre-Distortion)"
           />
         </div>
       </AccordionContent>

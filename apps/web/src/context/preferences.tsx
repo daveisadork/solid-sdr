@@ -295,7 +295,7 @@ export const PreferencesProvider: ParentComponent = (props) => {
   });
 
   // override any missing keys in the loaded preferences with defaults from initialPreferences
-  setPreferences({ ...preferences, ...initialPreferences() });
+  setPreferences({ ...initialPreferences(), ...preferences });
 
   // onMount(() => {
   //   Object.keys(preferences)

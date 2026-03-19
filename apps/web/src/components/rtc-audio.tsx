@@ -69,12 +69,27 @@ export default function RtcAudio() {
   const outputs = createSpeakers();
   const inputs = createMicrophones();
 
-  const preferredInputDevice = createMemo(() =>
-    inputs().find((d) => d.deviceId === preferences.inputDeviceId),
-  );
-  const preferredDaxInputDevice = createMemo(() =>
-    inputs().find((d) => d.deviceId === preferences.daxTxConfig.inputDeviceId),
-  );
+  const preferredInputDevice = createMemo(() => {
+    const device = inputs().find(
+      (d) => d.deviceId === preferences.inputDeviceId,
+    );
+    if (!device) return true;
+    return {
+      deviceId: { exact: device.deviceId },
+      groupId: { exact: device.groupId },
+    } as MediaStreamConstraints["audio"];
+  });
+
+  const preferredDaxInputDevice = createMemo(() => {
+    const device = inputs().find(
+      (d) => d.deviceId === preferences.daxTxConfig.inputDeviceId,
+    );
+    if (!device) return true;
+    return {
+      deviceId: { exact: device.deviceId },
+      groupId: { exact: device.groupId },
+    } as MediaStreamConstraints["audio"];
+  });
 
   createEffect(() =>
     batch(() => {
@@ -172,20 +187,16 @@ export default function RtcAudio() {
     const rtc = session();
     const streamId = daxTxStreamId();
     if (!rtc || !streamId) return;
+    const reducedBandwidth = preferences.daxTxConfig.reducedBandwidth;
 
     let tx: DaxAudioTx | undefined;
     const promise = navigator.mediaDevices.getUserMedia({
-      audio: preferredDaxInputDevice() ?? true,
+      audio: preferredDaxInputDevice(),
     });
 
     promise
       .then(async (stream) => {
-        tx = new DaxAudioTx(
-          rtc.data,
-          streamId,
-          preferences.daxTxConfig.reducedBandwidth,
-          stream,
-        );
+        tx = new DaxAudioTx(rtc.data, streamId, reducedBandwidth, stream);
         await tx.start();
       })
       .catch((error) => {
@@ -199,8 +210,6 @@ export default function RtcAudio() {
       );
     });
   });
-
-  createEffect(() => {});
 
   return (
     <div class="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-2">
@@ -300,6 +309,13 @@ export default function RtcAudio() {
                   setPreferences("daxTxConfig", "enabled", checked)
                 }
                 label="DAX TX"
+              />
+              <SimpleSwitch
+                checked={preferences.daxTxConfig.reducedBandwidth}
+                onChange={(checked) =>
+                  setPreferences("daxTxConfig", "reducedBandwidth", checked)
+                }
+                label="Reduced Bandwidth"
               />
               <Select
                 value={preferences.daxTxConfig.inputDeviceId}

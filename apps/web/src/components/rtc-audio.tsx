@@ -17,17 +17,15 @@ import {
 import { createMicrophones, createSpeakers } from "@solid-primitives/devices";
 import useFlexRadio from "~/context/flexradio";
 import { usePreferences } from "~/context/preferences";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "./ui/dialog";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import MaterialSymbolsMic from "~icons/material-symbols/mic";
 import MaterialSymbolsSpeaker from "~icons/material-symbols/speaker";
-import { AudioStreamController } from "@repo/flexlib";
+import { type AudioStreamController } from "@repo/flexlib";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  PopoverArrow,
+} from "~/components/ui/popover";
 
 export default function RtcAudio() {
   const { session, tracks } = useRtc();
@@ -45,10 +43,6 @@ export default function RtcAudio() {
   const preferredInputDevice = createMemo(() =>
     inputs().find((d) => d.deviceId === preferences.inputDeviceId),
   );
-
-  const [activeInputDeviceId, setActiveInputDeviceId] = createSignal<string>();
-
-  createEffect(() => console.log(inputs()));
 
   createEffect(() =>
     batch(() => {
@@ -100,12 +94,9 @@ export default function RtcAudio() {
     });
 
     promise
-      .then((stream) => {
-        rtc.setTransmitTrack(stream.getAudioTracks()[0] ?? null);
-        setActiveInputDeviceId(
-          stream.getAudioTracks()[0]?.getSettings().deviceId,
-        );
-      })
+      .then((stream) =>
+        rtc.setTransmitTrack(stream.getAudioTracks()[0] ?? null),
+      )
       .catch((error) => {
         console.error("[rtc audio] failed to get transmit stream", error);
       });
@@ -131,114 +122,85 @@ export default function RtcAudio() {
         }}
         onClick={() => setPreferences("enableRemoteAudio", (v) => !v)}
       />
-      <Dialog modal={false}>
-        <DialogTrigger>Audio Settings</DialogTrigger>
-        <DialogContent class="max-h-[90vh] overflow-y-hidden pr-3">
-          <DialogHeader>
-            <DialogTitle>Audio</DialogTitle>
-          </DialogHeader>
-          <Card class="w-full">
-            <CardHeader>
-              <CardTitle>Radio Audio</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div class="flex flex-col gap-4">
-                <div class="flex gap-2 items-center w-full">
-                  <MaterialSymbolsMic class="size-10" />
-                  <Select
-                    value={activeInputDeviceId() ?? preferences.inputDeviceId}
-                    onChange={(value: string) => {
-                      if (!value) return;
-                      setPreferences("inputDeviceId", value);
-                    }}
-                    options={inputs().map((d) => d.deviceId)}
-                    itemComponent={(props) => {
-                      return (
-                        <SelectItem item={props.item}>
-                          {
-                            inputs().find(
-                              (d) => d.deviceId === props.item.rawValue,
-                            )?.label
-                          }
-                        </SelectItem>
-                      );
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue>
-                        {(state) =>
-                          inputs().find(
-                            (d) => d.deviceId === state.selectedOption(),
-                          )?.label || "Select Audio Input"
-                        }
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent />
-                  </Select>
-                </div>
-                <div class="flex gap-2 items-center w-full">
-                  <MaterialSymbolsSpeaker class="size-10" />
-                  <Select
-                    value={preferences.outputDeviceId}
-                    onChange={(value: string) => {
-                      if (!value) return;
-                      setPreferences("outputDeviceId", value);
-                    }}
-                    options={outputs().map((d) => d.deviceId)}
-                    itemComponent={(props) => {
-                      return (
-                        <SelectItem item={props.item}>
-                          {
-                            outputs().find(
-                              (d) => d.deviceId === props.item.rawValue,
-                            )?.label
-                          }
-                        </SelectItem>
-                      );
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue>
-                        {(state) =>
+
+      <Popover>
+        <PopoverTrigger class="text-sm textbox-trim-both textbox-edge-cap-alphabetic">
+          Audio Settings
+        </PopoverTrigger>
+        <PopoverContent class="shadow-black/75 shadow-lg p-0 fancy-bg-popover overflow-x-visible w-auto max-w-[90vw]">
+          <PopoverArrow />
+          <div class="p-4 flex flex-col space-y-4 max-h-(--kb-popper-content-available-height)">
+            <div class="flex gap-2 items-center">
+              <MaterialSymbolsMic class="size-10 shrink-0" />
+              <Select
+                class="shrink grow overflow-hidden p-1"
+                value={preferences.inputDeviceId}
+                onChange={(value: string) => {
+                  if (!value) return;
+                  setPreferences("inputDeviceId", value);
+                }}
+                options={inputs().map((d) => d.deviceId)}
+                itemComponent={(props) => {
+                  return (
+                    <SelectItem item={props.item}>
+                      {
+                        inputs().find((d) => d.deviceId === props.item.rawValue)
+                          ?.label
+                      }
+                    </SelectItem>
+                  );
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue class="overflow-hidden text-ellipsis whitespace-nowrap">
+                    {(state) =>
+                      inputs().find(
+                        (d) => d.deviceId === state.selectedOption(),
+                      )?.label || "Select Audio Input"
+                    }
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent />
+              </Select>
+            </div>
+            <div class="flex gap-2 items-center">
+              <MaterialSymbolsSpeaker class="size-10 shrink-0" />
+              <div class="shrink grow overflow-hidden p-1">
+                <Select
+                  value={preferences.outputDeviceId}
+                  onChange={(value: string) => {
+                    if (!value) return;
+                    setPreferences("outputDeviceId", value);
+                  }}
+                  options={outputs().map((d) => d.deviceId)}
+                  itemComponent={(props) => {
+                    return (
+                      <SelectItem item={props.item}>
+                        {
                           outputs().find(
-                            (d) => d.deviceId === state.selectedOption(),
-                          )?.label || "Select Audio Output"
+                            (d) => d.deviceId === props.item.rawValue,
+                          )?.label
                         }
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent />
-                  </Select>
-                </div>
+                      </SelectItem>
+                    );
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue class="overflow-hidden text-ellipsis whitespace-nowrap">
+                      {(state) =>
+                        outputs().find(
+                          (d) => d.deviceId === state.selectedOption(),
+                        )?.label || "Select Audio Output"
+                      }
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent />
+                </Select>
               </div>
-            </CardContent>
-          </Card>
-        </DialogContent>
-      </Dialog>
-      <Select
-        value={preferences.outputDeviceId}
-        onChange={(value: string) => {
-          if (!value) return;
-          setPreferences("outputDeviceId", value);
-        }}
-        options={outputs().map((d) => d.deviceId)}
-        itemComponent={(props) => {
-          return (
-            <SelectItem item={props.item}>
-              {outputs().find((d) => d.deviceId === props.item.rawValue)?.label}
-            </SelectItem>
-          );
-        }}
-      >
-        <SelectTrigger class="h-6 px-2 py-0 text-xs">
-          <SelectValue>
-            {(state) =>
-              outputs().find((d) => d.deviceId === state.selectedOption())
-                ?.label || "Select Audio Output"
-            }
-          </SelectValue>
-        </SelectTrigger>
-        <SelectContent />
-      </Select>
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
       <For each={tracks()}>
         {(track) => (
           <div class="sr-only" aria-hidden="true">

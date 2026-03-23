@@ -438,11 +438,6 @@ body,
     @apply backdrop-blur-none;
   }
 
-  .disable-transparency-effects & {
-    --fancy-bg-opacity: 1;
-    @apply backdrop-blur-none;
-  }
-
   background-color: oklch(
     from var(--fancy-bg-color) l c h /
       min(
@@ -450,6 +445,11 @@ body,
         0.9
       )
   );
+
+  .disable-transparency-effects & {
+    background-color: var(--fancy-bg-color);
+    @apply backdrop-blur-none;
+  }
 }
 
 .disable-transparency-effects {

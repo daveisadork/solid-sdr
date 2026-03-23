@@ -421,18 +421,35 @@ body,
 }
 
 @utility fancy-bg-* {
-  background-color: --alpha(--value(--color-*) / 50%);
+  --fancy-bg-color: --value(--color-*, [color]);
+  --fancy-bg-opacity: 0.5;
+  --fancy-bg-opacity: calc(--modifier(integer, [integer]) / 100);
+  --fancy-bg-opacity-multiplier: 1;
+
+  /* background-color: --alpha( */
+  /*   --value(--color-*, [color]) / calc(--modifier(number, [number]) / 100) */
+  /* ); */
+  /* background-color: --alpha(--value(--color-*) / 50%); */
+  /* background-color: --alpha(--value(--color-*) / --modifier(percentage)); */
   @apply backdrop-blur-sm;
 
   .disable-blur-effects & {
-    background-color: --alpha(--value(--color-*) / 80%);
+    --fancy-bg-opacity-multiplier: 1.6;
     @apply backdrop-blur-none;
   }
 
   .disable-transparency-effects & {
-    background-color: --value(--color-*);
+    --fancy-bg-opacity: 100%;
     @apply backdrop-blur-none;
   }
+
+  background-color: oklch(
+    from var(--fancy-bg-color) l c h /
+      min(
+        calc(var(--fancy-bg-opacity) * var(--fancy-bg-opacity-multiplier)),
+        0.9
+      )
+  );
 }
 
 .disable-transparency-effects {

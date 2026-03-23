@@ -30,6 +30,7 @@ import {
 import { DaxAudioSink } from "~/lib/dax-audio-sink";
 import { DaxAudioTx } from "~/lib/dax-audio-tx";
 import { SimpleSwitch } from "./ui/simple-switch";
+import { showToast } from "./ui/toast";
 
 function DaxAudioChannel(props: {
   controller: AudioStreamController;
@@ -83,13 +84,12 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
 
   const preferredDaxInputDevice = createMemo(() => {
     const constraints: MediaStreamConstraints["audio"] = {
-      autoGainControl: false,
-      echoCancellation: false,
-      noiseSuppression: false,
+      autoGainControl: { exact: false },
+      echoCancellation: { exact: false },
+      noiseSuppression: { exact: false },
+      deviceId: preferences.daxTxConfig.inputDeviceId,
     };
-    const device = inputs().find(
-      (d) => d.deviceId === preferences.daxTxConfig.inputDeviceId,
-    );
+    const device = inputs().find((d) => d.deviceId === constraints.deviceId);
     if (device) {
       constraints.deviceId = { exact: device.deviceId };
       constraints.groupId = { exact: device.groupId };
@@ -195,23 +195,43 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
     if (!rtc || !streamId) return;
     const reducedBandwidth = preferences.daxTxConfig.reducedBandwidth;
 
-    let tx: DaxAudioTx | undefined;
-    const promise = navigator.mediaDevices.getUserMedia({
-      audio: preferredDaxInputDevice(),
+    const streamPromise = navigator.mediaDevices.getUserMedia({
+      audio: { ...preferredDaxInputDevice() },
     });
 
-    promise
-      .then(async (stream) => {
-        tx = new DaxAudioTx(rtc.data, streamId, reducedBandwidth, stream);
-        await tx.start();
-      })
-      .catch((error) => {
-        console.error("[dax tx] failed to get transmit stream", error);
+    const daxPromise = streamPromise.then(async (stream) => {
+      stream.getAudioTracks().forEach((track) => {
+        console.log("DAX TX ", track.getSettings());
       });
+      const tx = new DaxAudioTx(rtc.data, streamId, reducedBandwidth, stream);
+      await tx.start();
+      const trackSettings = stream.getAudioTracks()[0].getSettings();
+      const device = inputs().find(
+        (d) => d.deviceId === trackSettings.deviceId,
+      );
+      showToast({
+        title: "DAX TX Started",
+        description: `Using device ${device?.label || trackSettings.deviceId}`,
+        variant: "success",
+      });
+      return tx;
+    });
+
+    Promise.all([streamPromise, daxPromise]).catch((error) => {
+      const description =
+        error.name === "OverconstrainedError"
+          ? `Constraint not satisfied: ${error.constraint}`
+          : String(error);
+      showToast({
+        title: "Failed to start DAX TX",
+        description,
+        variant: "error",
+      });
+    });
 
     onCleanup(() => {
-      void tx?.close().catch(console.error);
-      void promise.then((stream) =>
+      daxPromise.then((tx) => tx?.close().catch(console.error));
+      streamPromise.then((stream) =>
         stream.getTracks().forEach((track) => track.stop()),
       );
     });
@@ -445,7 +465,11 @@ export default function RtcAudio() {
   const [defaultOpen, setDefaultOpen] = createSignal(false);
 
   const checkAudioPermission = () => {
-    if (audioAllowed()) return;
+    if (audioAllowed()) {
+      console.log("No audio enabled, skipping permissions");
+      return;
+    }
+    console.log("Requesting audio...");
     navigator.mediaDevices
       .getUserMedia({ audio: true })
       .then((stream) => {
@@ -456,7 +480,12 @@ export default function RtcAudio() {
   };
 
   createEffect(() => {
-    if (!preferences.enableRemoteAudio || audioAllowed()) return;
+    const audioEnabled =
+      preferences.enableRemoteAudio ||
+      preferences.daxTxConfig.enabled ||
+      Object.values(preferences.daxRxConfig).some((config) => config.enabled);
+
+    if (!audioEnabled || audioAllowed()) return;
     checkAudioPermission();
   });
 

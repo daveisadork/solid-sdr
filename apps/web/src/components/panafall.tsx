@@ -499,7 +499,7 @@ export function Panafall() {
                     <ArrowExpandHorizontal />
                   </PanafallButton>
                 </div>
-                <div class="absolute bottom-2 right-12 grid grid-cols-2 gap-1">
+                <div class="absolute bottom-2 right-2 grid grid-cols-2 gap-1">
                   <PanafallButton
                     onClick={cycleTheme}
                     aria-label="Toggle theme"

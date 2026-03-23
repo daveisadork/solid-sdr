@@ -5,6 +5,7 @@ import {
   createSignal,
   For,
   onCleanup,
+  Show,
 } from "solid-js";
 import { useRtc } from "../context/rtc";
 import {
@@ -55,7 +56,7 @@ function DaxAudioChannel(props: {
   );
 }
 
-export default function RtcAudio() {
+function InnerRtcAudio(props: { defaultOpen?: boolean }) {
   const { session, tracks } = useRtc();
   const { state, radio } = useFlexRadio();
   const { preferences, setPreferences } = usePreferences();
@@ -217,7 +218,7 @@ export default function RtcAudio() {
   });
 
   return (
-    <div class="absolute not-pointer-fine:bottom-12 pointer-fine:bottom-0 left-1/2 -translate-x-1/2 flex items-center gap-2 not-pointer-fine:border rounded-md not-pointer-fine:fancy-bg-background h-10 px-3">
+    <>
       <div
         class="size-4 rounded-full border"
         classList={{
@@ -231,7 +232,7 @@ export default function RtcAudio() {
         onClick={() => setPreferences("enableRemoteAudio", (v) => !v)}
       />
 
-      <Popover>
+      <Popover defaultOpen={props.defaultOpen}>
         <PopoverTrigger class="text-sm textbox-trim-both textbox-edge-cap-alphabetic">
           Audio Settings
         </PopoverTrigger>
@@ -434,6 +435,59 @@ export default function RtcAudio() {
           />
         )}
       </For>
+    </>
+  );
+}
+
+export default function RtcAudio() {
+  const { preferences, setPreferences } = usePreferences();
+  const [audioAllowed, setAudioAllowed] = createSignal(false);
+  const [defaultOpen, setDefaultOpen] = createSignal(false);
+
+  const checkAudioPermission = () => {
+    if (audioAllowed()) return;
+    navigator.mediaDevices
+      .getUserMedia({ audio: true })
+      .then((stream) => {
+        stream.getTracks().forEach((track) => track.stop());
+        setAudioAllowed(true);
+      })
+      .catch(() => setAudioAllowed(false));
+  };
+
+  createEffect(() => {
+    if (!preferences.enableRemoteAudio || audioAllowed()) return;
+    checkAudioPermission();
+  });
+
+  return (
+    <div class="absolute not-pointer-fine:bottom-12 pointer-fine:bottom-0 left-1/2 -translate-x-1/2 flex items-center gap-2 not-pointer-fine:border rounded-md not-pointer-fine:fancy-bg-background h-10 px-3">
+      <Show
+        when={audioAllowed()}
+        fallback={
+          <>
+            <div
+              class="size-4 rounded-full border"
+              classList={{
+                "bg-foreground/50": preferences.enableRemoteAudio,
+              }}
+              onClick={() => setPreferences("enableRemoteAudio", (v) => !v)}
+            />
+
+            <button
+              class="text-sm textbox-trim-both textbox-edge-cap-alphabetic"
+              onClick={() => {
+                setDefaultOpen(true);
+                checkAudioPermission();
+              }}
+            >
+              Audio Settings
+            </button>
+          </>
+        }
+      >
+        <InnerRtcAudio defaultOpen={defaultOpen()} />
+      </Show>
     </div>
   );
 }

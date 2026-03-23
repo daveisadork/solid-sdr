@@ -5,6 +5,7 @@ import {
   createSignal,
   For,
   onCleanup,
+  onMount,
   Show,
 } from "solid-js";
 import { useRtc } from "../context/rtc";
@@ -36,10 +37,10 @@ function DaxAudioChannel(props: {
   controller: AudioStreamController;
   output: MediaDeviceInfo["deviceId"];
 }) {
-  createEffect(() => {
-    const sink = new DaxAudioSink();
-    void sink.setOutputDevice(props.output).catch(console.error);
+  const sink = new DaxAudioSink();
 
+  createEffect(() => {
+    sink.init().catch(console.error);
     const subscription = props.controller.on("data", (event) => {
       sink.play(event);
     });
@@ -49,6 +50,8 @@ function DaxAudioChannel(props: {
       void sink.close().catch(console.error);
     });
   });
+
+  createEffect(() => sink.setOutputDevice(props.output).catch(console.error));
 
   return (
     <div class="sr-only" aria-hidden="true">
@@ -146,11 +149,11 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
   });
 
   for (let channel = 1; channel <= 16; channel++) {
-    const thisChannel = channel; // capture for closure
+    const daxChannel = channel; // capture for closure
     createEffect(() => {
-      if (!state.clientHandle || !preferences.daxRxConfig[thisChannel].enabled)
+      if (!state.clientHandle || !preferences.daxRxConfig[daxChannel].enabled)
         return;
-      const promise = radio()?.createDaxRxAudioStream({ daxChannel: 1 });
+      const promise = radio()?.createDaxRxAudioStream({ daxChannel });
       onCleanup(() =>
         promise?.then((stream) => radio()?.audioStream(stream.id)?.close()),
       );
@@ -445,15 +448,17 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
             s.clientHandle === state.clientHandleInt && s.type === "dax_rx",
         )}
       >
-        {(stream) => (
-          <DaxAudioChannel
-            controller={radio()?.audioStream(stream.id)}
-            output={
-              preferences.daxRxConfig[stream.daxChannel]?.outputDeviceId ??
-              "default"
-            }
-          />
-        )}
+        {(stream) => {
+          return (
+            <DaxAudioChannel
+              controller={radio()?.audioStream(stream.id)}
+              output={
+                preferences.daxRxConfig[stream.daxChannel]?.outputDeviceId ??
+                "default"
+              }
+            />
+          );
+        }}
       </For>
     </>
   );

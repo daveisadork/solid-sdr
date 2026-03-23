@@ -1,90 +1,313 @@
 import type { AudioStreamDataEvent } from "@repo/flexlib";
 
-export class DaxAudioSink {
-  private readonly context = new AudioContext({
-    sampleRate: 24_000,
-    latencyHint: "interactive",
-  });
-  private readonly destination = new MediaStreamAudioDestinationNode(
-    this.context,
-    {
-      channelCount: 2,
-    },
-  );
-  private readonly audio = new Audio();
-  private playhead = 0;
+const SAMPLE_RATE = 24_000;
+const RING_FRAMES = 16384; // ~682ms capacity at 24kHz
 
+const sabWorkletCode = `
+class DaxSabSinkProcessor extends AudioWorkletProcessor {
   constructor() {
-    this.audio.autoplay = true;
-    this.audio.setAttribute("playsinline", "");
-    this.audio.srcObject = this.destination.stream;
+    super();
+    this.ready = false;
+    this.channels = 0;
+    this.framesCap = 0;
+    this.buffers = null;
+    this.idx = null;
+    this.port.onmessage = (e) => {
+      const m = e.data;
+      if (m && m.type === 'init') {
+        this.channels = m.channels|0;
+        this.framesCap = m.framesPerChannel|0;
+        this.idx = new Int32Array(m.indexSAB);
+        this.buffers = new Array(this.channels);
+        for (let c = 0; c < this.channels; c++) {
+          this.buffers[c] = new Float32Array(
+            m.audioSAB,
+            c * this.framesCap * 4,
+            this.framesCap
+          );
+        }
+        this.ready = true;
+      }
+    };
   }
 
-  async setOutputDevice(deviceId: string): Promise<void> {
-    const target = this.audio as HTMLAudioElement & {
-      setSinkId?: (id: string) => Promise<void>;
-    };
-    if (!target.setSinkId) return;
-    await target.setSinkId(deviceId);
+  process(_inputs, outputs) {
+    const output = outputs[0];
+    if (!this.ready) {
+      for (let c = 0; c < output.length; c++) output[c].fill(0);
+      return true;
+    }
+
+    const need = output[0].length|0;
+    let r = Atomics.load(this.idx, 0)|0;
+    const w = Atomics.load(this.idx, 1)|0;
+    const cap = this.framesCap|0;
+    const avail = Math.max(0, Math.min(cap, (w - r)|0));
+    const take = Math.min(need, avail);
+
+    for (let c = 0; c < this.channels; c++) {
+      const buf = this.buffers[c];
+      const out = output[c];
+      if (take > 0) {
+        const pos = (r % cap + cap) % cap;
+        const first = Math.min(take, cap - pos);
+        out.set(buf.subarray(pos, pos + first), 0);
+        if (first < take) out.set(buf.subarray(0, take - first), first);
+        if (take < need) out.fill(0, take);
+      } else {
+        out.fill(0);
+      }
+    }
+    if (take > 0) Atomics.store(this.idx, 0, r + take);
+    return true;
+  }
+}
+registerProcessor('dax-sab-sink', DaxSabSinkProcessor);
+`;
+
+const sabWorkletURL = URL.createObjectURL(
+  new Blob([sabWorkletCode], { type: "application/javascript" }),
+);
+
+export interface DaxAudioSinkOptions {
+  channels?: number;
+  bufferMs?: number;
+}
+
+interface QueueEntry {
+  tsSec: number;
+  planes: Float32Array[];
+}
+
+export class DaxAudioSink {
+  private readonly ctx: AudioContext;
+  private readonly msDest: MediaStreamAudioDestinationNode;
+  private readonly audio: HTMLAudioElement;
+  private readonly channels: number;
+
+  private idx?: Int32Array;
+  private sabPlanes?: Float32Array[];
+  private workletNode?: AudioWorkletNode;
+
+  private readonly queue: QueueEntry[] = [];
+  private bufferMs: number;
+  private targetLeadFrames: number;
+  private maxLeadFrames: number;
+
+  constructor({ channels = 2, bufferMs = 50 }: DaxAudioSinkOptions = {}) {
+    this.channels = channels;
+    this.bufferMs = bufferMs;
+    this.targetLeadFrames = Math.round((bufferMs / 1000) * SAMPLE_RATE);
+    this.maxLeadFrames = Math.max(
+      this.targetLeadFrames,
+      Math.round(0.25 * SAMPLE_RATE),
+    );
+
+    this.ctx = new AudioContext({
+      sampleRate: SAMPLE_RATE,
+      latencyHint: "interactive",
+    });
+    this.msDest = new MediaStreamAudioDestinationNode(this.ctx, {
+      channelCount: channels,
+    });
+    this.audio = new Audio();
+    this.audio.autoplay = true;
+    this.audio.setAttribute("playsinline", "");
+    this.audio.srcObject = this.msDest.stream;
+  }
+
+  async init(): Promise<void> {
+    await this.ctx.audioWorklet.addModule(sabWorkletURL);
+    const node = new AudioWorkletNode(this.ctx, "dax-sab-sink", {
+      numberOfInputs: 0,
+      numberOfOutputs: 1,
+      outputChannelCount: [this.channels],
+    });
+    node.connect(this.msDest);
+    this.workletNode = node;
+
+    const audioSAB = new SharedArrayBuffer(
+      this.channels * RING_FRAMES * Float32Array.BYTES_PER_ELEMENT,
+    );
+    const indexSAB = new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT * 2);
+    this.idx = new Int32Array(indexSAB);
+    this.sabPlanes = Array.from(
+      { length: this.channels },
+      (_, c) =>
+        new Float32Array(
+          audioSAB,
+          c * RING_FRAMES * Float32Array.BYTES_PER_ELEMENT,
+          RING_FRAMES,
+        ),
+    );
+
+    node.port.postMessage({
+      type: "init",
+      channels: this.channels,
+      framesPerChannel: RING_FRAMES,
+      audioSAB,
+      indexSAB,
+    });
+
+    if (this.ctx.state !== "running") await this.ctx.resume();
+    await this.audio.play().catch(() => {});
   }
 
   play(event: AudioStreamDataEvent): void {
-    const packet = event.packet;
+    if (!this.idx) return;
+
+    const { packet, kind, metadata } = event;
     if (!packet.byteLength) return;
 
-    void this.context.resume().catch(console.error);
+    void this.ctx.resume().catch(console.error);
 
     const view = new DataView(
       packet.buffer,
       packet.byteOffset,
       packet.byteLength,
     );
-    let buffer: AudioBuffer;
+    let srcPlanes: Float32Array[];
 
-    if (event.kind === "daxAudio") {
+    if (kind === "daxAudio") {
       if (packet.byteLength % 8 !== 0) return;
-
-      const sampleCount = packet.byteLength / 8;
-      buffer = this.context.createBuffer(2, sampleCount, 24_000);
-      const left = buffer.getChannelData(0);
-      const right = buffer.getChannelData(1);
-
-      for (let i = 0, offset = 0; i < sampleCount; i += 1) {
-        left[i] = view.getFloat32(offset);
-        offset += 4;
-        right[i] = view.getFloat32(offset);
-        offset += 4;
+      const n = packet.byteLength / 8;
+      const left = new Float32Array(n);
+      const right = new Float32Array(n);
+      for (let i = 0, off = 0; i < n; i++) {
+        left[i] = view.getFloat32(off);
+        off += 4;
+        right[i] = view.getFloat32(off);
+        off += 4;
       }
-    } else if (event.kind === "daxReducedBw") {
+      srcPlanes = [left, right];
+    } else if (kind === "daxReducedBw") {
       if (packet.byteLength % 2 !== 0) return;
-
-      const sampleCount = packet.byteLength / 2;
-      buffer = this.context.createBuffer(2, sampleCount, 24_000);
-      const left = buffer.getChannelData(0);
-      const right = buffer.getChannelData(1);
-
-      for (let i = 0, offset = 0; i < sampleCount; i += 1) {
-        const sample = view.getInt16(offset) / 32767;
-        offset += 2;
-        left[i] = sample;
-        right[i] = sample;
+      const n = packet.byteLength / 2;
+      const mono = new Float32Array(n);
+      for (let i = 0, off = 0; i < n; i++) {
+        mono[i] = view.getInt16(off) / 32767;
+        off += 2;
       }
+      srcPlanes = [mono];
     } else {
       return;
     }
 
-    const source = this.context.createBufferSource();
-    source.buffer = buffer;
-    source.connect(this.destination);
+    const planes = mapChannels(srcPlanes, this.channels);
+    const tsSec = metadata.timestampInt + Number(metadata.timestampFrac) / 1e12;
 
-    const startTime = Math.max(this.playhead, this.context.currentTime);
-    source.start(startTime);
-    this.playhead = startTime + buffer.duration;
-    source.onended = () => source.disconnect();
+    // Sorted insert by tsSec. Queue stays small (bufferMs / ~5.33ms per packet).
+    let i = this.queue.length;
+    while (i > 0 && this.queue[i - 1].tsSec > tsSec) i--;
+    this.queue.splice(i, 0, { tsSec, planes });
+
+    this.drain();
+  }
+
+  setBufferMs(ms: number): void {
+    this.bufferMs = ms;
+    this.targetLeadFrames = Math.round((ms / 1000) * SAMPLE_RATE);
+    this.maxLeadFrames = Math.max(
+      this.targetLeadFrames,
+      Math.round(0.25 * SAMPLE_RATE),
+    );
+    this.drain();
+  }
+
+  async setOutputDevice(deviceId: string): Promise<void> {
+    const target = this.audio as HTMLAudioElement & {
+      setSinkId?: (id: string) => Promise<void>;
+    };
+    if (!target.setSinkId) {
+      console.warn("setSinkId not supported in this browser");
+      return;
+    }
+    await target.setSinkId(deviceId);
+  }
+
+  async resume(): Promise<void> {
+    if (this.ctx.state !== "running") await this.ctx.resume();
+    await this.audio.play().catch(() => {});
   }
 
   async close(): Promise<void> {
-    this.audio.srcObject = null;
-    await this.context.close();
+    try {
+      this.workletNode?.disconnect();
+      this.audio.srcObject = null;
+    } finally {
+      await this.ctx.close();
+    }
   }
+
+  private drain(): void {
+    if (this.queue.length === 0 || !this.sabPlanes) return;
+    const newestTs = this.queue[this.queue.length - 1].tsSec;
+    const threshold = this.bufferMs / 1000;
+    while (
+      this.queue.length > 0 &&
+      newestTs - this.queue[0].tsSec >= threshold
+    ) {
+      this.writeSAB(this.queue.shift()!.planes);
+    }
+  }
+
+  private writeSAB(planes: Float32Array[]): void {
+    const sabPlanes = this.sabPlanes!;
+    const idx = this.idx!;
+    const frames = planes[0].length;
+    if (!frames) return;
+
+    const cap = RING_FRAMES;
+    let r = Atomics.load(idx, 0) | 0;
+    const w = Atomics.load(idx, 1) | 0;
+
+    // If ahead of maxLead, snap read pointer forward to targetLead
+    const lead = (w - r) | 0;
+    if (lead > this.maxLeadFrames) {
+      r = w - this.targetLeadFrames;
+      Atomics.store(idx, 0, r);
+    }
+
+    // Ensure there is space for incoming frames
+    const free = Math.max(0, cap - ((w - r) | 0));
+    if (frames > free) {
+      Atomics.store(idx, 0, r + (frames - free));
+    }
+
+    const pos = ((w % cap) + cap) % cap;
+    const first = Math.min(frames, cap - pos);
+    for (let c = 0; c < this.channels; c++) {
+      sabPlanes[c].set(planes[c].subarray(0, first), pos);
+      if (first < frames) sabPlanes[c].set(planes[c].subarray(first), 0);
+    }
+    Atomics.store(idx, 1, w + frames);
+  }
+}
+
+function mapChannels(src: Float32Array[], outChannels: number): Float32Array[] {
+  const inCh = src.length;
+  if (inCh === outChannels) return src;
+  const frames = src[0].length;
+  const out = new Array<Float32Array>(outChannels);
+
+  if (inCh === 1) {
+    // Upmix: share the mono buffer across all output channels
+    for (let c = 0; c < outChannels; c++) out[c] = src[0];
+  } else if (outChannels === 1) {
+    // Mix down: average all input channels
+    const mono = new Float32Array(frames);
+    for (let i = 0; i < frames; i++) {
+      let sum = 0;
+      for (let c = 0; c < inCh; c++) sum += src[c][i];
+      mono[i] = sum / inCh;
+    }
+    out[0] = mono;
+  } else {
+    // Copy available channels, silence the rest
+    for (let c = 0; c < outChannels; c++) {
+      out[c] = c < inCh ? src[c] : new Float32Array(frames);
+    }
+  }
+
+  return out;
 }

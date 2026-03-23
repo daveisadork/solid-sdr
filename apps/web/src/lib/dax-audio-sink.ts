@@ -75,8 +75,9 @@ export interface DaxAudioSinkOptions {
 }
 
 interface QueueEntry {
-  tsSec: number;
+  seq: number; // packetCount (0–15, wrapping)
   planes: Float32Array[];
+  frames: number;
 }
 
 export class DaxAudioSink {
@@ -90,6 +91,7 @@ export class DaxAudioSink {
   private workletNode?: AudioWorkletNode;
 
   private readonly queue: QueueEntry[] = [];
+  private queuedFrames = 0;
   private bufferMs: number;
   private targetLeadFrames: number;
   private maxLeadFrames: number;
@@ -194,12 +196,15 @@ export class DaxAudioSink {
     }
 
     const planes = mapChannels(srcPlanes, this.channels);
-    const tsSec = metadata.timestampInt + Number(metadata.timestampFrac) / 1e12;
+    const frames = planes[0].length;
+    const seq = metadata.header.packetCount;
 
-    // Sorted insert by tsSec. Queue stays small (bufferMs / ~5.33ms per packet).
+    // Sorted insert by sequence number with wrap-aware comparison.
+    // Queue stays small (bufferMs / ~5.33ms per packet), so linear scan is fine.
     let i = this.queue.length;
-    while (i > 0 && this.queue[i - 1].tsSec > tsSec) i--;
-    this.queue.splice(i, 0, { tsSec, planes });
+    while (i > 0 && seqBefore(seq, this.queue[i - 1].seq)) i--;
+    this.queue.splice(i, 0, { seq, planes, frames });
+    this.queuedFrames += frames;
 
     this.drain();
   }
@@ -240,14 +245,12 @@ export class DaxAudioSink {
   }
 
   private drain(): void {
-    if (this.queue.length === 0 || !this.sabPlanes) return;
-    const newestTs = this.queue[this.queue.length - 1].tsSec;
-    const threshold = this.bufferMs / 1000;
-    while (
-      this.queue.length > 0 &&
-      newestTs - this.queue[0].tsSec >= threshold
-    ) {
-      this.writeSAB(this.queue.shift()!.planes);
+    if (!this.sabPlanes) return;
+    const targetFrames = Math.round((this.bufferMs / 1000) * SAMPLE_RATE);
+    while (this.queuedFrames > targetFrames && this.queue.length > 0) {
+      const entry = this.queue.shift()!;
+      this.queuedFrames -= entry.frames;
+      this.writeSAB(entry.planes);
     }
   }
 
@@ -282,6 +285,11 @@ export class DaxAudioSink {
     }
     Atomics.store(idx, 1, w + frames);
   }
+}
+
+// Returns true if sequence number a comes before b, accounting for 4-bit wrap-around.
+function seqBefore(a: number, b: number): boolean {
+  return ((b - a + 16) & 0xf) < 8;
 }
 
 function mapChannels(src: Float32Array[], outChannels: number): Float32Array[] {

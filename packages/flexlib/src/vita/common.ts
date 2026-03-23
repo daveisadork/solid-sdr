@@ -455,7 +455,9 @@ export function createPacketContext(
   }
 
   let timestampFrac = 0n;
-  if (parsed.header.timestampFractionalType !== VitaTimeStampFractionalType.None) {
+  if (
+    parsed.header.timestampFractionalType !== VitaTimeStampFractionalType.None
+  ) {
     if (off + 8 > totalBytes) return null;
     timestampFrac = readBigUint64BE(view, off);
     off += 8;

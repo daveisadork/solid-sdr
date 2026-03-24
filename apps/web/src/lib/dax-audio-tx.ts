@@ -52,6 +52,13 @@ export class DaxAudioTx {
   private readonly leftQueue: number[] = [];
   private readonly rightQueue: number[] = [];
   private worklet?: AudioWorkletNode;
+  private analyser?: AnalyserNode;
+  private analyserBuf?: Float32Array;
+  private smoothedRms = 0;
+  private _peak = -Infinity;
+  private peakHoldFrames = 0;
+  private static readonly PEAK_HOLD = 120;
+  private static readonly PEAK_DECAY = 0.2;
   private packetCount = 0;
   private started = false;
 
@@ -106,6 +113,11 @@ export class DaxAudioTx {
       this.source.connect(worklet);
       worklet.connect(this.mute);
       this.mute.connect(this.context.destination);
+      const analyser = this.context.createAnalyser();
+      analyser.fftSize = 256;
+      this.source.connect(analyser);
+      this.analyser = analyser;
+      this.analyserBuf = new Float32Array(analyser.fftSize);
       this.worklet = worklet;
       this.started = true;
     }
@@ -114,6 +126,33 @@ export class DaxAudioTx {
       await this.context.resume();
     }
   }
+
+  getLevel(): number {
+    if (!this.analyser || !this.analyserBuf) return -Infinity;
+    this.analyser.getFloatTimeDomainData(this.analyserBuf as Float32Array<ArrayBuffer>);
+    let sum = 0;
+    let maxAbs = 0;
+    for (const s of this.analyserBuf) {
+      sum += s * s;
+      const abs = Math.abs(s);
+      if (abs > maxAbs) maxAbs = abs;
+    }
+    const rms = Math.sqrt(sum / this.analyserBuf.length);
+    const alpha = rms > this.smoothedRms ? 0.3 : 0.05;
+    this.smoothedRms = alpha * rms + (1 - alpha) * this.smoothedRms;
+    const peakDb = 20 * Math.log10(Math.max(maxAbs, 1e-7));
+    if (peakDb >= this._peak) {
+      this._peak = peakDb;
+      this.peakHoldFrames = DaxAudioTx.PEAK_HOLD;
+    } else if (this.peakHoldFrames > 0) {
+      this.peakHoldFrames--;
+    } else {
+      this._peak = Math.max(this._peak - DaxAudioTx.PEAK_DECAY, peakDb);
+    }
+    return 20 * Math.log10(Math.max(this.smoothedRms, 1e-7));
+  }
+
+  get peak(): number { return this._peak; }
 
   async close(): Promise<void> {
     this.worklet?.disconnect();

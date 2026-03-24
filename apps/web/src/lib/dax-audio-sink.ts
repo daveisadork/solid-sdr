@@ -89,6 +89,13 @@ export class DaxAudioSink {
   private idx?: Int32Array;
   private sabPlanes?: Float32Array[];
   private workletNode?: AudioWorkletNode;
+  private analyser?: AnalyserNode;
+  private analyserBuf?: Float32Array;
+  private smoothedRms = 0;
+  private _peak = -Infinity;
+  private peakHoldFrames = 0;
+  private static readonly PEAK_HOLD = 120; // ~2s at 60fps
+  private static readonly PEAK_DECAY = 0.2; // dB per frame
 
   private readonly queue: QueueEntry[] = [];
   private queuedFrames = 0;
@@ -126,6 +133,11 @@ export class DaxAudioSink {
       outputChannelCount: [this.channels],
     });
     node.connect(this.msDest);
+    const analyser = this.ctx.createAnalyser();
+    analyser.fftSize = 256;
+    node.connect(analyser);
+    this.analyser = analyser;
+    this.analyserBuf = new Float32Array(analyser.fftSize);
     this.workletNode = node;
 
     const audioSAB = new SharedArrayBuffer(
@@ -235,9 +247,37 @@ export class DaxAudioSink {
     await this.audio.play().catch(() => {});
   }
 
+  getLevel(): number {
+    if (!this.analyser || !this.analyserBuf) return -Infinity;
+    this.analyser.getFloatTimeDomainData(this.analyserBuf as Float32Array<ArrayBuffer>);
+    let sum = 0;
+    let maxAbs = 0;
+    for (const s of this.analyserBuf) {
+      sum += s * s;
+      const abs = Math.abs(s);
+      if (abs > maxAbs) maxAbs = abs;
+    }
+    const rms = Math.sqrt(sum / this.analyserBuf.length);
+    const alpha = rms > this.smoothedRms ? 0.3 : 0.05;
+    this.smoothedRms = alpha * rms + (1 - alpha) * this.smoothedRms;
+    const peakDb = 20 * Math.log10(Math.max(maxAbs, 1e-7));
+    if (peakDb >= this._peak) {
+      this._peak = peakDb;
+      this.peakHoldFrames = DaxAudioSink.PEAK_HOLD;
+    } else if (this.peakHoldFrames > 0) {
+      this.peakHoldFrames--;
+    } else {
+      this._peak = Math.max(this._peak - DaxAudioSink.PEAK_DECAY, peakDb);
+    }
+    return 20 * Math.log10(Math.max(this.smoothedRms, 1e-7));
+  }
+
+  get peak(): number { return this._peak; }
+
   async close(): Promise<void> {
     try {
       this.workletNode?.disconnect();
+      this.analyser?.disconnect();
       this.audio.srcObject = null;
     } finally {
       await this.ctx.close();

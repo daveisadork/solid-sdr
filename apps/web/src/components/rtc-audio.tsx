@@ -8,6 +8,7 @@ import {
   onMount,
   Show,
 } from "solid-js";
+import { createStore } from "solid-js/store";
 import { useRtc } from "../context/rtc";
 import {
   Select,
@@ -30,12 +31,15 @@ import {
 } from "~/components/ui/popover";
 import { DaxAudioSink } from "~/lib/dax-audio-sink";
 import { DaxAudioTx } from "~/lib/dax-audio-tx";
+import { SimpleMeter } from "~/components/ui/simple-meter";
+import type { Meter } from "~/context/flexradio";
 import { SimpleSwitch } from "./ui/simple-switch";
 import { showToast } from "./ui/toast";
 
 function DaxAudioChannel(props: {
   controller: AudioStreamController;
   output: MediaDeviceInfo["deviceId"];
+  onMeter?: (level: number, peak: number) => void;
 }) {
   const sink = new DaxAudioSink();
 
@@ -53,12 +57,34 @@ function DaxAudioChannel(props: {
 
   createEffect(() => sink.setOutputDevice(props.output).catch(console.error));
 
+  createEffect(() => {
+    const onMeter = props.onMeter;
+    if (!onMeter) return;
+    let rafId: number;
+    const tick = () => {
+      onMeter(sink.getLevel(), sink.peak);
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    onCleanup(() => cancelAnimationFrame(rafId));
+  });
+
   return (
-    <div class="sr-only" aria-hidden="true">
-      {/* <AudioSink stream={track.stream} output="default" /> */}
-    </div>
+    <div class="sr-only" aria-hidden="true" />
   );
 }
+
+const DAX_LEVEL_METER: Meter = {
+  id: "",
+  low: -60,
+  high: 0,
+  fps: 60,
+  units: "dBFS",
+  name: "",
+  source: "",
+  sourceIndex: 0,
+  description: "",
+};
 
 function InnerRtcAudio(props: { defaultOpen?: boolean }) {
   const { session, tracks } = useRtc();
@@ -71,6 +97,10 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
     string | undefined
   >();
   const [daxTxStreamId, setDaxTxStreamId] = createSignal<string | undefined>();
+  const [daxRxMeters, setDaxRxMeters] = createStore<Record<number, { level: number; peak: number }>>({});
+  const [daxTxLevel, setDaxTxLevel] = createSignal(-Infinity);
+  const [daxTxPeak, setDaxTxPeak] = createSignal(-Infinity);
+  const [daxTxInstance, setDaxTxInstance] = createSignal<DaxAudioTx | undefined>();
   const outputs = createSpeakers();
   const inputs = createMicrophones();
 
@@ -208,6 +238,7 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
       });
       const tx = new DaxAudioTx(rtc.data, streamId, reducedBandwidth, stream);
       await tx.start();
+      setDaxTxInstance(tx);
       const trackSettings = stream.getAudioTracks()[0].getSettings();
       const device = inputs().find(
         (d) => d.deviceId === trackSettings.deviceId,
@@ -233,11 +264,25 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
     });
 
     onCleanup(() => {
+      setDaxTxInstance(undefined);
       daxPromise.then((tx) => tx?.close().catch(console.error));
       streamPromise.then((stream) =>
         stream.getTracks().forEach((track) => track.stop()),
       );
     });
+  });
+
+  createEffect(() => {
+    const tx = daxTxInstance();
+    if (!tx) { setDaxTxLevel(-Infinity); setDaxTxPeak(-Infinity); return; }
+    let rafId: number;
+    const tick = () => {
+      setDaxTxLevel(tx.getLevel());
+      setDaxTxPeak(tx.peak);
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    onCleanup(() => cancelAnimationFrame(rafId));
   });
 
   return (
@@ -339,6 +384,14 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
                 }
                 label="DAX TX"
               />
+              <Show when={daxTxInstance()}>
+                <SimpleMeter
+                  value={Math.max(daxTxLevel(), DAX_LEVEL_METER.low)}
+                  peakValue={Math.max(daxTxPeak(), DAX_LEVEL_METER.low)}
+                  meter={DAX_LEVEL_METER}
+                  label="DAX TX Level"
+                />
+              </Show>
               <SimpleSwitch
                 checked={preferences.daxTxConfig.reducedBandwidth}
                 onChange={(checked) =>
@@ -391,6 +444,14 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
                     }
                     label={`DAX RX Channel ${channel}`}
                   />
+                  <Show when={daxRxMeters[channel] !== undefined}>
+                    <SimpleMeter
+                      value={Math.max(daxRxMeters[channel]!.level, DAX_LEVEL_METER.low)}
+                      peakValue={Math.max(daxRxMeters[channel]!.peak, DAX_LEVEL_METER.low)}
+                      meter={DAX_LEVEL_METER}
+                      label={`DAX RX ${channel} Level`}
+                    />
+                  </Show>
                   <Select
                     value={preferences.daxRxConfig[channel].outputDeviceId}
                     onChange={(value: string) => {
@@ -456,6 +517,7 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
                 preferences.daxRxConfig[stream.daxChannel]?.outputDeviceId ??
                 "default"
               }
+              onMeter={(level, peak) => setDaxRxMeters(stream.daxChannel, { level, peak })}
             />
           );
         }}

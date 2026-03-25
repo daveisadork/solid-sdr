@@ -6,7 +6,6 @@ import {
 } from "../util/events.js";
 import {
   parseVitaPacket,
-  type ParseVitaPacketOptions,
   type VitaPacketKind,
   type VitaParsedPacket,
   type VitaPacketMetadata,
@@ -109,11 +108,6 @@ export function attachRtcDataChannel(
 class UdpSessionImpl implements UdpSession {
   private readonly events = new TypedEventEmitter<UdpEvents>();
 
-  private readonly scratch: Required<ParseVitaPacketOptions> = {
-    meter: { ids: new Uint16Array(0), values: new Int16Array(0) },
-    panadapter: { payload: new Uint16Array(0) },
-    waterfall: { data: new Uint16Array(0) },
-  };
 
   constructor(private readonly options: UdpSessionOptions) {}
 
@@ -168,7 +162,7 @@ class UdpSessionImpl implements UdpSession {
   }
 
   private dispatch(payload: Uint8Array): void {
-    const parsed = parseVitaPacket(payload, this.scratch);
+    const parsed = parseVitaPacket(payload);
     if (!parsed) {
       this.options.logger?.warn?.("Unhandled UDP packet", {
         payloadLength: payload.byteLength,

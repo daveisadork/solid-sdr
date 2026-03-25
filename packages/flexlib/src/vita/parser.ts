@@ -8,6 +8,12 @@ import { VitaMeterPacket } from "./meter-packet";
 import { VitaFFTPacket } from "./fft-packet";
 import { VitaWaterfallPacket } from "./waterfall-packet";
 import { VitaDiscoveryPacket } from "./discovery";
+import {
+  VitaDaxAudioPacket,
+  VitaDaxReducedBwPacket,
+  VITA_FLEX_DAX_AUDIO_CLASS,
+  VITA_FLEX_DAX_REDUCED_BW_CLASS,
+} from "./dax-audio-packet";
 
 export type VitaPacketKind =
   | "meter"
@@ -36,12 +42,15 @@ export type VitaParsedPacket =
   | (VitaPacketMetadata & { kind: "waterfall"; packet: VitaWaterfallPacket })
   | (VitaPacketMetadata & { kind: "discovery"; packet: VitaDiscoveryPacket })
   | (VitaPacketMetadata & { kind: "opus"; packet: Uint8Array })
-  | (VitaPacketMetadata & { kind: "daxReducedBw"; packet: Uint8Array })
+  | (VitaPacketMetadata & {
+      kind: "daxReducedBw";
+      packet: VitaDaxReducedBwPacket;
+    })
   | (VitaPacketMetadata & { kind: "daxIq24"; packet: Uint8Array })
   | (VitaPacketMetadata & { kind: "daxIq48"; packet: Uint8Array })
   | (VitaPacketMetadata & { kind: "daxIq96"; packet: Uint8Array })
   | (VitaPacketMetadata & { kind: "daxIq192"; packet: Uint8Array })
-  | (VitaPacketMetadata & { kind: "daxAudio"; packet: Uint8Array });
+  | (VitaPacketMetadata & { kind: "daxAudio"; packet: VitaDaxAudioPacket });
 
 export interface ParseVitaPacketOptions {
   meter?: { ids?: Uint16Array; values?: Int16Array };
@@ -53,12 +62,10 @@ const PACKET_CLASS_METER = 0x8002;
 const PACKET_CLASS_FFT = 0x8003;
 const PACKET_CLASS_WATERFALL = 0x8004;
 const PACKET_CLASS_OPUS = 0x8005;
-const PACKET_CLASS_DAX_REDUCED_BW = 0x0123;
 const PACKET_CLASS_DAX_IQ24 = 0x02e3;
 const PACKET_CLASS_DAX_IQ48 = 0x02e4;
 const PACKET_CLASS_DAX_IQ96 = 0x02e5;
 const PACKET_CLASS_DAX_IQ192 = 0x02e6;
-const PACKET_CLASS_DAX_AUDIO = 0x03e3;
 const PACKET_CLASS_DISCOVERY = 0xffff;
 
 export function parseVitaPacket(
@@ -103,12 +110,11 @@ export function parseVitaPacket(
         packet: slicePayload(ctx, data),
         ...metadata,
       };
-    case PACKET_CLASS_DAX_REDUCED_BW:
-      return {
-        kind: "daxReducedBw",
-        packet: slicePayload(ctx, data),
-        ...metadata,
-      };
+    case VITA_FLEX_DAX_REDUCED_BW_CLASS: {
+      const packet = new VitaDaxReducedBwPacket();
+      packet.parseWithContext(ctx);
+      return { kind: "daxReducedBw", packet, ...metadata };
+    }
     case PACKET_CLASS_DAX_IQ24:
       return {
         kind: "daxIq24",
@@ -133,12 +139,11 @@ export function parseVitaPacket(
         packet: slicePayload(ctx, data),
         ...metadata,
       };
-    case PACKET_CLASS_DAX_AUDIO:
-      return {
-        kind: "daxAudio",
-        packet: slicePayload(ctx, data),
-        ...metadata,
-      };
+    case VITA_FLEX_DAX_AUDIO_CLASS: {
+      const packet = new VitaDaxAudioPacket();
+      packet.parseWithContext(ctx);
+      return { kind: "daxAudio", packet, ...metadata };
+    }
     default:
       return null;
   }

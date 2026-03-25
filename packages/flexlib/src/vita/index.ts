@@ -4,4 +4,5 @@ export * from "./packet-preamble";
 export * from "./waterfall-packet";
 export * from "./meter-packet";
 export * from "./fft-packet";
+export * from "./dax-audio-packet";
 export * from "./parser";

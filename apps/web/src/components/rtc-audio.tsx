@@ -69,9 +69,7 @@ function DaxAudioChannel(props: {
     onCleanup(() => cancelAnimationFrame(rafId));
   });
 
-  return (
-    <div class="sr-only" aria-hidden="true" />
-  );
+  return <div class="sr-only" aria-hidden="true" />;
 }
 
 const DAX_LEVEL_METER: Meter = {
@@ -97,10 +95,14 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
     string | undefined
   >();
   const [daxTxStreamId, setDaxTxStreamId] = createSignal<string | undefined>();
-  const [daxRxMeters, setDaxRxMeters] = createStore<Record<number, { level: number; peak: number }>>({});
+  const [daxRxMeters, setDaxRxMeters] = createStore<
+    Record<number, { level: number; peak: number }>
+  >({});
   const [daxTxLevel, setDaxTxLevel] = createSignal(-Infinity);
   const [daxTxPeak, setDaxTxPeak] = createSignal(-Infinity);
-  const [daxTxInstance, setDaxTxInstance] = createSignal<DaxAudioTx | undefined>();
+  const [daxTxInstance, setDaxTxInstance] = createSignal<
+    DaxAudioTx | undefined
+  >();
   const outputs = createSpeakers();
   const inputs = createMicrophones();
 
@@ -274,7 +276,11 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
 
   createEffect(() => {
     const tx = daxTxInstance();
-    if (!tx) { setDaxTxLevel(-Infinity); setDaxTxPeak(-Infinity); return; }
+    if (!tx) {
+      setDaxTxLevel(-Infinity);
+      setDaxTxPeak(-Infinity);
+      return;
+    }
     let rafId: number;
     const tick = () => {
       setDaxTxLevel(tx.getLevel());
@@ -390,6 +396,10 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
                   peakValue={Math.max(daxTxPeak(), DAX_LEVEL_METER.low)}
                   meter={DAX_LEVEL_METER}
                   label="DAX TX Level"
+                  showTicks
+                  showTickLabels
+                  containTickLabels
+                  tickLabelFilter={({ index }) => index % 2 === 0}
                 />
               </Show>
               <SimpleSwitch
@@ -446,8 +456,14 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
                   />
                   <Show when={daxRxMeters[channel] !== undefined}>
                     <SimpleMeter
-                      value={Math.max(daxRxMeters[channel]!.level, DAX_LEVEL_METER.low)}
-                      peakValue={Math.max(daxRxMeters[channel]!.peak, DAX_LEVEL_METER.low)}
+                      value={Math.max(
+                        daxRxMeters[channel]!.level,
+                        DAX_LEVEL_METER.low,
+                      )}
+                      peakValue={Math.max(
+                        daxRxMeters[channel]!.peak,
+                        DAX_LEVEL_METER.low,
+                      )}
                       meter={DAX_LEVEL_METER}
                       label={`DAX RX ${channel} Level`}
                     />
@@ -517,7 +533,9 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
                 preferences.daxRxConfig[stream.daxChannel]?.outputDeviceId ??
                 "default"
               }
-              onMeter={(level, peak) => setDaxRxMeters(stream.daxChannel, { level, peak })}
+              onMeter={(level, peak) =>
+                setDaxRxMeters(stream.daxChannel, { level, peak })
+              }
             />
           );
         }}

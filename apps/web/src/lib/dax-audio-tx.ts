@@ -1,9 +1,10 @@
+import {
+  VitaDaxAudioPacket,
+  VitaDaxReducedBwPacket,
+} from "@repo/flexlib/vita";
+
 const DAX_PACKET_SAMPLES = 128;
-const VITA_FLEX_OUI = 0x001c2d;
-const VITA_FLEX_INFO_CLASS = 0x534c;
-const VITA_FLEX_DAX_REDUCED_BW_CLASS = 0x0123;
-const VITA_FLEX_DAX_AUDIO_CLASS = 0x03e3;
-const VITA_HEADER_BYTES = 28;
+
 const daxAudioTxProcessorURL = URL.createObjectURL(
   new Blob(
     [
@@ -51,6 +52,8 @@ export class DaxAudioTx {
   private readonly streamId: number;
   private readonly leftQueue: number[] = [];
   private readonly rightQueue: number[] = [];
+  private readonly audioPkt: VitaDaxAudioPacket;
+  private readonly reducedBwPkt: VitaDaxReducedBwPacket;
   private worklet?: AudioWorkletNode;
   private analyser?: AnalyserNode;
   private analyserBuf?: Float32Array;
@@ -72,6 +75,15 @@ export class DaxAudioTx {
     this.source = this.context.createMediaStreamSource(stream);
     this.mute = this.context.createGain();
     this.mute.gain.value = 0;
+
+    this.audioPkt = new VitaDaxAudioPacket();
+    this.audioPkt.streamId = this.streamId;
+    this.audioPkt.left = new Float32Array(DAX_PACKET_SAMPLES);
+    this.audioPkt.right = new Float32Array(DAX_PACKET_SAMPLES);
+
+    this.reducedBwPkt = new VitaDaxReducedBwPacket();
+    this.reducedBwPkt.streamId = this.streamId;
+    this.reducedBwPkt.samples = new Int16Array(DAX_PACKET_SAMPLES);
   }
 
   async start(): Promise<void> {
@@ -91,21 +103,31 @@ export class DaxAudioTx {
         }
 
         while (this.leftQueue.length >= DAX_PACKET_SAMPLES) {
-          const frameLeft = this.leftQueue.splice(0, DAX_PACKET_SAMPLES);
-          const frameRight = this.rightQueue.splice(0, DAX_PACKET_SAMPLES);
-          const packet = this.reducedBw
-            ? buildReducedBwPacket(this.streamId, this.packetCount, frameLeft)
-            : buildStereoPacket(
-                this.streamId,
-                this.packetCount,
-                frameLeft,
-                frameRight,
-              );
+          let packet: Uint8Array;
+          if (this.reducedBw) {
+            this.reducedBwPkt.header.packetCount = this.packetCount;
+            const s = this.reducedBwPkt.samples;
+            for (let i = 0; i < DAX_PACKET_SAMPLES; i += 1) {
+              s[i] = Math.round(clamp(this.leftQueue[i]) * 32767);
+            }
+            packet = this.reducedBwPkt.toBytes();
+          } else {
+            this.audioPkt.header.packetCount = this.packetCount;
+            const l = this.audioPkt.left;
+            const r = this.audioPkt.right;
+            for (let i = 0; i < DAX_PACKET_SAMPLES; i += 1) {
+              l[i] = clamp(this.leftQueue[i]);
+              r[i] = clamp(this.rightQueue[i]);
+            }
+            packet = this.audioPkt.toBytes();
+          }
+
+          this.leftQueue.splice(0, DAX_PACKET_SAMPLES);
+          this.rightQueue.splice(0, DAX_PACKET_SAMPLES);
           this.packetCount = (this.packetCount + 1) % 16;
 
           if (this.data.readyState === "open") {
-            const payload = packet.slice().buffer as ArrayBuffer;
-            this.data.send(payload);
+            this.data.send(packet.buffer as ArrayBuffer);
           }
         }
       };
@@ -168,81 +190,6 @@ function parseStreamId(streamId: string): number {
     return Number.parseInt(trimmed.slice(2), 16);
   }
   return Number.parseInt(trimmed, 10);
-}
-
-function buildStereoPacket(
-  streamId: number,
-  packetCount: number,
-  left: number[],
-  right: number[],
-): Uint8Array {
-  const payloadBytes = DAX_PACKET_SAMPLES * 8;
-  const packet = createPacket(
-    streamId,
-    packetCount,
-    VITA_FLEX_DAX_AUDIO_CLASS,
-    payloadBytes / 4 + 7,
-    payloadBytes,
-  );
-  const view = new DataView(packet.buffer);
-  let offset = VITA_HEADER_BYTES;
-
-  for (let i = 0; i < DAX_PACKET_SAMPLES; i += 1) {
-    view.setFloat32(offset, clamp(left[i] ?? 0));
-    offset += 4;
-    view.setFloat32(offset, clamp(right[i] ?? 0));
-    offset += 4;
-  }
-
-  return packet;
-}
-
-function buildReducedBwPacket(
-  streamId: number,
-  packetCount: number,
-  mono: number[],
-): Uint8Array {
-  const payloadBytes = DAX_PACKET_SAMPLES * 2;
-  const packet = createPacket(
-    streamId,
-    packetCount,
-    VITA_FLEX_DAX_REDUCED_BW_CLASS,
-    payloadBytes / 4 + 7,
-    payloadBytes,
-  );
-  const view = new DataView(packet.buffer);
-  let offset = VITA_HEADER_BYTES;
-
-  for (let i = 0; i < DAX_PACKET_SAMPLES; i += 1) {
-    view.setInt16(offset, Math.round(clamp(mono[i] ?? 0) * 32767));
-    offset += 2;
-  }
-
-  return packet;
-}
-
-function createPacket(
-  streamId: number,
-  packetCount: number,
-  packetClass: number,
-  packetSizeWords: number,
-  payloadBytes: number,
-): Uint8Array {
-  const packet = new Uint8Array(VITA_HEADER_BYTES + payloadBytes);
-  const view = new DataView(packet.buffer);
-
-  view.setUint8(0, (1 << 4) | (1 << 3));
-  view.setUint8(1, (3 << 6) | (1 << 4) | (packetCount & 0x0f));
-  view.setUint16(2, packetSizeWords);
-  view.setUint32(4, streamId);
-  view.setUint32(8, VITA_FLEX_OUI);
-  view.setUint16(12, VITA_FLEX_INFO_CLASS);
-  view.setUint16(14, packetClass);
-  view.setUint32(16, 0);
-  view.setUint32(20, 0);
-  view.setUint32(24, 0);
-
-  return packet;
 }
 
 function clamp(sample: number): number {

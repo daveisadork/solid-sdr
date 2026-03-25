@@ -1,4 +1,8 @@
-import type { AudioStreamDataEvent } from "@repo/flexlib";
+import type {
+  AudioStreamDataEvent,
+  VitaDaxAudioPacket,
+  VitaDaxReducedBwPacket,
+} from "@repo/flexlib";
 
 const SAMPLE_RATE = 24_000;
 const RING_FRAMES = 16384; // ~682ms capacity at 24kHz
@@ -170,39 +174,19 @@ export class DaxAudioSink {
   play(event: AudioStreamDataEvent): void {
     if (!this.idx) return;
 
-    const { packet, kind, metadata } = event;
-    if (!packet.byteLength) return;
-
+    const { kind, metadata } = event;
     void this.ctx.resume().catch(console.error);
 
-    const view = new DataView(
-      packet.buffer,
-      packet.byteOffset,
-      packet.byteLength,
-    );
     let srcPlanes: Float32Array[];
 
     if (kind === "daxAudio") {
-      if (packet.byteLength % 8 !== 0) return;
-      const n = packet.byteLength / 8;
-      const left = new Float32Array(n);
-      const right = new Float32Array(n);
-      for (let i = 0, off = 0; i < n; i++) {
-        left[i] = view.getFloat32(off);
-        off += 4;
-        right[i] = view.getFloat32(off);
-        off += 4;
-      }
-      srcPlanes = [left, right];
+      const pkt = event.packet as VitaDaxAudioPacket;
+      if (!pkt.numFrames) return;
+      srcPlanes = [pkt.left, pkt.right];
     } else if (kind === "daxReducedBw") {
-      if (packet.byteLength % 2 !== 0) return;
-      const n = packet.byteLength / 2;
-      const mono = new Float32Array(n);
-      for (let i = 0, off = 0; i < n; i++) {
-        mono[i] = view.getInt16(off) / 32767;
-        off += 2;
-      }
-      srcPlanes = [mono];
+      const pkt = event.packet as VitaDaxReducedBwPacket;
+      if (!pkt.numFrames) return;
+      srcPlanes = [Float32Array.from(pkt.samples, (s) => s / 32767)];
     } else {
       return;
     }
@@ -249,7 +233,9 @@ export class DaxAudioSink {
 
   getLevel(): number {
     if (!this.analyser || !this.analyserBuf) return -Infinity;
-    this.analyser.getFloatTimeDomainData(this.analyserBuf as Float32Array<ArrayBuffer>);
+    this.analyser.getFloatTimeDomainData(
+      this.analyserBuf as Float32Array<ArrayBuffer>,
+    );
     let sum = 0;
     let maxAbs = 0;
     for (const s of this.analyserBuf) {
@@ -272,7 +258,9 @@ export class DaxAudioSink {
     return 20 * Math.log10(Math.max(this.smoothedRms, 1e-7));
   }
 
-  get peak(): number { return this._peak; }
+  get peak(): number {
+    return this._peak;
+  }
 
   async close(): Promise<void> {
     try {

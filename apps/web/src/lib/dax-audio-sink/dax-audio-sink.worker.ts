@@ -1,40 +1,9 @@
-const SAMPLE_RATE = 24_000;
+import {
+  DAX_AUDIO_SAMPLE_RATE as SAMPLE_RATE,
+  type SinkMessage,
+} from "./types";
+
 const SCALE_I16_TO_F32 = 1 / 32768;
-
-interface InitMessage {
-  type: "init";
-  channels: number;
-  framesPerChannel: number;
-  audioSAB: SharedArrayBuffer;
-  indexSAB: SharedArrayBuffer;
-  bufferMs: number;
-}
-
-interface BufferMsMessage {
-  type: "bufferMs";
-  ms: number;
-}
-
-interface DaxAudioPacketMessage {
-  type: "packet";
-  kind: "daxAudio";
-  seq: number;
-  left: Float32Array;
-  right: Float32Array;
-}
-
-interface DaxReducedBwPacketMessage {
-  type: "packet";
-  kind: "daxReducedBw";
-  seq: number;
-  samples: Int16Array;
-}
-
-type SinkMessage =
-  | InitMessage
-  | BufferMsMessage
-  | DaxAudioPacketMessage
-  | DaxReducedBwPacketMessage;
 
 interface QueueEntry {
   seq: number;
@@ -223,4 +192,3 @@ self.onmessage = (e: MessageEvent<SinkMessage>) => {
 };
 
 export {};
-

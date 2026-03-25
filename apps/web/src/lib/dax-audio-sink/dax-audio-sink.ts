@@ -3,9 +3,11 @@ import type {
   VitaDaxAudioPacket,
   VitaDaxReducedBwPacket,
 } from "@repo/flexlib";
-
-const SAMPLE_RATE = 24_000;
-const RING_FRAMES = 16384; // ~682ms capacity at 24kHz
+import {
+  DAX_AUDIO_RING_FRAMES as RING_FRAMES,
+  DAX_AUDIO_SAMPLE_RATE as SAMPLE_RATE,
+  type SinkMessage,
+} from "./types";
 
 const sabWorkletURL = new URL(
   "./dax-audio-sink.worklet.ts",
@@ -90,7 +92,7 @@ export class DaxAudioSink {
       audioSAB,
       indexSAB,
       bufferMs: this.bufferMs,
-    });
+    } satisfies SinkMessage);
     this.worker = worker;
 
     if (this.ctx.state !== "running") await this.ctx.resume();
@@ -114,7 +116,7 @@ export class DaxAudioSink {
         seq,
         left: pkt.left,
         right: pkt.right,
-      });
+      } satisfies SinkMessage);
     } else if (kind === "daxReducedBw") {
       const pkt = event.packet as VitaDaxReducedBwPacket;
       if (!pkt.numFrames) return;
@@ -123,7 +125,7 @@ export class DaxAudioSink {
         kind,
         seq,
         samples: pkt.samples,
-      });
+      } satisfies SinkMessage);
     } else {
       return;
     }
@@ -131,7 +133,7 @@ export class DaxAudioSink {
 
   setBufferMs(ms: number): void {
     this.bufferMs = ms;
-    this.worker?.postMessage({ type: "bufferMs", ms });
+    this.worker?.postMessage({ type: "bufferMs", ms } satisfies SinkMessage);
   }
 
   async setOutputDevice(deviceId: string): Promise<void> {

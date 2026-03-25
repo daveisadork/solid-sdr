@@ -466,6 +466,10 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
                       )}
                       meter={DAX_LEVEL_METER}
                       label={`DAX RX ${channel} Level`}
+                      showTicks
+                      showTickLabels
+                      containTickLabels
+                      tickLabelFilter={({ index }) => index % 2 === 0}
                     />
                   </Show>
                   <Select

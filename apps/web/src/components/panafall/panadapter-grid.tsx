@@ -1,6 +1,6 @@
 import { For } from "solid-js";
 import { cn } from "~/lib/utils";
-import type { LinearScaleTick } from "./linear-scale";
+import type { LinearScaleTick } from "../linear-scale";
 import type { FrequencyGridTick } from "./scale";
 
 type PanadapterGridProps = {

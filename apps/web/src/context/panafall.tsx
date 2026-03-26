@@ -20,30 +20,69 @@ import {
 import { createElementBounds } from "@solid-primitives/bounds";
 import { usePreferences } from "./preferences";
 
+/**
+ * Context for a single panadapter/waterfall pair ("panafall").
+ *
+ * Coordinate system notes:
+ * - **px** values are pixel offsets measured from the left edge of the panadapter canvas.
+ * - **MHz** values are frequency widths (not absolute frequencies).
+ * - **freq** values are absolute frequencies in MHz.
+ *
+ * When transparency effects are enabled, `x` coordinates are viewport-relative
+ * (the canvas is full-screen). When disabled, they are element-relative.
+ */
 const PanafallContext = createContext<{
+  /** The currently active (transmit/receive focus) slice, if any. */
   activeSlice: Accessor<Slice | undefined>;
+  /**
+   * Converts an absolute frequency (MHz) to an x pixel position on the canvas.
+   * Accounts for the transparency-effects offset when that preference is disabled.
+   */
   freqToX: (freq: number) => number;
+  /** MHz represented by a single pixel — the inverse of `pxPerMHz`. */
   mhzPerPx: Accessor<number>;
+  /** Converts a frequency width in MHz to a pixel width. */
   mhzToPx: (mhz: number) => number;
+  /** The current panadapter state object from the radio. */
   panadapter: Accessor<Panadapter>;
+  /** Controller for sending commands to the panadapter (pan, zoom, etc.). */
   panadapterController: Accessor<PanadapterController>;
+  /** Reactive bounding rect of the panadapter/waterfall element. */
   panafallBounds: ReturnType<typeof createElementBounds>;
+  /** Pixels per MHz — how many pixels represent one MHz of bandwidth. */
   pxPerMHz: Accessor<number>;
+  /** Converts a pixel width to a frequency width in MHz. */
   pxToMHz: (px: number) => number;
-  sizeRef: Accessor<HTMLElement | undefined>;
-  setSizeRef: (el: HTMLElement) => void;
+  panafallControlsRef: Accessor<HTMLElement | undefined>;
+  setPanafallControlsRef: (el: HTMLElement) => void;
+  panadapterControlsRef: Accessor<HTMLElement | undefined>;
+  setPanadapterControlsRef: (el: HTMLElement) => void;
+  waterfallControlsRef: Accessor<HTMLElement | undefined>;
+  setWaterfallControlsRef: (el: HTMLElement) => void;
+  /** All slices that are in-use and belong to this panadapter. */
   slices: Accessor<Slice[]>;
+  /** The current waterfall state object from the radio. */
   waterfall: Accessor<Waterfall>;
+  /** Controller for sending commands to the waterfall (speed, colors, etc.). */
   waterfallController: Accessor<WaterfallController>;
+  /**
+   * Converts an x pixel position on the canvas to an absolute frequency (MHz).
+   * Accounts for the transparency-effects offset when that preference is disabled.
+   */
   xToFreq: (x: number) => number;
 }>();
 
 export const PanafallProvider: ParentComponent = (props) => {
   const { radio, state } = useFlexRadio();
   const { preferences } = usePreferences();
-  const [sizeRef, setSizeRef] = createSignal<HTMLElement>();
+  const [panafallControlsRef, setPanafallControlsRef] =
+    createSignal<HTMLElement>();
+  const [waterfallControlsRef, setWaterfallControlsRef] =
+    createSignal<HTMLElement>();
+  const [panadapterControlsRef, setPanadapterControlsRef] =
+    createSignal<HTMLElement>();
   const [wakeLock, setWakeLock] = createSignal<WakeLockSentinel>();
-  const panafallBounds = createElementBounds(sizeRef);
+  const panafallBounds = createElementBounds(panafallControlsRef);
   const panadapter = createMemo(
     () => state.status.panadapter[state.selectedPanadapter],
   );
@@ -140,8 +179,12 @@ export const PanafallProvider: ParentComponent = (props) => {
           panafallBounds,
           pxPerMHz,
           pxToMHz,
-          setSizeRef,
-          sizeRef,
+          setPanafallControlsRef,
+          panafallControlsRef,
+          setPanadapterControlsRef,
+          panadapterControlsRef,
+          setWaterfallControlsRef,
+          waterfallControlsRef,
           slices,
           waterfall,
           waterfallController,

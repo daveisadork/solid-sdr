@@ -1,5 +1,5 @@
 import useFlexRadio from "~/context/flexradio";
-import { Resizable, ResizablePanel } from "./ui/resizable";
+import { Resizable, ResizablePanel } from "../ui/resizable";
 import {
   batch,
   createEffect,
@@ -28,8 +28,8 @@ import ThemeLightDark from "~icons/mdi/theme-light-dark";
 import LightMode from "~icons/material-symbols/light-mode-outline";
 import DarkMode from "~icons/material-symbols/dark-mode-outline";
 import MaterialSymbolsAddCommentOutlineRounded from "~icons/material-symbols/add-comment-outline-rounded";
-import { Button } from "./ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
+import { Button } from "../ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import {
   createLocalStorageManager,
   useColorMode,
@@ -43,12 +43,12 @@ import {
   ContextMenuTrigger,
   ContextMenuPortal,
   ContextMenuCheckboxItem,
-} from "./ui/context-menu";
-import { Portal } from "solid-js/web";
+} from "../ui/context-menu";
 import { usePanafall } from "~/context/panafall";
 import { createWindowSize } from "@solid-primitives/resize-observer";
 import { usePreferences } from "~/context/preferences";
-import { Toggle } from "./ui/toggle";
+import { Toggle } from "../ui/toggle";
+import { PanafallControl } from "./controls";
 
 type PanafallButtonProps<T extends ValidComponent = "button"> = ComponentProps<
   typeof TooltipTrigger<T>
@@ -163,8 +163,7 @@ export function Panafall() {
     pxToMHz,
     mhzToPx,
     xToFreq,
-    sizeRef,
-    setSizeRef,
+    setPanafallControlsRef,
     panafallBounds,
   } = usePanafall();
 
@@ -337,16 +336,15 @@ export function Panafall() {
 
   return (
     <div
-      class="size-full"
+      class="size-full overflow-visible"
       classList={{
         relative: !preferences.enableTransparencyEffects,
       }}
-      ref={setSizeRef}
     >
       <div
         class="absolute overflow-visible"
         classList={{
-          "top-0 left-0 w-dvw h-dvh": preferences.enableTransparencyEffects,
+          "top-0 left-0 w-dvw h-full": preferences.enableTransparencyEffects,
           "inset-0": !preferences.enableTransparencyEffects,
         }}
         style={{
@@ -363,9 +361,9 @@ export function Panafall() {
         <Show when={panadapter()}>
           {(pan) => (
             <Show when={waterfall()}>
-              <div class="relative size-full overflow-clip select-none">
+              <div class="relative size-full overflow-visible select-none">
                 <Resizable
-                  class="size-full overflow-clip select-none"
+                  class="size-full overflow-visible select-none"
                   orientation="vertical"
                   sizes={[
                     preferences.panadapterSize,
@@ -386,7 +384,7 @@ export function Panafall() {
                     />
                   </ResizablePanel>
                   <Scale pan={pan()} />
-                  <ResizablePanel class="overflow-clip select-none">
+                  <ResizablePanel class="overflow-visible select-none">
                     <Waterfall
                       pan={pan()}
                       waterfall={waterfall()}
@@ -440,7 +438,7 @@ export function Panafall() {
                   </ContextMenuPortal>
                 </ContextMenu>
               </div>
-              <Portal mount={sizeRef()}>
+              <PanafallControl>
                 <div class="absolute bottom-2 left-2 grid grid-cols-2 gap-1 text-xs">
                   <PanafallToggleButton
                     pressed={pan().isBandZoomOn}
@@ -530,7 +528,7 @@ export function Panafall() {
                     </Show>
                   </PanafallButton>
                 </div>
-              </Portal>
+              </PanafallControl>
               <Show
                 when={
                   preferences.showTuningGuide &&
@@ -548,16 +546,20 @@ export function Panafall() {
                   }}
                   style={{
                     "--cursor-x": `${pos.x}px`,
+                    "--cursor-y": `${pos.y}px`,
                   }}
-                />
+                >
+                  <div class="absolute border rounded-md fancy-bg-popover py-1 px-2 text-xs top-4 translate-y-(--cursor-y) pointer-events-none -translate-x-1/2 whitespace-nowrap font-mono z-50">
+                    {xToFreq(pos.x).toFixed(3)} MHz
+                  </div>
+                </div>
               </Show>
             </Show>
           )}
         </Show>
       </div>
       <div
-        ref={setSizeRef}
-        id="panafall-sizer"
+        ref={setPanafallControlsRef}
         class="relative size-full pointer-events-none *:pointer-events-auto"
       />
     </div>

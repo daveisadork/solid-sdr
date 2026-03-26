@@ -1,37 +1,25 @@
 import {
   createMemo,
   For,
-  Show,
   mergeProps,
   createSignal,
   createEffect,
-  Match,
-  Switch,
   JSX,
 } from "solid-js";
 import { createElementSize } from "@solid-primitives/resize-observer";
 import { cn } from "~/lib/utils";
 
-type Orientation = "vertical" | "horizontal";
-
 export type LinearScaleProps = {
   min: number;
   max: number;
-  orientation?: Orientation;
   invert?: boolean;
-  ticks?: number[];
-  tickStep?: number;
-  targetTicks?: number;
   tickSpacing?: number;
   format?: (value: number) => string;
-  tickLength?: number | string;
-  showTicks?: boolean;
-  showMin?: boolean;
-  showMax?: boolean;
+  hideMin?: boolean;
+  hideMax?: boolean;
   class?: string;
   tickClass?: string;
   labelClass?: string;
-  lineClass?: string;
   renderTick?: (value: number) => JSX.Element;
   onTicksChange?: (ticks: LinearScaleTick[]) => void;
 };
@@ -47,27 +35,7 @@ const DEFAULT_TICK_COUNT = 5;
 const DEFAULT_TICK_SPACING = 56;
 const EPSILON = 1e-6;
 
-function niceTickStep(min: number, max: number, count: number) {
-  const span = max - min;
-  if (!isFinite(span) || span === 0 || !isFinite(count) || count <= 0) {
-    return 0;
-  }
-  const step0 = Math.abs(span) / count;
-  let step = Math.pow(10, Math.floor(Math.log10(step0)));
-  const error = step0 / step;
-  if (error >= 10) {
-    step *= 10;
-  } else if (error >= 5) {
-    step *= 5;
-  } else if (error >= 2) {
-    step *= 2;
-  }
-  return step;
-}
-
-function approximateEqual(a: number, b: number, tolerance = EPSILON) {
-  return Math.abs(a - b) <= tolerance;
-}
+const scalingSteps = [1, 2, 5, 10, 20, 25, 30, 50, 60, 100];
 
 function defaultFormatter(value: number) {
   if (!Number.isFinite(value)) return "";
@@ -79,35 +47,19 @@ function defaultFormatter(value: number) {
     : value.toFixed(2).replace(/\.?0+$/, "");
 }
 
-function resolveLength(length?: number | string) {
-  if (length == null) return undefined;
-  return typeof length === "number" ? `${length}px` : length;
-}
-
 export function LinearScale(props: LinearScaleProps) {
   const merged = mergeProps(
     {
-      orientation: "vertical" as Orientation,
-      invert: false,
       format: defaultFormatter,
       tickSpacing: DEFAULT_TICK_SPACING,
-      showTicks: true,
-      showMin: true,
-      showMax: true,
     },
     props,
   );
-
   const [container, setContainer] = createSignal<HTMLDivElement>();
   const size = createElementSize(container);
 
   const targetTickCount = createMemo(() => {
-    const explicit = merged.targetTicks;
-    if (explicit && explicit > 0 && Number.isFinite(explicit)) {
-      return explicit;
-    }
-    const dimension =
-      merged.orientation === "vertical" ? size.height : size.width;
+    const dimension = size.height;
     const spacing = merged.tickSpacing ?? DEFAULT_TICK_SPACING;
     if (!dimension || !Number.isFinite(dimension) || dimension <= 0) {
       return DEFAULT_TICK_COUNT;
@@ -116,111 +68,38 @@ export function LinearScale(props: LinearScaleProps) {
     return Number.isFinite(desired) ? desired : DEFAULT_TICK_COUNT;
   });
 
-  const ticks = createMemo<LinearScaleTick[]>(() => {
-    const min = merged.min;
-    const max = merged.max;
-    if (!Number.isFinite(min) || !Number.isFinite(max)) return [];
-    const target = targetTickCount();
-    if (approximateEqual(min, max)) {
-      return [
-        {
-          value: min,
-          label: merged.renderTick
-            ? merged.renderTick(min)
-            : merged.format(min),
-          position: 0.5,
-          isEdge: "max",
-        },
-      ];
-    }
-    const span = max - min;
-    const sourceTicks =
-      merged.ticks && merged.ticks.length
-        ? merged.ticks.slice().sort((a, b) => a - b)
-        : undefined;
+  const allTicks = createMemo<LinearScaleTick[]>(() => {
+    const min = Math.floor(merged.min);
+    const max = Math.ceil(merged.max);
+    const range = merged.max - merged.min;
+    const render = merged.renderTick || merged.format;
 
-    let step = merged.tickStep;
-    if (!step && !sourceTicks) {
-      step = niceTickStep(min, max, target ?? DEFAULT_TICK_COUNT);
-    }
-
-    const values: number[] = [];
-    if (sourceTicks) {
-      sourceTicks.forEach((value) => {
-        if (value < min - EPSILON || value > max + EPSILON) return;
-        values.push(value);
-      });
-    } else if (step) {
-      const safeStep = Math.abs(step);
-      const start = Math.ceil(min / safeStep) * safeStep;
-      const limit = max + safeStep / 2;
-      for (let value = start; value <= limit; value += safeStep) {
-        if (value < min - EPSILON) continue;
-        values.push(Number(value.toPrecision(12)));
-      }
-    }
-
-    if (!values.length) {
-      values.push(min, max);
-    }
-
-    const includesMin = values.some((value) => approximateEqual(value, min));
-    const includesMax = values.some((value) => approximateEqual(value, max));
-    if (!includesMin) values.push(min);
-    if (!includesMax) values.push(max);
-
-    values.sort((a, b) => a - b);
-
-    const unique: number[] = [];
-    for (const value of values) {
-      if (
-        !unique.length ||
-        !approximateEqual(
-          value,
-          unique[unique.length - 1],
-          Math.max(span * 1e-6, EPSILON),
-        )
-      ) {
-        unique.push(value);
-      }
-    }
-
-    const datums = unique.map((value) => {
-      const ratio = span === 0 ? 0.5 : (value - min) / span;
-      const position =
-        merged.orientation === "vertical"
-          ? merged.invert
-            ? ratio
-            : 1 - ratio
-          : merged.invert
-            ? 1 - ratio
-            : ratio;
-      const isEdge = approximateEqual(value, min)
-        ? ("min" as const)
-        : approximateEqual(value, max)
-          ? ("max" as const)
-          : null;
-      const label = merged.renderTick
-        ? merged.renderTick(value)
-        : merged.format(value);
-
+    return Array.from({ length: max - min + 1 }, (_, i) => {
+      const value = min + i;
       return {
         value,
-        label,
-        position,
-        isEdge,
+        label: render(value),
+        position: (merged.max - value) / range,
+        isEdge: min === value ? "min" : max === value ? "max" : null,
       };
     });
+  });
 
-    let filtered = datums;
-    if (!merged.showMin) {
-      filtered = filtered.filter((tick) => tick.isEdge !== "min");
+  const ticks = createMemo<LinearScaleTick[]>(() => {
+    const target = targetTickCount();
+    const ticks = allTicks().filter(
+      (tick) =>
+        (!merged.hideMin || tick.isEdge !== "min") &&
+        (!merged.hideMax || tick.isEdge !== "max"),
+    );
+    for (const step of scalingSteps) {
+      const filtered = ticks.filter((tick) => tick.value % step === 0);
+      if (filtered.length <= target) {
+        return filtered;
+      }
     }
-    if (!merged.showMax) {
-      filtered = filtered.filter((tick) => tick.isEdge !== "max");
-    }
-
-    return filtered.length ? filtered : datums;
+    const modulo = Math.round(ticks.length / target);
+    return ticks.filter((tick) => tick.value % modulo === 0);
   });
 
   createEffect(() => {
@@ -232,97 +111,32 @@ export function LinearScale(props: LinearScaleProps) {
     <div
       ref={setContainer}
       class={cn(
-        "relative size-full flex select-none font-mono text-xs text-primary/80",
+        "relative size-full flex select-none font-mono text-xs text-primary/80 flex-col",
         merged.class,
       )}
-      classList={{
-        "flex-col": merged.orientation === "vertical",
-      }}
     >
-      <Switch>
-        <Match when={merged.orientation === "vertical"}>
-          <div class="relative h-full w-full">
-            <For each={ticks()}>
-              {(tick) => {
-                const length = resolveLength(merged.tickLength) ?? "100%";
-                const showTickLine = !!merged.showTicks;
-                return (
-                  <div
-                    class={cn(
-                      "absolute inset-x-0 top-(--tick-position)",
-                      merged.tickClass,
-                    )}
-                    style={{ "--tick-position": `${tick.position * 100}%` }}
-                  >
-                    <div class="relative h-0">
-                      <Show when={showTickLine}>
-                        <div
-                          class={cn(
-                            "block h-px rounded-full bg-primary/25 -translate-x-1/2",
-                            merged.lineClass,
-                          )}
-                          style={{
-                            width: length,
-                            transform: "translateY(-0.5px)",
-                          }}
-                        />
-                      </Show>
-                      <div
-                        class={cn(
-                          "absolute right-0 top-0 whitespace-nowrap text-xs font-medium text-primary scale-label-shadow -translate-y-1/2",
-                          merged.labelClass,
-                        )}
-                      >
-                        {tick.label}
-                      </div>
-                    </div>
-                  </div>
-                );
-              }}
-            </For>
+      <For each={ticks()}>
+        {(tick) => (
+          <div
+            class={cn(
+              "absolute inset-x-0 top-(--tick-position)",
+              merged.tickClass,
+            )}
+            style={{ "--tick-position": `${tick.position * 100}%` }}
+          >
+            <div class="relative h-0">
+              <div
+                class={cn(
+                  "absolute right-0 top-0 whitespace-nowrap text-xs font-medium text-primary scale-label-shadow -translate-y-1/2",
+                  merged.labelClass,
+                )}
+              >
+                {tick.label}
+              </div>
+            </div>
           </div>
-        </Match>
-        <Match when={merged.orientation === "horizontal"}>
-          <div class="relative h-full w-full">
-            <For each={ticks()}>
-              {(tick) => {
-                const length = resolveLength(merged.tickLength) ?? "100%";
-                const showTickLine = !!merged.showTicks;
-                return (
-                  <div
-                    class={cn("absolute top-0 bottom-0", merged.tickClass)}
-                    style={{ left: `${tick.position * 100}%` }}
-                  >
-                    <div class="relative w-0">
-                      <Show when={showTickLine}>
-                        <div
-                          class={cn(
-                            "block w-px rounded-full bg-primary/25",
-                            merged.lineClass,
-                            tick.isEdge ? "bg-primary/35" : "",
-                          )}
-                          style={{
-                            height: length,
-                            transform: "translateX(-0.5px)",
-                          }}
-                        />
-                      </Show>
-                      <div
-                        class={cn(
-                          "absolute left-0 top-0 whitespace-nowrap text-xs font-medium text-primary scale-label-shadow",
-                          merged.labelClass,
-                        )}
-                      >
-                        {tick.label}
-                      </div>
-                    </div>
-                  </div>
-                );
-              }}
-            </For>
-          </div>
-        </Match>
-      </Switch>
+        )}
+      </For>
     </div>
   );
 }

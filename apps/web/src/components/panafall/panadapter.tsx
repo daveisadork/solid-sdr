@@ -11,12 +11,11 @@ import useFlexRadio, {
   Waterfall,
   type UdpPacketEvent,
 } from "~/context/flexradio";
-import { DetachedSlices, Slice } from "./slice";
+import { DetachedSlices, Slice } from "../slice";
 import { debounce } from "@solid-primitives/scheduled";
 import { createElementSize } from "@solid-primitives/resize-observer";
-import { Portal } from "solid-js/web";
-import { LinearScale } from "./linear-scale";
-import type { LinearScaleTick } from "./linear-scale";
+import { LinearScale } from "../linear-scale";
+import type { LinearScaleTick } from "../linear-scale";
 import { PanadapterGrid } from "./panadapter-grid";
 import { buildFrequencyGrid } from "./scale";
 import type { FrequencyGridTick } from "./scale";
@@ -24,6 +23,7 @@ import { parseColor } from "@kobalte/core/colors";
 import { PanadapterController } from "@repo/flexlib";
 import { usePanafall } from "~/context/panafall";
 import { usePreferences } from "~/context/preferences";
+import { PanafallControl } from "./controls";
 
 export function Panadapter(props: {
   pan: PanadapterState;
@@ -32,7 +32,6 @@ export function Panadapter(props: {
 }) {
   const { state } = useFlexRadio();
   const { preferences } = usePreferences();
-  const { sizeRef } = usePanafall();
 
   const [canvasRef, setCanvasRef] = createSignal<HTMLCanvasElement>();
   const [wrapper, setWrapper] = createSignal<HTMLDivElement>();
@@ -362,11 +361,11 @@ export function Panadapter(props: {
         class="absolute size-full translate-x-(--drag-offset) select-none"
       />
       <Show when={preferences.showFps}>
-        <Portal mount={sizeRef()}>
+        <PanafallControl>
           <div class="absolute top-7 left-2 -z-50 text-lg font-mono whitespace-pre font-bold text-indigo-400/50">
             P: {fps().toString().padStart(4, " ")}
           </div>
-        </Portal>
+        </PanafallControl>
       </Show>
       <div class="absolute top-0 left-(--panafall-left) h-(--panadapter-available-height) w-(--panafall-available-width)">
         <div class="absolute inset-y-0 right-0 w-10">
@@ -377,11 +376,6 @@ export function Panadapter(props: {
               class="h-full"
               tickClass="pr-0.5"
               labelClass="text-[10px] font-semibold scale-text-shadow"
-              lineClass="bg-primary/25"
-              tickLength={9}
-              showTicks={false}
-              showMin={false}
-              showMax={false}
               format={(value) => `${Math.round(value)}`}
               onTicksChange={setLevelTicks}
             />

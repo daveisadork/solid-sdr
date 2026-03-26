@@ -7,16 +7,16 @@ import {
   onCleanup,
   Show,
 } from "solid-js";
-import { Portal } from "solid-js/web";
 import useFlexRadio, {
   type Panadapter,
   type Waterfall as WaterfallState,
   type UdpPacketEvent,
 } from "~/context/flexradio";
-import { LinearScale } from "./linear-scale";
+import { LinearScale } from "../linear-scale";
 import { WaterfallController } from "@repo/flexlib";
 import { usePreferences } from "~/context/preferences";
 import { usePanafall } from "~/context/panafall";
+import { PanafallControl } from "./controls";
 
 export function Waterfall(props: {
   waterfall: WaterfallState;
@@ -25,7 +25,7 @@ export function Waterfall(props: {
 }) {
   const { state, setState } = useFlexRadio();
   const { preferences } = usePreferences();
-  const { sizeRef } = usePanafall();
+  const { setWaterfallControlsRef } = usePanafall();
 
   const [canvasWidth, setCanvasWidth] = createSignal(1);
   const [canvasHeight, setCanvasHeight] = createSignal(1);
@@ -141,7 +141,7 @@ export function Waterfall(props: {
   });
 
   const totalSeconds = createMemo(() => {
-    const { height } = wrapperSize;
+    const height = canvasHeight();
     const duration = props.waterfall.lineDurationMs;
     if (!height || !duration) return 0;
     return (height * duration) / 1000;
@@ -390,34 +390,32 @@ export function Waterfall(props: {
         }}
       />
       <Show when={preferences.showFps}>
-        <Portal mount={sizeRef()}>
+        <PanafallControl>
           <div class="absolute top-12 left-2 -z-50 text-lg font-mono whitespace-pre font-bold text-emerald-400/50">
             W: {fps().toString().padStart(4, " ")}
           </div>
-        </Portal>
+        </PanafallControl>
       </Show>
-      <Show when={totalSeconds() > 0}>
-        <div class="absolute inset-y-0 left-(--panafall-left) w-(--panafall-available-width) pointer-events-none">
-          <div class="pointer-events-none absolute inset-y-0 right-0 w-10">
+      <div class="absolute inset-y-0 left-(--panafall-left) w-(--panafall-available-width) pointer-events-none">
+        <Show when={totalSeconds() > 0}>
+          <div
+            class="pointer-events-none absolute top-0 right-0 h-(--canvas-height) w-10"
+            style={{ "--canvas-height": `${canvasHeight()}px` }}
+          >
             <div class="relative h-full px-1.5 flex items-center">
               <LinearScale
                 min={-totalSeconds()}
                 max={0}
-                class="h-full"
                 tickClass="pr-0.5"
                 labelClass="text-[10px] font-semibold scale-text-shadow"
-                lineClass="bg-primary/25"
-                tickLength={9}
-                tickSpacing={50}
-                showTicks={false}
-                showMin={false}
-                showMax={false}
+                tickSpacing={24}
+                hideMax
                 format={formatSeconds}
               />
             </div>
           </div>
-        </div>
-      </Show>
+        </Show>
+      </div>
     </div>
   );
 }

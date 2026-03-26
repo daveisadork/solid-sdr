@@ -113,7 +113,10 @@ class DaxSinkWorker {
     return best;
   }
 
-  private mapChannels(src: Float32Array[], outChannels: number): Float32Array[] {
+  private mapChannels(
+    src: Float32Array[],
+    outChannels: number,
+  ): Float32Array[] {
     const inCh = src.length;
     if (inCh === outChannels) return src;
     const frames = src[0].length;
@@ -190,5 +193,3 @@ const sink = new DaxSinkWorker();
 self.onmessage = (e: MessageEvent<SinkMessage>) => {
   sink.onMessage(e.data);
 };
-
-export {};

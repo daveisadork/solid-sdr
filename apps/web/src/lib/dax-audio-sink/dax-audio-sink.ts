@@ -8,12 +8,10 @@ import {
   DAX_AUDIO_SAMPLE_RATE as SAMPLE_RATE,
   type SinkMessage,
 } from "./types";
+import sabWorkletURL from "./dax-audio-sink.worklet.ts?worker&url";
+import sinkWorkerURL from "./dax-audio-sink.worker.ts?worker&url";
 
-const sabWorkletURL = new URL(
-  "./dax-audio-sink.worklet.ts",
-  import.meta.url,
-).href;
-const sinkWorkerURL = new URL("./dax-audio-sink.worker.ts", import.meta.url);
+// const sinkWorkerURL = new URL("./dax-audio-sink.worker.ts", import.meta.url);
 
 export interface DaxAudioSinkOptions {
   channels?: number;

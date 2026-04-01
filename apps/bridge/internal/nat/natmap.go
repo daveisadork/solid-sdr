@@ -2,11 +2,17 @@
 package nat
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"time"
 
 	gonat "github.com/fd/go-nat"
+)
+
+var (
+	errNoNATDevice     = errors.New("no NAT device found")
+	errNATMapperNotReady = errors.New("nat mapper not ready")
 )
 
 type Mapper struct {
@@ -29,33 +35,39 @@ func Discover() (*Mapper, string, error) {
 	if err != nil {
 		return nil, "", fmt.Errorf("nat discovery: %w", err)
 	}
+
 	if n == nil {
-		return nil, "", fmt.Errorf("no NAT device found")
+		return nil, "", errNoNATDevice
 	}
 
 	ip, err := n.GetExternalAddress()
 	if err != nil {
 		return nil, "", fmt.Errorf("external ip: %w", err)
 	}
+
 	return &Mapper{nat: n, stop: make(chan struct{})}, ip.String(), nil
 }
 
 // Map a UDP port. If external==0, most implementations will pick same as internal.
 func (m *Mapper) MapUDP(internal int, desc string, ttl time.Duration) error {
 	if m == nil || m.nat == nil {
-		return fmt.Errorf("nat mapper not ready")
+		return errNATMapperNotReady
 	}
+
 	if ttl <= 0 {
 		ttl = 30 * time.Minute
 	}
-	if external, err := m.nat.AddPortMapping("udp", internal, desc, ttl); err != nil {
+
+	external, err := m.nat.AddPortMapping("udp", internal, desc, ttl)
+	if err != nil {
 		return err
-	} else {
-		log.Printf("[nat] mapped udp %d->%d (%s) ttl %s", internal, external, desc, ttl)
-		m.maps = append(m.maps, mapping{
-			Proto: "udp", Internal: internal, External: external, Description: desc, TTL: ttl,
-		})
 	}
+
+	log.Printf("[nat] mapped udp %d->%d (%s) ttl %s", internal, external, desc, ttl)
+	m.maps = append(m.maps, mapping{
+		Proto: "udp", Internal: internal, External: external, Description: desc, TTL: ttl,
+	})
+
 	return nil
 }
 
@@ -64,12 +76,15 @@ func (m *Mapper) StartRefresher(interval time.Duration) {
 	if m == nil || m.nat == nil {
 		return
 	}
+
 	if interval <= 0 {
 		interval = 10 * time.Minute
 	}
+
 	go func() {
 		t := time.NewTicker(interval)
 		defer t.Stop()
+
 		for {
 			select {
 			case <-m.stop:
@@ -90,13 +105,18 @@ func (m *Mapper) StartRefresher(interval time.Duration) {
 
 func (m *Mapper) Close() {
 	log.Printf("[nat] closing")
+
 	if m == nil || m.nat == nil {
 		return
 	}
+
 	close(m.stop)
+
 	for _, mp := range m.maps {
 		log.Printf("[nat] removing %s %d->%d", mp.Proto, mp.Internal, mp.External)
-		if err := m.nat.DeletePortMapping(mp.Proto, mp.Internal); err != nil {
+
+		err := m.nat.DeletePortMapping(mp.Proto, mp.Internal)
+		if err != nil {
 			log.Printf("[nat] delete %s %d->%d failed: %v", mp.Proto, mp.Internal, mp.External, err)
 		}
 	}

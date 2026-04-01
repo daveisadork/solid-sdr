@@ -196,23 +196,31 @@ export const FlexRadioProvider: ParentComponent = (props) => {
   const logger = console;
 
   const udpSession = createUdpSession({ logger });
-  const discoveryWs = createReconnectingWS("/ws/discovery");
+  const signalingWs = createReconnectingWS("/ws/signal");
   let radioSubscriptions: Subscription[] = [];
   let rtcUdpCleanup: (() => void) | undefined;
   let featureLicenseStore = createRadioStateStore({ logger });
-
-  discoveryWs.addEventListener("open", ({ target }) => {
-    (target as WebSocket).binaryType = "arraybuffer";
-  });
 
   const discoveryAdapter = createVitaDiscoveryAdapter({
     transportFactory: {
       async start(handlers) {
         let closed = false;
 
-        const handleMessage = (event: MessageEvent) => {
+        const handleMessage = (event: MessageEvent<string>) => {
           if (closed) return;
-          handlers.onMessage(new Uint8Array(event.data));
+          try {
+            const msg = JSON.parse(event.data) as {
+              type: string;
+              payload?: { packet?: string };
+            };
+            if (msg.type !== "discovery" || !msg.payload?.packet) return;
+            const raw = atob(msg.payload.packet);
+            const bytes = new Uint8Array(raw.length);
+            for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+            handlers.onMessage(bytes);
+          } catch {
+            // ignore malformed messages
+          }
         };
 
         const handleError = (error: Event) => {
@@ -220,17 +228,15 @@ export const FlexRadioProvider: ParentComponent = (props) => {
           handlers.onError?.(error);
         };
 
-        discoveryWs.addEventListener("message", handleMessage);
-        discoveryWs.addEventListener("error", handleError);
+        signalingWs.addEventListener("message", handleMessage);
+        signalingWs.addEventListener("error", handleError);
 
         return {
           async close() {
-            console.log("Closing discovery transport");
             if (closed) return;
             closed = true;
-            discoveryWs.removeEventListener("message", handleMessage);
-            discoveryWs.removeEventListener("error", handleError);
-            discoveryWs.close();
+            signalingWs.removeEventListener("message", handleMessage);
+            signalingWs.removeEventListener("error", handleError);
           },
         };
       },
@@ -563,7 +569,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
           async connect({ handle, udp, logger }) {
             const rtc = await connectRTC(handle);
             rtcUdpCleanup?.();
-            rtcUdpCleanup = attachRtcDataChannel(udp, rtc.data, {
+            rtcUdpCleanup = attachRtcDataChannel(udp, rtc.udpData, {
               onError(error) {
                 console.error("Error decoding UDP packet:", error);
                 disconnect();

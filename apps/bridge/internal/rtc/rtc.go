@@ -19,8 +19,8 @@ import (
 // Options configures the RTC server.
 type Options struct {
 	// ICE port
-	ICEPortStart int
-	ICEPortEnd   int
+	ICEPortStart uint16
+	ICEPortEnd   uint16
 
 	// STUN servers (full URLs like stun:stun.l.google.com:19302).
 	STUN []string
@@ -28,6 +28,11 @@ type Options struct {
 	// Optional public IPs to advertise for host candidates (static NAT).
 	NAT1To1IPs []string
 }
+
+var (
+	errNoTCPSession = errors.New("no TCP session")
+	errNoLocalDesc  = errors.New("no local description")
+)
 
 type Server struct {
 	Sessions   *core.SessionManager
@@ -44,7 +49,7 @@ func New(sessions *core.SessionManager, opt Options) *Server {
 
 	if opt.ICEPortStart == opt.ICEPortEnd {
 		// ---- single fixed port => create mux ----
-		port := opt.ICEPortStart
+		port := int(opt.ICEPortStart)
 		if mux, err := ice.NewMultiUDPMuxFromPort(
 			port,
 			ice.UDPMuxFromPortWithNetworks(ice.NetworkTypeUDP4, ice.NetworkTypeUDP6),
@@ -53,6 +58,7 @@ func New(sessions *core.SessionManager, opt Options) *Server {
 			hasUDP4, hasUDP6, listeners := summarizeMuxListeners(mux.GetListenAddresses())
 			log.Printf("[rtc] using single-port UDP mux on port %d (udp4=%t udp6=%t listeners=%s)",
 				port, hasUDP4, hasUDP6, strings.Join(listeners, ","))
+
 			if !hasUDP4 || !hasUDP6 {
 				log.Printf("[rtc] warning: requested dual-stack UDP mux but only udp4=%t udp6=%t listeners were created", hasUDP4, hasUDP6)
 			}
@@ -61,7 +67,8 @@ func New(sessions *core.SessionManager, opt Options) *Server {
 		}
 	} else {
 		// ---- normal ephemeral range ----
-		if err := se.SetEphemeralUDPPortRange(uint16(opt.ICEPortStart), uint16(opt.ICEPortEnd)); err != nil {
+		err := se.SetEphemeralUDPPortRange(opt.ICEPortStart, opt.ICEPortEnd)
+		if err != nil {
 			log.Fatalf("[rtc] invalid ICE port range %d..%d: %v", opt.ICEPortStart, opt.ICEPortEnd, err)
 		}
 	}
@@ -78,11 +85,12 @@ func New(sessions *core.SessionManager, opt Options) *Server {
 	// }
 
 	if len(opt.NAT1To1IPs) > 0 {
-		if err := se.SetICEAddressRewriteRules(webrtc.ICEAddressRewriteRule{
+		err := se.SetICEAddressRewriteRules(webrtc.ICEAddressRewriteRule{
 			External:        append([]string(nil), opt.NAT1To1IPs...),
 			AsCandidateType: webrtc.ICECandidateTypeHost,
 			Mode:            webrtc.ICEAddressRewriteReplace,
-		}); err != nil {
+		})
+		if err != nil {
 			log.Fatalf("[rtc] invalid ICE address rewrite config: %v", err)
 		}
 	}
@@ -139,13 +147,16 @@ func (s *Server) OfferHandler(w http.ResponseWriter, r *http.Request) {
 	var req offerRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"bad json"}`, http.StatusBadRequest)
+
 		return
 	}
+
 	handle := normalizeHandle(req.SessionID)
 	offerSDP := req.SDP // do not TrimSpace; preserve CRLFs
 
 	if handle == "" || offerSDP == "" || !strings.HasPrefix(offerSDP, "v=") {
 		http.Error(w, `{"error":"missing/invalid sessionId or sdp"}`, http.StatusBadRequest)
+
 		return
 	}
 
@@ -153,13 +164,19 @@ func (s *Server) OfferHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("[rtc] handleOffer failed: %v", err)
 		w.WriteHeader(http.StatusConflict)
-		_ = json.NewEncoder(w).Encode(map[string]string{
+		if encErr := json.NewEncoder(w).Encode(map[string]string{
 			"error": rootMsg(err),
 			"code":  "NO_TCP_SESSION_OR_OFFER_FAIL",
-		})
+		}); encErr != nil {
+			log.Printf("[rtc] failed to write error response: %v", encErr)
+		}
+
 		return
 	}
-	_ = json.NewEncoder(w).Encode(answerResponse{SDP: ans})
+
+	if err := json.NewEncoder(w).Encode(answerResponse{SDP: ans}); err != nil {
+		log.Printf("[rtc] failed to write answer response: %v", err)
+	}
 }
 
 func normalizeHandle(h string) string {
@@ -167,6 +184,7 @@ func normalizeHandle(h string) string {
 	if len(h) > 0 && (h[0] == 'H' || h[0] == 'h') {
 		h = h[1:]
 	}
+
 	return strings.ToUpper(h)
 }
 
@@ -175,7 +193,7 @@ func normalizeHandle(h string) string {
 func (s *Server) handleOffer(handleHex, offerSDP, clientIP string) (string, error) {
 	rs := s.Sessions.Get(handleHex)
 	if rs == nil || rs.TCP == nil {
-		return "", stepErr("no-tcp-session", fmt.Errorf("no TCP session for handle %s", handleHex))
+		return "", stepErr("no-tcp-session", fmt.Errorf("%w: handle %s", errNoTCPSession, handleHex))
 	}
 
 	newConnection := rs.PC == nil
@@ -184,26 +202,42 @@ func (s *Server) handleOffer(handleHex, offerSDP, clientIP string) (string, erro
 		if err != nil {
 			return "", stepErr("new-pc", err)
 		}
+
 		rs.PC = pc
 		if err := ensureRXTrack(rs); err != nil {
 			return "", stepErr("add-rx-track", err)
 		}
-		log.Printf("[rtc] new client connection: handle=%s client_ip=%s", handleHex, clientIP)
 
-		// Capture client-created datachannel "udp".
+		log.Printf("[rtc] new client connection: handle=%s client_ip=%s", sanitizeLog(handleHex), sanitizeLog(clientIP)) //nolint:gosec // values are sanitized via sanitizeLog before logging
+
+		// Capture client-created data channels.
 		rs.PC.OnDataChannel(func(dc *webrtc.DataChannel) {
-			if dc.Label() != "udp" {
-				return
+			switch dc.Label() {
+			case "udp":
+				rs.SetUDPDataChannel(dc)
+				dc.OnMessage(func(msg webrtc.DataChannelMessage) {
+					if msg.IsString || len(msg.Data) == 0 || rs.UDPConn == nil {
+						return
+					}
+					if _, err := rs.UDPConn.Write(msg.Data); err != nil {
+						log.Printf("[rtc] udp datachannel write failed handle=%s err=%v", handleHex, err)
+					}
+				})
+
+			case "tcp":
+				rs.SetTCPDataChannel(dc)
+				dc.OnMessage(func(msg webrtc.DataChannelMessage) {
+					if len(msg.Data) == 0 || rs.TCP == nil {
+						return
+					}
+					if _, err := rs.TCP.Write(msg.Data); err != nil {
+						log.Printf("[rtc] tcp datachannel write failed handle=%s err=%v", handleHex, err)
+					}
+				})
+				dc.OnClose(func() {
+					rs.SetTCPDataChannel(nil)
+				})
 			}
-			rs.DC = dc
-			dc.OnMessage(func(msg webrtc.DataChannelMessage) {
-				if msg.IsString || len(msg.Data) == 0 || rs.UDPConn == nil {
-					return
-				}
-				if _, err := rs.UDPConn.Write(msg.Data); err != nil {
-					log.Printf("[rtc] failed to forward udp datachannel packet handle=%s err=%v", handleHex, err)
-				}
-			})
 		})
 
 		rs.PC.OnTrack(func(track *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
@@ -212,6 +246,7 @@ func (s *Server) handleOffer(handleHex, offerSDP, clientIP string) (string, erro
 
 		rs.PC.OnConnectionStateChange(func(st webrtc.PeerConnectionState) {
 			log.Printf("[rtc] PeerConnection state: %s (handle %s)", st.String(), handleHex)
+
 			if st == webrtc.PeerConnectionStateFailed || st == webrtc.PeerConnectionStateClosed {
 				_ = pc.Close()
 			}
@@ -238,6 +273,7 @@ func (s *Server) handleOffer(handleHex, offerSDP, clientIP string) (string, erro
 	if err != nil {
 		return "", stepErr("create-answer", err)
 	}
+
 	if err := rs.PC.SetLocalDescription(answer); err != nil {
 		return "", stepErr("set-local", err)
 	}
@@ -246,7 +282,7 @@ func (s *Server) handleOffer(handleHex, offerSDP, clientIP string) (string, erro
 
 	ld := rs.PC.LocalDescription()
 	if ld == nil {
-		return "", stepErr("no-local-desc", errors.New("no local description"))
+		return "", stepErr("no-local-desc", errNoLocalDesc)
 	}
 
 	// After answering, wire UDP and start demux (errors here shouldn't fail the HTTP cycle).
@@ -299,6 +335,7 @@ func parsePotentialIP(raw string) string {
 	if host, _, err := net.SplitHostPort(v); err == nil {
 		v = host
 	}
+
 	v = strings.Trim(v, "[]")
 
 	ip := net.ParseIP(v)
@@ -315,10 +352,12 @@ func (s *Server) postAnswerPlumbing(rs *core.RadioSession) {
 	if err != nil {
 		return
 	}
+
 	u, err := net.DialUDP("udp", &net.UDPAddr{IP: net.IPv4zero, Port: 0}, raddr)
 	if err != nil {
 		return
 	}
+
 	rs.UDPConn = u
 
 	// Tell radio our UDP port via TCP.
@@ -338,6 +377,7 @@ func (s *Server) NoteStreamCreated(handleHex string, streamID uint32, typ, compr
 	if rs == nil {
 		return
 	}
+
 	stream := fmt.Sprintf("0x%08X", streamID)
 	log.Printf("[rtc] NoteStreamCreated handle: %s, stream %s, type: %s, compression: %s\n", handleHex, stream, typ, compression)
 
@@ -345,14 +385,17 @@ func (s *Server) NoteStreamCreated(handleHex string, streamID uint32, typ, compr
 		if compression != "OPUS" {
 			return
 		}
+
 		rs.SetActiveTXStream(streamID)
 		log.Printf("[rtc] registered inbound tx audio stream %s (handle %s)\n", stream, handleHex)
+
 		return
 	}
 
 	if typ != "remote_audio_rx" || compression != "OPUS" {
 		return
 	}
+
 	rs.SetActiveRXStream(streamID)
 	log.Printf("[rtc] activated rx audio stream %s (handle %s)\n", stream, handleHex)
 }
@@ -389,6 +432,7 @@ func ensureRXTrack(rs *core.RadioSession) error {
 	}
 
 	rs.SetRXTrack(track)
+
 	return nil
 }
 
@@ -407,5 +451,18 @@ func rootMsg(err error) string {
 	if errors.As(err, &se) {
 		return se.err.Error()
 	}
+
 	return err.Error()
+}
+
+func sanitizeLog(s string) string {
+	return strings.Map(func(r rune) rune {
+		if r == '\n' || r == '\r' || r == '\t' {
+			return ' '
+		}
+		if r < 0x20 {
+			return -1
+		}
+		return r
+	}, s)
 }

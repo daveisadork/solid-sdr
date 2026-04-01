@@ -2,6 +2,7 @@ package rtc
 
 import (
 	"encoding/binary"
+	"errors"
 	"io"
 	"log"
 	"strings"
@@ -41,6 +42,7 @@ func (s *Server) handleIncomingTrack(
 			track.StreamID(),
 			track.ID(),
 		)
+
 		return
 	}
 
@@ -57,7 +59,7 @@ func (s *Server) handleIncomingTrack(
 	for {
 		packet, _, err := track.ReadRTP()
 		if err != nil {
-			if err != io.EOF {
+			if !errors.Is(err, io.EOF) {
 				log.Printf(
 					"[rtc] inbound opus read ended handle=%s stream=%s track=%s err=%v",
 					handleHex,
@@ -66,8 +68,10 @@ func (s *Server) handleIncomingTrack(
 					err,
 				)
 			}
+
 			return
 		}
+
 		if len(packet.Payload) == 0 {
 			continue
 		}
@@ -84,17 +88,20 @@ func (s *Server) handleIncomingTrack(
 		vitaPacket := buildTXOpusPacket(streamID, packetCount, packet.Payload)
 		if _, err := rs.UDPConn.Write(vitaPacket); err != nil {
 			log.Printf("[rtc] failed to forward tx opus packet stream=0x%08X err=%v", streamID, err)
+
 			return
 		}
 	}
 }
 
 func buildTXOpusPacket(streamID uint32, packetCount uint8, payload []byte) []byte {
-	packetSizeWords := uint16((len(payload)+3)/4 + vitaOpusHeaderWords)
+	// Packet size in 32-bit words fits in uint16: UDP payload max ~64KB → max ~16384 words, well under 65535.
+	packetSizeWords := uint16((len(payload)+3)/4 + vitaOpusHeaderWords) //nolint:gosec
 	packet := make([]byte, vitaOpusFixedBytes+len(payload))
 
 	packet[0] = byte((vitaPacketTypeExtDataWithStream << 4) | 0x08)
-	packet[1] = byte((vitaTimeStampOther << 6) | (vitaTimeStampSampleCount << 4) | int(packetCount&0x0F))
+	// Header byte: OR of two known constants (≤0xF0) with a 4-bit masked value (≤0x0F), always fits in byte.
+	packet[1] = byte((vitaTimeStampOther << 6) | (vitaTimeStampSampleCount << 4) | int(packetCount&0x0F)) //nolint:gosec
 	binary.BigEndian.PutUint16(packet[2:4], packetSizeWords)
 	binary.BigEndian.PutUint32(packet[4:8], streamID)
 	binary.BigEndian.PutUint32(packet[8:12], vitaFlexOUI)

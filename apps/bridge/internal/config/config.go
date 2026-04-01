@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -11,6 +12,8 @@ import (
 	"github.com/spf13/viper"
 )
 
+var errInvalidICEPortRange = errors.New("invalid ICE port range")
+
 type Config struct {
 	// HTTP
 	HTTPPort      int    `mapstructure:"http-port"`
@@ -20,8 +23,8 @@ type Config struct {
 	DiscoveryPort int    `mapstructure:"discovery-port"`
 
 	// WebRTC / ICE
-	ICEPortStart int      `mapstructure:"ice-port-start"`
-	ICEPortEnd   int      `mapstructure:"ice-port-end"`
+	ICEPortStart uint16 `mapstructure:"ice-port-start"`
+	ICEPortEnd   uint16 `mapstructure:"ice-port-end"`
 	StunURLs     []string `mapstructure:"stun"`
 	NAT1To1IPs   []string `mapstructure:"nat-1to1-ips"`
 
@@ -36,11 +39,13 @@ func defaultAPILogPath() string {
 	if _, err := os.Stat(filepath.Join("apps", "bridge")); err == nil {
 		return filepath.Join("apps", "bridge", "messages.txt")
 	}
+
 	return "messages.txt"
 }
 
 func Load() (Config, error) {
 	var cfg Config
+
 	fs := pflag.NewFlagSet(os.Args[0], pflag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	fs.SortFlags = true
@@ -95,7 +100,8 @@ Config file:
 	// allow FLEX_HTTP_PORT to map to "http_port"
 	v.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
 	// Viper takes over
-	if err := v.BindPFlags(pflag.CommandLine); err != nil {
+	err := v.BindPFlags(pflag.CommandLine)
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n\n", err)
 		fs.Usage()
 		os.Exit(2)
@@ -106,27 +112,32 @@ Config file:
 	if envFile := os.Getenv("FLEX_CONFIG"); envFile != "" {
 		cfgFile = envFile
 	}
+
 	if cfgFile != "" {
 		v.SetConfigFile(cfgFile)
 	} else {
 		v.SetConfigName("flex-bridge")
 		v.AddConfigPath(".")
 	}
-	if err := v.ReadInConfig(); err == nil {
+
+	err = v.ReadInConfig()
+	if err == nil {
 		log.Printf("Using config file: %s\n", v.ConfigFileUsed())
 	}
 
 	// Unmarshal into your struct
-	if err := v.Unmarshal(&cfg); err != nil {
+	err = v.Unmarshal(&cfg)
+	if err != nil {
 		return cfg, fmt.Errorf("unmarshal: %w", err)
 	}
+
 	cfg.ConfigFile = v.ConfigFileUsed()
 	log.Printf("[config] http=:%d static=%q ice=%d..%d api-log=%q file=%q\n",
 		cfg.HTTPPort, cfg.StaticDir, cfg.ICEPortStart, cfg.ICEPortEnd, cfg.APILogFile, cfg.ConfigFile)
 
 	// Sanity checks
 	if cfg.ICEPortEnd < cfg.ICEPortStart {
-		return cfg, fmt.Errorf("invalid ICE port range %d–%d", cfg.ICEPortStart, cfg.ICEPortEnd)
+		return cfg, fmt.Errorf("%w: %d–%d", errInvalidICEPortRange, cfg.ICEPortStart, cfg.ICEPortEnd)
 	}
 
 	return cfg, nil

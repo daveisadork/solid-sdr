@@ -238,7 +238,12 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
       stream.getAudioTracks().forEach((track) => {
         console.log("DAX TX ", track.getSettings());
       });
-      const tx = new DaxAudioTx(rtc.data, streamId, reducedBandwidth, stream);
+      const tx = new DaxAudioTx(
+        rtc.udpData,
+        streamId,
+        reducedBandwidth,
+        stream,
+      );
       await tx.start();
       setDaxTxInstance(tx);
       const trackSettings = stream.getAudioTracks()[0].getSettings();

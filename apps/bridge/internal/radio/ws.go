@@ -31,6 +31,7 @@ func NewWSHandler(sessions *core.SessionManager, rtcServer *rtc.Server, opts WSO
 	if err != nil {
 		return nil, err
 	}
+
 	return &WSHandler{
 		Sessions: sessions,
 		RTC:      rtcServer,
@@ -48,43 +49,52 @@ func (h *WSHandler) Close() error {
 	if h == nil || h.apiLogger == nil {
 		return nil
 	}
+
 	return h.apiLogger.Close()
 }
 
-// /ws/radio?host=X&port=Y
+// /ws/radio?host=X&port=Y.
 func (h *WSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ws, err := h.Upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		return
 	}
+
 	defer func() { _ = ws.Close() }()
 
 	q := r.URL.Query()
 	host := q.Get("host")
+
 	portStr := q.Get("port")
 	if host == "" || portStr == "" {
 		_ = ws.WriteControl(websocket.CloseMessage,
 			websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "missing host/port"),
 			time.Now().Add(2*time.Second))
+
 		return
 	}
+
 	basePort, err := strconv.Atoi(portStr)
 	if err != nil || basePort <= 0 || basePort > 65535 {
 		_ = ws.WriteControl(websocket.CloseMessage,
 			websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "invalid port"),
 			time.Now().Add(2*time.Second))
+
 		return
 	}
 
 	// TCP connect to radio
-	tcp, err := net.DialTimeout("tcp", net.JoinHostPort(host, portStr), 9*time.Second)
+	tcp, err := net.DialTimeout("tcp", net.JoinHostPort(host, portStr), 9*time.Second) //nolint:gosec // intentional: this service proxies WebSocket clients to arbitrary radio hosts by design
 	if err != nil {
 		log.Printf("[ws] tcp dial error: %v", err)
+
 		_ = ws.WriteControl(websocket.CloseMessage,
 			websocket.FormatCloseMessage(websocket.CloseTryAgainLater, "tcp connect failed"),
 			time.Now().Add(2*time.Second))
+
 		return
 	}
+
 	defer func() { _ = tcp.Close() }()
 
 	rd := bufio.NewReader(tcp)
@@ -94,13 +104,17 @@ func (h *WSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	line1Raw, err1 := rd.ReadString('\n')
 	if err1 != nil {
 		log.Printf("[ws] read first line: %v", err1)
+
 		return
 	}
+
 	line2Raw, err2 := rd.ReadString('\n')
 	if err2 != nil {
 		log.Printf("[ws] read second line: %v", err2)
+
 		return
 	}
+
 	l1 := strings.TrimSpace(line1Raw)
 	l2 := strings.TrimSpace(line2Raw)
 
@@ -115,6 +129,7 @@ func (h *WSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Register session (store TCP, host/port, and metadata)
 	rs := h.Sessions.PutTCP(handleHex, host, basePort, tcp)
+
 	rs.Version = versionLine
 	if u, err := strconv.ParseUint(handleHex, 16, 32); err == nil {
 		rs.HandleU32 = uint32(u)
@@ -125,26 +140,31 @@ func (h *WSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Forward the first two lines TRIMMED to the frontend
 	connLog.LogInbound(l1)
 	connLog.LogInbound(l2)
+
 	_ = ws.WriteMessage(websocket.TextMessage, []byte(versionLine))
 	_ = ws.WriteMessage(websocket.TextMessage, []byte(handleLine))
 
 	// TCP -> WS forwarder (trim + stream detection)
 	done := make(chan struct{})
+
 	go func() {
 		defer close(done)
+
 		for {
 			b, err := rd.ReadString('\n')
 			if err != nil {
 				return
 			}
+
 			line := strings.TrimSpace(b)
 			// log.Printf("[ws] %s:%d <%s", host, basePort, line)
 			connLog.LogInbound(line)
 
-			// Forward trimmed line to UI
+			// Forward trimmed line to UI (WebSocket and TCP data channel in parallel)
 			if err := ws.WriteMessage(websocket.TextMessage, []byte(line)); err != nil {
 				return
 			}
+			rs.SendTCPLine(line)
 
 			// Observe "stream …" creations and notify RTC
 			if stream, ok := parseAudioStream(line); ok {
@@ -152,8 +172,10 @@ func (h *WSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					if h.RTC != nil {
 						h.RTC.NoteStreamRemoved(handleHex, stream.StreamID)
 					}
+
 					continue
 				}
+
 				if stream.ClientHandle == rs.HandleU32 && h.RTC != nil {
 					h.RTC.NoteStreamCreated(handleHex, stream.StreamID, stream.Type, stream.Compression)
 				}
@@ -163,12 +185,14 @@ func (h *WSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// WS -> TCP writer (commands from UI)
 	ws.SetReadLimit(1 << 20)
+
 	_ = ws.SetReadDeadline(time.Time{})
 	for {
 		mt, msg, err := ws.ReadMessage()
 		if err != nil {
 			break
 		}
+
 		if mt == websocket.TextMessage || mt == websocket.BinaryMessage {
 			// log.Printf("[ws] %s:%d >%s", host, basePort, strings.TrimSpace(string(msg)))
 			connLog.LogOutbound(strings.TrimSpace(string(msg)))

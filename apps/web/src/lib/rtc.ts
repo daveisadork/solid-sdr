@@ -1,6 +1,7 @@
 export type RtcSession = {
   pc: RTCPeerConnection;
-  data: RTCDataChannel;
+  tcpData: RTCDataChannel;
+  udpData: RTCDataChannel;
   audio: RTCRtpTransceiver;
   setTransmitTrack: (track: MediaStreamTrack) => Promise<void>;
   close: () => void;
@@ -41,21 +42,31 @@ export async function startRTC(
   pc.addEventListener("negotiationneeded", renegotiate);
 
   const audio = pc.addTransceiver("audio", { direction: "sendrecv" });
-  const data = pc.createDataChannel("udp", {
+  const tcpData = pc.createDataChannel("tcp", {
+    ordered: true,
+  });
+  const udpData = pc.createDataChannel("udp", {
     ordered: false, // no head-of-line blocking
     maxRetransmits: 0, // drop instead of retry
     // OR use maxPacketLifeTime: 100 for “soft” realtime
   });
 
-  data.binaryType = "arraybuffer"; // important for Firefox
-  data.onopen = () => console.log("[dc] open");
-  data.onclosing = () => console.log("[dc] closing");
-  data.onclose = () => console.log("[dc] closed");
-  data.onerror = (e) => console.warn("[dc] error", e);
+  udpData.binaryType = "arraybuffer"; // important for Firefox
+  udpData.onopen = () => console.log("[udp dc] open");
+  udpData.onclosing = () => console.log("[udp dc] closing");
+  udpData.onclose = () => console.log("[udp dc] closed");
+  udpData.onerror = (e) => console.warn("[udp dc] error", e);
+
+  tcpData.onopen = () => console.log("[tcp dc] open");
+  tcpData.onclosing = () => console.log("[tcp dc] closing");
+  tcpData.onclose = () => console.log("[tcp dc] closed");
+  tcpData.onerror = (e) => console.warn("[tcp dc] error", e);
+  tcpData.onmessage = (e) => console.log("[tcp dc] message", e.data);
 
   return {
     pc,
-    data,
+    tcpData,
+    udpData,
     audio,
     setTransmitTrack: audio.sender.replaceTrack.bind(audio.sender),
     close: () => {

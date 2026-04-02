@@ -40,7 +40,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	defer func() { _ = ws.Close() }()
 
-	clientIP, _, _ := net.SplitHostPort(r.RemoteAddr)
+	clientIP := r.Header.Get("X-Forwarded-For")
+	if clientIP == "" {
+		clientIP, _, _ = net.SplitHostPort(r.RemoteAddr)
+	}
+	log.Printf("[signal] new connection from %s", clientIP)
 
 	send := make(chan Message, 64)
 	stop := make(chan struct{})

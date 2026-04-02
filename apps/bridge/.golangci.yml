@@ -16,6 +16,7 @@ linters:
     - depguard
     - exhaustruct
     - mnd
+    - nonamedreturns
     - varnamelen
     - wsl
   settings:

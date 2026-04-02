@@ -200,7 +200,7 @@ func (s *Server) handleOffer(handleHex, offerSDP, clientIP string) (string, erro
 
 	newConnection := rs.PC == nil
 	if newConnection {
-		if err := s.setupPeerConnection(rs, handleHex, clientIP); err != nil {
+		if err := s.setupPeerConnection(rs, handleHex); err != nil {
 			return "", err
 		}
 	}
@@ -298,9 +298,13 @@ func parsePotentialIP(raw string) string {
 	return ip.String()
 }
 
+func (s *Server) CreatePeerConnection() (*webrtc.PeerConnection, error) {
+	return s.api.NewPeerConnection(webrtc.Configuration{ICEServers: s.ICEServers})
+}
+
 // setupPeerConnection creates and wires a new PeerConnection onto rs.
 // The caller is responsible for the SDP offer/answer exchange.
-func (s *Server) setupPeerConnection(rs *core.RadioSession, handleHex, clientIP string) error {
+func (s *Server) setupPeerConnection(rs *core.RadioSession, handleHex string) error {
 	pc, err := s.api.NewPeerConnection(webrtc.Configuration{ICEServers: s.ICEServers})
 	if err != nil {
 		return stepErr("new-pc", err)
@@ -312,13 +316,10 @@ func (s *Server) setupPeerConnection(rs *core.RadioSession, handleHex, clientIP 
 	}
 
 	//nolint:gosec
-	log.Printf(
-		"[rtc] new client connection: handle=%s client_ip=%s",
-		sanitizeLog(handleHex), sanitizeLog(clientIP),
-	)
+	log.Printf("[rtc] new client connection: handle=%s", sanitizeLog(handleHex))
 
 	rs.PC.OnDataChannel(func(dc *webrtc.DataChannel) {
-		switch dc.Label() {
+		switch dc.Protocol() {
 		case "udp":
 			rs.SetUDPDataChannel(dc)
 			dc.OnMessage(func(msg webrtc.DataChannelMessage) {
@@ -343,6 +344,8 @@ func (s *Server) setupPeerConnection(rs *core.RadioSession, handleHex, clientIP 
 			dc.OnClose(func() {
 				rs.SetTCPDataChannel(nil)
 			})
+		default:
+			log.Printf("[rtc] unknown data channel label: %q (handle %s)", dc.Protocol(), handleHex)
 		}
 	})
 
@@ -367,7 +370,7 @@ func (s *Server) setupPeerConnection(rs *core.RadioSession, handleHex, clientIP 
 // caller doesn't need to track it separately). onGatheringComplete signals end-of-candidates.
 func (s *Server) ConnectAndOffer(
 	host string, port int,
-	offerSDP, clientIP string,
+	offerSDP string,
 	onCandidate func(sessionID string, c webrtc.ICECandidateInit),
 	onGatheringComplete func(sessionID string),
 ) (sessionID, version, handle, answerSDP string, err error) {
@@ -418,7 +421,7 @@ func (s *Server) ConnectAndOffer(
 		rs.PC = nil
 	}
 
-	if err := s.setupPeerConnection(rs, handleHex, clientIP); err != nil {
+	if err := s.setupPeerConnection(rs, handleHex); err != nil {
 		_ = tcp.Close()
 
 		return "", "", "", "", err
@@ -459,7 +462,8 @@ func (s *Server) ConnectAndOffer(
 	// rd is passed to reuse its buffer and avoid losing any data already read.
 	go s.startTCPForwarder(rs, handleHex, rd)
 
-	return handleHex, versionLine, handleLine, answer.SDP, nil
+	ld := rs.PC.LocalDescription()
+	return handleHex, versionLine, handleLine, ld.SDP, nil
 }
 
 // startTCPForwarder reads newline-delimited lines from the radio TCP connection
@@ -492,6 +496,29 @@ func (s *Server) startTCPForwarder(rs *core.RadioSession, handleHex string, rd *
 }
 
 func (s *Server) postAnswerPlumbing(rs *core.RadioSession) {
+	// UDP to radio (port = TCP+1)
+	raddr, err := net.ResolveUDPAddr("udp", net.JoinHostPort(rs.Host, strconv.Itoa(rs.BasePort+1)))
+	if err != nil {
+		return
+	}
+
+	u, err := net.DialUDP("udp", &net.UDPAddr{IP: net.IPv4zero, Port: 0}, raddr)
+	if err != nil {
+		return
+	}
+
+	rs.UDPConn = u
+
+	// Tell radio our UDP port via TCP.
+	if ua, ok := u.LocalAddr().(*net.UDPAddr); ok {
+		_, _ = io.WriteString(rs.TCP, fmt.Sprintf("C0|client udpport %d\n", ua.Port))
+	}
+
+	// UDP → (Opus → WebRTC) | (everything else → DataChannel)
+	startUDPDemux(rs)
+}
+
+func (s *Server) ConnectUDP(rs *core.RadioSession) {
 	// UDP to radio (port = TCP+1)
 	raddr, err := net.ResolveUDPAddr("udp", net.JoinHostPort(rs.Host, strconv.Itoa(rs.BasePort+1)))
 	if err != nil {

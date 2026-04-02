@@ -1,11 +1,14 @@
 import { createReconnectingWS } from "@solid-primitives/websocket";
 import {
+  Accessor,
   batch,
   createContext,
   createEffect,
+  createMemo,
   createSignal,
   onCleanup,
   ParentComponent,
+  Show,
   useContext,
 } from "solid-js";
 import {
@@ -164,7 +167,7 @@ const FlexRadioContext = createContext<{
   state: AppState;
   setState: SetStoreFunction<AppState>;
   radio: () => RadioHandle | null;
-  client: RadioClient;
+  client: Accessor<RadioClient>;
   connect: (addr: { host: string; port: number }) => void;
   disconnect: () => void;
   sendCommand: (command: string) => Promise<{
@@ -178,11 +181,7 @@ const FlexRadioContext = createContext<{
 export const FlexRadioProvider: ParentComponent = (props) => {
   const [state, setState] = createStore(initialState());
   const { preferences } = usePreferences();
-  const {
-    register: registerRTCSession,
-    disconnect: disconnectRTC,
-    onTrackHandler,
-  } = useRtc();
+  const { signalingWs, session: rtcSession } = useRtc();
   const [activeRadio, setActiveRadio] = createSignal<RadioHandle | null>(null);
 
   // const logger = {
@@ -202,107 +201,112 @@ export const FlexRadioProvider: ParentComponent = (props) => {
   const logger = console;
 
   const udpSession = createUdpSession({ logger });
-  const signalingWs = createReconnectingWS("/ws/signal");
   let radioSubscriptions: Subscription[] = [];
   let rtcUdpCleanup: (() => void) | undefined;
   let featureLicenseStore = createRadioStateStore({ logger });
 
-  const discoveryAdapter = createVitaDiscoveryAdapter({
-    transportFactory: {
-      async start(handlers) {
-        let closed = false;
+  const discoveryAdapter = createMemo(() => {
+    const pc = rtcSession()?.pc;
+    if (!pc) return;
+    return createVitaDiscoveryAdapter({
+      transportFactory: {
+        async start(handlers) {
+          const discoveryChannel = pc.createDataChannel("discovery", {
+            ordered: false,
+            maxRetransmits: 0,
+            protocol: "discovery",
+          });
 
-        const handleMessage = (event: MessageEvent<string>) => {
-          if (closed) return;
-          try {
-            const msg = JSON.parse(event.data) as {
-              type: string;
-              payload?: { packet?: string };
+          const handleMessage = (event: MessageEvent<ArrayBuffer>) => {
+            handlers.onMessage(new Uint8Array(event.data));
+          };
+
+          const handleError = (error: Event) => handlers.onError?.(error);
+
+          discoveryChannel.addEventListener("message", handleMessage);
+          discoveryChannel.addEventListener("error", handleError);
+
+          await new Promise<void>((resolve, reject) => {
+            const onOpen = () => {
+              resolve();
             };
-            if (msg.type !== "discovery" || !msg.payload?.packet) return;
-            const raw = atob(msg.payload.packet);
-            const bytes = new Uint8Array(raw.length);
-            for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
-            handlers.onMessage(bytes);
-          } catch {
-            // ignore malformed messages
-          }
-        };
+            const onError = (event: Event) => {
+              reject(new Error("Discovery channel error", { cause: event }));
+            };
+            discoveryChannel.addEventListener("open", onOpen, { once: true });
+            discoveryChannel.addEventListener("error", onError, { once: true });
+          });
 
-        const handleError = (error: Event) => {
-          if (closed) return;
-          handlers.onError?.(error);
-        };
-
-        signalingWs.addEventListener("message", handleMessage);
-        signalingWs.addEventListener("error", handleError);
-
-        return {
-          async close() {
-            if (closed) return;
-            closed = true;
-            signalingWs.removeEventListener("message", handleMessage);
-            signalingWs.removeEventListener("error", handleError);
-          },
-        };
+          return {
+            async close() {
+              console.log("Closing discovery channel");
+              discoveryChannel.removeEventListener("message", handleMessage);
+              discoveryChannel.removeEventListener("error", handleError);
+              discoveryChannel.close();
+            },
+          };
+        },
       },
-    },
-    logger,
+      logger,
+    });
   });
-
-  let pendingRtcSession: RtcSession | null = null;
 
   const transportFactory: FlexWireTransportFactory = {
     async connect(radio, handlers) {
-      const { session, info } = await startRTCViaSignaling({
-        host: radio.host,
-        port: radio.port,
-        signalingWs,
-        onTrack: onTrackHandler,
-      });
-
-      pendingRtcSession = session;
-      registerRTCSession(session);
+      console.log("Creating control channel transport for radio", radio);
+      const session = rtcSession();
 
       const handleMessage = (ev: MessageEvent) => {
         handlers.onData(ev.data);
       };
       const handleClose = () => {
         handlers.onClose?.();
+        cleanup();
       };
       const handleError = (e: Event) => {
         handlers.onError?.(e);
+        cleanup();
       };
 
-      session.tcpData.addEventListener("message", handleMessage);
-      session.tcpData.addEventListener("close", handleClose);
-      session.tcpData.addEventListener("error", handleError);
+      const tcp = session.pc.createDataChannel(`${radio.host}:${radio.port}`, {
+        ordered: true,
+        protocol: "tcp",
+      });
+      session.tcp = tcp;
 
-      // Inject the handshake lines (V… and H…) that the radio sends over TCP,
-      // but which the bridge consumed during ConnectAndOffer. We defer via
-      // setTimeout so they arrive after FlexRadioSessionImpl registers its
-      // rawLineSub (which happens in the microtask continuation after connect()
-      // returns — before the first macrotask fires).
-      setTimeout(() => {
-        handlers.onData(`${info.version}\n`);
-        handlers.onData(`${info.handle}\n`);
-      }, 0);
+      const cleanup = () => {
+        tcp.removeEventListener("message", handleMessage);
+        tcp.removeEventListener("close", handleClose);
+        tcp.removeEventListener("error", handleError);
+        delete session.tcp;
+      };
+
+      tcp.addEventListener("message", handleMessage);
+      tcp.addEventListener("close", handleClose);
+      tcp.addEventListener("error", handleError);
+
+      await new Promise<void>((resolve, reject) => {
+        const onOpen = () => {
+          resolve();
+        };
+        const onError = (event: Event) => {
+          reject(new Error("Discovery channel error", { cause: event }));
+          cleanup();
+        };
+        tcp.addEventListener("open", onOpen, { once: true });
+        tcp.addEventListener("error", onError, { once: true });
+      });
 
       return {
         async send(payload) {
-          if (closed) throw new Error("tcp transport is closed");
           if (typeof payload !== "string")
             throw new Error("tcp dc: binary payload not supported");
-          if (session.tcpData.readyState !== "open")
+          if (tcp.readyState !== "open")
             throw new Error("tcp data channel is not open");
-          session.tcpData.send(payload);
+          tcp.send(payload);
         },
         async close() {
-          session.tcpData.removeEventListener("message", handleMessage);
-          session.tcpData.removeEventListener("close", handleClose);
-          session.tcpData.removeEventListener("error", handleError);
-          session.close();
-          handlers.onClose?.();
+          tcp.close();
         },
       };
     },
@@ -313,14 +317,18 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     logger,
   });
 
-  const radioClient = createRadioClient(
-    {
-      discovery: discoveryAdapter,
-      control: controlFactory,
-      logger,
-    },
-    { defaultCommandTimeoutMs: 10_000 },
-  );
+  const radioClient = createMemo(() => {
+    const discovery = discoveryAdapter();
+    if (!discovery) return null;
+    return createRadioClient(
+      {
+        discovery,
+        control: controlFactory,
+        logger,
+      },
+      { defaultCommandTimeoutMs: 10_000 },
+    );
+  });
 
   const cleanupRadioSubscriptions = () => {
     for (const sub of radioSubscriptions) sub.unsubscribe();
@@ -526,7 +534,6 @@ export const FlexRadioProvider: ParentComponent = (props) => {
 
   const teardownRadioConnection = (options?: { resetState?: boolean }) => {
     const { resetState = true } = options ?? {};
-    disconnectRTC();
     if (rtcUdpCleanup) {
       rtcUdpCleanup();
       rtcUdpCleanup = undefined;
@@ -570,7 +577,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
       selectedRadio: addr.host,
       stage: ConnectionStage.TCP,
     });
-    const radio = radioClient.radioByEndpoint(addr);
+    const radio = radioClient().radioByEndpoint(addr);
     const descriptor = radio?.descriptor;
     if (!descriptor) {
       showToast({
@@ -624,11 +631,19 @@ export const FlexRadioProvider: ParentComponent = (props) => {
 
         const dataPlaneFactory: FlexDataPlaneFactory = {
           async connect({ udp, logger: dcLogger }) {
-            const rtc = pendingRtcSession;
-            if (!rtc) throw new Error("No pending RTC session for data plane");
-            pendingRtcSession = null;
+            const session = rtcSession();
+            if (!session.pc) {
+              throw new Error("RTC session is not established");
+            }
+            const dc = session.pc.createDataChannel("udp", {
+              ordered: false,
+              maxRetransmits: 0,
+              protocol: "udp",
+            });
+            session.udp = dc;
+
             rtcUdpCleanup?.();
-            rtcUdpCleanup = attachRtcDataChannel(udp, rtc.udpData, {
+            rtcUdpCleanup = attachRtcDataChannel(udp, dc, {
               onError(error) {
                 console.error("Error decoding UDP packet:", error);
                 disconnect();
@@ -641,11 +656,10 @@ export const FlexRadioProvider: ParentComponent = (props) => {
                   rtcUdpCleanup = undefined;
                 }
                 try {
-                  rtc.close();
+                  dc.close();
                 } catch (error) {
                   dcLogger?.warn?.("Failed to close RTC session", { error });
                 }
-                disconnectRTC();
               },
             };
           },
@@ -689,8 +703,6 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         } catch (closeError) {
           console.error("Error while closing failed session", closeError);
         }
-        pendingRtcSession = null;
-        disconnectRTC();
         if (rtcUdpCleanup) {
           rtcUdpCleanup();
           rtcUdpCleanup = undefined;
@@ -722,7 +734,9 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         client: radioClient,
       }}
     >
-      {props.children}
+      <Show when={radioClient()} fallback={<div>Initializing</div>}>
+        {props.children}
+      </Show>
     </FlexRadioContext.Provider>
   );
 };

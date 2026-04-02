@@ -467,10 +467,9 @@ func (s *Server) startTCPForwarder(rs *core.RadioSession, handleHex string, rd *
 			return
 		}
 
-		line := strings.TrimSpace(b)
-		rs.SendTCPLine(line)
+		rs.SendTCPLine(b)
 
-		stream, ok := core.ParseAudioStream(line)
+		stream, ok := core.ParseAudioStream(b)
 		if !ok {
 			continue
 		}

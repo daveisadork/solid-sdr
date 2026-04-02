@@ -140,33 +140,24 @@ export async function startRTCViaSignaling(opts: {
 
   const pc = new RTCPeerConnection({});
 
-  const tcpData = pc.createDataChannel("tcp", { ordered: true });
-  const udpData = pc.createDataChannel("udp", {
-    ordered: false,
-    maxRetransmits: 0,
-  });
-
-  udpData.binaryType = "arraybuffer";
-  udpData.onopen = () => console.log("[udp dc] open");
-  udpData.onclosing = () => console.log("[udp dc] closing");
-  udpData.onclose = () => console.log("[udp dc] closed");
-  udpData.onerror = (e) => console.warn("[udp dc] error", e);
-
-  tcpData.onopen = () => console.log("[tcp dc] open");
-  tcpData.onclosing = () => console.log("[tcp dc] closing");
-  tcpData.onclose = () => console.log("[tcp dc] closed");
-  tcpData.onerror = (e) => console.warn("[tcp dc] error", e);
-
-  const audio = pc.addTransceiver("audio", { direction: "sendrecv" });
-
   // Register onTrack BEFORE setLocalDescription so the track event (which fires
   // during setRemoteDescription processing) is never missed.
   if (onTrack) pc.addEventListener("track", onTrack);
 
-  // Build and set local description.
-  const offer = await pc.createOffer();
-  const sdp = forceStereoInSDP(offer.sdp!);
-  await pc.setLocalDescription({ ...offer, sdp });
+  const renegotiate = async () => {
+    console.log("[negotiationneeded] Renegotiating...");
+    // Build and set local description.
+    const offer = await pc.createOffer();
+    const sdp = forceStereoInSDP(offer.sdp!);
+    await pc.setLocalDescription({ ...offer, sdp });
+
+    signalingWs.send(
+      JSON.stringify({
+        type: "offer",
+        payload: { host, port, sdp: pc.localDescription!.sdp },
+      }),
+    );
+  };
 
   // Promise that resolves once we receive the answer payload.
   let resolveInfo!: (info: RtcSessionInfo) => void;
@@ -231,6 +222,7 @@ export async function startRTCViaSignaling(opts: {
 
   // Remove listener automatically when PC closes.
   pc.addEventListener("connectionstatechange", () => {
+    window.pc = pc; // for debugging
     if (pc.connectionState === "closed" || pc.connectionState === "failed") {
       removeSignalingListener();
     }
@@ -241,13 +233,25 @@ export async function startRTCViaSignaling(opts: {
     15_000,
   );
 
-  // Send the offer.
-  signalingWs.send(
-    JSON.stringify({
-      type: "offer",
-      payload: { host, port, sdp: pc.localDescription!.sdp },
-    }),
-  );
+  pc.addEventListener("negotiationneeded", renegotiate);
+
+  const audio = pc.addTransceiver("audio", { direction: "sendrecv" });
+  const tcpData = pc.createDataChannel("tcp", { ordered: true });
+  const udpData = pc.createDataChannel("udp", {
+    ordered: false,
+    maxRetransmits: 0,
+  });
+
+  udpData.binaryType = "arraybuffer";
+  udpData.onopen = () => console.log("[udp dc] open");
+  udpData.onclosing = () => console.log("[udp dc] closing");
+  udpData.onclose = () => console.log("[udp dc] closed");
+  udpData.onerror = (e) => console.warn("[udp dc] error", e);
+
+  tcpData.onopen = () => console.log("[tcp dc] open");
+  tcpData.onclosing = () => console.log("[tcp dc] closing");
+  tcpData.onclose = () => console.log("[tcp dc] closed");
+  tcpData.onerror = (e) => console.warn("[tcp dc] error", e);
 
   let info: RtcSessionInfo;
   try {
@@ -276,7 +280,7 @@ export async function startRTCViaSignaling(opts: {
   };
 }
 
-function waitForDataChannelOpen(dc: RTCDataChannel): Promise<void> {
+export function waitForDataChannelOpen(dc: RTCDataChannel): Promise<void> {
   if (dc.readyState === "open") return Promise.resolve();
   if (dc.readyState === "closing" || dc.readyState === "closed") {
     return Promise.reject(new Error("Data channel is closed"));

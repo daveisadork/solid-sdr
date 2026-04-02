@@ -178,7 +178,11 @@ const FlexRadioContext = createContext<{
 export const FlexRadioProvider: ParentComponent = (props) => {
   const [state, setState] = createStore(initialState());
   const { preferences } = usePreferences();
-  const { register: registerRTCSession, disconnect: disconnectRTC, onTrackHandler } = useRtc();
+  const {
+    register: registerRTCSession,
+    disconnect: disconnectRTC,
+    onTrackHandler,
+  } = useRtc();
   const [activeRadio, setActiveRadio] = createSignal<RadioHandle | null>(null);
 
   // const logger = {
@@ -260,23 +264,13 @@ export const FlexRadioProvider: ParentComponent = (props) => {
       pendingRtcSession = session;
       registerRTCSession(session);
 
-      // Wire the "tcp" data channel to flexlib's line handler.
-      let closed = false;
       const handleMessage = (ev: MessageEvent) => {
-        if (closed) return;
-        const line =
-          typeof ev.data === "string"
-            ? ev.data
-            : new TextDecoder().decode(ev.data as ArrayBuffer);
-        handlers.onData(line.endsWith("\n") ? line : `${line}\n`);
+        handlers.onData(ev.data);
       };
       const handleClose = () => {
-        if (closed) return;
-        closed = true;
         handlers.onClose?.();
       };
       const handleError = (e: Event) => {
-        if (closed) return;
         handlers.onError?.(e);
       };
 
@@ -304,8 +298,6 @@ export const FlexRadioProvider: ParentComponent = (props) => {
           session.tcpData.send(payload);
         },
         async close() {
-          if (closed) return;
-          closed = true;
           session.tcpData.removeEventListener("message", handleMessage);
           session.tcpData.removeEventListener("close", handleClose);
           session.tcpData.removeEventListener("error", handleError);

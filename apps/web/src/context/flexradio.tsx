@@ -1,4 +1,4 @@
-import { createReconnectingWS, makeWS } from "@solid-primitives/websocket";
+import { createReconnectingWS } from "@solid-primitives/websocket";
 import {
   batch,
   createContext,
@@ -21,12 +21,14 @@ import {
   createRadioClient,
   createUdpSession,
   createVitaDiscoveryAdapter,
+  createControlChannelFactory,
   FlexCommandRejectedError,
   scaleMeterRawValue,
   type AudioStreamSnapshot,
   type FlexConnectionProgress,
   type FlexDataPlaneFactory,
   type FlexWireMessage,
+  type FlexWireTransportFactory,
   type GuiClientSnapshot,
   type MeterSnapshot,
   type PanadapterSnapshot,
@@ -43,7 +45,7 @@ import {
   TxBandSettingSnapshot,
   RadioClient,
 } from "@repo/flexlib";
-import { createWebSocketFlexControlFactory } from "~/lib/flex-control";
+import { startRTCViaSignaling, type RtcSession } from "~/lib/rtc";
 import { useRtc } from "./rtc";
 import { usePreferences } from "./preferences";
 
@@ -176,7 +178,7 @@ const FlexRadioContext = createContext<{
 export const FlexRadioProvider: ParentComponent = (props) => {
   const [state, setState] = createStore(initialState());
   const { preferences } = usePreferences();
-  const { connect: connectRTC, disconnect: disconnectRTC } = useRtc();
+  const { register: registerRTCSession, disconnect: disconnectRTC, onTrackHandler } = useRtc();
   const [activeRadio, setActiveRadio] = createSignal<RadioHandle | null>(null);
 
   // const logger = {
@@ -244,16 +246,79 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     logger,
   });
 
-  const controlFactory = createWebSocketFlexControlFactory({
-    makeSocket(descriptor) {
-      const ws = makeWS(
-        `/ws/radio?host=${descriptor.host}&port=${descriptor.port}`,
-      );
-      ws.addEventListener("close", disconnect);
-      return ws;
+  let pendingRtcSession: RtcSession | null = null;
+
+  const transportFactory: FlexWireTransportFactory = {
+    async connect(radio, handlers) {
+      const { session, info } = await startRTCViaSignaling({
+        host: radio.host,
+        port: radio.port,
+        signalingWs,
+        onTrack: onTrackHandler,
+      });
+
+      pendingRtcSession = session;
+      registerRTCSession(session);
+
+      // Wire the "tcp" data channel to flexlib's line handler.
+      let closed = false;
+      const handleMessage = (ev: MessageEvent) => {
+        if (closed) return;
+        const line =
+          typeof ev.data === "string"
+            ? ev.data
+            : new TextDecoder().decode(ev.data as ArrayBuffer);
+        handlers.onData(line.endsWith("\n") ? line : `${line}\n`);
+      };
+      const handleClose = () => {
+        if (closed) return;
+        closed = true;
+        handlers.onClose?.();
+      };
+      const handleError = (e: Event) => {
+        if (closed) return;
+        handlers.onError?.(e);
+      };
+
+      session.tcpData.addEventListener("message", handleMessage);
+      session.tcpData.addEventListener("close", handleClose);
+      session.tcpData.addEventListener("error", handleError);
+
+      // Inject the handshake lines (V… and H…) that the radio sends over TCP,
+      // but which the bridge consumed during ConnectAndOffer. We defer via
+      // setTimeout so they arrive after FlexRadioSessionImpl registers its
+      // rawLineSub (which happens in the microtask continuation after connect()
+      // returns — before the first macrotask fires).
+      setTimeout(() => {
+        handlers.onData(`${info.version}\n`);
+        handlers.onData(`${info.handle}\n`);
+      }, 0);
+
+      return {
+        async send(payload) {
+          if (closed) throw new Error("tcp transport is closed");
+          if (typeof payload !== "string")
+            throw new Error("tcp dc: binary payload not supported");
+          if (session.tcpData.readyState !== "open")
+            throw new Error("tcp data channel is not open");
+          session.tcpData.send(payload);
+        },
+        async close() {
+          if (closed) return;
+          closed = true;
+          session.tcpData.removeEventListener("message", handleMessage);
+          session.tcpData.removeEventListener("close", handleClose);
+          session.tcpData.removeEventListener("error", handleError);
+          session.close();
+          handlers.onClose?.();
+        },
+      };
     },
+  };
+
+  const controlFactory = createControlChannelFactory({
+    transportFactory,
     logger,
-    udpSession,
   });
 
   const radioClient = createRadioClient(
@@ -566,8 +631,10 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         featureLicenseStore = createRadioStateStore({ logger });
 
         const dataPlaneFactory: FlexDataPlaneFactory = {
-          async connect({ handle, udp, logger }) {
-            const rtc = await connectRTC(handle);
+          async connect({ udp, logger: dcLogger }) {
+            const rtc = pendingRtcSession;
+            if (!rtc) throw new Error("No pending RTC session for data plane");
+            pendingRtcSession = null;
             rtcUdpCleanup?.();
             rtcUdpCleanup = attachRtcDataChannel(udp, rtc.udpData, {
               onError(error) {
@@ -584,7 +651,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
                 try {
                   rtc.close();
                 } catch (error) {
-                  logger?.warn?.("Failed to close RTC session", { error });
+                  dcLogger?.warn?.("Failed to close RTC session", { error });
                 }
                 disconnectRTC();
               },
@@ -630,6 +697,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         } catch (closeError) {
           console.error("Error while closing failed session", closeError);
         }
+        pendingRtcSession = null;
         disconnectRTC();
         if (rtcUdpCleanup) {
           rtcUdpCleanup();

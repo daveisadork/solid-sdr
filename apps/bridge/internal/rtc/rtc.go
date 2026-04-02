@@ -1,6 +1,7 @@
 package rtc
 
 import (
+	"bufio"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/daveisadork/flex-bridge/internal/core"
 	"github.com/pion/ice/v4"
@@ -198,59 +200,9 @@ func (s *Server) handleOffer(handleHex, offerSDP, clientIP string) (string, erro
 
 	newConnection := rs.PC == nil
 	if newConnection {
-		pc, err := s.api.NewPeerConnection(webrtc.Configuration{ICEServers: s.ICEServers})
-		if err != nil {
-			return "", stepErr("new-pc", err)
+		if err := s.setupPeerConnection(rs, handleHex, clientIP); err != nil {
+			return "", err
 		}
-
-		rs.PC = pc
-		if err := ensureRXTrack(rs); err != nil {
-			return "", stepErr("add-rx-track", err)
-		}
-
-		log.Printf("[rtc] new client connection: handle=%s client_ip=%s", sanitizeLog(handleHex), sanitizeLog(clientIP)) //nolint:gosec // values are sanitized via sanitizeLog before logging
-
-		// Capture client-created data channels.
-		rs.PC.OnDataChannel(func(dc *webrtc.DataChannel) {
-			switch dc.Label() {
-			case "udp":
-				rs.SetUDPDataChannel(dc)
-				dc.OnMessage(func(msg webrtc.DataChannelMessage) {
-					if msg.IsString || len(msg.Data) == 0 || rs.UDPConn == nil {
-						return
-					}
-					if _, err := rs.UDPConn.Write(msg.Data); err != nil {
-						log.Printf("[rtc] udp datachannel write failed handle=%s err=%v", handleHex, err)
-					}
-				})
-
-			case "tcp":
-				rs.SetTCPDataChannel(dc)
-				dc.OnMessage(func(msg webrtc.DataChannelMessage) {
-					if len(msg.Data) == 0 || rs.TCP == nil {
-						return
-					}
-					if _, err := rs.TCP.Write(msg.Data); err != nil {
-						log.Printf("[rtc] tcp datachannel write failed handle=%s err=%v", handleHex, err)
-					}
-				})
-				dc.OnClose(func() {
-					rs.SetTCPDataChannel(nil)
-				})
-			}
-		})
-
-		rs.PC.OnTrack(func(track *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
-			go s.handleIncomingTrack(handleHex, rs, track, receiver)
-		})
-
-		rs.PC.OnConnectionStateChange(func(st webrtc.PeerConnectionState) {
-			log.Printf("[rtc] PeerConnection state: %s (handle %s)", st.String(), handleHex)
-
-			if st == webrtc.PeerConnectionStateFailed || st == webrtc.PeerConnectionStateClosed {
-				_ = pc.Close()
-			}
-		})
 	}
 
 	// Remote offer first.
@@ -344,6 +296,194 @@ func parsePotentialIP(raw string) string {
 	}
 
 	return ip.String()
+}
+
+// setupPeerConnection creates and wires a new PeerConnection onto rs.
+// The caller is responsible for the SDP offer/answer exchange.
+func (s *Server) setupPeerConnection(rs *core.RadioSession, handleHex, clientIP string) error {
+	pc, err := s.api.NewPeerConnection(webrtc.Configuration{ICEServers: s.ICEServers})
+	if err != nil {
+		return stepErr("new-pc", err)
+	}
+
+	rs.PC = pc
+	if err := ensureRXTrack(rs); err != nil {
+		return stepErr("add-rx-track", err)
+	}
+
+	//nolint:gosec
+	log.Printf(
+		"[rtc] new client connection: handle=%s client_ip=%s",
+		sanitizeLog(handleHex), sanitizeLog(clientIP),
+	)
+
+	rs.PC.OnDataChannel(func(dc *webrtc.DataChannel) {
+		switch dc.Label() {
+		case "udp":
+			rs.SetUDPDataChannel(dc)
+			dc.OnMessage(func(msg webrtc.DataChannelMessage) {
+				if msg.IsString || len(msg.Data) == 0 || rs.UDPConn == nil {
+					return
+				}
+				if _, err := rs.UDPConn.Write(msg.Data); err != nil {
+					log.Printf("[rtc] udp datachannel write failed handle=%s err=%v", handleHex, err)
+				}
+			})
+
+		case "tcp":
+			rs.SetTCPDataChannel(dc)
+			dc.OnMessage(func(msg webrtc.DataChannelMessage) {
+				if len(msg.Data) == 0 || rs.TCP == nil {
+					return
+				}
+				if _, err := rs.TCP.Write(msg.Data); err != nil {
+					log.Printf("[rtc] tcp datachannel write failed handle=%s err=%v", handleHex, err)
+				}
+			})
+			dc.OnClose(func() {
+				rs.SetTCPDataChannel(nil)
+			})
+		}
+	})
+
+	rs.PC.OnTrack(func(track *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
+		go s.handleIncomingTrack(handleHex, rs, track, receiver)
+	})
+
+	rs.PC.OnConnectionStateChange(func(st webrtc.PeerConnectionState) {
+		log.Printf("[rtc] PeerConnection state: %s (handle %s)", st.String(), handleHex)
+		if st == webrtc.PeerConnectionStateFailed || st == webrtc.PeerConnectionStateClosed {
+			_ = pc.Close()
+		}
+	})
+
+	return nil
+}
+
+// ConnectAndOffer dials the radio TCP port, reads the handshake, registers a session,
+// and performs a WebRTC offer/answer with trickle ICE.
+// onCandidate is called for each gathered ICE candidate (sessionID is included so the
+// caller doesn't need to track it separately). onGatheringComplete signals end-of-candidates.
+func (s *Server) ConnectAndOffer(
+	host string, port int,
+	offerSDP, clientIP string,
+	onCandidate func(sessionID string, c webrtc.ICECandidateInit),
+	onGatheringComplete func(sessionID string),
+) (sessionID, version, handle, answerSDP string, err error) {
+	// Dial TCP to radio.
+	tcp, err := net.DialTimeout("tcp", net.JoinHostPort(host, strconv.Itoa(port)), 9*time.Second) //nolint:gosec
+	if err != nil {
+		return "", "", "", "", stepErr("tcp-dial", err)
+	}
+
+	// Read version + handle handshake (exactly two lines).
+	rd := bufio.NewReader(tcp)
+
+	line1Raw, err := rd.ReadString('\n')
+	if err != nil {
+		_ = tcp.Close()
+		return "", "", "", "", stepErr("read-line1", err)
+	}
+
+	line2Raw, err := rd.ReadString('\n')
+	if err != nil {
+		_ = tcp.Close()
+		return "", "", "", "", stepErr("read-line2", err)
+	}
+
+	l1 := strings.TrimSpace(line1Raw)
+	l2 := strings.TrimSpace(line2Raw)
+
+	versionLine, handleLine := l1, l2
+	if strings.HasPrefix(l1, "H") {
+		versionLine, handleLine = l2, l1
+	}
+
+	handleHex := strings.ToUpper(strings.TrimPrefix(handleLine, "H"))
+
+	// Register session.
+	rs := s.Sessions.PutTCP(handleHex, host, port, tcp)
+	rs.Version = versionLine
+
+	if u, parseErr := strconv.ParseUint(handleHex, 16, 32); parseErr == nil {
+		rs.HandleU32 = uint32(u)
+	}
+
+	// Create new PeerConnection (replace any stale one).
+	if rs.PC != nil {
+		_ = rs.PC.Close()
+		rs.PC = nil
+	}
+
+	if err := s.setupPeerConnection(rs, handleHex, clientIP); err != nil {
+		_ = tcp.Close()
+		return "", "", "", "", err
+	}
+
+	// Trickle ICE: wire up candidate callbacks before SetLocalDescription.
+	rs.PC.OnICECandidate(func(c *webrtc.ICECandidate) {
+		if c == nil {
+			onGatheringComplete(handleHex)
+			return
+		}
+		onCandidate(handleHex, c.ToJSON())
+	})
+
+	// SDP exchange.
+	if err := rs.PC.SetRemoteDescription(webrtc.SessionDescription{
+		Type: webrtc.SDPTypeOffer,
+		SDP:  offerSDP,
+	}); err != nil {
+		return "", "", "", "", stepErr("set-remote", err)
+	}
+
+	answer, err := rs.PC.CreateAnswer(nil)
+	if err != nil {
+		return "", "", "", "", stepErr("create-answer", err)
+	}
+
+	if err := rs.PC.SetLocalDescription(answer); err != nil {
+		return "", "", "", "", stepErr("set-local", err)
+	}
+
+	// Start async plumbing (UDP socket to radio + UDP demux).
+	go s.postAnswerPlumbing(rs)
+
+	// Start TCP forwarder: reads radio lines and sends them to the "tcp" data channel.
+	// rd is passed to reuse its buffer and avoid losing any data already read.
+	go s.startTCPForwarder(rs, handleHex, rd)
+
+	return handleHex, versionLine, handleLine, answer.SDP, nil
+}
+
+// startTCPForwarder reads newline-delimited lines from the radio TCP connection
+// and forwards each to the "tcp" data channel. It also performs stream detection
+// so that Opus audio streams are registered with the RTC layer.
+// rd must be the same bufio.Reader used to read the initial handshake.
+func (s *Server) startTCPForwarder(rs *core.RadioSession, handleHex string, rd *bufio.Reader) {
+	for {
+		b, err := rd.ReadString('\n')
+		if err != nil {
+			return
+		}
+
+		line := strings.TrimSpace(b)
+		rs.SendTCPLine(line)
+
+		stream, ok := core.ParseAudioStream(line)
+		if !ok {
+			continue
+		}
+
+		if stream.Removed {
+			s.NoteStreamRemoved(handleHex, stream.StreamID)
+			continue
+		}
+
+		if stream.ClientHandle == rs.HandleU32 {
+			s.NoteStreamCreated(handleHex, stream.StreamID, stream.Type, stream.Compression)
+		}
+	}
 }
 
 func (s *Server) postAnswerPlumbing(rs *core.RadioSession) {

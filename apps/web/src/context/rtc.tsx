@@ -4,7 +4,7 @@ import {
   ParentComponent,
   createSignal,
   onCleanup,
-  batch,
+  createEffect,
 } from "solid-js";
 import type { Accessor } from "solid-js";
 import { startRTC, type RtcSession } from "../lib/rtc";
@@ -18,6 +18,8 @@ type RtcContextValue = {
   session: Accessor<RtcSession | null>;
   tracks: Accessor<RemoteTrack[]>;
   connect: (sessionId: string) => Promise<RtcSession>;
+  register: (session: RtcSession) => void;
+  onTrackHandler: (ev: RTCTrackEvent) => void;
   disconnect: () => void;
 };
 
@@ -37,10 +39,11 @@ export const RtcProvider: ParentComponent = (props) => {
     ev.track.addEventListener("unmute", () =>
       console.log("[rtc] remote track unmuted"),
     );
-
-    ev.track.onended = () => {
-      setTracks((t) => t.filter((x) => x.streamId !== streamId));
-    };
+    ev.track.addEventListener(
+      "ended",
+      () => setTracks((t) => t.filter((x) => x.streamId !== streamId)),
+      { once: true },
+    );
   };
 
   function connect(sessionId: string) {
@@ -49,18 +52,35 @@ export const RtcProvider: ParentComponent = (props) => {
     return startRTC(sessionId, onTrack).then(setSession);
   }
 
-  function disconnect() {
-    session()?.close();
-    batch(() => {
-      setSession(null);
-      setTracks([]);
+  // register sets an already-created RtcSession (e.g. from startRTCViaSignaling)
+  // as the current session and wires up the track handler.
+  createEffect(() => {
+    const s = session();
+    if (!s) return;
+    s.pc.addEventListener("track", onTrack);
+    onCleanup(() => {
+      s.pc.removeEventListener("track", onTrack);
+      s.close();
     });
+  });
+
+  function disconnect() {
+    setSession(null);
   }
 
   onCleanup(disconnect);
 
   return (
-    <RtcCtx.Provider value={{ session, tracks, connect, disconnect }}>
+    <RtcCtx.Provider
+      value={{
+        session,
+        tracks,
+        connect,
+        register: setSession,
+        onTrackHandler: onTrack,
+        disconnect,
+      }}
+    >
       {props.children}
     </RtcCtx.Provider>
   );

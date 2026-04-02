@@ -1,7 +1,9 @@
 package signaling
 
 import (
+	"encoding/json"
 	"log"
+	"net"
 	"net/http"
 	"sync"
 	"time"
@@ -10,6 +12,7 @@ import (
 	"github.com/daveisadork/flex-bridge/internal/discovery"
 	"github.com/daveisadork/flex-bridge/internal/rtc"
 	"github.com/gorilla/websocket"
+	"github.com/pion/webrtc/v4"
 )
 
 // Handler is the HTTP handler for /ws/signal.
@@ -36,6 +39,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	defer func() { _ = ws.Close() }()
+
+	clientIP, _, _ := net.SplitHostPort(r.RemoteAddr)
 
 	send := make(chan Message, 64)
 	stop := make(chan struct{})
@@ -101,22 +106,96 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 
-		h.dispatch(env, send)
+		h.dispatch(env, send, stop, clientIP)
 	}
 
 	close(stop)
 	writerDone.Wait()
 }
 
-func (h *Handler) dispatch(msg Message, _ chan<- Message) {
+func (h *Handler) dispatch(msg Message, send chan<- Message, stop <-chan struct{}, clientIP string) {
 	switch msg.Type {
 	case TypeOffer:
-		// TODO: parse OfferPayload, call rtc.handleOffer, send TypeAnswer + trickle TypeICE
-		log.Printf("[signal] offer received (not yet implemented)")
+		var payload OfferPayload
+		if err := json.Unmarshal(msg.Payload, &payload); err != nil {
+			safeSend(send, stop, mustEncode(TypeError, ErrorPayload{
+				Code:    "BAD_PAYLOAD",
+				Message: err.Error(),
+			}))
+			return
+		}
+
+		if payload.Host == "" || payload.Port == 0 || payload.SDP == "" {
+			safeSend(send, stop, mustEncode(TypeError, ErrorPayload{
+				Code:    "BAD_PAYLOAD",
+				Message: "host, port, and sdp are required",
+			}))
+			return
+		}
+
+		// Run in a goroutine — ConnectAndOffer blocks on TCP dial + handshake.
+		go func() {
+			sessionID, version, handle, answerSDP, err := h.rtc.ConnectAndOffer(
+				payload.Host, payload.Port, payload.SDP, clientIP,
+				func(sid string, c webrtc.ICECandidateInit) {
+					safeSend(send, stop, mustEncode(TypeICE, ICEPayload{
+						SessionID: sid,
+						Candidate: &ICECandidateInit{
+							Candidate:        c.Candidate,
+							SDPMid:           c.SDPMid,
+							SDPMLineIndex:    c.SDPMLineIndex,
+							UsernameFragment: c.UsernameFragment,
+						},
+					}))
+				},
+				func(sid string) {
+					safeSend(send, stop, mustEncode(TypeICE, ICEPayload{
+						SessionID: sid,
+						Candidate: nil,
+					}))
+				},
+			)
+			if err != nil {
+				log.Printf("[signal] ConnectAndOffer failed: %v", err)
+				safeSend(send, stop, mustEncode(TypeError, ErrorPayload{
+					Code:    "CONNECT_FAILED",
+					Message: err.Error(),
+				}))
+				return
+			}
+
+			safeSend(send, stop, mustEncode(TypeAnswer, AnswerPayload{
+				SessionID: sessionID,
+				SDP:       answerSDP,
+				Version:   version,
+				Handle:    handle,
+			}))
+		}()
+
 	case TypeICE:
 		// TODO: parse ICEPayload, call pc.AddICECandidate
 		log.Printf("[signal] ice candidate received (not yet implemented)")
+
 	default:
 		log.Printf("[signal] unknown message type: %q", msg.Type)
 	}
+}
+
+// safeSend sends msg to send, aborting if stop is closed.
+func safeSend(send chan<- Message, stop <-chan struct{}, msg Message) {
+	select {
+	case send <- msg:
+	case <-stop:
+	}
+}
+
+// mustEncode encodes a typed payload into a Message.
+// Encoding a known struct should never fail; if it does a generic error is returned.
+func mustEncode(msgType string, payload any) Message {
+	msg, err := encode(msgType, payload)
+	if err != nil {
+		return Message{Type: TypeError, Payload: json.RawMessage(`{"code":"ENCODE_ERROR"}`)}
+	}
+
+	return msg
 }

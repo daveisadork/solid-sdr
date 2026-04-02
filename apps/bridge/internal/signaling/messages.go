@@ -24,16 +24,21 @@ type DiscoveryPayload struct {
 	Packet []byte `json:"packet"`
 }
 
-// OfferPayload is sent client→bridge to initiate a WebRTC connection.
+// OfferPayload is sent client→bridge to initiate a WebRTC connection to a radio.
 type OfferPayload struct {
-	SessionID string `json:"sessionId"`
-	SDP       string `json:"sdp"`
+	Host string `json:"host"`
+	Port int    `json:"port"`
+	SDP  string `json:"sdp"`
 }
 
 // AnswerPayload is sent bridge→client in response to an offer.
+// Version and Handle are the first two lines of the radio TCP handshake,
+// delivered here so the client has them before the "tcp" data channel opens.
 type AnswerPayload struct {
-	SessionID string `json:"sessionId"`
+	SessionID string `json:"sessionId"` // handle hex, e.g. "591502EF"
 	SDP       string `json:"sdp"`
+	Version   string `json:"version"` // e.g. "V1.4.0.0"
+	Handle    string `json:"handle"`  // e.g. "H591502EF"
 }
 
 // ICECandidateInit mirrors RTCIceCandidateInit from the browser WebRTC API.

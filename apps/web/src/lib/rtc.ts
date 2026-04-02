@@ -61,7 +61,6 @@ export async function startRTC(
   tcpData.onclosing = () => console.log("[tcp dc] closing");
   tcpData.onclose = () => console.log("[tcp dc] closed");
   tcpData.onerror = (e) => console.warn("[tcp dc] error", e);
-  tcpData.onmessage = (e) => console.log("[tcp dc] message", e.data);
 
   return {
     pc,
@@ -115,6 +114,198 @@ function waitForIceComplete(pc: RTCPeerConnection) {
     pc.addEventListener("icegatheringstatechange", onChange);
     // small safety timer to avoid hanging on environments with blocked STUN
     setTimeout(resolve, 1500);
+  });
+}
+
+export type RtcSessionInfo = {
+  sessionId: string;
+  version: string;
+  handle: string;
+};
+
+// startRTCViaSignaling establishes a WebRTC session by exchanging offer/answer
+// over the given signaling WebSocket (the same /ws/signal connection used for discovery).
+// It sends the offer, handles trickle ICE candidates, and waits for the tcp data channel
+// to open before returning the session and the radio handshake info.
+export async function startRTCViaSignaling(opts: {
+  host: string;
+  port: number;
+  signalingWs: Pick<
+    WebSocket,
+    "addEventListener" | "removeEventListener" | "send"
+  >;
+  onTrack?: (ev: RTCTrackEvent) => void;
+}): Promise<{ session: RtcSession; info: RtcSessionInfo }> {
+  const { host, port, signalingWs, onTrack } = opts;
+
+  const pc = new RTCPeerConnection({});
+
+  const tcpData = pc.createDataChannel("tcp", { ordered: true });
+  const udpData = pc.createDataChannel("udp", {
+    ordered: false,
+    maxRetransmits: 0,
+  });
+
+  udpData.binaryType = "arraybuffer";
+  udpData.onopen = () => console.log("[udp dc] open");
+  udpData.onclosing = () => console.log("[udp dc] closing");
+  udpData.onclose = () => console.log("[udp dc] closed");
+  udpData.onerror = (e) => console.warn("[udp dc] error", e);
+
+  tcpData.onopen = () => console.log("[tcp dc] open");
+  tcpData.onclosing = () => console.log("[tcp dc] closing");
+  tcpData.onclose = () => console.log("[tcp dc] closed");
+  tcpData.onerror = (e) => console.warn("[tcp dc] error", e);
+
+  const audio = pc.addTransceiver("audio", { direction: "sendrecv" });
+
+  // Register onTrack BEFORE setLocalDescription so the track event (which fires
+  // during setRemoteDescription processing) is never missed.
+  if (onTrack) pc.addEventListener("track", onTrack);
+
+  // Build and set local description.
+  const offer = await pc.createOffer();
+  const sdp = forceStereoInSDP(offer.sdp!);
+  await pc.setLocalDescription({ ...offer, sdp });
+
+  // Promise that resolves once we receive the answer payload.
+  let resolveInfo!: (info: RtcSessionInfo) => void;
+  let rejectInfo!: (err: Error) => void;
+  const infoPromise = new Promise<RtcSessionInfo>((resolve, reject) => {
+    resolveInfo = resolve;
+    rejectInfo = reject;
+  });
+
+  // Persistent signaling listener — handles answer, trickle ICE, and error messages.
+  // Stays active for the lifetime of the PC (trickle ICE arrives after the answer).
+  const handleSignalingMsg = (ev: MessageEvent) => {
+    let msg: { type: string; payload?: Record<string, unknown> };
+    try {
+      msg = JSON.parse(ev.data as string) as typeof msg;
+    } catch {
+      return;
+    }
+    switch (msg.type) {
+      case "answer": {
+        const p = msg.payload as {
+          sessionId: string;
+          sdp: string;
+          version: string;
+          handle: string;
+        };
+        pc.setRemoteDescription({ type: "answer", sdp: p.sdp })
+          .then(() =>
+            resolveInfo({
+              sessionId: p.sessionId,
+              version: p.version,
+              handle: p.handle,
+            }),
+          )
+          .catch((e: unknown) =>
+            rejectInfo(e instanceof Error ? e : new Error(String(e))),
+          );
+        break;
+      }
+      case "ice": {
+        const p = msg.payload as {
+          candidate: RTCIceCandidateInit | null;
+        };
+        if (p.candidate) {
+          pc.addIceCandidate(p.candidate).catch((e) =>
+            console.warn("[ice] addIceCandidate:", e),
+          );
+        }
+        break;
+      }
+      case "error": {
+        const p = msg.payload as { code: string; message: string };
+        rejectInfo(new Error(`${p.code}: ${p.message}`));
+        break;
+      }
+    }
+  };
+
+  signalingWs.addEventListener("message", handleSignalingMsg);
+  const removeSignalingListener = () =>
+    signalingWs.removeEventListener("message", handleSignalingMsg);
+
+  // Remove listener automatically when PC closes.
+  pc.addEventListener("connectionstatechange", () => {
+    if (pc.connectionState === "closed" || pc.connectionState === "failed") {
+      removeSignalingListener();
+    }
+  });
+
+  const answerTimeout = setTimeout(
+    () => rejectInfo(new Error("Timed out waiting for WebRTC answer")),
+    15_000,
+  );
+
+  // Send the offer.
+  signalingWs.send(
+    JSON.stringify({
+      type: "offer",
+      payload: { host, port, sdp: pc.localDescription!.sdp },
+    }),
+  );
+
+  let info: RtcSessionInfo;
+  try {
+    info = await infoPromise;
+  } finally {
+    clearTimeout(answerTimeout);
+  }
+
+  // Waiting for tcp data channel open implies ICE connected + SCTP negotiated.
+  await waitForDataChannelOpen(tcpData);
+
+  return {
+    session: {
+      pc,
+      tcpData,
+      udpData,
+      audio,
+      setTransmitTrack: audio.sender.replaceTrack.bind(audio.sender),
+      close: () => {
+        removeSignalingListener();
+        if (onTrack) pc.removeEventListener("track", onTrack);
+        pc.close();
+      },
+    },
+    info,
+  };
+}
+
+function waitForDataChannelOpen(dc: RTCDataChannel): Promise<void> {
+  if (dc.readyState === "open") return Promise.resolve();
+  if (dc.readyState === "closing" || dc.readyState === "closed") {
+    return Promise.reject(new Error("Data channel is closed"));
+  }
+  return new Promise<void>((resolve, reject) => {
+    const onOpen = () => {
+      cleanup();
+      resolve();
+    };
+    const onClose = () => {
+      cleanup();
+      reject(new Error("Data channel closed before opening"));
+    };
+    const onError = () => {
+      cleanup();
+      reject(new Error("Data channel error before opening"));
+    };
+    const cleanup = () => {
+      dc.removeEventListener("open", onOpen);
+      dc.removeEventListener("close", onClose);
+      dc.removeEventListener("error", onError);
+    };
+    dc.addEventListener("open", onOpen, { once: true });
+    dc.addEventListener("close", onClose, { once: true });
+    dc.addEventListener("error", onError, { once: true });
+    setTimeout(() => {
+      cleanup();
+      reject(new Error("Timed out waiting for data channel to open"));
+    }, 15_000);
   });
 }
 

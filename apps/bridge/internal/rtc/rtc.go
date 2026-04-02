@@ -352,6 +352,7 @@ func (s *Server) setupPeerConnection(rs *core.RadioSession, handleHex, clientIP 
 
 	rs.PC.OnConnectionStateChange(func(st webrtc.PeerConnectionState) {
 		log.Printf("[rtc] PeerConnection state: %s (handle %s)", st.String(), handleHex)
+
 		if st == webrtc.PeerConnectionStateFailed || st == webrtc.PeerConnectionStateClosed {
 			_ = pc.Close()
 		}
@@ -382,12 +383,14 @@ func (s *Server) ConnectAndOffer(
 	line1Raw, err := rd.ReadString('\n')
 	if err != nil {
 		_ = tcp.Close()
+
 		return "", "", "", "", stepErr("read-line1", err)
 	}
 
 	line2Raw, err := rd.ReadString('\n')
 	if err != nil {
 		_ = tcp.Close()
+
 		return "", "", "", "", stepErr("read-line2", err)
 	}
 
@@ -417,6 +420,7 @@ func (s *Server) ConnectAndOffer(
 
 	if err := s.setupPeerConnection(rs, handleHex, clientIP); err != nil {
 		_ = tcp.Close()
+
 		return "", "", "", "", err
 	}
 
@@ -424,8 +428,10 @@ func (s *Server) ConnectAndOffer(
 	rs.PC.OnICECandidate(func(c *webrtc.ICECandidate) {
 		if c == nil {
 			onGatheringComplete(handleHex)
+
 			return
 		}
+
 		onCandidate(handleHex, c.ToJSON())
 	})
 

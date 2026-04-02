@@ -117,11 +117,14 @@ func (h *Handler) dispatch(msg Message, send chan<- Message, stop <-chan struct{
 	switch msg.Type {
 	case TypeOffer:
 		var payload OfferPayload
-		if err := json.Unmarshal(msg.Payload, &payload); err != nil {
+
+		err := json.Unmarshal(msg.Payload, &payload)
+		if err != nil {
 			safeSend(send, stop, mustEncode(TypeError, ErrorPayload{
 				Code:    "BAD_PAYLOAD",
 				Message: err.Error(),
 			}))
+
 			return
 		}
 
@@ -130,6 +133,7 @@ func (h *Handler) dispatch(msg Message, send chan<- Message, stop <-chan struct{
 				Code:    "BAD_PAYLOAD",
 				Message: "host, port, and sdp are required",
 			}))
+
 			return
 		}
 
@@ -161,6 +165,7 @@ func (h *Handler) dispatch(msg Message, send chan<- Message, stop <-chan struct{
 					Code:    "CONNECT_FAILED",
 					Message: err.Error(),
 				}))
+
 				return
 			}
 

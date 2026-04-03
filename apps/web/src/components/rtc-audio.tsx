@@ -620,9 +620,17 @@ function AudioSink(props: {
     const el = ref();
     if (!el) return;
     el.srcObject = props.stream;
+
+    window.addEventListener(
+      "click",
+      () => {
+        el.play().catch(console.error);
+      },
+      { once: true },
+    );
   });
 
   createEffect(() => ref()?.setSinkId(props.output).catch(console.error));
 
-  return <audio ref={setRef} autoplay />;
+  return <audio ref={setRef} />;
 }

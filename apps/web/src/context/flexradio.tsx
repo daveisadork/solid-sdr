@@ -251,7 +251,6 @@ export const FlexRadioProvider: ParentComponent = (props) => {
 
   const transportFactory: FlexWireTransportFactory = {
     async connect(radio, handlers) {
-      console.log("Creating control channel transport for radio", radio);
       const session = rtcSession();
 
       const handleMessage = (ev: MessageEvent) => {

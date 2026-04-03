@@ -7,7 +7,7 @@ import {
   createEffect,
 } from "solid-js";
 import type { Accessor } from "solid-js";
-import { startRTC, startRTCViaSignaling, type RtcSession } from "../lib/rtc";
+import { startRTC, type RtcSession } from "../lib/rtc";
 import {
   createReconnectingWS,
   type ReconnectingWebSocket,
@@ -66,11 +66,7 @@ export const RtcProvider: ParentComponent = (props) => {
 
   createEffect(() => {
     if (session()) return;
-    setSession(startRTCViaSignaling(signalingWs, onTrack));
-  });
-
-  createEffect(() => {
-    console.log(tracks());
+    setSession(startRTC(signalingWs, onTrack));
   });
 
   return (

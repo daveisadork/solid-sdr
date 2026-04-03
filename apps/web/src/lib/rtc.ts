@@ -8,134 +8,17 @@ export type RtcSession = {
   close: () => void;
 };
 
-export async function startRTC(
-  sessionId: string,
-  onTrack?: (ev: RTCTrackEvent) => void,
-) {
-  const pc = new RTCPeerConnection({
-    // iceServers: [
-    //   // keep your STUN for normal runs…
-    //   { urls: "stun:stun.cloudflare.com:3478" },
-    //   { urls: "stun:stun.l.google.com:19302" },
-    //   // …and add your TURN (we’ll set up in step 2)
-    //   // { urls: ["turns:turn.example.com:443?transport=tcp"], username, credential },
-    // ],
-    // iceTransportPolicy: "relay", // <— TEMP: force TURN to test
-  });
-
-  const renegotiate = async () => {
-    const offer = await pc.createOffer();
-    const sdp = forceStereoInSDP(offer.sdp!);
-    await pc.setLocalDescription({ ...offer, sdp });
-
-    await waitForIceComplete(pc);
-    const res = await fetch("/rtc/offer", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ sessionId, sdp: pc.localDescription!.sdp }),
-    });
-    const { sdp: answer } = await res.json();
-    await pc.setRemoteDescription({ type: "answer", sdp: answer });
-    await waitForIceConnected(pc);
-  };
-
-  if (onTrack) pc.addEventListener("track", onTrack);
-  pc.addEventListener("negotiationneeded", renegotiate);
-
-  const audio = pc.addTransceiver("audio", { direction: "sendrecv" });
-  const tcpData = pc.createDataChannel("tcp", {
-    ordered: true,
-  });
-  const udpData = pc.createDataChannel("udp", {
-    ordered: false, // no head-of-line blocking
-    maxRetransmits: 0, // drop instead of retry
-    // OR use maxPacketLifeTime: 100 for “soft” realtime
-  });
-
-  udpData.binaryType = "arraybuffer"; // important for Firefox
-  udpData.onopen = () => console.log("[udp dc] open");
-  udpData.onclosing = () => console.log("[udp dc] closing");
-  udpData.onclose = () => console.log("[udp dc] closed");
-  udpData.onerror = (e) => console.warn("[udp dc] error", e);
-
-  tcpData.onopen = () => console.log("[tcp dc] open");
-  tcpData.onclosing = () => console.log("[tcp dc] closing");
-  tcpData.onclose = () => console.log("[tcp dc] closed");
-  tcpData.onerror = (e) => console.warn("[tcp dc] error", e);
-
-  return {
-    pc,
-    tcpData,
-    udpData,
-    audio,
-    setTransmitTrack: audio.sender.replaceTrack.bind(audio.sender),
-    close: () => {
-      if (onTrack) pc.removeEventListener("track", onTrack);
-      pc.removeEventListener("negotiationneeded", renegotiate);
-      pc.close();
-    },
-  };
-}
-
-function waitForIceConnected(pc: RTCPeerConnection) {
-  if (pc.iceConnectionState === "connected") return Promise.resolve();
-
-  return new Promise<void>((resolve, reject) => {
-    const listener = () => {
-      console.log("[ice] state:", pc.iceConnectionState);
-      switch (pc.iceConnectionState) {
-        case "connected":
-          pc.removeEventListener("iceconnectionstatechange", listener);
-          resolve();
-          break;
-        case "failed":
-        case "disconnected":
-        case "closed":
-          pc.removeEventListener("iceconnectionstatechange", listener);
-          reject(new Error("Failed to connect: " + pc.iceConnectionState));
-          break;
-      }
-    };
-    pc.addEventListener("iceconnectionstatechange", listener);
-    setTimeout(() => {
-      reject(new Error("Timed out waiting for connection"));
-    }, 15000);
-  });
-}
-
-function waitForIceComplete(pc: RTCPeerConnection) {
-  if (pc.iceGatheringState === "complete") return Promise.resolve();
-  return new Promise<void>((resolve) => {
-    const onChange = () => {
-      if (pc.iceGatheringState === "complete") {
-        pc.removeEventListener("icegatheringstatechange", onChange);
-        resolve();
-      }
-    };
-    pc.addEventListener("icegatheringstatechange", onChange);
-    // small safety timer to avoid hanging on environments with blocked STUN
-    setTimeout(resolve, 1500);
-  });
-}
-
-export type RtcSessionInfo = {
-  sessionId: string;
-  version: string;
-  handle: string;
-};
-
-// startRTCViaSignaling establishes a WebRTC session by exchanging offer/answer
+// startRTC establishes a WebRTC session by exchanging offer/answer
 // over the given signaling WebSocket (the same /ws/signal connection used for discovery).
 // It sends the offer, handles trickle ICE candidates, and waits for the tcp data channel
 // to open before returning the session and the radio handshake info.
-export function startRTCViaSignaling(
+export function startRTC(
   signalingWs: Pick<
     WebSocket,
     "addEventListener" | "removeEventListener" | "send"
   >,
   onTrack?: (ev: RTCTrackEvent) => void,
 ): RtcSession {
-  console.log("Creating RTCPeerConnection...", performance.now());
   const pc = new RTCPeerConnection({});
 
   const onIceCandidate = (ev: RTCPeerConnectionIceEvent) => {
@@ -147,7 +30,6 @@ export function startRTCViaSignaling(
   };
 
   const renegotiate = async () => {
-    console.log("[negotiationneeded] Renegotiating...", performance.now());
     // Build and set local description.
     const offer = await pc.createOffer();
     const sdp = forceStereoInSDP(offer.sdp!);
@@ -199,21 +81,6 @@ export function startRTCViaSignaling(
   };
 
   const onConnectionStateChange = () => {
-    const {
-      signalingState,
-      iceGatheringState,
-      iceConnectionState,
-      connectionState,
-      canTrickleIceCandidates,
-    } = pc;
-    console.log({
-      signalingState,
-      iceGatheringState,
-      iceConnectionState,
-      connectionState,
-      canTrickleIceCandidates,
-    });
-    window.pc = pc;
     if (pc.connectionState === "closed" || pc.connectionState === "failed") {
       cleanup();
     }
@@ -242,78 +109,6 @@ export function startRTCViaSignaling(
     setTransmitTrack: audio.sender.replaceTrack.bind(audio.sender),
     close: () => pc.close(),
   };
-
-  // console.log("Adding transceiver...", performance.now());
-  // const audio = pc.addTransceiver("audio", { direction: "sendrecv" });
-  //
-  // const discoveryData = pc.createDataChannel("discovery", {
-  //   ordered: false,
-  //   maxRetransmits: 0,
-  //   protocol: "discovery",
-  // });
-  // console.log(discoveryData);
-  // try {
-  //   const d2 = pc.createDataChannel("discovery", {
-  //     ordered: false,
-  //     maxRetransmits: 0,
-  //     protocol: "discovery",
-  //   });
-  //   console.log(d2);
-  // } catch (e) {
-  //   console.warn("Failed to create discovery data channel:", e);
-  // }
-  //
-  // console.log("Creating TCP data channel...", performance.now());
-  // const tcpData = pc.createDataChannel(`${host}:${port}`, {
-  //   ordered: true,
-  //   protocol: "tcp",
-  // });
-  //
-  // console.log("Setting up TCP data channel handlers...", performance.now());
-  // tcpData.onopen = () => console.log("[tcp dc] open");
-  // tcpData.onclosing = () => console.log("[tcp dc] closing");
-  // tcpData.onclose = () => console.log("[tcp dc] closed");
-  // tcpData.onerror = (e) => console.warn("[tcp dc] error", e);
-  //
-  // console.log("Creating UDP data channel...", performance.now());
-  // const udpData = pc.createDataChannel("udp", {
-  //   ordered: false,
-  //   maxRetransmits: 0,
-  //   protocol: "udp",
-  // });
-  //
-  // console.log("Setting up UDP data channel handlers...", performance.now());
-  // udpData.binaryType = "arraybuffer";
-  // udpData.onopen = () => console.log("[udp dc] open");
-  // udpData.onclosing = () => console.log("[udp dc] closing");
-  // udpData.onclose = () => console.log("[udp dc] closed");
-  // udpData.onerror = (e) => console.warn("[udp dc] error", e);
-  //
-  // let info: RtcSessionInfo;
-  // try {
-  //   info = await infoPromise;
-  // } finally {
-  //   clearTimeout(answerTimeout);
-  // }
-  //
-  // // Waiting for tcp data channel open implies ICE connected + SCTP negotiated.
-  // await waitForDataChannelOpen(tcpData);
-  //
-  // return {
-  //   session: {
-  //     pc,
-  //     tcpData,
-  //     udpData,
-  //     audio,
-  //     setTransmitTrack: audio.sender.replaceTrack.bind(audio.sender),
-  //     close: () => {
-  //       removeSignalingListener();
-  //       if (onTrack) pc.removeEventListener("track", onTrack);
-  //       pc.close();
-  //     },
-  //   },
-  //   info,
-  // };
 }
 
 export function waitForDataChannelOpen(dc: RTCDataChannel): Promise<void> {

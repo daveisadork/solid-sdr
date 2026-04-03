@@ -214,6 +214,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
             maxRetransmits: 0,
             protocol: "discovery",
           });
+          discoveryChannel.binaryType = "arraybuffer";
 
           const handleMessage = (event: MessageEvent<ArrayBuffer>) => {
             handlers.onMessage(new Uint8Array(event.data));
@@ -237,7 +238,6 @@ export const FlexRadioProvider: ParentComponent = (props) => {
 
           return {
             async close() {
-              console.log("Closing discovery channel");
               discoveryChannel.removeEventListener("message", handleMessage);
               discoveryChannel.removeEventListener("error", handleError);
               discoveryChannel.close();
@@ -284,17 +284,16 @@ export const FlexRadioProvider: ParentComponent = (props) => {
       };
 
       const openPromise = new Promise<void>((resolve, reject) => {
-        const onOpen = () => {
-          resolve();
-          transport.send = async (payload: string) => tcp.send(payload);
-        };
-        const onError = (e: Event) =>
-          reject(new Error("Control channel error", { cause: e }));
-        tcp.addEventListener("open", onOpen, { once: true });
-        tcp.addEventListener("error", onError, { once: true });
+        tcp.addEventListener("open", () => resolve(), { once: true });
+        tcp.addEventListener(
+          "error",
+          (e: Event) =>
+            reject(new Error("Control channel error", { cause: e })),
+          { once: true },
+        );
       });
 
-      const transport = {
+      return {
         async send(payload: string) {
           await openPromise;
           tcp.send(payload);
@@ -303,8 +302,6 @@ export const FlexRadioProvider: ParentComponent = (props) => {
           tcp.close();
         },
       };
-
-      return transport;
     },
   };
 
@@ -642,6 +639,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
                 protocol: "udp",
               },
             );
+            dc.binaryType = "arraybuffer";
             session.udp = dc;
 
             rtcUdpCleanup?.();

@@ -311,7 +311,7 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
         </PopoverTrigger>
         <PopoverContent class="shadow-black/75 shadow-lg p-0 fancy-bg-popover overflow-x-visible w-auto max-w-[90vw]">
           <PopoverArrow />
-          <div class="p-4 flex flex-col space-y-4 max-h-(--kb-popper-content-available-height)">
+          <div class="p-4 flex flex-col space-y-4 max-h-(--kb-popper-content-available-height) overflow-y-auto">
             <div class="flex gap-2 items-center">
               <MaterialSymbolsMic class="size-10 shrink-0" />
               <Select

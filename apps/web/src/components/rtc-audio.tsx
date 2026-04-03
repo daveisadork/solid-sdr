@@ -5,7 +5,6 @@ import {
   createSignal,
   For,
   onCleanup,
-  onMount,
   Show,
 } from "solid-js";
 import { createStore } from "solid-js/store";
@@ -621,6 +620,8 @@ function AudioSink(props: {
     if (!el) return;
     el.srcObject = props.stream;
 
+    // this ends up getting created on page load, so autoplay will be blocked until
+    // the user interacts with the page. Once they do, we can play the audio.
     window.addEventListener(
       "click",
       () => {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -10,9 +11,7 @@ import (
 	"time"
 
 	"github.com/daveisadork/flex-bridge/internal/config"
-	"github.com/daveisadork/flex-bridge/internal/core"
 	"github.com/daveisadork/flex-bridge/internal/discovery"
-	"github.com/daveisadork/flex-bridge/internal/radio"
 	"github.com/daveisadork/flex-bridge/internal/rtc"
 )
 
@@ -24,15 +23,16 @@ func main() {
 
 	// ---- Discovery ----
 	disco := discovery.New(discovery.Options{Port: cfg.DiscoveryPort})
+
 	go func() {
-		if err := disco.Run(context.Background()); err != nil {
+		err := disco.Run(context.Background())
+		if err != nil {
 			log.Printf("discovery terminated: %v", err)
 		}
 	}()
 
-	// ---- Sessions + RTC ----
-	sessions := core.NewSessionManager()
-	rtcServer := rtc.New(sessions, rtc.Options{
+	// ---- RTC ----
+	rtcServer := rtc.New(disco, rtc.Options{
 		ICEPortStart: cfg.ICEPortStart,
 		ICEPortEnd:   cfg.ICEPortEnd,
 		STUN:         cfg.StunURLs,
@@ -40,26 +40,13 @@ func main() {
 	})
 
 	// ---- HTTP mux ----
-	wsHandler, err := radio.NewWSHandler(sessions, rtcServer, radio.WSOptions{
-		APILogFile: cfg.APILogFile,
-	})
-	if err != nil {
-		log.Fatalf("ws handler: %v", err)
-	}
-	defer func() {
-		if err := wsHandler.Close(); err != nil {
-			log.Printf("ws handler close: %v", err)
-		}
-	}()
-
 	mux := http.NewServeMux()
-	mux.HandleFunc("/ws/discovery", disco.WSHandler)
-	mux.Handle("/ws/radio", wsHandler)
-	mux.HandleFunc("/rtc/offer", rtcServer.OfferHandler)
+	mux.Handle("/ws/signal", rtcServer)
+
 	if cfg.StaticDir != "" {
 		mux.Handle("/", http.FileServer(http.Dir(cfg.StaticDir)))
 	} else {
-		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
 			_, _ = w.Write([]byte("flex-bridge up"))
 		})
 	}
@@ -68,6 +55,7 @@ func main() {
 	if cfg.EnableCOI {
 		handler = withCOI(handler)
 	}
+
 	if cfg.EnableCORS {
 		handler = withCORS(handler)
 	}
@@ -81,7 +69,9 @@ func main() {
 
 	go func() {
 		log.Printf("listening on %s", addr)
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+
+		err := srv.ListenAndServe()
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatalf("server error: %v", err)
 		}
 	}()
@@ -90,8 +80,10 @@ func main() {
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt)
 	<-sig
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+
 	_ = srv.Shutdown(ctx)
 }
 
@@ -109,10 +101,13 @@ func withCORS(next http.Handler) http.Handler {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Headers", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS")
+
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
+
 			return
 		}
+
 		next.ServeHTTP(w, r)
 	})
 }

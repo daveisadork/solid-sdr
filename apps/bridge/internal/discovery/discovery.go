@@ -2,10 +2,11 @@ package discovery
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"log"
-	"math/rand"
+	"math/big"
 	"net"
 	"net/http"
 	"sync"
@@ -14,6 +15,8 @@ import (
 
 	"github.com/gorilla/websocket"
 )
+
+var errIdleRestart = errors.New("idle restart")
 
 type Options struct {
 	Port           int
@@ -40,35 +43,47 @@ func New(opt Options) *Service {
 	if opt.IdleRestart == 0 {
 		opt.IdleRestart = 30 * time.Second
 	}
+
 	if opt.HealthInterval == 0 {
 		opt.HealthInterval = 5 * time.Second
 	}
+
 	if opt.MaxBackoff == 0 {
 		opt.MaxBackoff = 5 * time.Second
 	}
+
 	s := &Service{opt: opt, subs: make(map[chan []byte]struct{})}
 	s.lastPktUnix.Store(time.Now().UnixNano())
+
 	return s
 }
 
 func (s *Service) Run(ctx context.Context) error {
 	backoff := 0 * time.Millisecond
+
 	for {
-		if err := s.bindAll(ctx); err != nil {
+		err := s.bindAll(ctx)
+		if err != nil {
 			backoff = next(backoff, s.opt.MaxBackoff)
 			log.Printf("[discovery] bind error: %v; retrying in %v", err, backoff)
+
 			select {
 			case <-time.After(backoff):
 			case <-ctx.Done():
 				return ctx.Err()
 			}
+
 			continue
 		}
+
 		backoff = 0
-		if err := s.serve(ctx); err != nil {
+
+		err = s.serve(ctx)
+		if err != nil {
 			if errors.Is(err, context.Canceled) {
 				return nil
 			}
+
 			log.Printf("[discovery] serve ended: %v", err)
 		}
 	}
@@ -83,6 +98,7 @@ func (s *Service) bindAll(ctx context.Context) error {
 		_ = s.c4.Close()
 		s.c4 = nil
 	}
+
 	if s.c6 != nil {
 		_ = s.c6.Close()
 		s.c6 = nil
@@ -95,11 +111,13 @@ func (s *Service) bindAll(ctx context.Context) error {
 	if c6, err := lc.ListenPacket(ctx, "udp6", addr); err == nil {
 		s.c6 = c6
 		s.lastPktUnix.Store(time.Now().UnixNano())
+
 		return nil
 	}
 
 	// 2) Fallback: bind separate sockets for IPv4 and IPv6
 	var e4, e6 error
+
 	c4, e4 := lc.ListenPacket(ctx, "udp4", addr)
 	c6, e6 := lc.ListenPacket(ctx, "udp6", addr)
 
@@ -109,6 +127,7 @@ func (s *Service) bindAll(ctx context.Context) error {
 
 	s.c4, s.c6 = c4, c6
 	s.lastPktUnix.Store(time.Now().UnixNano())
+
 	return nil
 }
 
@@ -116,32 +135,40 @@ func (s *Service) serve(ctx context.Context) error {
 	s.mu.Lock()
 	c4, c6 := s.c4, s.c6
 	s.mu.Unlock()
+
 	errCh := make(chan error, 2)
+
 	done := make(chan struct{})
 	if c4 != nil {
 		go s.readLoop(ctx, c4, errCh, done)
 	}
+
 	if c6 != nil {
 		go s.readLoop(ctx, c6, errCh, done)
 	}
+
 	health := time.NewTicker(s.opt.HealthInterval)
 	defer health.Stop()
+
 	for {
 		select {
 		case err := <-errCh:
 			close(done)
 			s.closeAll()
+
 			return err
 		case <-health.C:
 			last := time.Unix(0, s.lastPktUnix.Load())
 			if time.Since(last) > s.opt.IdleRestart {
 				close(done)
 				s.closeAll()
-				return errors.New("idle restart")
+
+				return errIdleRestart
 			}
 		case <-ctx.Done():
 			close(done)
 			s.closeAll()
+
 			return ctx.Err()
 		}
 	}
@@ -149,24 +176,34 @@ func (s *Service) serve(ctx context.Context) error {
 
 func (s *Service) readLoop(ctx context.Context, pc net.PacketConn, errCh chan<- error, done <-chan struct{}) {
 	buf := make([]byte, 64*1024)
+
 	for {
 		_ = pc.SetReadDeadline(time.Now().Add(10 * time.Second))
+
 		n, _, err := pc.ReadFrom(buf)
-		if ne, ok := err.(net.Error); ok && ne.Timeout() {
+
+		var ne net.Error
+		if errors.As(err, &ne) {
 			continue
 		}
+
 		if err != nil {
 			errCh <- err
+
 			return
 		}
+
 		pkt := append([]byte(nil), buf[:n]...)
+
 		s.lastPktUnix.Store(time.Now().UnixNano())
 		s.broadcast(pkt)
+
 		select {
 		case <-done:
 			return
 		default:
 		}
+
 		select {
 		case <-ctx.Done():
 			return
@@ -192,6 +229,7 @@ func (s *Service) closeAll() {
 		_ = s.c4.Close()
 		s.c4 = nil
 	}
+
 	if s.c6 != nil {
 		_ = s.c6.Close()
 		s.c6 = nil
@@ -199,12 +237,14 @@ func (s *Service) closeAll() {
 	s.mu.Unlock()
 }
 
-// Subscription API for WS handler
+// Subscription API for WS handler.
 func (s *Service) Subscribe() chan []byte {
 	ch := make(chan []byte, 256)
+
 	s.subMu.Lock()
 	s.subs[ch] = struct{}{}
 	s.subMu.Unlock()
+
 	return ch
 }
 
@@ -221,16 +261,22 @@ func (s *Service) WSHandler(w http.ResponseWriter, r *http.Request) {
 		CheckOrigin:       func(*http.Request) bool { return true },
 		EnableCompression: false, // disabled due to interoperability/perf issues
 	}
+
 	ws, err := up.Upgrade(w, r, nil)
 	if err != nil {
 		return
 	}
+
 	defer func() { _ = ws.Close() }()
+
 	ch := s.Subscribe()
 	defer s.Unsubscribe(ch)
+
 	for pkt := range ch {
 		_ = ws.SetWriteDeadline(time.Now().Add(10 * time.Second))
-		if err := ws.WriteMessage(websocket.BinaryMessage, pkt); err != nil {
+
+		err := ws.WriteMessage(websocket.BinaryMessage, pkt)
+		if err != nil {
 			return
 		}
 	}
@@ -238,21 +284,24 @@ func (s *Service) WSHandler(w http.ResponseWriter, r *http.Request) {
 
 // helpers
 // next grows exponential backoff with bounded jitter (all in time.Duration units).
-func next(cur, max time.Duration) time.Duration {
+func next(cur, limit time.Duration) time.Duration {
 	if cur <= 0 {
 		cur = 250 * time.Millisecond
 	} else {
 		cur *= 2
-		if cur > max {
-			cur = max
+		if cur > limit {
+			cur = limit
 		}
 	}
 	// jitter in [0, max(cur/4, 50ms)]
-	jmax := cur / 4
-	if jmax < 50*time.Millisecond {
-		jmax = 50 * time.Millisecond
+	jmax := max(cur/4, 50*time.Millisecond)
+
+	n, err := rand.Int(rand.Reader, big.NewInt(int64(jmax)))
+	if err != nil {
+		return cur
 	}
-	// rand.Int63n expects int64 nanoseconds; no extra *time.Millisecond!
-	jitter := time.Duration(rand.Int63n(int64(jmax)))
+
+	jitter := time.Duration(n.Int64())
+
 	return cur + jitter
 }

@@ -38,3 +38,6 @@ yarn-error.log*
 .vscode
 .DS_Store
 *.pem
+
+.claude
+docs/superpowers/

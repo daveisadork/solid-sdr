@@ -1,11 +1,13 @@
-import { createReconnectingWS, makeWS } from "@solid-primitives/websocket";
 import {
+  Accessor,
   batch,
   createContext,
   createEffect,
+  createMemo,
   createSignal,
   onCleanup,
   ParentComponent,
+  Show,
   useContext,
 } from "solid-js";
 import {
@@ -21,12 +23,14 @@ import {
   createRadioClient,
   createUdpSession,
   createVitaDiscoveryAdapter,
+  createControlChannelFactory,
   FlexCommandRejectedError,
   scaleMeterRawValue,
   type AudioStreamSnapshot,
   type FlexConnectionProgress,
   type FlexDataPlaneFactory,
   type FlexWireMessage,
+  type FlexWireTransportFactory,
   type GuiClientSnapshot,
   type MeterSnapshot,
   type PanadapterSnapshot,
@@ -43,7 +47,6 @@ import {
   TxBandSettingSnapshot,
   RadioClient,
 } from "@repo/flexlib";
-import { createWebSocketFlexControlFactory } from "~/lib/flex-control";
 import { useRtc } from "./rtc";
 import { usePreferences } from "./preferences";
 
@@ -162,7 +165,7 @@ const FlexRadioContext = createContext<{
   state: AppState;
   setState: SetStoreFunction<AppState>;
   radio: () => RadioHandle | null;
-  client: RadioClient;
+  client: Accessor<RadioClient>;
   connect: (addr: { host: string; port: number }) => void;
   disconnect: () => void;
   sendCommand: (command: string) => Promise<{
@@ -176,7 +179,7 @@ const FlexRadioContext = createContext<{
 export const FlexRadioProvider: ParentComponent = (props) => {
   const [state, setState] = createStore(initialState());
   const { preferences } = usePreferences();
-  const { connect: connectRTC, disconnect: disconnectRTC } = useRtc();
+  const { session: rtcSession } = useRtc();
   const [activeRadio, setActiveRadio] = createSignal<RadioHandle | null>(null);
 
   // const logger = {
@@ -196,68 +199,129 @@ export const FlexRadioProvider: ParentComponent = (props) => {
   const logger = console;
 
   const udpSession = createUdpSession({ logger });
-  const discoveryWs = createReconnectingWS("/ws/discovery");
   let radioSubscriptions: Subscription[] = [];
   let rtcUdpCleanup: (() => void) | undefined;
   let featureLicenseStore = createRadioStateStore({ logger });
 
-  discoveryWs.addEventListener("open", ({ target }) => {
-    (target as WebSocket).binaryType = "arraybuffer";
-  });
+  const discoveryAdapter = createMemo(() => {
+    const pc = rtcSession()?.pc;
+    if (!pc) return;
+    return createVitaDiscoveryAdapter({
+      transportFactory: {
+        async start(handlers) {
+          const discoveryChannel = pc.createDataChannel("discovery", {
+            ordered: false,
+            maxRetransmits: 0,
+            protocol: "discovery",
+          });
+          discoveryChannel.binaryType = "arraybuffer";
 
-  const discoveryAdapter = createVitaDiscoveryAdapter({
-    transportFactory: {
-      async start(handlers) {
-        let closed = false;
+          const handleMessage = (event: MessageEvent<ArrayBuffer>) => {
+            handlers.onMessage(new Uint8Array(event.data));
+          };
 
-        const handleMessage = (event: MessageEvent) => {
-          if (closed) return;
-          handlers.onMessage(new Uint8Array(event.data));
-        };
+          const handleError = (error: Event) => handlers.onError?.(error);
 
-        const handleError = (error: Event) => {
-          if (closed) return;
-          handlers.onError?.(error);
-        };
+          discoveryChannel.addEventListener("message", handleMessage);
+          discoveryChannel.addEventListener("error", handleError);
 
-        discoveryWs.addEventListener("message", handleMessage);
-        discoveryWs.addEventListener("error", handleError);
+          await new Promise<void>((resolve, reject) => {
+            const onOpen = () => {
+              resolve();
+            };
+            const onError = (event: Event) => {
+              reject(new Error("Discovery channel error", { cause: event }));
+            };
+            discoveryChannel.addEventListener("open", onOpen, { once: true });
+            discoveryChannel.addEventListener("error", onError, { once: true });
+          });
 
-        return {
-          async close() {
-            console.log("Closing discovery transport");
-            if (closed) return;
-            closed = true;
-            discoveryWs.removeEventListener("message", handleMessage);
-            discoveryWs.removeEventListener("error", handleError);
-            discoveryWs.close();
-          },
-        };
+          return {
+            async close() {
+              discoveryChannel.removeEventListener("message", handleMessage);
+              discoveryChannel.removeEventListener("error", handleError);
+              discoveryChannel.close();
+            },
+          };
+        },
       },
-    },
-    logger,
-  });
-
-  const controlFactory = createWebSocketFlexControlFactory({
-    makeSocket(descriptor) {
-      const ws = makeWS(
-        `/ws/radio?host=${descriptor.host}&port=${descriptor.port}`,
-      );
-      ws.addEventListener("close", disconnect);
-      return ws;
-    },
-    logger,
-    udpSession,
-  });
-
-  const radioClient = createRadioClient(
-    {
-      discovery: discoveryAdapter,
-      control: controlFactory,
       logger,
+    });
+  });
+
+  const transportFactory: FlexWireTransportFactory = {
+    async connect(radio, handlers) {
+      const session = rtcSession();
+
+      const handleMessage = (ev: MessageEvent) => {
+        handlers.onData(ev.data);
+      };
+      const handleClose = () => {
+        handlers.onClose?.();
+        cleanup();
+      };
+      const handleError = (e: Event) => {
+        handlers.onError?.(e);
+        cleanup();
+      };
+
+      const tcp = session.pc.createDataChannel(`${radio.host}:${radio.port}`, {
+        ordered: true,
+        protocol: "tcp",
+      });
+
+      tcp.addEventListener("message", handleMessage);
+      tcp.addEventListener("close", handleClose);
+      tcp.addEventListener("error", handleError);
+      session.tcp = tcp;
+
+      const cleanup = () => {
+        tcp.close();
+        tcp.removeEventListener("message", handleMessage);
+        tcp.removeEventListener("close", handleClose);
+        tcp.removeEventListener("error", handleError);
+        delete session.tcp;
+      };
+
+      const openPromise = new Promise<void>((resolve, reject) => {
+        tcp.addEventListener("open", () => resolve(), { once: true });
+        tcp.addEventListener(
+          "error",
+          (e: Event) =>
+            reject(new Error("Control channel error", { cause: e })),
+          { once: true },
+        );
+      });
+
+      return {
+        async send(payload: string) {
+          await openPromise;
+          tcp.send(payload);
+        },
+        async close() {
+          tcp.close();
+        },
+      };
     },
-    { defaultCommandTimeoutMs: 10_000 },
-  );
+  };
+
+  const controlFactory = createControlChannelFactory({
+    transportFactory,
+    logger,
+  });
+
+  const radioClient = createMemo(() => {
+    const discovery = discoveryAdapter();
+    if (!discovery) return null;
+    return createRadioClient(
+      {
+        discovery,
+        control: controlFactory,
+        logger,
+      },
+      { defaultCommandTimeoutMs: 10_000 },
+    );
+  });
 
   const cleanupRadioSubscriptions = () => {
     for (const sub of radioSubscriptions) sub.unsubscribe();
@@ -463,7 +527,9 @@ export const FlexRadioProvider: ParentComponent = (props) => {
 
   const teardownRadioConnection = (options?: { resetState?: boolean }) => {
     const { resetState = true } = options ?? {};
-    disconnectRTC();
+    const session = rtcSession();
+    session?.udp?.close();
+    session?.tcp?.close();
     if (rtcUdpCleanup) {
       rtcUdpCleanup();
       rtcUdpCleanup = undefined;
@@ -507,7 +573,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
       selectedRadio: addr.host,
       stage: ConnectionStage.TCP,
     });
-    const radio = radioClient.radioByEndpoint(addr);
+    const radio = radioClient().radioByEndpoint(addr);
     const descriptor = radio?.descriptor;
     if (!descriptor) {
       showToast({
@@ -560,10 +626,24 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         featureLicenseStore = createRadioStateStore({ logger });
 
         const dataPlaneFactory: FlexDataPlaneFactory = {
-          async connect({ handle, udp, logger }) {
-            const rtc = await connectRTC(handle);
+          async connect({ udp, logger: dcLogger }) {
+            const session = rtcSession();
+            if (!session.pc) {
+              throw new Error("RTC session is not established");
+            }
+            const dc = session.pc.createDataChannel(
+              `${addr.host}:${addr.port + 1}`,
+              {
+                ordered: false,
+                maxRetransmits: 0,
+                protocol: "udp",
+              },
+            );
+            dc.binaryType = "arraybuffer";
+            session.udp = dc;
+
             rtcUdpCleanup?.();
-            rtcUdpCleanup = attachRtcDataChannel(udp, rtc.data, {
+            rtcUdpCleanup = attachRtcDataChannel(udp, dc, {
               onError(error) {
                 console.error("Error decoding UDP packet:", error);
                 disconnect();
@@ -576,11 +656,10 @@ export const FlexRadioProvider: ParentComponent = (props) => {
                   rtcUdpCleanup = undefined;
                 }
                 try {
-                  rtc.close();
+                  dc.close();
                 } catch (error) {
-                  logger?.warn?.("Failed to close RTC session", { error });
+                  dcLogger?.warn?.("Failed to close RTC session", { error });
                 }
-                disconnectRTC();
               },
             };
           },
@@ -624,7 +703,6 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         } catch (closeError) {
           console.error("Error while closing failed session", closeError);
         }
-        disconnectRTC();
         if (rtcUdpCleanup) {
           rtcUdpCleanup();
           rtcUdpCleanup = undefined;
@@ -656,7 +734,9 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         client: radioClient,
       }}
     >
-      {props.children}
+      <Show when={radioClient()} fallback={<div>Initializing</div>}>
+        {props.children}
+      </Show>
     </FlexRadioContext.Provider>
   );
 };

@@ -5,7 +5,6 @@ import {
   createSignal,
   For,
   onCleanup,
-  onMount,
   Show,
 } from "solid-js";
 import { createStore } from "solid-js/store";
@@ -76,7 +75,7 @@ const DAX_LEVEL_METER: Meter = {
   id: "",
   low: -60,
   high: 0,
-  fps: 60,
+  fps: 20,
   units: "dBFS",
   name: "",
   source: "",
@@ -238,7 +237,7 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
       stream.getAudioTracks().forEach((track) => {
         console.log("DAX TX ", track.getSettings());
       });
-      const tx = new DaxAudioTx(rtc.data, streamId, reducedBandwidth, stream);
+      const tx = new DaxAudioTx(rtc.udp, streamId, reducedBandwidth, stream);
       await tx.start();
       setDaxTxInstance(tx);
       const trackSettings = stream.getAudioTracks()[0].getSettings();
@@ -312,7 +311,7 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
         </PopoverTrigger>
         <PopoverContent class="shadow-black/75 shadow-lg p-0 fancy-bg-popover overflow-x-visible w-auto max-w-[90vw]">
           <PopoverArrow />
-          <div class="p-4 flex flex-col space-y-4 max-h-(--kb-popper-content-available-height)">
+          <div class="p-4 flex flex-col space-y-4 max-h-(--kb-popper-content-available-height) overflow-y-auto">
             <div class="flex gap-2 items-center">
               <MaterialSymbolsMic class="size-10 shrink-0" />
               <Select
@@ -620,7 +619,16 @@ function AudioSink(props: {
     const el = ref();
     if (!el) return;
     el.srcObject = props.stream;
-    el.autoplay = true;
+
+    // this ends up getting created on page load, so autoplay will be blocked until
+    // the user interacts with the page. Once they do, we can play the audio.
+    window.addEventListener(
+      "click",
+      () => {
+        el.play().catch(console.error);
+      },
+      { once: true },
+    );
   });
 
   createEffect(() => ref()?.setSinkId(props.output).catch(console.error));

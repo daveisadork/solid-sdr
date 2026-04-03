@@ -41,7 +41,7 @@ type vitaView struct {
 func parseVITA(b []byte) (vitaView, error) {
 	const (
 		kVitaMinimumBytes     = 28
-		kClassIdPresentMask   = 0x08
+		kClassIDPresentMask   = 0x08
 		kTrailerPresentMask   = 0x04
 		kTsiTypeMask          = 0xC0
 		kTsfTypeMask          = 0x30
@@ -59,7 +59,7 @@ func parseVITA(b []byte) (vitaView, error) {
 	packetSizeBytes := len(b) // actual datagram length (ignore header packet_size)
 
 	// Restrict logical end if trailer is present
-	classIdPresent := (packetDesc & kClassIdPresentMask) != 0
+	classIDPresent := (packetDesc & kClassIDPresentMask) != 0
 	trailerPresent := (packetDesc & kTrailerPresentMask) != 0
 	tsiType := (timeStampDesc & kTsiTypeMask) >> 6
 	tsfType := (timeStampDesc & kTsfTypeMask) >> 4
@@ -72,17 +72,21 @@ func parseVITA(b []byte) (vitaView, error) {
 	if off+4 > packetSizeBytes {
 		return vitaView{}, errShort
 	}
+
 	streamID := binary.BigEndian.Uint32(b[off : off+4])
 	optWordIndex++
 
 	// ---- Class ID (if present) ----
-	var classWord1 uint32
-	var infoCode uint16
-	var pktClass uint16
-	var oui uint32
+	var (
+		classWord1 uint32
+		infoCode   uint16
+		pktClass   uint16
+		oui        uint32
+	)
 
-	if classIdPresent {
+	if classIDPresent {
 		off0 := kOffsetOptionalsBytes + (optWordIndex << 2)
+
 		off1 := off0 + 4
 		if off1+4 > packetSizeBytes {
 			return vitaView{}, errShort
@@ -100,18 +104,22 @@ func parseVITA(b []byte) (vitaView, error) {
 
 	// ---- Timestamps ----
 	var intTS uint32
+
 	if tsiType != 0 {
 		off = kOffsetOptionalsBytes + (optWordIndex << 2)
 		if off+4 > packetSizeBytes {
 			return vitaView{}, errShort
 		}
+
 		intTS = binary.BigEndian.Uint32(b[off : off+4])
 		optWordIndex++
 	}
 
 	var fracTS uint32
+
 	if tsfType != 0 {
 		offMSB := kOffsetOptionalsBytes + (optWordIndex << 2)
+
 		offLSB := offMSB + 4
 		if offLSB+4 > packetSizeBytes {
 			return vitaView{}, errShort
@@ -124,26 +132,30 @@ func parseVITA(b []byte) (vitaView, error) {
 
 	// ---- Sizes ----
 	headerSize := 4 * (1 + optWordIndex) // first header word + all optionals
+
 	trailerBytes := 0
 	if trailerPresent {
 		trailerBytes = kTrailerSize
 	}
+
 	payloadSize := packetSizeBytes - headerSize - trailerBytes
 	if payloadSize < 0 {
 		return vitaView{}, errShort
 	}
 
 	start := headerSize
+
 	end := start + payloadSize
 	if end > len(b) || start > end {
 		return vitaView{}, errShort
 	}
+
 	payload := b[start:end]
 
 	return vitaView{
-		TSI:                 uint8(tsiType),
-		TSF:                 uint8(tsfType),
-		HasClassID:          classIdPresent,
+		TSI:                 tsiType,
+		TSF:                 tsfType,
+		HasClassID:          classIDPresent,
 		HasTrailer:          trailerPresent,
 		StreamID:            streamID,
 		OUI:                 oui,

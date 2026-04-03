@@ -4,10 +4,14 @@ import {
   ParentComponent,
   createSignal,
   onCleanup,
-  batch,
+  createEffect,
 } from "solid-js";
 import type { Accessor } from "solid-js";
 import { startRTC, type RtcSession } from "../lib/rtc";
+import {
+  createReconnectingWS,
+  type ReconnectingWebSocket,
+} from "@solid-primitives/websocket";
 
 type RemoteTrack = {
   streamId: string;
@@ -17,8 +21,7 @@ type RemoteTrack = {
 type RtcContextValue = {
   session: Accessor<RtcSession | null>;
   tracks: Accessor<RemoteTrack[]>;
-  connect: (sessionId: string) => Promise<RtcSession>;
-  disconnect: () => void;
+  signalingWs: ReconnectingWebSocket;
 };
 
 const RtcCtx = createContext<RtcContextValue>();
@@ -26,6 +29,7 @@ const RtcCtx = createContext<RtcContextValue>();
 export const RtcProvider: ParentComponent = (props) => {
   const [session, setSession] = createSignal<RtcSession | null>(null);
   const [tracks, setTracks] = createSignal<RemoteTrack[]>([]);
+  const signalingWs = createReconnectingWS("/ws/signal");
 
   const onTrack = (ev: RTCTrackEvent) => {
     const stream = ev.streams[0] ?? new MediaStream([ev.track]);
@@ -37,30 +41,42 @@ export const RtcProvider: ParentComponent = (props) => {
     ev.track.addEventListener("unmute", () =>
       console.log("[rtc] remote track unmuted"),
     );
-
-    ev.track.onended = () => {
-      setTracks((t) => t.filter((x) => x.streamId !== streamId));
-    };
+    ev.track.addEventListener(
+      "ended",
+      () => setTracks((t) => t.filter((x) => x.streamId !== streamId)),
+      { once: true },
+    );
   };
 
-  function connect(sessionId: string) {
-    // tear down any previous
-    disconnect();
-    return startRTC(sessionId, onTrack).then(setSession);
-  }
-
-  function disconnect() {
-    session()?.close();
-    batch(() => {
-      setSession(null);
-      setTracks([]);
+  createEffect(() => {
+    const pc = session()?.pc;
+    if (!pc) return;
+    const onConnectionStateChange = () => {
+      const state = pc.connectionState;
+      console.log("[rtc] connection state change", state);
+      if (state === "disconnected" || state === "failed") {
+        setSession(null);
+      }
+    };
+    pc.addEventListener("connectionstatechange", onConnectionStateChange);
+    onCleanup(() => {
+      pc.removeEventListener("connectionstatechange", onConnectionStateChange);
     });
-  }
+  });
 
-  onCleanup(disconnect);
+  createEffect(() => {
+    if (session()) return;
+    setSession(startRTC(signalingWs, onTrack));
+  });
 
   return (
-    <RtcCtx.Provider value={{ session, tracks, connect, disconnect }}>
+    <RtcCtx.Provider
+      value={{
+        signalingWs,
+        session,
+        tracks,
+      }}
+    >
       {props.children}
     </RtcCtx.Provider>
   );

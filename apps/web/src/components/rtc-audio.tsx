@@ -106,6 +106,10 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
   const outputs = createSpeakers();
   const inputs = createMicrophones();
 
+  createEffect(() => {
+    console.log(remoteAudioRxStreamId());
+  });
+
   const preferredInputDevice = createMemo(() => {
     const device = inputs().find(
       (d) => d.deviceId === preferences.inputDeviceId,

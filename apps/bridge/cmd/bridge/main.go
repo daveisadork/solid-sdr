@@ -64,7 +64,7 @@ func main() {
 	mux.Handle("/ws/signal", sigHandler)
 	mux.HandleFunc("/ws/discovery", disco.WSHandler)
 	mux.Handle("/ws/radio", wsHandler)
-	mux.HandleFunc("/rtc/offer", rtcServer.OfferHandler)
+	mux.HandleFunc("/rtc/offer", rtcServer.SignalingHandler)
 
 	if cfg.StaticDir != "" {
 		mux.Handle("/", http.FileServer(http.Dir(cfg.StaticDir)))

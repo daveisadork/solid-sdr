@@ -72,6 +72,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	pc.OnConnectionStateChange(func(state webrtc.PeerConnectionState) {
 		if state == webrtc.PeerConnectionStateFailed || state == webrtc.PeerConnectionStateClosed {
 			cancel()
+			close(send)
 		}
 	})
 
@@ -106,76 +107,6 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	s.Serve(ctx)
 	writerDone.Wait()
-
-	// send := make(chan Message, 64)
-	// stop := make(chan struct{})
-	//
-	// var writerDone sync.WaitGroup
-	//
-	// // writer — serializes all outbound messages onto the WebSocket
-	// writerDone.Go(func() {
-	// 	for {
-	// 		select {
-	// 		case msg, ok := <-send:
-	// 			if !ok {
-	// 				return
-	// 			}
-	//
-	// 			_ = ws.SetWriteDeadline(time.Now().Add(10 * time.Second))
-	//
-	// 			err := ws.WriteJSON(msg)
-	// 			if err != nil {
-	// 				return
-	// 			}
-	// 		case <-stop:
-	// 			return
-	// 		}
-	// 	}
-	// })
-	//
-	// // discovery relay — subscribes to multicast packets and forwards to client
-	// discoCh := h.disco.Subscribe()
-	//
-	// go func() {
-	// 	defer h.disco.Unsubscribe(discoCh)
-	//
-	// 	for {
-	// 		select {
-	// 		case pkt, ok := <-discoCh:
-	// 			if !ok {
-	// 				return
-	// 			}
-	//
-	// 			msg, err := encode(TypeDiscovery, DiscoveryPayload{Packet: pkt})
-	// 			if err != nil {
-	// 				continue
-	// 			}
-	//
-	// 			select {
-	// 			case send <- msg:
-	// 			case <-stop:
-	// 				return
-	// 			}
-	// 		case <-stop:
-	// 			return
-	// 		}
-	// 	}
-	// }()
-	//
-	// // read loop — inbound messages from client
-	// for {
-	// 	var env Message
-	//
-	// 	err := ws.ReadJSON(&env)
-	// 	if err != nil {
-	// 		break
-	// 	}
-	//
-	// 	h.dispatch(env, send, stop, clientIP)
-	// }
-	//
-	// close(stop)
-	// writerDone.Wait()
 }
 
 func (s *ClientSession) Serve(ctx context.Context) {
@@ -185,6 +116,9 @@ func (s *ClientSession) Serve(ctx context.Context) {
 	}
 
 	s.pc = pc
+	rs := &core.RadioSession{
+		PC: pc,
+	}
 
 	pc.OnICECandidate(func(c *webrtc.ICECandidate) {
 		if c == nil {
@@ -194,22 +128,39 @@ func (s *ClientSession) Serve(ctx context.Context) {
 		s.Send(ctx, mustEncode(TypeICE, c.ToJSON()))
 	})
 
+	track, err := webrtc.NewTrackLocalStaticSample(
+		webrtc.RTPCodecCapability{
+			MimeType:  webrtc.MimeTypeOpus,
+			ClockRate: 48000,
+			Channels:  2,
+		},
+		"remote_audio_rx",
+		"rtc_audio_rx",
+	)
+	if err != nil {
+		return
+	}
+
+	_, err = pc.AddTrack(track)
+	if err != nil {
+		return
+	}
+
+	rs.SetRXTrack(track)
+
 	pc.OnDataChannel(func(dc *webrtc.DataChannel) {
 		switch dc.Protocol() {
 		case "udp":
 			log.Printf("[rtc] new udp data channel (handle %s)", dc.Label())
 
-			s.rs.SetUDPDataChannel(dc)
+			rs.SetUDPDataChannel(dc)
 			dc.OnMessage(func(msg webrtc.DataChannelMessage) {
-				if msg.IsString || len(msg.Data) == 0 || s.rs.UDPConn == nil {
-					return
-				}
-				if _, err := s.rs.UDPConn.Write(msg.Data); err != nil {
+				if _, err := rs.UDPConn.Write(msg.Data); err != nil {
 					log.Printf("[rtc] udp datachannel write failed err=%v", err)
 				}
 			})
 
-			go s.rtc.ConnectUDP(s.rs)
+			go s.rtc.ConnectUDP(rs, dc.Label())
 		case "tcp":
 			log.Printf("[rtc] new tcp data channel (handle %s)", dc.Label())
 
@@ -234,24 +185,19 @@ func (s *ClientSession) Serve(ctx context.Context) {
 				return
 			}
 
-			s.rs = &core.RadioSession{
-				Host:     host,
-				BasePort: int(portInt),
-				PC:       pc,
-				TCP:      tcp,
-				TCPDC:    dc,
-			}
+			rs.TCPConn = tcp
+			rs.Host = host
+			rs.BasePort = int(portInt)
+			rs.SetTCPDataChannel(dc)
+
 			dc.OnMessage(func(msg webrtc.DataChannelMessage) {
-				if len(msg.Data) == 0 || s.rs.TCP == nil {
-					return
-				}
 				if _, err := tcp.Write(msg.Data); err != nil {
 					log.Printf("[rtc] tcp datachannel write failed err=%v", err)
 				}
 			})
 
 			dc.OnClose(func() {
-				s.rs.SetTCPDataChannel(nil)
+				rs.SetTCPDataChannel(nil)
 			})
 
 			go func() {
@@ -267,7 +213,7 @@ func (s *ClientSession) Serve(ctx context.Context) {
 						return
 					}
 
-					s.rs.SendTCPLine(b)
+					rs.SendTCPLine(b)
 
 					// stream, ok := core.ParseAudioStream(b)
 					// if !ok {

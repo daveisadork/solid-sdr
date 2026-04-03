@@ -2,7 +2,6 @@ package rtc
 
 import (
 	"bufio"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -14,6 +13,7 @@ import (
 	"time"
 
 	"github.com/daveisadork/flex-bridge/internal/core"
+	"github.com/gorilla/websocket"
 	"github.com/pion/ice/v4"
 	"github.com/pion/webrtc/v4"
 )
@@ -143,42 +143,21 @@ type answerResponse struct {
 	SDP string `json:"sdp"`
 }
 
-func (s *Server) OfferHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	var req offerRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, `{"error":"bad json"}`, http.StatusBadRequest)
-
-		return
+func (s *Server) SignalingHandler(w http.ResponseWriter, r *http.Request) {
+	upgrader := websocket.Upgrader{
+		CheckOrigin:       func(*http.Request) bool { return true },
+		EnableCompression: false,
 	}
 
-	handle := normalizeHandle(req.SessionID)
-	offerSDP := req.SDP // do not TrimSpace; preserve CRLFs
-
-	if handle == "" || offerSDP == "" || !strings.HasPrefix(offerSDP, "v=") {
-		http.Error(w, `{"error":"missing/invalid sessionId or sdp"}`, http.StatusBadRequest)
-
-		return
-	}
-
-	ans, err := s.handleOffer(handle, offerSDP, clientIPFromRequest(r))
+	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("[rtc] handleOffer failed: %v", err)
-		w.WriteHeader(http.StatusConflict)
-		if encErr := json.NewEncoder(w).Encode(map[string]string{
-			"error": rootMsg(err),
-			"code":  "NO_TCP_SESSION_OR_OFFER_FAIL",
-		}); encErr != nil {
-			log.Printf("[rtc] failed to write error response: %v", encErr)
-		}
-
 		return
 	}
 
-	if err := json.NewEncoder(w).Encode(answerResponse{SDP: ans}); err != nil {
-		log.Printf("[rtc] failed to write answer response: %v", err)
-	}
+	defer func() { _ = ws.Close() }()
+
+	clientIP := clientIPFromRequest(r)
+	log.Printf("[signal] new connection from %s", clientIP)
 }
 
 func normalizeHandle(h string) string {
@@ -194,7 +173,7 @@ func normalizeHandle(h string) string {
 
 func (s *Server) handleOffer(handleHex, offerSDP, clientIP string) (string, error) {
 	rs := s.Sessions.Get(handleHex)
-	if rs == nil || rs.TCP == nil {
+	if rs == nil || rs.TCPConn == nil {
 		return "", stepErr("no-tcp-session", fmt.Errorf("%w: handle %s", errNoTCPSession, handleHex))
 	}
 
@@ -334,10 +313,10 @@ func (s *Server) setupPeerConnection(rs *core.RadioSession, handleHex string) er
 		case "tcp":
 			rs.SetTCPDataChannel(dc)
 			dc.OnMessage(func(msg webrtc.DataChannelMessage) {
-				if len(msg.Data) == 0 || rs.TCP == nil {
+				if len(msg.Data) == 0 || rs.TCPConn == nil {
 					return
 				}
-				if _, err := rs.TCP.Write(msg.Data); err != nil {
+				if _, err := rs.TCPConn.Write(msg.Data); err != nil {
 					log.Printf("[rtc] tcp datachannel write failed handle=%s err=%v", handleHex, err)
 				}
 			})
@@ -511,16 +490,16 @@ func (s *Server) postAnswerPlumbing(rs *core.RadioSession) {
 
 	// Tell radio our UDP port via TCP.
 	if ua, ok := u.LocalAddr().(*net.UDPAddr); ok {
-		_, _ = io.WriteString(rs.TCP, fmt.Sprintf("C0|client udpport %d\n", ua.Port))
+		_, _ = io.WriteString(rs.TCPConn, fmt.Sprintf("C0|client udpport %d\n", ua.Port))
 	}
 
 	// UDP → (Opus → WebRTC) | (everything else → DataChannel)
 	startUDPDemux(rs)
 }
 
-func (s *Server) ConnectUDP(rs *core.RadioSession) {
+func (s *Server) ConnectUDP(rs *core.RadioSession, addr string) {
 	// UDP to radio (port = TCP+1)
-	raddr, err := net.ResolveUDPAddr("udp", net.JoinHostPort(rs.Host, strconv.Itoa(rs.BasePort+1)))
+	raddr, err := net.ResolveUDPAddr("udp", addr)
 	if err != nil {
 		return
 	}
@@ -534,7 +513,7 @@ func (s *Server) ConnectUDP(rs *core.RadioSession) {
 
 	// Tell radio our UDP port via TCP.
 	if ua, ok := u.LocalAddr().(*net.UDPAddr); ok {
-		_, _ = io.WriteString(rs.TCP, fmt.Sprintf("C0|client udpport %d\n", ua.Port))
+		_, _ = io.WriteString(rs.TCPConn, fmt.Sprintf("C0|client udpport %d\n", ua.Port))
 	}
 
 	// UDP → (Opus → WebRTC) | (everything else → DataChannel)

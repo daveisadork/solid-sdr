@@ -1,6 +1,7 @@
 package rtc
 
 import (
+	"log"
 	"time"
 
 	"github.com/daveisadork/flex-bridge/internal/core"
@@ -13,6 +14,7 @@ import (
 //   - everything else → RTC datachannel "udp"
 func startUDPDemux(rs *core.RadioSession) {
 	if rs.UDPConn == nil {
+		log.Println("NO UDP CONN")
 		return
 	}
 
@@ -46,7 +48,7 @@ func startUDPDemux(rs *core.RadioSession) {
 			}
 
 			// Treat as audio if either it's the announced audio stream or the Opus class code.
-			if rs.IsActiveRXStream(v.StreamID) && v.ClassCode == 0x8005 {
+			if v.ClassCode == 0x8005 {
 				stream := rs.RXAudioTrack()
 				if stream == nil {
 					continue

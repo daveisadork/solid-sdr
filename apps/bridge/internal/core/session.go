@@ -4,6 +4,7 @@ import (
 	"net"
 	"sync"
 
+	"github.com/gorilla/websocket"
 	"github.com/pion/webrtc/v4"
 )
 
@@ -19,8 +20,12 @@ type RadioSession struct {
 	Host     string
 	BasePort int
 
-	// TCP leg (owned by WS handler)
-	TCP net.Conn
+	// TCPConn leg (owned by WS handler)
+	TCPConn net.Conn
+	// UDP leg to radio (created by RTC handler, connected to Host:(BasePort+1))
+	UDPConn *net.UDPConn
+
+	SignalingWS *websocket.Conn
 
 	// RTC leg (owned by RTC handler)
 	PC      *webrtc.PeerConnection
@@ -31,9 +36,6 @@ type RadioSession struct {
 	ActiveRXStreamID uint32
 	ActiveTXStreamID uint32
 	TXPacketCount    uint8
-
-	// UDP leg to radio (created by RTC handler, connected to Host:(BasePort+1))
-	UDPConn *net.UDPConn
 }
 
 type SessionManager struct {
@@ -59,7 +61,7 @@ func (m *SessionManager) PutTCP(handleHex, host string, basePort int, tcp net.Co
 		m.sess[handleHex] = rs
 	}
 
-	rs.TCP = tcp
+	rs.TCPConn = tcp
 
 	return rs
 }

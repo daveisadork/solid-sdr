@@ -534,6 +534,9 @@ export const FlexRadioProvider: ParentComponent = (props) => {
 
   const teardownRadioConnection = (options?: { resetState?: boolean }) => {
     const { resetState = true } = options ?? {};
+    const session = rtcSession();
+    session?.udp?.close();
+    session?.tcp?.close();
     if (rtcUdpCleanup) {
       rtcUdpCleanup();
       rtcUdpCleanup = undefined;
@@ -635,11 +638,14 @@ export const FlexRadioProvider: ParentComponent = (props) => {
             if (!session.pc) {
               throw new Error("RTC session is not established");
             }
-            const dc = session.pc.createDataChannel("udp", {
-              ordered: false,
-              maxRetransmits: 0,
-              protocol: "udp",
-            });
+            const dc = session.pc.createDataChannel(
+              `${addr.host}:${addr.port + 1}`,
+              {
+                ordered: false,
+                maxRetransmits: 0,
+                protocol: "udp",
+              },
+            );
             session.udp = dc;
 
             rtcUdpCleanup?.();

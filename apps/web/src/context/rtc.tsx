@@ -69,6 +69,10 @@ export const RtcProvider: ParentComponent = (props) => {
     setSession(startRTCViaSignaling(signalingWs, onTrack));
   });
 
+  createEffect(() => {
+    console.log(tracks());
+  });
+
   return (
     <RtcCtx.Provider
       value={{

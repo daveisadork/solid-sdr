@@ -76,7 +76,7 @@ const DAX_LEVEL_METER: Meter = {
   id: "",
   low: -60,
   high: 0,
-  fps: 60,
+  fps: 20,
   units: "dBFS",
   name: "",
   source: "",
@@ -105,10 +105,6 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
   >();
   const outputs = createSpeakers();
   const inputs = createMicrophones();
-
-  createEffect(() => {
-    console.log(remoteAudioRxStreamId());
-  });
 
   const preferredInputDevice = createMemo(() => {
     const device = inputs().find(
@@ -624,10 +620,9 @@ function AudioSink(props: {
     const el = ref();
     if (!el) return;
     el.srcObject = props.stream;
-    el.autoplay = true;
   });
 
   createEffect(() => ref()?.setSinkId(props.output).catch(console.error));
 
-  return <audio ref={setRef} />;
+  return <audio ref={setRef} autoplay />;
 }

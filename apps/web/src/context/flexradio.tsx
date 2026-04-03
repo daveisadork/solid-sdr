@@ -1,4 +1,3 @@
-import { createReconnectingWS } from "@solid-primitives/websocket";
 import {
   Accessor,
   batch,
@@ -48,7 +47,6 @@ import {
   TxBandSettingSnapshot,
   RadioClient,
 } from "@repo/flexlib";
-import { startRTCViaSignaling, type RtcSession } from "~/lib/rtc";
 import { useRtc } from "./rtc";
 import { usePreferences } from "./preferences";
 
@@ -181,7 +179,7 @@ const FlexRadioContext = createContext<{
 export const FlexRadioProvider: ParentComponent = (props) => {
   const [state, setState] = createStore(initialState());
   const { preferences } = usePreferences();
-  const { signalingWs, session: rtcSession } = useRtc();
+  const { session: rtcSession } = useRtc();
   const [activeRadio, setActiveRadio] = createSignal<RadioHandle | null>(null);
 
   // const logger = {
@@ -272,43 +270,42 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         ordered: true,
         protocol: "tcp",
       });
+
+      tcp.addEventListener("message", handleMessage);
+      tcp.addEventListener("close", handleClose);
+      tcp.addEventListener("error", handleError);
       session.tcp = tcp;
 
       const cleanup = () => {
+        tcp.close();
         tcp.removeEventListener("message", handleMessage);
         tcp.removeEventListener("close", handleClose);
         tcp.removeEventListener("error", handleError);
         delete session.tcp;
       };
 
-      tcp.addEventListener("message", handleMessage);
-      tcp.addEventListener("close", handleClose);
-      tcp.addEventListener("error", handleError);
-
-      await new Promise<void>((resolve, reject) => {
+      const openPromise = new Promise<void>((resolve, reject) => {
         const onOpen = () => {
           resolve();
+          transport.send = async (payload: string) => tcp.send(payload);
         };
-        const onError = (event: Event) => {
-          reject(new Error("Discovery channel error", { cause: event }));
-          cleanup();
-        };
+        const onError = (e: Event) =>
+          reject(new Error("Control channel error", { cause: e }));
         tcp.addEventListener("open", onOpen, { once: true });
         tcp.addEventListener("error", onError, { once: true });
       });
 
-      return {
-        async send(payload) {
-          if (typeof payload !== "string")
-            throw new Error("tcp dc: binary payload not supported");
-          if (tcp.readyState !== "open")
-            throw new Error("tcp data channel is not open");
+      const transport = {
+        async send(payload: string) {
+          await openPromise;
           tcp.send(payload);
         },
         async close() {
           tcp.close();
         },
       };
+
+      return transport;
     },
   };
 

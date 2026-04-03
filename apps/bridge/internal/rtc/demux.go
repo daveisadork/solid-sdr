@@ -4,17 +4,18 @@ import (
 	"log"
 	"time"
 
-	"github.com/daveisadork/flex-bridge/internal/core"
 	"github.com/pion/webrtc/v4"
 	"github.com/pion/webrtc/v4/pkg/media"
 )
 
-// startUDPDemux reads UDP from the radio and fans out:
-//   - Opus (VITA class 0x8005 or matching AudioStreamID) → WebRTC sample track
-//   - everything else → RTC datachannel "udp"
-func startUDPDemux(rs *core.RadioSession) {
-	if rs.UDPConn == nil {
-		log.Println("NO UDP CONN")
+func startUDPDemux(rc *radioConn, audioTrack *webrtc.TrackLocalStaticSample) {
+	rc.mu.RLock()
+	u := rc.udpConn
+	rc.mu.RUnlock()
+
+	if u == nil {
+		log.Println("[rtc] startUDPDemux: no UDP conn")
+
 		return
 	}
 
@@ -22,16 +23,26 @@ func startUDPDemux(rs *core.RadioSession) {
 
 	go func() {
 		defer func() {
-			if rs.UDPConn != nil {
-				_ = rs.UDPConn.Close()
-				rs.UDPConn = nil
+			rc.mu.Lock()
+			if rc.udpConn != nil {
+				_ = rc.udpConn.Close()
+				rc.udpConn = nil
 			}
+			rc.mu.Unlock()
 		}()
 
 		for {
-			_ = rs.UDPConn.SetReadDeadline(time.Now().Add(30 * time.Second))
+			rc.mu.RLock()
+			u := rc.udpConn
+			rc.mu.RUnlock()
 
-			n, err := rs.UDPConn.Read(buf)
+			if u == nil {
+				return
+			}
+
+			_ = u.SetReadDeadline(time.Now().Add(30 * time.Second))
+
+			n, err := u.Read(buf)
 			if n == 0 && err != nil {
 				if ne, ok := err.(interface{ Timeout() bool }); ok && ne.Timeout() {
 					continue
@@ -47,33 +58,29 @@ func startUDPDemux(rs *core.RadioSession) {
 				continue
 			}
 
-			// Treat as audio if either it's the announced audio stream or the Opus class code.
 			if v.ClassCode == 0x8005 {
-				stream := rs.RXAudioTrack()
-				if stream == nil {
+				if audioTrack == nil || len(v.Payload) == 0 {
 					continue
 				}
 
-				if len(v.Payload) == 0 {
-					continue
-				}
-
-				frames := opusFrameCount(v.Payload) // 10 ms per frame
+				frames := opusFrameCount(v.Payload)
 				if frames <= 0 {
 					frames = 1
 				}
 
-				_ = stream.WriteSample(media.Sample{
-					Data:     append([]byte(nil), v.Payload...), // copy; buf is reused
+				_ = audioTrack.WriteSample(media.Sample{
+					Data:     append([]byte(nil), v.Payload...),
 					Duration: time.Duration(frames) * 10 * time.Millisecond,
 				})
 
 				continue
 			}
 
-			// Non-audio → data channel (if open)
-			if dc := rs.UDPDC; dc != nil && dc.ReadyState() == webrtc.DataChannelStateOpen {
-				// coarse backpressure
+			rc.mu.RLock()
+			dc := rc.udpDC
+			rc.mu.RUnlock()
+
+			if dc != nil && dc.ReadyState() == webrtc.DataChannelStateOpen {
 				for dc.BufferedAmount() > (1 << 20) {
 					time.Sleep(2 * time.Millisecond)
 				}
@@ -88,8 +95,6 @@ func startUDPDemux(rs *core.RadioSession) {
 	}()
 }
 
-// ---- Opus helpers ----
-// Counts 10 ms Opus frames (RFC 6716 §3.2.1).
 func opusFrameCount(b []byte) int {
 	if len(b) < 1 {
 		return 0
@@ -97,11 +102,11 @@ func opusFrameCount(b []byte) int {
 
 	toc := b[0]
 	switch toc & 0x03 {
-	case 0: // one frame
+	case 0:
 		return 1
-	case 1: // two CBR frames
+	case 1:
 		return 2
-	case 2: // N frames in next byte
+	case 2:
 		if len(b) < 2 {
 			return 0
 		}
@@ -112,7 +117,7 @@ func opusFrameCount(b []byte) int {
 		}
 
 		return n
-	case 3: // self-delimited frames
+	case 3:
 		i := 1
 		frames := 0
 

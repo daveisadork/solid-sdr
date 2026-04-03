@@ -11,11 +11,8 @@ import (
 	"time"
 
 	"github.com/daveisadork/flex-bridge/internal/config"
-	"github.com/daveisadork/flex-bridge/internal/core"
 	"github.com/daveisadork/flex-bridge/internal/discovery"
-	"github.com/daveisadork/flex-bridge/internal/radio"
 	"github.com/daveisadork/flex-bridge/internal/rtc"
-	"github.com/daveisadork/flex-bridge/internal/signaling"
 )
 
 func main() {
@@ -34,9 +31,8 @@ func main() {
 		}
 	}()
 
-	// ---- Sessions + RTC ----
-	sessions := core.NewSessionManager()
-	rtcServer := rtc.New(sessions, rtc.Options{
+	// ---- RTC ----
+	rtcServer := rtc.New(disco, rtc.Options{
 		ICEPortStart: cfg.ICEPortStart,
 		ICEPortEnd:   cfg.ICEPortEnd,
 		STUN:         cfg.StunURLs,
@@ -44,27 +40,8 @@ func main() {
 	})
 
 	// ---- HTTP mux ----
-	wsHandler, err := radio.NewWSHandler(sessions, rtcServer, radio.WSOptions{
-		APILogFile: cfg.APILogFile,
-	})
-	if err != nil {
-		log.Fatalf("ws handler: %v", err)
-	}
-
-	defer func() {
-		err := wsHandler.Close()
-		if err != nil {
-			log.Printf("ws handler close: %v", err)
-		}
-	}()
-
-	sigHandler := signaling.New(disco, sessions, rtcServer)
-
 	mux := http.NewServeMux()
-	mux.Handle("/ws/signal", sigHandler)
-	mux.HandleFunc("/ws/discovery", disco.WSHandler)
-	mux.Handle("/ws/radio", wsHandler)
-	mux.HandleFunc("/rtc/offer", rtcServer.SignalingHandler)
+	mux.Handle("/ws/signal", rtcServer)
 
 	if cfg.StaticDir != "" {
 		mux.Handle("/", http.FileServer(http.Dir(cfg.StaticDir)))

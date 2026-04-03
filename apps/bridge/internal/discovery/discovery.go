@@ -2,10 +2,10 @@ package discovery
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"log"
-	"crypto/rand"
 	"math/big"
 	"net"
 	"net/http"
@@ -181,6 +181,7 @@ func (s *Service) readLoop(ctx context.Context, pc net.PacketConn, errCh chan<- 
 		_ = pc.SetReadDeadline(time.Now().Add(10 * time.Second))
 
 		n, _, err := pc.ReadFrom(buf)
+
 		var ne net.Error
 		if errors.As(err, &ne) {
 			continue
@@ -273,6 +274,7 @@ func (s *Service) WSHandler(w http.ResponseWriter, r *http.Request) {
 
 	for pkt := range ch {
 		_ = ws.SetWriteDeadline(time.Now().Add(10 * time.Second))
+
 		err := ws.WriteMessage(websocket.BinaryMessage, pkt)
 		if err != nil {
 			return
@@ -292,10 +294,8 @@ func next(cur, limit time.Duration) time.Duration {
 		}
 	}
 	// jitter in [0, max(cur/4, 50ms)]
-	jmax := cur / 4
-	if jmax < 50*time.Millisecond {
-		jmax = 50 * time.Millisecond
-	}
+	jmax := max(cur/4, 50*time.Millisecond)
+
 	n, err := rand.Int(rand.Reader, big.NewInt(int64(jmax)))
 	if err != nil {
 		return cur

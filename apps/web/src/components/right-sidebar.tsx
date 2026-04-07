@@ -1,4 +1,11 @@
-import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  onCleanup,
+  Show,
+} from "solid-js";
 import { Sidebar, SidebarContent } from "~/components/ui/sidebar";
 import {
   Accordion,
@@ -58,6 +65,8 @@ function TxSection() {
   const { state, radio } = useFlexRadio();
   const [txProfiles, setTxProfiles] = createStore<string[]>([]);
   const [rawRfPower, setRawRfPower] = createSignal(0);
+  const [fwdPwrWatts, setFwdPwrWatts] = createSignal(0);
+  const [refPwrWatts, setRefPwrWatts] = createSignal(0);
 
   const setRfPower = (value: number) => {
     if (value !== state.status.radio.rfPower) {
@@ -86,12 +95,19 @@ function TxSection() {
     Object.values(state.status.meter).find((meter) => meter.name === "REFPWR"),
   );
 
-  const fwdPwrWatts = createMemo(() =>
-    dbmToWatts(fwdPwrMeter()?.value ?? 0, 1),
-  );
-  const refPwrWatts = createMemo(() =>
-    dbmToWatts(refPwrMeter()?.value ?? 0, 1),
-  );
+  createEffect(() => {
+    const sub = radio()
+      ?.meter(fwdPwrMeter()?.id)
+      ?.on("data", (event) => setFwdPwrWatts(dbmToWatts(event.value, 1)));
+    onCleanup(() => sub?.unsubscribe());
+  });
+
+  createEffect(() => {
+    const sub = radio()
+      ?.meter(refPwrMeter()?.id)
+      ?.on("data", (event) => setRefPwrWatts(dbmToWatts(event.value, 1)));
+    onCleanup(() => sub?.unsubscribe());
+  });
 
   const swr = createMemo(() => {
     const fwdWatts = fwdPwrWatts();
@@ -117,7 +133,7 @@ function TxSection() {
                   value={
                     state.status.radio.interlockTxClientHandle ===
                     state.clientHandleInt
-                      ? dbmToWatts(meter.value, 0)
+                      ? fwdPwrWatts()
                       : 0
                   }
                   getValueLabel={({ value }) => `${value} W`}
@@ -290,6 +306,8 @@ function MicSection() {
   const { state, radio } = useFlexRadio();
   const [micInputList, setMicInputList] = createStore<string[]>([]);
   const [micProfileList, setMicProfileList] = createStore<string[]>([]);
+  const [micPeakValue, setMicPeakValue] = createSignal(0);
+  const [compPeakValue, setCompPeakValue] = createSignal(0);
 
   createEffect(() => setMicInputList(state?.status?.radio?.micInputList ?? []));
   createEffect(() =>
@@ -310,6 +328,22 @@ function MicSection() {
     ),
   );
 
+  createEffect(() => {
+    const sub = radio()
+      ?.meter(micPeakMeter()?.id)
+      ?.on("data", (event) => setMicPeakValue(roundToDecimals(event.value, 1)));
+    onCleanup(() => sub?.unsubscribe());
+  });
+
+  createEffect(() => {
+    const sub = radio()
+      ?.meter(compPeakMeter()?.id)
+      ?.on("data", (event) =>
+        setCompPeakValue(roundToDecimals(event.value, 1)),
+      );
+    onCleanup(() => sub?.unsubscribe());
+  });
+
   return (
     <div class="flex flex-col gap-3">
       <Show when={micMeter()}>
@@ -318,12 +352,10 @@ function MicSection() {
           return (
             <SimpleMeter
               meter={meter}
-              peakValue={micPeakMeter()?.value}
+              peakValue={micPeakValue()}
               minValue={-40}
               maxValue={0}
-              getValueLabel={() =>
-                `${roundToDecimals(meter.value, 1).toFixed(1)} dB`
-              }
+              getValueLabel={() => `${micPeakValue().toFixed(1)} dB`}
               label="AF Input Level"
               showTicks
               showTickLabels
@@ -343,7 +375,7 @@ function MicSection() {
               // being applied by the compressor, with the meter filling from the right instead of the left.
               // the radio won't send a null value, instead doing something like value ?? meter.low, when
               // in this case we'd rather have meter.high. so we do a small hack.
-              value={meter.value > meter.low ? meter.value : 0}
+              value={compPeakValue()}
               minValue={-25}
               maxValue={0}
               getValueLabel={({ value }) =>

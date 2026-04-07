@@ -1,7 +1,15 @@
-import { createMemo, For, JSX, Show } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  JSX,
+  onCleanup,
+  Show,
+} from "solid-js";
 import * as MeterPrimitive from "@kobalte/core/meter";
 
-import { type Meter } from "~/context/flexradio";
+import useFlexRadio, { type Meter } from "~/context/flexradio";
 import { cn, range } from "~/lib/utils";
 
 type MeterProps = MeterPrimitive.MeterRootOptions & {
@@ -61,6 +69,15 @@ const STEP_SIZES = [
 ].toReversed();
 
 export function SimpleMeter(props: MeterProps) {
+  const { radio } = useFlexRadio();
+  const [value, setValue] = createSignal(0);
+  const controller = createMemo(() => radio()?.meter(props.meter.id));
+
+  createEffect(() => {
+    const sub = controller()?.on("data", (e) => setValue(e.value));
+    onCleanup(() => sub?.unsubscribe());
+  });
+
   const stops = createMemo(() => {
     if (Array.isArray(props.stops)) return props.stops;
     const min = props.minValue ?? props.meter.low;
@@ -114,7 +131,7 @@ export function SimpleMeter(props: MeterProps) {
 
   return (
     <MeterPrimitive.Root
-      value={props.value ?? props.meter.value}
+      value={props.value ?? value()}
       minValue={props.minValue ?? props.meter.low}
       maxValue={props.maxValue ?? props.meter.high}
       getValueLabel={

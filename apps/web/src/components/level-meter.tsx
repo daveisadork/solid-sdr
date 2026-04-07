@@ -1,9 +1,10 @@
-import { Meter } from "~/context/flexradio";
+import useFlexRadio, { Meter } from "~/context/flexradio";
 import {
   createEffect,
   createMemo,
   createSignal,
   For,
+  onCleanup,
   Show,
   splitProps,
   ValidComponent,
@@ -12,7 +13,6 @@ import {
 import * as MeterPrimitive from "@kobalte/core/meter";
 import { cn } from "~/lib/utils";
 import { usePreferences } from "~/context/preferences";
-import { createStore } from "solid-js/store";
 
 const S9 = -73;
 const STOPS = [
@@ -68,6 +68,18 @@ export const LevelMeter = <T extends ValidComponent = "div">(
   ]);
   const { preferences, setPreferences } = usePreferences();
   const [peakValue, setPeakValue] = createSignal(-133);
+
+  const [value, setValue] = createSignal(0);
+  const { radio } = useFlexRadio();
+
+  const controller = createMemo(() => {
+    return radio()?.meter(local.meter.id);
+  });
+
+  createEffect(() => {
+    const sub = controller()?.on("data", (e) => setValue(e.value));
+    onCleanup(() => sub?.unsubscribe());
+  });
 
   const scaleMeterValue = createMemo(() => {
     const compressionFactor = local.compressionFactor;
@@ -125,9 +137,9 @@ export const LevelMeter = <T extends ValidComponent = "div">(
   );
 
   createEffect((expires: number) => {
-    if (props.meter?.value < peakValue() && Date.now() < expires)
-      return expires;
-    setPeakValue(props.meter?.value);
+    const v = value();
+    if (v < peakValue() && Date.now() < expires) return expires;
+    setPeakValue(v);
     return Date.now() + 1000;
   }, 0);
 
@@ -137,7 +149,7 @@ export const LevelMeter = <T extends ValidComponent = "div">(
         "relative flex gap-1 w-full items-center select-none cursor-default",
         local.class,
       )}
-      value={scaleMeterValue()(props.meter?.value ?? -133)}
+      value={scaleMeterValue()(value() ?? -133)}
       minValue={-133} // This would actually be 6dB below S0
       // The official app's signal meter is non-linear.
       // The actual range is from -133 dBm (6 dB below S0) to -13 dBm (S9 + 60 dB),

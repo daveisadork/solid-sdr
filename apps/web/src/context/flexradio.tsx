@@ -18,35 +18,26 @@ import {
 } from "solid-js/store";
 import { showToast } from "~/components/ui/toast";
 import {
-  attachRtcDataChannel,
-  createRadioStateStore,
-  createRadioClient,
-  createUdpSession,
-  createVitaDiscoveryAdapter,
-  createControlChannelFactory,
   FlexCommandRejectedError,
-  scaleMeterRawValue,
   type AudioStreamSnapshot,
-  type FlexConnectionProgress,
-  type FlexDataPlaneFactory,
   type FlexWireMessage,
-  type FlexWireTransportFactory,
   type GuiClientSnapshot,
   type MeterSnapshot,
   type PanadapterSnapshot,
   type RadioSnapshot,
-  type RadioHandle,
   type RadioStateChange,
   type SliceSnapshot,
   type Subscription,
-  type UdpSession,
   type WaterfallSnapshot,
   type FeatureLicenseSnapshot,
   EqualizerSnapshot,
   ApdSnapshot,
   TxBandSettingSnapshot,
-  RadioClient,
+  FlexClient,
+  Radio,
+  ConnectionProgressDetail,
 } from "@repo/flexlib";
+import { createFlexClient } from "@repo/flexlib/bridge";
 import { useRtc } from "./rtc";
 import { usePreferences } from "./preferences";
 
@@ -62,10 +53,6 @@ export enum ConnectionStage {
   UDP = 2,
   Done = 3,
 }
-
-export type Meter = Omit<MutableProps<MeterSnapshot>, "raw"> & {
-  value?: number;
-};
 
 const withoutRaw = <T extends { raw?: unknown }>(
   obj: T,
@@ -83,7 +70,6 @@ type MutableProps<T> = {
   -readonly [P in keyof T]: T[P];
 };
 
-export type Radio = Omit<MutableProps<RadioSnapshot>, "raw">;
 export type Slice = Omit<MutableProps<SliceSnapshot>, "raw">;
 export type Panadapter = Omit<MutableProps<PanadapterSnapshot>, "raw">;
 export type Waterfall = Omit<MutableProps<WaterfallSnapshot>, "raw">;
@@ -93,6 +79,7 @@ export type GuiClient = Omit<MutableProps<GuiClientSnapshot>, "raw">;
 export type Equalizer = Omit<MutableProps<EqualizerSnapshot>, "raw">;
 export type APD = Omit<MutableProps<ApdSnapshot>, "raw">;
 export type TxBandSetting = Omit<MutableProps<TxBandSettingSnapshot>, "raw">;
+export type Meter = Omit<MutableProps<MeterSnapshot>, "raw">;
 
 export interface ConnectModalState {
   status: ConnectionState;
@@ -107,7 +94,7 @@ export interface StatusState {
   slice: Record<string, Slice>;
   panadapter: Record<string, Panadapter>;
   waterfall: Record<string, Waterfall>;
-  radio: Radio;
+  radio: Omit<MutableProps<RadioSnapshot>, "raw">;
   featureLicense: FeatureLicense;
   audioStream: Record<string, AudioStream>;
   guiClient: Record<string, GuiClient>;
@@ -164,8 +151,8 @@ export const initialState = () =>
 const FlexRadioContext = createContext<{
   state: AppState;
   setState: SetStoreFunction<AppState>;
-  radio: () => RadioHandle | null;
-  client: Accessor<RadioClient>;
+  radio: () => Radio | null;
+  client: Accessor<FlexClient>;
   connect: (addr: { host: string; port: number }) => void;
   disconnect: () => void;
   sendCommand: (command: string) => Promise<{
@@ -173,14 +160,13 @@ const FlexRadioContext = createContext<{
     message: string;
     debugOutput?: string;
   }>;
-  events: UdpSession;
 }>();
 
 export const FlexRadioProvider: ParentComponent = (props) => {
   const [state, setState] = createStore(initialState());
   const { preferences } = usePreferences();
   const { session: rtcSession } = useRtc();
-  const [activeRadio, setActiveRadio] = createSignal<RadioHandle | null>(null);
+  const [activeRadio, setActiveRadio] = createSignal<Radio | null>(null);
 
   // const logger = {
   //   debug(message: string, meta?: Record<string, unknown>) {
@@ -198,129 +184,12 @@ export const FlexRadioProvider: ParentComponent = (props) => {
   // };
   const logger = console;
 
-  const udpSession = createUdpSession({ logger });
   let radioSubscriptions: Subscription[] = [];
-  let rtcUdpCleanup: (() => void) | undefined;
-  let featureLicenseStore = createRadioStateStore({ logger });
 
-  const discoveryAdapter = createMemo(() => {
+  const flexClient = createMemo(() => {
     const pc = rtcSession()?.pc;
     if (!pc) return;
-    return createVitaDiscoveryAdapter({
-      transportFactory: {
-        async start(handlers) {
-          const discoveryChannel = pc.createDataChannel("discovery", {
-            ordered: false,
-            maxRetransmits: 0,
-            protocol: "discovery",
-          });
-          discoveryChannel.binaryType = "arraybuffer";
-
-          const handleMessage = (event: MessageEvent<ArrayBuffer>) => {
-            handlers.onMessage(new Uint8Array(event.data));
-          };
-
-          const handleError = (error: Event) => handlers.onError?.(error);
-
-          discoveryChannel.addEventListener("message", handleMessage);
-          discoveryChannel.addEventListener("error", handleError);
-
-          await new Promise<void>((resolve, reject) => {
-            const onOpen = () => {
-              resolve();
-            };
-            const onError = (event: Event) => {
-              reject(new Error("Discovery channel error", { cause: event }));
-            };
-            discoveryChannel.addEventListener("open", onOpen, { once: true });
-            discoveryChannel.addEventListener("error", onError, { once: true });
-          });
-
-          return {
-            async close() {
-              discoveryChannel.removeEventListener("message", handleMessage);
-              discoveryChannel.removeEventListener("error", handleError);
-              discoveryChannel.close();
-            },
-          };
-        },
-      },
-      logger,
-    });
-  });
-
-  const transportFactory: FlexWireTransportFactory = {
-    async connect(radio, handlers) {
-      const session = rtcSession();
-
-      const handleMessage = (ev: MessageEvent) => {
-        handlers.onData(ev.data);
-      };
-      const handleClose = () => {
-        handlers.onClose?.();
-        cleanup();
-      };
-      const handleError = (e: Event) => {
-        handlers.onError?.(e);
-        cleanup();
-      };
-
-      const tcp = session.pc.createDataChannel(`${radio.host}:${radio.port}`, {
-        ordered: true,
-        protocol: "tcp",
-      });
-
-      tcp.addEventListener("message", handleMessage);
-      tcp.addEventListener("close", handleClose);
-      tcp.addEventListener("error", handleError);
-      session.tcp = tcp;
-
-      const cleanup = () => {
-        tcp.close();
-        tcp.removeEventListener("message", handleMessage);
-        tcp.removeEventListener("close", handleClose);
-        tcp.removeEventListener("error", handleError);
-        delete session.tcp;
-      };
-
-      const openPromise = new Promise<void>((resolve, reject) => {
-        tcp.addEventListener("open", () => resolve(), { once: true });
-        tcp.addEventListener(
-          "error",
-          (e: Event) =>
-            reject(new Error("Control channel error", { cause: e })),
-          { once: true },
-        );
-      });
-
-      return {
-        async send(payload: string) {
-          await openPromise;
-          tcp.send(payload);
-        },
-        async close() {
-          tcp.close();
-        },
-      };
-    },
-  };
-
-  const controlFactory = createControlChannelFactory({
-    transportFactory,
-    logger,
-  });
-
-  const radioClient = createMemo(() => {
-    const discovery = discoveryAdapter();
-    if (!discovery) return null;
-    return createRadioClient(
-      {
-        discovery,
-        control: controlFactory,
-        logger,
-      },
-      { defaultCommandTimeoutMs: 10_000 },
-    );
+    return createFlexClient(pc);
   });
 
   const cleanupRadioSubscriptions = () => {
@@ -467,7 +336,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     }
   };
 
-  const handleFlexMessage = ({ message }: { message: FlexWireMessage }) => {
+  const handleFlexMessage = (message: FlexWireMessage) => {
     switch (message.kind) {
       case "notice":
         handleNoticePayload(message.raw);
@@ -488,61 +357,43 @@ export const FlexRadioProvider: ParentComponent = (props) => {
             break;
         }
         break;
-      case "status":
-        if (message.source === "license") {
-          featureLicenseStore ??= createRadioStateStore({ logger });
-          const changes = featureLicenseStore.apply(message);
-          for (const change of changes) {
-            if (change.entity === "featureLicense") {
-              handleStateChange(change);
-            }
-          }
-        }
-        break;
     }
   };
 
-  createEffect(() => {
-    const { unsubscribe } = udpSession.on("meter", ({ packet }) => {
-      const meterPacket = packet;
-      setState(
-        "status",
-        "meter",
-        produce((meters) => {
-          const count = meterPacket.numMeters;
-          for (let i = 0; i < count; i++) {
-            const id = meterPacket.ids[i];
-            if (id in meters) {
-              meters[id].value = scaleMeterRawValue(
-                meters[id].units,
-                meterPacket.values[i],
-              );
-            }
-          }
-        }),
-      );
-    });
-    onCleanup(unsubscribe);
-  });
-
+  // createEffect(() => {
+  //   const { unsubscribe } = udpSession.on("meter", ({ packet }) => {
+  //     const meterPacket = packet;
+  //     setState(
+  //       "status",
+  //       "meter",
+  //       produce((meters) => {
+  //         const count = meterPacket.numMeters;
+  //         for (let i = 0; i < count; i++) {
+  //           const id = meterPacket.ids[i];
+  //           if (id in meters) {
+  //             meters[id].value = scaleMeterRawValue(
+  //               meters[id].units,
+  //               meterPacket.values[i],
+  //             );
+  //           }
+  //         }
+  //       }),
+  //     );
+  //   });
+  //   onCleanup(unsubscribe);
+  // });
+  //
   const teardownRadioConnection = (options?: { resetState?: boolean }) => {
     const { resetState = true } = options ?? {};
-    const session = rtcSession();
-    session?.udp?.close();
-    session?.tcp?.close();
-    if (rtcUdpCleanup) {
-      rtcUdpCleanup();
-      rtcUdpCleanup = undefined;
-    }
     cleanupRadioSubscriptions();
     const currentRadio = activeRadio();
     setActiveRadio(null);
     currentRadio
       ?.disconnect()
+      .then(() => console.log("disconnected"))
       .catch((error) =>
         console.error("Error closing flex radio session", error),
       );
-    featureLicenseStore = createRadioStateStore({ logger });
     if (resetState) {
       setState(reconcile(initialState()));
     }
@@ -553,29 +404,28 @@ export const FlexRadioProvider: ParentComponent = (props) => {
   };
 
   const attachRadioListeners = (
-    radio: RadioHandle,
-    handleProgress: (progress: FlexConnectionProgress) => void,
+    radio: Radio,
+    handleProgress: (progress: ConnectionProgressDetail) => void,
   ) => {
     cleanupRadioSubscriptions();
     radioSubscriptions = [
       radio.on("change", handleStateChange),
       radio.on("message", handleFlexMessage),
-      radio.on("progress", handleProgress),
+      radio.on("connectingProgress", handleProgress),
       radio.on("ready", () => handleProgress({ stage: "ready" })),
       radio.on("disconnected", disconnect),
     ];
   };
 
-  const connect = (addr: { host: string; port: number }) => {
+  const connect = async (addr: { host: string; port: number }) => {
     console.log("Connecting to", addr);
     setState("connectModal", {
       status: ConnectionState.connecting,
       selectedRadio: addr.host,
       stage: ConnectionStage.TCP,
     });
-    const radio = radioClient().radioByEndpoint(addr);
-    const descriptor = radio?.descriptor;
-    if (!descriptor) {
+    const radio = flexClient().radioByEndpoint(addr);
+    if (!radio?.serial) {
       showToast({
         description: "Selected radio is unavailable",
         variant: "error",
@@ -600,15 +450,15 @@ export const FlexRadioProvider: ParentComponent = (props) => {
       return;
     }
 
-    const handleProgress = (progress: FlexConnectionProgress) => {
+    const handleProgress = (progress: ConnectionProgressDetail) => {
       switch (progress.stage) {
-        case "control":
+        case "tcp":
           setState("connectModal", "stage", ConnectionStage.TCP);
           break;
         case "sync":
           setState("connectModal", "stage", ConnectionStage.Data);
           break;
-        case "data-plane":
+        case "udp":
           setState("connectModal", "stage", ConnectionStage.UDP);
           break;
         case "ready":
@@ -620,95 +470,42 @@ export const FlexRadioProvider: ParentComponent = (props) => {
       }
     };
 
-    void (async () => {
-      try {
-        teardownRadioConnection({ resetState: false });
-        featureLicenseStore = createRadioStateStore({ logger });
-
-        const dataPlaneFactory: FlexDataPlaneFactory = {
-          async connect({ udp, logger: dcLogger }) {
-            const session = rtcSession();
-            if (!session.pc) {
-              throw new Error("RTC session is not established");
-            }
-            const dc = session.pc.createDataChannel(
-              `${addr.host}:${addr.port + 1}`,
-              {
-                ordered: false,
-                maxRetransmits: 0,
-                protocol: "udp",
-              },
-            );
-            dc.binaryType = "arraybuffer";
-            session.udp = dc;
-
-            rtcUdpCleanup?.();
-            rtcUdpCleanup = attachRtcDataChannel(udp, dc, {
-              onError(error) {
-                console.error("Error decoding UDP packet:", error);
-                disconnect();
-              },
-            });
-            return {
-              async close() {
-                if (rtcUdpCleanup) {
-                  rtcUdpCleanup();
-                  rtcUdpCleanup = undefined;
-                }
-                try {
-                  dc.close();
-                } catch (error) {
-                  dcLogger?.warn?.("Failed to close RTC session", { error });
-                }
-              },
-            };
-          },
-        };
-
-        setActiveRadio(radio);
-        attachRadioListeners(radio, handleProgress);
-        await radio.connect({
-          udpSession,
-          dataPlane: dataPlaneFactory,
-          onProgress: handleProgress,
-          clientInfo: {
-            isGui: true,
-            program: "SolidSDR Web",
-            guiClientId: "76806B36-7090-4958-A879-174BAB94DF11",
-          },
-        });
-        setState({
-          clientHandle: radio.clientHandle,
-          clientHandleInt: radio.clientHandle
-            ? parseInt(radio.clientHandle, 16)
-            : null,
-          clientId: radio.clientId,
-        });
-      } catch (error) {
-        console.error("Failed to connect to radio", error);
-        showToast({
-          description: "Failed to connect to radio",
-          variant: "error",
-        });
-        setState("connectModal", "status", ConnectionState.disconnected);
-        setState("connectModal", "selectedRadio", null);
-        setState("connectModal", "stage", ConnectionStage.TCP);
-        cleanupRadioSubscriptions();
-        if (activeRadio() === radio) {
-          setActiveRadio(null);
-        }
-        featureLicenseStore = createRadioStateStore({ logger });
-        try {
-          await radio.disconnect();
-        } catch (closeError) {
-          console.error("Error while closing failed session", closeError);
-        }
-        if (rtcUdpCleanup) {
-          rtcUdpCleanup();
-          rtcUdpCleanup = undefined;
-        }
+    attachRadioListeners(radio, handleProgress);
+    setActiveRadio(radio);
+    try {
+      await radio.connect({
+        clientInfo: {
+          isGui: true,
+          program: "SolidSDR Web",
+          guiClientId: "76806B36-7090-4958-A879-174BAB94DF11",
+        },
+      });
+    } catch (error) {
+      console.error("Failed to connect to radio", error);
+      showToast({
+        description: "Failed to connect to radio",
+        variant: "error",
+      });
+      setState("connectModal", "status", ConnectionState.disconnected);
+      setState("connectModal", "selectedRadio", null);
+      setState("connectModal", "stage", ConnectionStage.TCP);
+      cleanupRadioSubscriptions();
+      if (activeRadio() === radio) {
+        setActiveRadio(null);
       }
-    })();
+      try {
+        await radio.disconnect();
+      } catch (closeError) {
+        console.error("Error while closing failed session", closeError);
+      }
+    }
+    setState({
+      clientHandle: radio.clientHandle,
+      clientHandleInt: radio.clientHandle
+        ? parseInt(radio.clientHandle, 16)
+        : null,
+      clientId: radio.clientId,
+    });
   };
 
   onCleanup(() => {
@@ -724,17 +521,16 @@ export const FlexRadioProvider: ParentComponent = (props) => {
   return (
     <FlexRadioContext.Provider
       value={{
-        events: udpSession,
         state,
         setState,
         sendCommand,
         connect,
         disconnect,
         radio: activeRadio,
-        client: radioClient,
+        client: flexClient,
       }}
     >
-      <Show when={radioClient()} fallback={<div>Initializing</div>}>
+      <Show when={flexClient()} fallback={<div>Initializing</div>}>
         {props.children}
       </Show>
     </FlexRadioContext.Provider>
@@ -752,5 +548,3 @@ export default function useFlexRadio() {
 
   return context;
 }
-
-export type { UdpPacketEvent } from "@repo/flexlib";

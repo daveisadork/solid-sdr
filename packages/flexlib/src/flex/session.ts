@@ -1139,6 +1139,11 @@ class FlexRadioSessionImpl implements FlexRadioSession {
     });
   }
 
+  async sendUdp(_data: Uint8Array): Promise<void> {
+    // Legacy session does not support UDP send.
+    throw new Error("sendUdp is not supported on the legacy session");
+  }
+
   async installGps(): Promise<void> {
     await this.command("radio gps install");
   }

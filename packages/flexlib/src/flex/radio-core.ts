@@ -248,6 +248,9 @@ export interface RadioSession {
     meterId: number,
     handler: MeterValueHandler,
   ): Subscription;
+
+  /** Send a binary payload over the UDP data channel. */
+  sendUdp(data: Uint8Array): Promise<void>;
 }
 
 const DEFAULT_COMMAND_TIMEOUT_MS = 5_000;
@@ -1106,6 +1109,16 @@ export class Radio {
    * Register a handler for a specific meter's value updates.
    * @internal Used by MeterController for lazy data pipelines.
    */
+  /**
+   * Send a binary payload over the UDP data channel.
+   * Used for TX audio (DAX TX, remote audio TX) and other outbound VITA packets.
+   */
+  async sendUdp(data: Uint8Array): Promise<void> {
+    const conn = this.connection;
+    if (!conn) throw new FlexClientClosedError();
+    return conn.sendUdp(data);
+  }
+
   registerMeterHandler(
     meterId: number,
     handler: MeterValueHandler,

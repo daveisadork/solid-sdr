@@ -55,7 +55,7 @@ interface DataChannelEventMap {
 export interface BridgeDataChannel {
   binaryType: string;
   readonly readyState: string;
-  send(data: string): void;
+  send(data: string | ArrayBuffer | ArrayBufferView): void;
   close(): void;
   addEventListener<K extends keyof DataChannelEventMap>(
     type: K,
@@ -182,6 +182,15 @@ export class BridgeConnection
     const dc = this.tcpChannel;
     if (!dc || dc.readyState !== "open") {
       throw new Error("TCP data channel is not connected");
+    }
+    dc.send(data);
+  }
+
+  async sendUdp(data: Uint8Array): Promise<void> {
+    if (this.closed) throw new Error("Connection is closed");
+    const dc = this.udpChannel;
+    if (!dc || dc.readyState !== "open") {
+      throw new Error("UDP data channel is not connected");
     }
     dc.send(data);
   }

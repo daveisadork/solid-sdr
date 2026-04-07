@@ -224,9 +224,11 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
   });
 
   createEffect(() => {
-    const rtc = session();
     const streamId = daxTxStreamId();
-    if (!rtc || !streamId) return;
+    const currentRadio = radio();
+    if (!currentRadio || !streamId) return;
+    const controller = currentRadio.audioStream(streamId);
+    if (!controller) return;
     const reducedBandwidth = preferences.daxTxConfig.reducedBandwidth;
 
     const streamPromise = navigator.mediaDevices.getUserMedia({
@@ -237,7 +239,7 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
       stream.getAudioTracks().forEach((track) => {
         console.log("DAX TX ", track.getSettings());
       });
-      const tx = new DaxAudioTx(rtc.udp, streamId, reducedBandwidth, stream);
+      const tx = new DaxAudioTx(controller, reducedBandwidth, stream);
       await tx.start();
       setDaxTxInstance(tx);
       const trackSettings = stream.getAudioTracks()[0].getSettings();

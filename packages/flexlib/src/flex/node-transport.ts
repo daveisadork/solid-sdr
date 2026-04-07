@@ -123,6 +123,17 @@ export class NodeConnection
     });
   }
 
+  async sendUdp(data: Uint8Array): Promise<void> {
+    if (this.closed) throw new Error("Connection is closed");
+    const socket = this.udpSocket;
+    if (!socket) {
+      throw new Error("UDP socket is not connected");
+    }
+    return new Promise<void>((resolve, reject) => {
+      socket.send(data, (err) => (err ? reject(err) : resolve()));
+    });
+  }
+
   async close(): Promise<void> {
     if (this.closed) return;
     this.closed = true;

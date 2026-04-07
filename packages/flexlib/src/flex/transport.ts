@@ -142,6 +142,9 @@ export interface FlexConnection {
   /** Send a string payload over the TCP command channel. */
   sendTcp(data: string): Promise<void>;
 
+  /** Send a binary payload over the UDP data channel. */
+  sendUdp(data: Uint8Array): Promise<void>;
+
   /** Close both TCP and UDP channels and release all resources. */
   close(): Promise<void>;
 }

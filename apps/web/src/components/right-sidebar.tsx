@@ -336,10 +336,12 @@ function MicSection() {
   });
 
   createEffect(() => {
+    const meter = compPeakMeter();
+    if (!meter) return;
     const sub = radio()
-      ?.meter(compPeakMeter()?.id)
-      ?.on("data", (event) =>
-        setCompPeakValue(roundToDecimals(event.value, 1)),
+      ?.meter(meter.id)
+      ?.on("data", ({ value }) =>
+        setCompPeakValue(roundToDecimals(value > meter.low ? value : 0, 1)),
       );
     onCleanup(() => sub?.unsubscribe());
   });

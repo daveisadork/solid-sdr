@@ -360,29 +360,6 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     }
   };
 
-  // createEffect(() => {
-  //   const { unsubscribe } = udpSession.on("meter", ({ packet }) => {
-  //     const meterPacket = packet;
-  //     setState(
-  //       "status",
-  //       "meter",
-  //       produce((meters) => {
-  //         const count = meterPacket.numMeters;
-  //         for (let i = 0; i < count; i++) {
-  //           const id = meterPacket.ids[i];
-  //           if (id in meters) {
-  //             meters[id].value = scaleMeterRawValue(
-  //               meters[id].units,
-  //               meterPacket.values[i],
-  //             );
-  //           }
-  //         }
-  //       }),
-  //     );
-  //   });
-  //   onCleanup(unsubscribe);
-  // });
-  //
   const teardownRadioConnection = (options?: { resetState?: boolean }) => {
     const { resetState = true } = options ?? {};
     cleanupRadioSubscriptions();

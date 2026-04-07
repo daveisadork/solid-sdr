@@ -12,6 +12,8 @@ export interface TxBandSettingControllerEvents
   readonly change: TxBandSettingStateChange;
 }
 
+export interface TxBandSettingController extends Readonly<TxBandSettingSnapshot> {}
+
 export interface TxBandSettingController {
   readonly id: string;
   snapshot(): TxBandSettingSnapshot;
@@ -41,57 +43,31 @@ export interface TxBandSettingController {
   ): Subscription;
 }
 
-export class TxBandSettingControllerImpl implements TxBandSettingController {
+export interface TxBandSettingControllerImpl extends Readonly<TxBandSettingSnapshot> {}
+export class TxBandSettingControllerImpl {
   private readonly events =
     new TypedEventEmitter<TxBandSettingControllerEvents>();
 
   constructor(
     private readonly session: RadioSession,
     readonly id: string,
-  ) {}
+  ) {
+    return new Proxy(this, {
+      get(target, prop, receiver) {
+        if (Reflect.has(target, prop)) {
+          return Reflect.get(target, prop, receiver);
+        }
+        const snapshot = target.current();
+        if (snapshot && typeof prop === "string" && prop in snapshot) {
+          return (snapshot as unknown as Record<string, unknown>)[prop];
+        }
+        return undefined;
+      },
+    });
+  }
 
   snapshot(): TxBandSettingSnapshot {
     return this.current();
-  }
-
-  get bandName(): string | undefined {
-    return this.current().bandName;
-  }
-
-  get tunePower(): number | undefined {
-    return this.current().tunePower;
-  }
-
-  get rfPower(): number | undefined {
-    return this.current().rfPower;
-  }
-
-  get pttInhibit(): boolean | undefined {
-    return this.current().pttInhibit;
-  }
-
-  get accTxReqEnabled(): boolean | undefined {
-    return this.current().accTxReqEnabled;
-  }
-
-  get rcaTxReqEnabled(): boolean | undefined {
-    return this.current().rcaTxReqEnabled;
-  }
-
-  get accTxEnabled(): boolean | undefined {
-    return this.current().accTxEnabled;
-  }
-
-  get rcaTx1Enabled(): boolean | undefined {
-    return this.current().rcaTx1Enabled;
-  }
-
-  get rcaTx2Enabled(): boolean | undefined {
-    return this.current().rcaTx2Enabled;
-  }
-
-  get rcaTx3Enabled(): boolean | undefined {
-    return this.current().rcaTx3Enabled;
   }
 
   async setHwAlcEnabled(enabled: boolean): Promise<void> {
@@ -167,7 +143,7 @@ export class TxBandSettingControllerImpl implements TxBandSettingController {
     this.events.emit("change", change);
   }
 
-  private current(): TxBandSettingSnapshot {
+  current(): TxBandSettingSnapshot {
     const snapshot = this.session.getStore().getTxBandSetting(this.id);
     if (!snapshot) {
       throw new FlexStateUnavailableError(

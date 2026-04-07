@@ -1,4 +1,4 @@
-import type { AudioStreamController } from "@repo/flexlib";
+import type { AudioStreamTxController } from "@repo/flexlib";
 
 const DAX_PACKET_SAMPLES = 128;
 
@@ -62,7 +62,7 @@ export class DaxAudioTx {
   private started = false;
 
   constructor(
-    private readonly controller: AudioStreamController,
+    private readonly controller: AudioStreamTxController,
     private readonly reducedBw = false,
     stream: MediaStream,
   ) {

@@ -26,6 +26,8 @@ export interface WaterfallUpdateRequest {
   gradientIndex?: number;
 }
 
+export interface WaterfallController extends Readonly<WaterfallSnapshot> {}
+
 export interface WaterfallController {
   readonly id: string;
   readonly state: WaterfallSnapshot;
@@ -56,7 +58,8 @@ export interface WaterfallController {
   close(): Promise<void>;
 }
 
-export class WaterfallControllerImpl implements WaterfallController {
+export interface WaterfallControllerImpl extends Readonly<WaterfallSnapshot> {}
+export class WaterfallControllerImpl {
   private readonly events = new TypedEventEmitter<WaterfallControllerEvents>();
   private streamHandle?: string;
   private dataListeners = 0;
@@ -68,9 +71,21 @@ export class WaterfallControllerImpl implements WaterfallController {
     streamHandle?: string,
   ) {
     this.streamHandle = streamHandle;
+    return new Proxy(this, {
+      get(target, prop, receiver) {
+        if (Reflect.has(target, prop)) {
+          return Reflect.get(target, prop, receiver);
+        }
+        const snapshot = target.current();
+        if (snapshot && typeof prop === "string" && prop in snapshot) {
+          return (snapshot as unknown as Record<string, unknown>)[prop];
+        }
+        return undefined;
+      },
+    });
   }
 
-  private current(): WaterfallSnapshot {
+  current(): WaterfallSnapshot {
     const snapshot = this.session.getStore().getWaterfall(this.id);
     if (!snapshot) {
       throw new FlexStateUnavailableError(
@@ -84,50 +99,10 @@ export class WaterfallControllerImpl implements WaterfallController {
     return this.current();
   }
 
-  get streamId(): string {
-    return this.current().streamId;
-  }
-
-  get panadapterStreamId(): string {
-    return this.current().panadapterStreamId;
-  }
-
-  get width(): number {
-    return this.current().width;
-  }
-
-  get height(): number {
-    return this.current().height;
-  }
-
-  get lineSpeed(): number | undefined {
-    return this.current().lineSpeed;
-  }
-
   get lineDurationMs(): number | undefined {
     const speed = this.current().lineSpeed;
     if (speed === undefined) return undefined;
     return lineSpeedToDurationMs(speed);
-  }
-
-  get blackLevel(): number {
-    return this.current().blackLevel;
-  }
-
-  get colorGain(): number {
-    return this.current().colorGain;
-  }
-
-  get autoBlackLevelEnabled(): boolean {
-    return this.current().autoBlackLevelEnabled;
-  }
-
-  get gradientIndex(): number {
-    return this.current().gradientIndex;
-  }
-
-  get clientHandle(): number {
-    return this.current().clientHandle;
   }
 
   snapshot(): WaterfallSnapshot {

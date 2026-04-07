@@ -10,6 +10,7 @@ import {
   VitaDaxAudioPacket,
   VitaDaxReducedBwPacket,
 } from "../vita/dax-audio-packet.js";
+import { VitaOpusPacket } from "../vita/opus-packet.js";
 
 export type AudioStreamDataEvent = VitaParsedPacket;
 
@@ -21,6 +22,9 @@ export interface AudioStreamControllerEvents {
   readonly data: AudioStreamDataEvent;
 }
 
+export interface AudioStreamController extends Readonly<AudioStreamSnapshot> {}
+
+/** Base controller for all audio streams (RX and TX). */
 export interface AudioStreamController {
   readonly id: string;
   readonly state: AudioStreamSnapshot;
@@ -37,47 +41,73 @@ export interface AudioStreamController {
     event: TKey,
     listener: (payload: AudioStreamControllerEvents[TKey]) => void,
   ): Subscription;
+  close(): Promise<void>;
+}
+
+/** TX-capable audio stream controller (DAX TX, DAX Mic). */
+export interface AudioStreamTxController extends AudioStreamController {
   /**
    * Send stereo float32 audio samples to the radio.
    *
    * Handles VITA-49 packet framing, sequencing, and stream ID automatically.
-   * Each call sends one packet of {@link DAX_PACKET_SAMPLES} frames (128).
-   * Samples should be in the range [-1, 1].
+   * Each call sends one packet of 128 frames. Samples should be in [-1, 1].
    */
   sendAudio(left: Float32Array, right: Float32Array): void;
   /**
    * Send mono int16 audio samples to the radio (reduced bandwidth mode).
    *
    * Handles VITA-49 packet framing, sequencing, and stream ID automatically.
-   * Each call sends one packet of {@link DAX_PACKET_SAMPLES} frames (128).
+   * Each call sends one packet of 128 frames.
    */
   sendReducedBwAudio(samples: Int16Array): void;
-  close(): Promise<void>;
 }
 
-export class AudioStreamControllerImpl implements AudioStreamController {
+/** Remote audio TX stream controller — supports PCM and Opus. */
+export interface RemoteAudioTxStreamController
+  extends AudioStreamTxController {
+  /**
+   * Send an Opus-encoded audio frame to the radio.
+   *
+   * The caller is responsible for encoding; the controller handles
+   * VITA-49 packet framing, sequencing, and stream ID.
+   */
+  sendOpus(frame: Uint8Array): void;
+}
+
+// Convenience alias for backward compatibility
+export type RemoteAudioRxStreamController = AudioStreamController;
+
+export interface AudioStreamControllerImpl extends Readonly<AudioStreamSnapshot> {}
+export class AudioStreamControllerImpl {
   private readonly events =
     new TypedEventEmitter<AudioStreamControllerEvents>();
   private streamHandle?: string;
   private dataListeners = 0;
   private dataSubscription?: Subscription;
 
-  // TX packet templates — allocated once, reused per send
-  private txAudioPkt?: VitaDaxAudioPacket;
-  private txReducedBwPkt?: VitaDaxReducedBwPacket;
-  private txPacketCount = 0;
-
   constructor(
-    private readonly session: RadioSession,
+    protected readonly session: RadioSession,
     readonly id: string,
   ) {
     const snapshot = this.session.getStore().getAudioStream(id);
     if (snapshot) {
       this.streamHandle = snapshot.streamId;
     }
+    return new Proxy(this, {
+      get(target, prop, receiver) {
+        if (Reflect.has(target, prop)) {
+          return Reflect.get(target, prop, receiver);
+        }
+        const snapshot = target.current();
+        if (snapshot && typeof prop === "string" && prop in snapshot) {
+          return (snapshot as unknown as Record<string, unknown>)[prop];
+        }
+        return undefined;
+      },
+    });
   }
 
-  private current(): AudioStreamSnapshot {
+  current(): AudioStreamSnapshot {
     const snapshot = this.session.getStore().getAudioStream(this.id);
     if (!snapshot) {
       throw new FlexStateUnavailableError(
@@ -90,38 +120,6 @@ export class AudioStreamControllerImpl implements AudioStreamController {
 
   get state(): AudioStreamSnapshot {
     return this.current();
-  }
-
-  get streamId(): string {
-    return this.current().streamId;
-  }
-
-  get type(): string {
-    return this.current().type;
-  }
-
-  get compression(): string | undefined {
-    return this.current().compression;
-  }
-
-  get clientHandle(): number | undefined {
-    return this.current().clientHandle;
-  }
-
-  get ip(): string | undefined {
-    return this.current().ip;
-  }
-
-  get daxChannel(): number | undefined {
-    return this.current().daxChannel;
-  }
-
-  get slice(): string | undefined {
-    return this.current().slice;
-  }
-
-  get tx(): boolean {
-    return this.current().tx;
   }
 
   snapshot(): AudioStreamSnapshot {
@@ -145,6 +143,76 @@ export class AudioStreamControllerImpl implements AudioStreamController {
     }
     return this.events.on(event, listener);
   }
+
+  async close(): Promise<void> {
+    this.teardownDataPipeline();
+    const snapshot = this.session.getStore().getAudioStream(this.id);
+    const streamId = snapshot?.streamId ?? this.streamHandle;
+    if (!streamId) return;
+    this.streamHandle = streamId;
+    await this.session.command(`stream remove ${streamId}`);
+    const change = this.session.getStore().removeAudioStream(this.id);
+    if (change) this.session.applyStateChange(change);
+  }
+
+  onStateChange(change: AudioStreamStateChange): void {
+    if (change.diff?.streamId) {
+      this.streamHandle = change.diff.streamId;
+      if (this.dataListeners > 0) {
+        this.teardownDataPipeline();
+        this.ensureDataPipeline();
+      }
+    }
+    this.events.emit("change", change);
+    if (change.removed) {
+      this.teardownDataPipeline();
+    }
+  }
+
+  protected requireNumericStreamId(): number {
+    const handle = this.streamHandle ?? this.current().streamId;
+    const numericId = parseStreamIdentifier(handle);
+    if (numericId === undefined) {
+      throw new FlexStateUnavailableError(
+        `Audio stream ${this.id} has no valid stream ID`,
+      );
+    }
+    return numericId;
+  }
+
+  private ensureDataPipeline(): void {
+    if (this.dataSubscription) return;
+    const streamNumericId = parseStreamIdentifier(this.streamId);
+    if (!Number.isFinite(streamNumericId)) return;
+    this.dataSubscription = this.session.registerStreamHandler(
+      streamNumericId!,
+      (packet) => {
+        this.events.emit("data", packet);
+      },
+    );
+  }
+
+  private handleDataUnsubscribe(): void {
+    if (this.dataListeners === 0) return;
+    this.dataListeners = Math.max(0, this.dataListeners - 1);
+    if (this.dataListeners === 0) {
+      this.teardownDataPipeline();
+    }
+  }
+
+  private teardownDataPipeline(): void {
+    this.dataSubscription?.unsubscribe();
+    this.dataSubscription = undefined;
+  }
+}
+
+/** TX-capable audio stream (DAX TX, DAX Mic). */
+export class AudioStreamTxControllerImpl
+  extends AudioStreamControllerImpl
+{
+  private txAudioPkt?: VitaDaxAudioPacket;
+  private txReducedBwPkt?: VitaDaxReducedBwPacket;
+  private txPacketCount = 0;
 
   sendAudio(left: Float32Array, right: Float32Array): void {
     const numericId = this.requireNumericStreamId();
@@ -179,72 +247,26 @@ export class AudioStreamControllerImpl implements AudioStreamController {
     this.txPacketCount = (this.txPacketCount + 1) & 0xf;
     this.session.sendUdp(pkt.toBytes());
   }
-
-  async close(): Promise<void> {
-    this.teardownDataPipeline();
-    const snapshot = this.session.getStore().getAudioStream(this.id);
-    const streamId = snapshot?.streamId ?? this.streamHandle;
-    if (!streamId) return;
-    this.streamHandle = streamId;
-    await this.session.command(`stream remove ${streamId}`);
-    const change = this.session.getStore().removeAudioStream(this.id);
-    if (change) this.session.applyStateChange(change);
-  }
-
-  private requireNumericStreamId(): number {
-    const handle = this.streamHandle ?? this.current().streamId;
-    const numericId = parseStreamIdentifier(handle);
-    if (numericId === undefined) {
-      throw new FlexStateUnavailableError(
-        `Audio stream ${this.id} has no valid stream ID`,
-      );
-    }
-    return numericId;
-  }
-
-  onStateChange(change: AudioStreamStateChange): void {
-    if (change.diff?.streamId) {
-      this.streamHandle = change.diff.streamId;
-      if (this.dataListeners > 0) {
-        this.teardownDataPipeline();
-        this.ensureDataPipeline();
-      }
-    }
-    this.events.emit("change", change);
-    if (change.removed) {
-      this.teardownDataPipeline();
-    }
-  }
-
-  private ensureDataPipeline(): void {
-    if (this.dataSubscription) return;
-    const streamNumericId = parseStreamIdentifier(this.streamId);
-    if (!Number.isFinite(streamNumericId)) return;
-    this.dataSubscription = this.session.registerStreamHandler(
-      streamNumericId!,
-      (packet) => {
-        this.events.emit("data", packet);
-      },
-    );
-  }
-
-  private handleDataUnsubscribe(): void {
-    if (this.dataListeners === 0) return;
-    this.dataListeners = Math.max(0, this.dataListeners - 1);
-    if (this.dataListeners === 0) {
-      this.teardownDataPipeline();
-    }
-  }
-
-  private teardownDataPipeline(): void {
-    this.dataSubscription?.unsubscribe();
-    this.dataSubscription = undefined;
-  }
 }
 
-// Convenience alias for remote audio RX stream controllers.
-export type RemoteAudioRxStreamController = AudioStreamController;
-export const RemoteAudioRxStreamControllerImpl = AudioStreamControllerImpl;
+/** Remote audio TX stream — supports PCM and Opus. */
+export class RemoteAudioTxStreamControllerImpl
+  extends AudioStreamTxControllerImpl
+{
+  private opusPkt?: VitaOpusPacket;
+
+  sendOpus(frame: Uint8Array): void {
+    const numericId = this.requireNumericStreamId();
+    if (!this.opusPkt) {
+      this.opusPkt = new VitaOpusPacket();
+      this.opusPkt.streamId = numericId;
+    }
+    const pkt = this.opusPkt;
+    pkt.streamId = numericId;
+    pkt.payload = frame;
+    this.session.sendUdp(pkt.toBytes());
+  }
+}
 
 function parseStreamIdentifier(id: string): number | undefined {
   if (!id) return undefined;

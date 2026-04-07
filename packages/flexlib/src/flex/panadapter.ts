@@ -59,6 +59,8 @@ export interface PanadapterUpdateRequest {
   loggerDisplayRadioNum?: number;
 }
 
+export interface PanadapterController extends Readonly<PanadapterSnapshot> {}
+
 export interface PanadapterController {
   readonly id: string;
   readonly state: PanadapterSnapshot;
@@ -161,7 +163,8 @@ export interface PanadapterController {
   close(): Promise<void>;
 }
 
-export class PanadapterControllerImpl implements PanadapterController {
+export interface PanadapterControllerImpl extends Readonly<PanadapterSnapshot> {}
+export class PanadapterControllerImpl {
   private readonly events = new TypedEventEmitter<PanadapterControllerEvents>();
   private streamHandle?: string;
   private dataListeners = 0;
@@ -173,9 +176,21 @@ export class PanadapterControllerImpl implements PanadapterController {
     streamHandle?: string,
   ) {
     this.streamHandle = streamHandle;
+    return new Proxy(this, {
+      get(target, prop, receiver) {
+        if (Reflect.has(target, prop)) {
+          return Reflect.get(target, prop, receiver);
+        }
+        const snapshot = target.current();
+        if (snapshot && typeof prop === "string" && prop in snapshot) {
+          return (snapshot as unknown as Record<string, unknown>)[prop];
+        }
+        return undefined;
+      },
+    });
   }
 
-  private current(): PanadapterSnapshot {
+  current(): PanadapterSnapshot {
     const snapshot = this.session.getStore().getPanadapter(this.id);
     if (!snapshot) {
       throw new FlexStateUnavailableError(
@@ -187,174 +202,6 @@ export class PanadapterControllerImpl implements PanadapterController {
 
   get state(): PanadapterSnapshot {
     return this.current();
-  }
-
-  get streamId(): string {
-    return this.current().streamId;
-  }
-
-  get band(): string {
-    return this.current().band;
-  }
-
-  get centerFrequencyMHz(): number {
-    return this.current().centerFrequencyMHz;
-  }
-
-  get bandwidthMHz(): number {
-    return this.current().bandwidthMHz;
-  }
-
-  get autoCenterEnabled(): boolean {
-    return this.current().autoCenterEnabled;
-  }
-
-  get minBandwidthMHz(): number {
-    return this.current().minBandwidthMHz;
-  }
-
-  get maxBandwidthMHz(): number {
-    return this.current().maxBandwidthMHz;
-  }
-
-  get lowDbm(): number {
-    return this.current().lowDbm;
-  }
-
-  get highDbm(): number {
-    return this.current().highDbm;
-  }
-
-  get fps(): number {
-    return this.current().fps;
-  }
-
-  get average(): number {
-    return this.current().average;
-  }
-
-  get weightedAverage(): boolean {
-    return this.current().weightedAverage;
-  }
-
-  get isBandZoomOn(): boolean {
-    return this.current().isBandZoomOn;
-  }
-
-  get isSegmentZoomOn(): boolean {
-    return this.current().isSegmentZoomOn;
-  }
-
-  get wnbEnabled(): boolean {
-    return this.current().wnbEnabled;
-  }
-
-  get wnbLevel(): number {
-    return this.current().wnbLevel;
-  }
-
-  get wnbUpdating(): boolean {
-    return this.current().wnbUpdating;
-  }
-
-  get noiseFloorPosition(): number {
-    return this.current().noiseFloorPosition;
-  }
-
-  get noiseFloorPositionEnabled(): boolean {
-    return this.current().noiseFloorPositionEnabled;
-  }
-
-  get rxAntenna(): string {
-    return this.current().rxAntenna;
-  }
-
-  get rfGain(): number {
-    return this.current().rfGain;
-  }
-
-  get rfGainLow(): number {
-    return this.current().rfGainLow;
-  }
-
-  get rfGainHigh(): number {
-    return this.current().rfGainHigh;
-  }
-
-  get rfGainStep(): number {
-    return this.current().rfGainStep;
-  }
-
-  get rfGainMarkers(): readonly number[] {
-    return this.current().rfGainMarkers;
-  }
-
-  get daxIqChannel(): number {
-    return this.current().daxIqChannel;
-  }
-
-  get daxIqRate(): number {
-    return this.current().daxIqRate;
-  }
-
-  get width(): number {
-    return this.current().width;
-  }
-
-  get height(): number {
-    return this.current().height;
-  }
-
-  get rxAntennas(): readonly string[] {
-    return this.current().rxAntennas;
-  }
-
-  get loopAEnabled(): boolean {
-    return this.current().loopAEnabled;
-  }
-
-  get loopBEnabled(): boolean {
-    return this.current().loopBEnabled;
-  }
-
-  get wideEnabled(): boolean {
-    return this.current().wideEnabled;
-  }
-
-  get loggerDisplayEnabled(): boolean {
-    return this.current().loggerDisplayEnabled;
-  }
-
-  get loggerDisplayAddress(): string {
-    return this.current().loggerDisplayAddress;
-  }
-
-  get loggerDisplayPort(): number {
-    return this.current().loggerDisplayPort;
-  }
-
-  get loggerDisplayRadioNum(): number {
-    return this.current().loggerDisplayRadioNum;
-  }
-
-  get waterfallStreamId(): string {
-    return this.current().waterfallStreamId;
-  }
-
-  get attachedSlices(): readonly string[] {
-    return this.current().attachedSlices;
-  }
-
-  get clientHandle(): number {
-    return this.current().clientHandle;
-  }
-
-  get xvtr(): string {
-    return this.current().xvtr;
-  }
-
-  get preampSetting(): string {
-    return this.current().preampSetting;
   }
 
   snapshot(): PanadapterSnapshot {

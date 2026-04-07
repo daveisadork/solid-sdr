@@ -48,7 +48,18 @@ import {
   formatBooleanFlag,
   toInteger,
 } from "./controller-helpers.js";
-import type { RadioRequestSliceOptions } from "./radio.js";
+export interface RadioRequestSliceOptions {
+  /** Panadapter stream id that should host the new slice, e.g. "0x40000000". */
+  readonly panadapterStreamId?: string;
+  /** Demodulation mode for the new slice, e.g. "USB", "DIGU", "LSB", "CW". */
+  readonly demodMode?: string;
+  /** Initial center frequency in MHz. */
+  readonly frequencyMHz?: number;
+  /** RX antenna port for the new slice, e.g. "ANT1", "ANT2", "RX_A". */
+  readonly rxAntenna?: string;
+  /** Restores persisted slice settings when available. */
+  readonly loadPersistence?: boolean;
+}
 import { type SliceController, SliceControllerImpl } from "./slice.js";
 import {
   type PanadapterController,
@@ -61,7 +72,11 @@ import {
 import { type MeterController, MeterControllerImpl } from "./meter.js";
 import {
   type AudioStreamController,
+  type AudioStreamTxController,
+  type RemoteAudioTxStreamController,
   AudioStreamControllerImpl,
+  AudioStreamTxControllerImpl,
+  RemoteAudioTxStreamControllerImpl,
 } from "./audio-stream.js";
 import {
   type EqualizerController,
@@ -681,47 +696,58 @@ export class Radio {
     if (options?.compression) {
       cmd += ` compression=${options.compression.toUpperCase()}`;
     }
-    return this.createAudioStream(cmd);
+    return this.createAudioStreamController(cmd, AudioStreamControllerImpl);
   }
 
   async createRemoteAudioTxStream(options?: {
     compression?: string;
-  }): Promise<AudioStreamController> {
+  }): Promise<RemoteAudioTxStreamController> {
     let cmd = "stream create type=remote_audio_tx";
     if (options?.compression) {
       cmd += ` compression=${options.compression.toUpperCase()}`;
     }
-    return this.createAudioStream(cmd);
+    return this.createAudioStreamController(
+      cmd,
+      RemoteAudioTxStreamControllerImpl,
+    );
   }
 
   async createDaxRxAudioStream(options: {
     daxChannel: number;
   }): Promise<AudioStreamController> {
     const channel = toInteger(options.daxChannel, "DAX RX channel");
-    return this.createAudioStream(
+    return this.createAudioStreamController(
       `stream create type=dax_rx dax_channel=${channel}`,
+      AudioStreamControllerImpl,
     );
   }
 
-  async createDaxTxAudioStream(): Promise<AudioStreamController> {
-    return this.createAudioStream("stream create type=dax_tx");
+  async createDaxTxAudioStream(): Promise<AudioStreamTxController> {
+    return this.createAudioStreamController(
+      "stream create type=dax_tx",
+      AudioStreamTxControllerImpl,
+    );
   }
 
   async createDaxMicAudioStream(): Promise<AudioStreamController> {
-    return this.createAudioStream("stream create type=dax_mic");
+    return this.createAudioStreamController(
+      "stream create type=dax_mic",
+      AudioStreamControllerImpl,
+    );
   }
 
-  private async createAudioStream(cmd: string): Promise<AudioStreamController> {
+  private async createAudioStreamController<
+    T extends AudioStreamControllerImpl,
+  >(
+    cmd: string,
+    Ctor: new (session: RadioSession, id: string) => T,
+  ): Promise<T> {
     const response = await this.command(cmd);
     const streamId = normalizeEntityId(
       response.message?.split(",")[0]?.trim() ?? "",
     );
-    const controller = this.audioStream(streamId);
-    if (!controller) {
-      throw new FlexError(
-        `Audio stream ${streamId} not available after creation`,
-      );
-    }
+    const controller = new Ctor(this, streamId);
+    this.audioControllers.set(streamId, controller);
     return controller;
   }
 

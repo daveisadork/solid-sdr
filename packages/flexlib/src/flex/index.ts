@@ -1,7 +1,3 @@
-// ---------------------------------------------------------------------------
-// New architecture — primary public API
-// ---------------------------------------------------------------------------
-
 // FlexClient + Radio
 export * from "./flex-client.js";
 export * from "./radio-core.js";
@@ -24,7 +20,6 @@ export * from "./feature-license.js";
 export * from "./gui-client.js";
 export * from "./tx-band-settings.js";
 export * from "./waterfall-line-speed.js";
-export * from "./radio.js";
 
 // State/snapshot types
 export * from "./state/index.js";
@@ -37,5 +32,5 @@ export * from "./response-codes.js";
 // Shared types from adapters that are still needed
 export type { Logger, Clock, FlexRadioDescriptor } from "./adapters.js";
 
-// Discovery parsing (used by FlexClient, also useful standalone)
+// Discovery parsing
 export { decodeDiscoveryPayload, parseDiscoveryPayload } from "./discovery.js";

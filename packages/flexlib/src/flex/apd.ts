@@ -9,6 +9,8 @@ export interface ApdControllerEvents {
   readonly change: ApdStateChange;
 }
 
+export interface ApdController extends Readonly<ApdSnapshot> {}
+
 export interface ApdController {
   readonly enabled: boolean;
   readonly configurable: boolean;
@@ -31,12 +33,26 @@ export interface ApdController {
   onStateChange(change: ApdStateChange): void;
 }
 
-export class ApdControllerImpl implements ApdController {
+export interface ApdControllerImpl extends Readonly<ApdSnapshot> {}
+export class ApdControllerImpl {
   private readonly events = new TypedEventEmitter<ApdControllerEvents>();
 
-  constructor(private readonly session: RadioSession) {}
+  constructor(private readonly session: RadioSession) {
+    return new Proxy(this, {
+      get(target, prop, receiver) {
+        if (Reflect.has(target, prop)) {
+          return Reflect.get(target, prop, receiver);
+        }
+        const snapshot = target.current();
+        if (snapshot && typeof prop === "string" && prop in snapshot) {
+          return (snapshot as unknown as Record<string, unknown>)[prop];
+        }
+        return undefined;
+      },
+    });
+  }
 
-  private current(): ApdSnapshot {
+  current(): ApdSnapshot {
     const snapshot = this.session.getStore().getApd();
     if (!snapshot) {
       throw new FlexStateUnavailableError("APD status is not available");
@@ -48,52 +64,8 @@ export class ApdControllerImpl implements ApdController {
     return this.session.getStore().getApd();
   }
 
-  get enabled(): boolean {
-    return this.current().enabled;
-  }
-
-  get configurable(): boolean {
-    return this.current().configurable;
-  }
-
-  get equalizerActive(): boolean {
-    return this.current().equalizerActive;
-  }
-
   get equalizerCalibrating(): boolean {
     return !this.current().equalizerActive;
-  }
-
-  get antenna(): string | undefined {
-    return this.current().antenna;
-  }
-
-  get frequencyMHz(): number | undefined {
-    return this.current().frequencyMHz;
-  }
-
-  get txErrorMilliHz(): number | undefined {
-    return this.current().txErrorMilliHz;
-  }
-
-  get rxErrorMilliHz(): number | undefined {
-    return this.current().rxErrorMilliHz;
-  }
-
-  get sliceId(): string | undefined {
-    return this.current().sliceId;
-  }
-
-  get mmx(): number | undefined {
-    return this.current().mmx;
-  }
-
-  get clientHandle(): number | undefined {
-    return this.current().clientHandle;
-  }
-
-  get sampleIndex(): number | undefined {
-    return this.current().sampleIndex;
   }
 
   async setEnabled(enabled: boolean): Promise<void> {

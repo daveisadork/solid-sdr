@@ -22,6 +22,8 @@ export interface EqualizerControllerEvents {
 
 export type EqualizerLevelUpdate = Partial<Record<EqualizerBand, number>>;
 
+export interface EqualizerController extends Readonly<EqualizerSnapshot> {}
+
 export interface EqualizerController {
   readonly id: EqualizerId;
   readonly state: EqualizerSnapshot;
@@ -39,15 +41,29 @@ export interface EqualizerController {
   ): Subscription;
 }
 
-export class EqualizerControllerImpl implements EqualizerController {
+export interface EqualizerControllerImpl extends Readonly<EqualizerSnapshot> {}
+export class EqualizerControllerImpl {
   private readonly events = new TypedEventEmitter<EqualizerControllerEvents>();
 
   constructor(
     private readonly session: RadioSession,
     readonly id: EqualizerId,
-  ) {}
+  ) {
+    return new Proxy(this, {
+      get(target, prop, receiver) {
+        if (Reflect.has(target, prop)) {
+          return Reflect.get(target, prop, receiver);
+        }
+        const snapshot = target.current();
+        if (snapshot && typeof prop === "string" && prop in snapshot) {
+          return (snapshot as unknown as Record<string, unknown>)[prop];
+        }
+        return undefined;
+      },
+    });
+  }
 
-  private current(): EqualizerSnapshot {
+  current(): EqualizerSnapshot {
     const snapshot = this.session.getStore().getEqualizer(this.id);
     if (!snapshot) {
       throw new FlexStateUnavailableError(
@@ -59,10 +75,6 @@ export class EqualizerControllerImpl implements EqualizerController {
 
   get state(): EqualizerSnapshot {
     return this.current();
-  }
-
-  get enabled(): boolean {
-    return this.current().enabled;
   }
 
   get levels(): EqualizerBandLevels {

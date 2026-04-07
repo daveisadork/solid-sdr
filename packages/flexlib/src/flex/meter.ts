@@ -22,6 +22,8 @@ export interface MeterControllerEvents {
   readonly data: MeterDataEvent;
 }
 
+export interface MeterController extends Readonly<MeterSnapshot> {}
+
 export interface MeterController {
   readonly id: string;
   readonly state: MeterSnapshot;
@@ -42,7 +44,8 @@ export interface MeterController {
   ): Subscription;
 }
 
-export class MeterControllerImpl implements MeterController {
+export interface MeterControllerImpl extends Readonly<MeterSnapshot> {}
+export class MeterControllerImpl {
   private readonly events = new TypedEventEmitter<MeterControllerEvents>();
   private dataListeners = 0;
   private dataSubscription?: Subscription;
@@ -51,9 +54,22 @@ export class MeterControllerImpl implements MeterController {
   constructor(
     private readonly session: RadioSession,
     readonly id: string,
-  ) {}
+  ) {
+    return new Proxy(this, {
+      get(target, prop, receiver) {
+        if (Reflect.has(target, prop)) {
+          return Reflect.get(target, prop, receiver);
+        }
+        const snapshot = target.current();
+        if (snapshot && typeof prop === "string" && prop in snapshot) {
+          return (snapshot as unknown as Record<string, unknown>)[prop];
+        }
+        return undefined;
+      },
+    });
+  }
 
-  private current(): MeterSnapshot {
+  current(): MeterSnapshot {
     const snapshot = this.session.getStore().getMeter(this.id);
     if (!snapshot) {
       throw new FlexStateUnavailableError(
@@ -65,38 +81,6 @@ export class MeterControllerImpl implements MeterController {
 
   get state(): MeterSnapshot {
     return this.current();
-  }
-
-  get source(): string {
-    return this.current().source;
-  }
-
-  get sourceIndex(): number {
-    return this.current().sourceIndex;
-  }
-
-  get name(): string {
-    return this.current().name;
-  }
-
-  get description(): string {
-    return this.current().description;
-  }
-
-  get units(): MeterUnits {
-    return this.current().units;
-  }
-
-  get low(): number {
-    return this.current().low;
-  }
-
-  get high(): number {
-    return this.current().high;
-  }
-
-  get fps(): number {
-    return this.current().fps;
   }
 
   get value(): number | undefined {

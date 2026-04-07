@@ -37,11 +37,11 @@
 
 import type { Subscription } from "../util/events.js";
 
-import type { RadioEndpoint } from "./client.js";
-
-// Re-export so new code can import from transport.ts
-// without depending on the legacy client.ts module.
-export type { RadioEndpoint } from "./client.js";
+/** Network endpoint for a FlexRadio. */
+export interface RadioEndpoint {
+  readonly host: string;
+  readonly port: number;
+}
 
 // ---------------------------------------------------------------------------
 // FlexTransport — client-level, long-lived

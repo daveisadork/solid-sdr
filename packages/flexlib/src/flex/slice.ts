@@ -88,6 +88,8 @@ export interface SliceUpdateRequest {
   diversityEnabled?: boolean;
 }
 
+export interface SliceController extends Readonly<SliceSnapshot> {}
+
 export interface SliceController {
   readonly id: string;
   readonly state: SliceSnapshot;
@@ -591,15 +593,29 @@ export interface SliceController {
   close(): Promise<void>;
 }
 
-export class SliceControllerImpl implements SliceController {
+export interface SliceControllerImpl extends Readonly<SliceSnapshot> {}
+export class SliceControllerImpl {
   private readonly events = new TypedEventEmitter<SliceControllerEvents>();
 
   constructor(
     private readonly session: RadioSession,
     readonly id: string,
-  ) {}
+  ) {
+    return new Proxy(this, {
+      get(target, prop, receiver) {
+        if (Reflect.has(target, prop)) {
+          return Reflect.get(target, prop, receiver);
+        }
+        const snapshot = target.current();
+        if (snapshot && typeof prop === "string" && prop in snapshot) {
+          return (snapshot as unknown as Record<string, unknown>)[prop];
+        }
+        return undefined;
+      },
+    });
+  }
 
-  private current(): SliceSnapshot {
+  current(): SliceSnapshot {
     const snapshot = this.session.getStore().getSlice(this.id);
     if (!snapshot)
       throw new FlexStateUnavailableError(
@@ -612,324 +628,8 @@ export class SliceControllerImpl implements SliceController {
     return this.current();
   }
 
-  get frequencyMHz(): number {
-    return this.current().frequencyMHz;
-  }
-
-  get mode(): string {
-    return this.current().mode;
-  }
-
-  get sampleRateHz(): number {
-    return this.current().sampleRateHz;
-  }
-
-  get indexLetter(): string {
-    return this.current().indexLetter;
-  }
-
-  get isWide(): boolean {
-    return this.current().isWide;
-  }
-
-  get isQskEnabled(): boolean {
-    return this.current().isQskEnabled;
-  }
-
-  get modeList(): readonly string[] {
-    return this.current().modeList;
-  }
-
-  get availableRxAntennas(): readonly string[] {
-    return this.current().availableRxAntennas;
-  }
-
-  get availableTxAntennas(): readonly string[] {
-    return this.current().availableTxAntennas;
-  }
-
-  get owner(): string {
-    return this.current().owner;
-  }
-
-  get clientHandle(): number {
-    return this.current().clientHandle;
-  }
-
-  get isActive(): boolean {
-    return this.current().isActive;
-  }
-
-  get isLocked(): boolean {
-    return this.current().isLocked;
-  }
-
-  get isTransmitEnabled(): boolean {
-    return this.current().isTransmitEnabled;
-  }
-
-  get rxAntenna(): string {
-    return this.current().rxAntenna;
-  }
-
-  get txAntenna(): string {
-    return this.current().txAntenna;
-  }
-
   get panadapterStream(): string | undefined {
     return this.current().panadapterStreamId;
-  }
-
-  get panadapterStreamId(): string | undefined {
-    return this.current().panadapterStreamId;
-  }
-
-  get daxChannel(): number {
-    return this.current().daxChannel;
-  }
-
-  get rfGain(): number {
-    return this.current().rfGain;
-  }
-
-  get filterLowHz(): number {
-    return this.current().filterLowHz;
-  }
-
-  get filterHighHz(): number {
-    return this.current().filterHighHz;
-  }
-
-  get rttyMarkHz(): number {
-    return this.current().rttyMarkHz;
-  }
-
-  get rttyShiftHz(): number {
-    return this.current().rttyShiftHz;
-  }
-
-  get diglOffsetHz(): number {
-    return this.current().diglOffsetHz;
-  }
-
-  get diguOffsetHz(): number {
-    return this.current().diguOffsetHz;
-  }
-
-  get audioPan(): number {
-    return this.current().audioPan;
-  }
-
-  get audioGain(): number {
-    return this.current().audioGain;
-  }
-
-  get isMuted(): boolean {
-    return this.current().isMuted;
-  }
-
-  get anfEnabled(): boolean {
-    return this.current().anfEnabled;
-  }
-
-  get anfLevel(): number {
-    return this.current().anfLevel;
-  }
-
-  get apfEnabled(): boolean {
-    return this.current().apfEnabled;
-  }
-
-  get apfLevel(): number {
-    return this.current().apfLevel;
-  }
-
-  get wnbEnabled(): boolean {
-    return this.current().wnbEnabled;
-  }
-
-  get wnbLevel(): number {
-    return this.current().wnbLevel;
-  }
-
-  get nbEnabled(): boolean {
-    return this.current().nbEnabled;
-  }
-
-  get nbLevel(): number {
-    return this.current().nbLevel;
-  }
-
-  get nrEnabled(): boolean {
-    return this.current().nrEnabled;
-  }
-
-  get nrLevel(): number {
-    return this.current().nrLevel;
-  }
-
-  get nrlEnabled(): boolean {
-    return this.current().nrlEnabled;
-  }
-
-  get nrlLevel(): number {
-    return this.current().nrlLevel;
-  }
-
-  get anflEnabled(): boolean {
-    return this.current().anflEnabled;
-  }
-
-  get anflLevel(): number {
-    return this.current().anflLevel;
-  }
-
-  get nrsEnabled(): boolean {
-    return this.current().nrsEnabled;
-  }
-
-  get nrsLevel(): number {
-    return this.current().nrsLevel;
-  }
-
-  get rnnEnabled(): boolean {
-    return this.current().rnnEnabled;
-  }
-
-  get anftEnabled(): boolean {
-    return this.current().anftEnabled;
-  }
-
-  get nrfEnabled(): boolean {
-    return this.current().nrfEnabled;
-  }
-
-  get nrfLevel(): number {
-    return this.current().nrfLevel;
-  }
-
-  get escEnabled(): boolean {
-    return this.current().escEnabled;
-  }
-
-  get escGain(): number {
-    return this.current().escGain;
-  }
-
-  get escPhaseShift(): number {
-    return this.current().escPhaseShift;
-  }
-
-  get agcMode(): string {
-    return this.current().agcMode;
-  }
-
-  get agcThreshold(): number {
-    return this.current().agcThreshold;
-  }
-
-  get agcOffLevel(): number {
-    return this.current().agcOffLevel;
-  }
-
-  get loopAEnabled(): boolean {
-    return this.current().loopAEnabled;
-  }
-
-  get loopBEnabled(): boolean {
-    return this.current().loopBEnabled;
-  }
-
-  get ritEnabled(): boolean {
-    return this.current().ritEnabled;
-  }
-
-  get ritOffsetHz(): number {
-    return this.current().ritOffsetHz;
-  }
-
-  get xitEnabled(): boolean {
-    return this.current().xitEnabled;
-  }
-
-  get xitOffsetHz(): number {
-    return this.current().xitOffsetHz;
-  }
-
-  get tuneStepHz(): number {
-    return this.current().tuneStepHz;
-  }
-
-  get tuneStepListHz(): readonly number[] {
-    return this.current().tuneStepListHz;
-  }
-
-  get recordingEnabled(): boolean {
-    return this.current().recordingEnabled;
-  }
-
-  get playbackAvailable(): boolean {
-    return this.current().playbackAvailable;
-  }
-
-  get playbackEnabled(): boolean {
-    return this.current().playbackEnabled;
-  }
-
-  get fmToneMode(): string {
-    return this.current().fmToneMode;
-  }
-
-  get fmToneValue(): string {
-    return this.current().fmToneValue;
-  }
-
-  get fmDeviation(): number {
-    return this.current().fmDeviation;
-  }
-
-  get fmToneBurstEnabled(): boolean {
-    return this.current().fmToneBurstEnabled;
-  }
-
-  get fmPreDeEmphasisEnabled(): boolean {
-    return this.current().fmPreDeEmphasisEnabled;
-  }
-
-  get squelchEnabled(): boolean {
-    return this.current().squelchEnabled;
-  }
-
-  get squelchLevel(): number {
-    return this.current().squelchLevel;
-  }
-
-  get txOffsetFrequencyMHz(): number {
-    return this.current().txOffsetFrequencyMHz;
-  }
-
-  get fmRepeaterOffsetMHz(): number {
-    return this.current().fmRepeaterOffsetMHz;
-  }
-
-  get repeaterOffsetDirection(): string {
-    return this.current().repeaterOffsetDirection;
-  }
-
-  get diversityEnabled(): boolean {
-    return this.current().diversityEnabled;
-  }
-
-  get diversityChild(): boolean {
-    return this.current().diversityChild;
-  }
-
-  get diversityParent(): boolean {
-    return this.current().diversityParent;
-  }
-
-  get diversityIndex(): number {
-    return this.current().diversityIndex;
   }
 
   snapshot(): SliceSnapshot {

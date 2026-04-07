@@ -20,3 +20,5 @@ export * from "./tx-band-settings.js";
 export * from "./waterfall-line-speed.js";
 export * from "./udp-session.js";
 export * from "./client.js";
+export * from "./transport.js";
+export * from "./radio-core.js";

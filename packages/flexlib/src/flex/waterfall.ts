@@ -13,7 +13,7 @@ import {
 import type { RadioSession, StreamPacketHandler } from "./radio-core.js";
 import type { VitaParsedPacket } from "../vita/parser.js";
 
-export interface WaterfallControllerEvents extends Record<string, unknown> {
+export interface WaterfallControllerEvents {
   readonly change: WaterfallStateChange;
   readonly data: VitaParsedPacket;
 }

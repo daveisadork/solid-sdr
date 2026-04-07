@@ -8,7 +8,7 @@ import type {
 import type { RadioSession } from "./radio-core.js";
 
 export interface TxBandSettingControllerEvents
-  extends Record<string, unknown> {
+  {
   readonly change: TxBandSettingStateChange;
 }
 

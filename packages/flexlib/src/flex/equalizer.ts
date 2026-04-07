@@ -16,7 +16,7 @@ import { clampInteger, formatBooleanFlag } from "./controller-helpers.js";
 const LEVEL_MIN = -10;
 const LEVEL_MAX = 10;
 
-export interface EqualizerControllerEvents extends Record<string, unknown> {
+export interface EqualizerControllerEvents {
   readonly change: EqualizerStateChange;
 }
 

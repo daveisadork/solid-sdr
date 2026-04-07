@@ -34,7 +34,7 @@ export interface FlexClientOptions {
 }
 
 /** Event map for the FlexClient. */
-export interface FlexClientEvents extends Record<string, unknown> {
+export interface FlexClientEvents {
   /** A new radio was discovered on the network. */
   readonly radioDiscovered: Radio;
   /** A known radio's discovery data was updated (e.g. availableClients changed). */

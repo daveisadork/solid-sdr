@@ -5,7 +5,7 @@ import type { ApdStateChange } from "./state/index.js";
 import { formatBooleanFlag } from "./controller-helpers.js";
 import type { RadioSession } from "./radio-core.js";
 
-export interface ApdControllerEvents extends Record<string, unknown> {
+export interface ApdControllerEvents {
   readonly change: ApdStateChange;
 }
 

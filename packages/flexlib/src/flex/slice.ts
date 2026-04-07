@@ -16,7 +16,7 @@ export type SliceRepeaterOffsetDirection =
   | "up"
   | (string & {});
 
-export interface SliceControllerEvents extends Record<string, unknown> {
+export interface SliceControllerEvents {
   readonly change: SliceStateChange;
 }
 

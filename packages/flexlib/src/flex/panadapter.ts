@@ -21,7 +21,7 @@ import {
 import type { RadioSession } from "./radio-core.js";
 import type { VitaParsedPacket } from "../vita/parser.js";
 
-export interface PanadapterControllerEvents extends Record<string, unknown> {
+export interface PanadapterControllerEvents {
   readonly change: PanadapterStateChange;
   readonly data: VitaParsedPacket;
 }

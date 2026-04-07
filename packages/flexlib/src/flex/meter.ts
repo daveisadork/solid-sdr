@@ -17,7 +17,7 @@ export interface MeterDataEvent {
   readonly units: MeterUnits;
 }
 
-export interface MeterControllerEvents extends Record<string, unknown> {
+export interface MeterControllerEvents {
   readonly change: MeterStateChange;
   readonly data: MeterDataEvent;
 }
@@ -150,9 +150,8 @@ export class MeterControllerImpl implements MeterController {
 
   private ensureDataPipeline(): void {
     if (this.dataSubscription) return;
-    const meterId = this.sourceIndex;
-    if (!Number.isFinite(meterId)) return;
-    const numericId = Math.trunc(meterId);
+    const numericId = Number.parseInt(this.id, 10);
+    if (!Number.isFinite(numericId)) return;
     this.dataSubscription = this.session.registerMeterHandler(
       numericId,
       this.handleMeterValue,

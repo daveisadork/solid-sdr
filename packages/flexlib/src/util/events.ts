@@ -5,7 +5,7 @@ export interface Subscription {
 }
 
 export interface ListenerErrorInfo<
-  TEvents extends Record<string, unknown>,
+  TEvents extends Record<string, any>,
   TKey extends keyof TEvents = keyof TEvents,
 > {
   readonly event: TKey;
@@ -16,7 +16,7 @@ export interface ListenerErrorInfo<
 }
 
 export interface TypedEventEmitterOptions<
-  TEvents extends Record<string, unknown>,
+  TEvents extends Record<string, any>,
 > {
   readonly onListenerError?: (
     info: ListenerErrorInfo<TEvents>,
@@ -24,7 +24,7 @@ export interface TypedEventEmitterOptions<
   readonly rethrowStrategy?: "async" | "none";
 }
 
-export class TypedEventEmitter<TEvents extends Record<string, unknown>> {
+export class TypedEventEmitter<TEvents extends Record<string, any>> {
   private readonly listeners = new Map<keyof TEvents, Set<Listener<unknown>>>();
   private readonly options: TypedEventEmitterOptions<TEvents>;
 

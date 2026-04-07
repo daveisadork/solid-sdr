@@ -188,7 +188,7 @@ export interface FlexHandshakeClientInfo {
   readonly station?: string;
 }
 
-export interface FlexRadioEvents extends Record<string, unknown> {
+export interface FlexRadioEvents extends Record<string, any> {
   readonly change: RadioStateChange;
   readonly status: FlexStatusMessage;
   readonly reply: FlexReplyMessage;

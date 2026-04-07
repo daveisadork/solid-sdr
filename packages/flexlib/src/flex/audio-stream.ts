@@ -9,7 +9,7 @@ import type { VitaParsedPacket } from "../vita/parser.js";
 
 export type AudioStreamDataEvent = VitaParsedPacket;
 
-export interface AudioStreamControllerEvents extends Record<string, unknown> {
+export interface AudioStreamControllerEvents {
   readonly change: AudioStreamStateChange;
   readonly data: AudioStreamDataEvent;
 }

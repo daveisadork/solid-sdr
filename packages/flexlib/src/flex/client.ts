@@ -131,7 +131,7 @@ export interface RadioWireMessageEvent {
   readonly message: FlexWireMessage;
 }
 
-export interface RadioClientEvents extends Record<string, unknown> {
+export interface RadioClientEvents extends Record<string, any> {
   readonly radioDiscovered: RadioHandle;
   readonly radioLost: { serial: string; endpoint?: RadioEndpoint };
   readonly radioConnected: RadioHandle;
@@ -155,7 +155,7 @@ export type RadioClientEventListener<TKey extends RadioClientEventKey> = (
   payload: RadioClientEvents[TKey],
 ) => void;
 
-export interface RadioHandleEvents extends Record<string, unknown> {
+export interface RadioHandleEvents extends Record<string, any> {
   readonly change: RadioStateChangeWithSerial;
   readonly radioChange: RadioStateChangeWithSerial;
   readonly sliceChange: RadioStateChangeWithSerial;

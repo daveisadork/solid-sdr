@@ -48,7 +48,7 @@ export type { RadioEndpoint } from "./client.js";
 // ---------------------------------------------------------------------------
 
 /** Event map for {@link FlexTransport}. */
-export interface FlexTransportEvents extends Record<string, unknown> {
+export interface FlexTransportEvents {
   /** Raw VITA discovery packet received from the network. */
   readonly discoveryData: Uint8Array;
   /** Transport-level error. */
@@ -88,7 +88,7 @@ export interface FlexTransport {
 // ---------------------------------------------------------------------------
 
 /** Event map for {@link FlexConnection}. */
-export interface FlexConnectionEvents extends Record<string, unknown> {
+export interface FlexConnectionEvents {
   /** Data received over the TCP command channel. */
   readonly tcpData: string | Uint8Array;
   /** Raw VITA packet received over the UDP data channel. */

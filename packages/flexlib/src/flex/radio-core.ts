@@ -95,10 +95,25 @@ export type RadioConnectionState =
   | "connected"
   | "disconnecting";
 
+/** Stages emitted during the "connecting" phase. */
+export type ConnectionProgressStage =
+  | "tcp"
+  | "handle"
+  | "sync"
+  | "udp"
+  | "ready";
+
+/** Detail values emitted during the "sync" stage. */
+export type ConnectionSyncDetail =
+  | "radio-info"
+  | "subscriptions"
+  | "network"
+  | "complete";
+
 /** Granular progress detail emitted during the "connecting" phase. */
 export interface ConnectionProgressDetail {
-  readonly stage: string;
-  readonly detail?: string;
+  readonly stage: ConnectionProgressStage;
+  readonly detail?: ConnectionSyncDetail | string;
 }
 
 /** Options for {@link Radio.command}. */
@@ -150,7 +165,7 @@ export interface RadioClientInfo {
 // ---------------------------------------------------------------------------
 
 /** Event map for the {@link Radio} class. */
-export interface RadioEvents extends Record<string, unknown> {
+export interface RadioEvents {
   readonly connectionStateChange: RadioConnectionState;
   readonly connectingProgress: ConnectionProgressDetail;
   readonly change: RadioStateChange;
@@ -2349,6 +2364,7 @@ export class Radio {
     this.tcpBuffer = "";
     this.decoder = undefined;
     this.nextSequence = 1;
+    this.store.reset();
     this.streamHandlers.clear();
     this.meterHandlers.clear();
     this.sliceControllers.clear();
@@ -2366,7 +2382,7 @@ export class Radio {
     this.events.emit("connectionStateChange", state);
   }
 
-  private emitProgress(stage: string, detail?: string): void {
+  private emitProgress(stage: ConnectionProgressStage, detail?: string): void {
     this.events.emit("connectingProgress", { stage, detail });
   }
 }

@@ -8,6 +8,10 @@ import type {
 } from "./adapters.js";
 import { TypedEventEmitter, type Subscription } from "../util/events.js";
 import type {
+  StreamPacketHandler,
+  MeterValueHandler,
+} from "./radio-core.js";
+import type {
   FlexWireMessage,
   FlexStatusMessage,
   FlexReplyMessage,
@@ -438,9 +442,7 @@ class FlexRadioSessionImpl implements FlexRadioSession {
       () => this.store.getRadio(),
     );
     this.featureLicenseController = new FeatureLicenseControllerImpl(
-      {
-        command: (command, options) => this.command(command, options),
-      },
+      this,
       () => this.store.getFeatureLicense(),
     );
     this.apdController = new ApdControllerImpl(this);
@@ -799,13 +801,6 @@ class FlexRadioSessionImpl implements FlexRadioSession {
     if (change) this.handleStateChange(change);
   }
 
-  private patchTxBandSetting(
-    id: string,
-    attributes: Record<string, string>,
-  ): void {
-    const change = this.store.patchTxBandSetting(id, attributes);
-    if (change) this.handleStateChange(change);
-  }
 
   getRadio(): RadioSnapshot | undefined {
     return this.store.getRadio();
@@ -942,15 +937,7 @@ class FlexRadioSessionImpl implements FlexRadioSession {
   ): TxBandSettingControllerImpl | undefined {
     const snapshot = this.store.getTxBandSetting(id);
     if (!snapshot) return undefined;
-    return new TxBandSettingControllerImpl(
-      {
-        command: (command: string) => this.command(command),
-        patchTxBandSetting: (bandId, attributes) =>
-          this.patchTxBandSetting(bandId, attributes),
-        getTxBandSetting: (bandId) => this.store.getTxBandSetting(bandId),
-      },
-      id,
-    );
+    return new TxBandSettingControllerImpl(this, id);
   }
 
   async createPanadapter(
@@ -1110,6 +1097,46 @@ class FlexRadioSessionImpl implements FlexRadioSession {
       );
     }
     return response;
+  }
+
+  // -----------------------------------------------------------------------
+  // RadioSession interface (allows migrated controllers to work with
+  // both the new Radio class and this legacy session)
+  // -----------------------------------------------------------------------
+
+  getStore(): RadioStateStore {
+    return this.store;
+  }
+
+  applyStateChange(change: RadioStateChange): void {
+    this.handleStateChange(change);
+  }
+
+  registerStreamHandler(
+    streamId: number,
+    handler: StreamPacketHandler,
+  ): Subscription {
+    // Delegate to UdpSession for the legacy path
+    return this.udpSession.on(
+      "panadapter" as any, // VitaPacketKind
+      (event: any) => {
+        if (event.metadata.streamId === streamId) handler(event);
+      },
+    );
+  }
+
+  registerMeterHandler(
+    meterId: number,
+    handler: MeterValueHandler,
+  ): Subscription {
+    return this.udpSession.on("meter", (event) => {
+      const packet = event.packet;
+      for (let i = 0; i < packet.numMeters; i++) {
+        if (packet.ids[i] === meterId) {
+          handler(meterId, packet.values[i]);
+        }
+      }
+    });
   }
 
   async installGps(): Promise<void> {

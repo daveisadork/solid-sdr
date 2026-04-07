@@ -1,38 +1,18 @@
-import type { FlexCommandOptions, FlexCommandResponse } from "./adapters.js";
 import { TypedEventEmitter, type Subscription } from "../util/events.js";
 import { FlexStateUnavailableError } from "./errors.js";
 import type {
   AudioStreamSnapshot,
   AudioStreamStateChange,
 } from "./state/index.js";
-import type { UdpPacketEvent, UdpScope, UdpSession } from "./udp-session.js";
+import type { RadioSession } from "./radio-core.js";
+import type { VitaParsedPacket } from "../vita/parser.js";
+
+export type AudioStreamDataEvent = VitaParsedPacket;
 
 export interface AudioStreamControllerEvents extends Record<string, unknown> {
   readonly change: AudioStreamStateChange;
   readonly data: AudioStreamDataEvent;
 }
-
-export interface AudioStreamSessionApi {
-  command(
-    command: string,
-    options?: FlexCommandOptions,
-  ): Promise<FlexCommandResponse>;
-  getAudioStream(id: string): AudioStreamSnapshot | undefined;
-  patchAudioStream(id: string, attributes: Record<string, string>): void;
-  removeAudioStream(id: string): void;
-  readonly udp: UdpSession;
-}
-
-export type AudioStreamDataKind =
-  | "opus"
-  | "daxReducedBw"
-  | "daxAudio"
-  | "daxIq24"
-  | "daxIq48"
-  | "daxIq96"
-  | "daxIq192";
-
-export type AudioStreamDataEvent = UdpPacketEvent<AudioStreamDataKind>;
 
 export interface AudioStreamController {
   readonly id: string;
@@ -58,21 +38,20 @@ export class AudioStreamControllerImpl implements AudioStreamController {
     new TypedEventEmitter<AudioStreamControllerEvents>();
   private streamHandle?: string;
   private dataListeners = 0;
-  private dataScopes: UdpScope<AudioStreamDataKind>[] = [];
-  private dataSubscriptions: Subscription[] = [];
+  private dataSubscription?: Subscription;
 
   constructor(
-    private readonly session: AudioStreamSessionApi,
+    private readonly session: RadioSession,
     readonly id: string,
   ) {
-    const snapshot = this.session.getAudioStream(id);
+    const snapshot = this.session.getStore().getAudioStream(id);
     if (snapshot) {
       this.streamHandle = snapshot.streamId;
     }
   }
 
   private current(): AudioStreamSnapshot {
-    const snapshot = this.session.getAudioStream(this.id);
+    const snapshot = this.session.getStore().getAudioStream(this.id);
     if (!snapshot) {
       throw new FlexStateUnavailableError(
         `Audio stream ${this.id} is no longer available`,
@@ -142,12 +121,13 @@ export class AudioStreamControllerImpl implements AudioStreamController {
 
   async close(): Promise<void> {
     this.teardownDataPipeline();
-    const snapshot = this.session.getAudioStream(this.id);
+    const snapshot = this.session.getStore().getAudioStream(this.id);
     const streamId = snapshot?.streamId ?? this.streamHandle;
     if (!streamId) return;
     this.streamHandle = streamId;
     await this.session.command(`stream remove ${streamId}`);
-    this.session.removeAudioStream(this.id);
+    const change = this.session.getStore().removeAudioStream(this.id);
+    if (change) this.session.applyStateChange(change);
   }
 
   onStateChange(change: AudioStreamStateChange): void {
@@ -165,27 +145,15 @@ export class AudioStreamControllerImpl implements AudioStreamController {
   }
 
   private ensureDataPipeline(): void {
-    if (this.dataSubscriptions.length > 0) return;
+    if (this.dataSubscription) return;
     const streamNumericId = parseStreamIdentifier(this.streamId);
     if (!Number.isFinite(streamNumericId)) return;
-    const kinds = resolveAudioStreamKinds(this.session.getAudioStream(this.id));
-    const scopes: UdpScope<AudioStreamDataKind>[] = [];
-    const subscriptions: Subscription[] = [];
-    for (const kind of kinds) {
-      const scope = this.session.udp.scope(
-        kind,
-        (event) => event.metadata.streamId === streamNumericId,
-      );
-      scopes.push(scope);
-      subscriptions.push(
-        scope.on((event) => {
-          this.events.emit("data", event);
-        }),
-      );
-    }
-    if (subscriptions.length === 0) return;
-    this.dataScopes = scopes;
-    this.dataSubscriptions = subscriptions;
+    this.dataSubscription = this.session.registerStreamHandler(
+      streamNumericId!,
+      (packet) => {
+        this.events.emit("data", packet);
+      },
+    );
   }
 
   private handleDataUnsubscribe(): void {
@@ -197,48 +165,14 @@ export class AudioStreamControllerImpl implements AudioStreamController {
   }
 
   private teardownDataPipeline(): void {
-    if (this.dataSubscriptions.length === 0) return;
-    for (const subscription of this.dataSubscriptions) {
-      subscription.unsubscribe();
-    }
-    this.dataSubscriptions = [];
-    for (const scope of this.dataScopes) {
-      scope.removeAll();
-    }
-    this.dataScopes = [];
+    this.dataSubscription?.unsubscribe();
+    this.dataSubscription = undefined;
   }
 }
 
 // Convenience alias for remote audio RX stream controllers.
 export type RemoteAudioRxStreamController = AudioStreamController;
 export const RemoteAudioRxStreamControllerImpl = AudioStreamControllerImpl;
-
-const AUDIO_STREAM_DEFAULT_KINDS: readonly AudioStreamDataKind[] = [
-  "opus",
-  "daxAudio",
-  "daxReducedBw",
-  "daxIq24",
-  "daxIq48",
-  "daxIq96",
-  "daxIq192",
-];
-
-function resolveAudioStreamKinds(
-  snapshot: AudioStreamSnapshot | undefined,
-): readonly AudioStreamDataKind[] {
-  const type = snapshot?.type;
-  switch (type) {
-    case "remote_audio_rx":
-    case "remote_audio_tx":
-      return ["opus"];
-    case "dax_rx":
-    case "dax_tx":
-    case "dax_mic":
-      return ["daxAudio", "daxReducedBw"];
-    default:
-      return AUDIO_STREAM_DEFAULT_KINDS;
-  }
-}
 
 function parseStreamIdentifier(id: string): number | undefined {
   if (!id) return undefined;

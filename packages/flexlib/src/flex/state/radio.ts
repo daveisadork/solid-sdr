@@ -320,6 +320,7 @@ function applyRadioSourceAttributes(
       case "model":
         partial.model = value;
         break;
+      case "serial":
       case "chassis_serial":
         partial.serial = value;
         break;

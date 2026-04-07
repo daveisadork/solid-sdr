@@ -1,9 +1,6 @@
-import type {
-  FlexCommandOptions,
-  FlexCommandResponse,
-} from "./adapters.js";
 import { TypedEventEmitter, type Subscription } from "../util/events.js";
 import { FlexStateUnavailableError } from "./errors.js";
+import type { RadioSession } from "./radio-core.js";
 import {
   EQUALIZER_BANDS,
   type EqualizerBand,
@@ -42,25 +39,16 @@ export interface EqualizerController {
   ): Subscription;
 }
 
-export interface EqualizerSessionApi {
-  command(
-    command: string,
-    options?: FlexCommandOptions,
-  ): Promise<FlexCommandResponse>;
-  patchEqualizer(id: EqualizerId, attributes: Record<string, string>): void;
-  getEqualizer(id: EqualizerId): EqualizerSnapshot | undefined;
-}
-
 export class EqualizerControllerImpl implements EqualizerController {
   private readonly events = new TypedEventEmitter<EqualizerControllerEvents>();
 
   constructor(
-    private readonly session: EqualizerSessionApi,
+    private readonly session: RadioSession,
     readonly id: EqualizerId,
   ) {}
 
   private current(): EqualizerSnapshot {
-    const snapshot = this.session.getEqualizer(this.id);
+    const snapshot = this.session.getStore().getEqualizer(this.id);
     if (!snapshot) {
       throw new FlexStateUnavailableError(
         `Equalizer ${this.id.toUpperCase()} is not available`,
@@ -129,7 +117,8 @@ export class EqualizerControllerImpl implements EqualizerController {
     if (keys.length === 0) return;
     const commandParts = keys.map((key) => `${key}=${entries[key]}`);
     const command = `eq ${this.commandTarget} ${commandParts.join(" ")}`;
-    this.session.patchEqualizer(this.id, entries);
+    const change = this.session.getStore().patchEqualizer(this.id, entries);
+    if (change) this.session.applyStateChange(change);
     try {
       await this.session.command(command);
     } catch (error) {

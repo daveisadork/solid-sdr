@@ -1,4 +1,3 @@
-import type { FlexCommandOptions, FlexCommandResponse } from "./adapters.js";
 import type {
   PanadapterSnapshot,
   PanadapterStateChange,
@@ -10,7 +9,6 @@ import {
   FlexStateUnavailableError,
 } from "./errors.js";
 import { parseRfGainInfo } from "./rf-gain.js";
-import type { RfGainInfo } from "./rf-gain.js";
 import {
   buildDisplaySetCommand,
   clampInteger,
@@ -20,11 +18,12 @@ import {
   formatInteger,
   formatMegahertz,
 } from "./controller-helpers.js";
-import type { UdpPacketEvent, UdpScope, UdpSession } from "./udp-session.js";
+import type { RadioSession } from "./radio-core.js";
+import type { VitaParsedPacket } from "../vita/parser.js";
 
 export interface PanadapterControllerEvents extends Record<string, unknown> {
   readonly change: PanadapterStateChange;
-  readonly data: UdpPacketEvent<"panadapter">;
+  readonly data: VitaParsedPacket;
 }
 
 export interface PanadapterUpdateRequest {
@@ -58,17 +57,6 @@ export interface PanadapterUpdateRequest {
   loggerDisplayAddress?: string;
   loggerDisplayPort?: number;
   loggerDisplayRadioNum?: number;
-}
-
-export interface PanadapterSessionApi {
-  command(
-    command: string,
-    options?: FlexCommandOptions,
-  ): Promise<FlexCommandResponse>;
-  getPanadapter(id: string): PanadapterSnapshot | undefined;
-  patchPanadapter(id: string, attributes: Record<string, string>): void;
-  applyPanadapterRfGainInfo(id: string, info: RfGainInfo): void;
-  readonly udp: UdpSession;
 }
 
 export interface PanadapterController {
@@ -177,11 +165,10 @@ export class PanadapterControllerImpl implements PanadapterController {
   private readonly events = new TypedEventEmitter<PanadapterControllerEvents>();
   private streamHandle?: string;
   private dataListeners = 0;
-  private dataScope?: UdpScope<"panadapter">;
   private dataSubscription?: Subscription;
 
   constructor(
-    private readonly session: PanadapterSessionApi,
+    private readonly session: RadioSession,
     readonly id: string,
     streamHandle?: string,
   ) {
@@ -189,7 +176,7 @@ export class PanadapterControllerImpl implements PanadapterController {
   }
 
   private current(): PanadapterSnapshot {
-    const snapshot = this.session.getPanadapter(this.id);
+    const snapshot = this.session.getStore().getPanadapter(this.id);
     if (!snapshot) {
       throw new FlexStateUnavailableError(
         `Panadapter ${this.id} is no longer available`,
@@ -551,7 +538,8 @@ export class PanadapterControllerImpl implements PanadapterController {
         `Unable to parse RF gain info reply: ${response.message}`,
       );
     }
-    this.session.applyPanadapterRfGainInfo(this.id, info);
+    const change = this.session.getStore().applyPanadapterRfGainInfo(this.id, info);
+    if (change) this.session.applyStateChange(change);
   }
 
   async clickTune(frequencyMHz: number): Promise<void> {
@@ -657,7 +645,8 @@ export class PanadapterControllerImpl implements PanadapterController {
   private async sendSet(entries: Record<string, string>): Promise<void> {
     const stream = this.requireStreamHandle();
     const command = buildDisplaySetCommand("display pan set", stream, entries);
-    this.session.patchPanadapter(this.id, { stream_id: stream, ...entries });
+    const change = this.session.getStore().patchPanadapter(this.id, { stream_id: stream, ...entries });
+    if (change) this.session.applyStateChange(change);
     try {
       await this.session.command(command);
     } catch (error) {
@@ -670,12 +659,8 @@ export class PanadapterControllerImpl implements PanadapterController {
     if (this.dataSubscription) return;
     const streamNumericId = Number.parseInt(this.streamId, 16);
     if (!Number.isFinite(streamNumericId)) return;
-    this.dataScope = this.session.udp.scope(
-      "panadapter",
-      (event) => event.metadata.streamId === streamNumericId,
-    );
-    this.dataSubscription = this.dataScope.on((event) => {
-      this.events.emit("data", event);
+    this.dataSubscription = this.session.registerStreamHandler(streamNumericId, (packet) => {
+      this.events.emit("data", packet as unknown as PanadapterControllerEvents["data"]);
     });
   }
 
@@ -690,12 +675,10 @@ export class PanadapterControllerImpl implements PanadapterController {
   private teardownDataPipeline(): void {
     this.dataSubscription?.unsubscribe();
     this.dataSubscription = undefined;
-    this.dataScope?.removeAll();
-    this.dataScope = undefined;
   }
 
   private requireStreamHandle(): string {
-    const snapshot = this.session.getPanadapter(this.id);
+    const snapshot = this.session.getStore().getPanadapter(this.id);
     if (snapshot?.streamId) {
       this.streamHandle = snapshot.streamId;
     }
@@ -710,9 +693,10 @@ export class PanadapterControllerImpl implements PanadapterController {
    * bandwidth updates can include the `autocenter` flag.
    */
   private applyAutoCenter(enabled: boolean): void {
-    this.session.patchPanadapter(this.id, {
+    const change = this.session.getStore().patchPanadapter(this.id, {
       auto_center: formatBooleanFlag(enabled),
     });
+    if (change) this.session.applyStateChange(change);
   }
 
   private clampBandwidth(

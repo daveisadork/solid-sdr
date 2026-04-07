@@ -1,4 +1,4 @@
-import type { FlexCommandOptions, FlexCommandResponse } from "./adapters.js";
+import type { RadioSession } from "./radio-core.js";
 import type { SliceSnapshot, SliceStateChange } from "./state/index.js";
 import { TypedEventEmitter, type Subscription } from "../util/events.js";
 import { FlexStateUnavailableError } from "./errors.js";
@@ -591,26 +591,16 @@ export interface SliceController {
   close(): Promise<void>;
 }
 
-export interface SliceSessionApi {
-  command(
-    command: string,
-    options?: FlexCommandOptions,
-  ): Promise<FlexCommandResponse>;
-  getSlice(id: string): SliceSnapshot | undefined;
-  patchSlice(id: string, attributes: Record<string, string>): void;
-  removeSlice(id: string): void;
-}
-
 export class SliceControllerImpl implements SliceController {
   private readonly events = new TypedEventEmitter<SliceControllerEvents>();
 
   constructor(
-    private readonly session: SliceSessionApi,
+    private readonly session: RadioSession,
     readonly id: string,
   ) {}
 
   private current(): SliceSnapshot {
-    const snapshot = this.session.getSlice(this.id);
+    const snapshot = this.session.getStore().getSlice(this.id);
     if (!snapshot)
       throw new FlexStateUnavailableError(
         `Slice ${this.id} is no longer available`,
@@ -955,9 +945,10 @@ export class SliceControllerImpl implements SliceController {
 
   async setFrequency(frequencyMHz: number): Promise<void> {
     const formattedFrequency = formatMegahertz(frequencyMHz);
-    this.session.patchSlice(this.id, {
+    const change = this.session.getStore().patchSlice(this.id, {
       freq: formattedFrequency,
     });
+    if (change) this.session.applyStateChange(change);
     try {
       await this.session.command(`slice tune ${this.id} ${formattedFrequency}`);
     } catch (error) {
@@ -991,9 +982,10 @@ export class SliceControllerImpl implements SliceController {
     const command = locked
       ? `slice lock ${this.id}`
       : `slice unlock ${this.id}`;
-    this.session.patchSlice(this.id, {
+    const change = this.session.getStore().patchSlice(this.id, {
       lock: formatBooleanFlag(locked),
     });
+    if (change) this.session.applyStateChange(change);
     try {
       await this.session.command(command);
     } catch (error) {
@@ -1287,7 +1279,10 @@ export class SliceControllerImpl implements SliceController {
 
   async close(): Promise<void> {
     await this.session.command(`slice remove ${this.id}`);
-    this.session.removeSlice(this.id);
+    const changes = this.session.getStore().removeSlice(this.id);
+    if (changes) {
+      for (const change of changes) this.session.applyStateChange(change);
+    }
   }
 
   onStateChange(change: SliceStateChange): void {
@@ -1299,7 +1294,8 @@ export class SliceControllerImpl implements SliceController {
       ([key, value]) => `${key}=${value}`,
     );
     const command = `slice set ${this.id} ${parts.join(" ")}`;
-    this.session.patchSlice(this.id, { index: this.id, ...entries });
+    const change = this.session.getStore().patchSlice(this.id, { index: this.id, ...entries });
+    if (change) this.session.applyStateChange(change);
     try {
       await this.session.command(command);
     } catch (error) {
@@ -1312,11 +1308,12 @@ export class SliceControllerImpl implements SliceController {
     const low = formatInteger(lowHz);
     const high = formatInteger(highHz);
     const command = `filt ${this.id} ${low} ${high}`;
-    this.session.patchSlice(this.id, {
+    const change = this.session.getStore().patchSlice(this.id, {
       index: this.id,
       filter_lo: low,
       filter_hi: high,
     });
+    if (change) this.session.applyStateChange(change);
     try {
       await this.session.command(command);
     } catch (error) {

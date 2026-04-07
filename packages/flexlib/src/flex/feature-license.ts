@@ -1,8 +1,8 @@
-import type { FlexCommandOptions, FlexCommandResponse } from "./adapters.js";
 import type {
   FeatureLicenseFeature,
   FeatureLicenseSnapshot,
 } from "./state/feature-license.js";
+import type { RadioSession, RadioCommandOptions, RadioCommandResponse } from "./radio-core.js";
 
 export type { FeatureLicenseFeature } from "./state/feature-license.js";
 
@@ -12,20 +12,15 @@ export interface FeatureLicenseController {
   listFeatures(): readonly FeatureLicenseFeature[];
   sendCommand(
     command: string,
-    options?: FlexCommandOptions,
-  ): Promise<FlexCommandResponse>;
+    options?: RadioCommandOptions,
+  ): Promise<RadioCommandResponse>;
 }
 
 export class FeatureLicenseControllerImpl
   implements FeatureLicenseController
 {
   constructor(
-    private readonly session: {
-      command(
-        command: string,
-        options?: FlexCommandOptions,
-      ): Promise<FlexCommandResponse>;
-    },
+    private readonly session: RadioSession,
     private readonly getSnapshot: () => FeatureLicenseSnapshot | undefined,
   ) {}
 
@@ -47,8 +42,8 @@ export class FeatureLicenseControllerImpl
 
   async sendCommand(
     command: string,
-    options?: FlexCommandOptions,
-  ): Promise<FlexCommandResponse> {
+    options?: RadioCommandOptions,
+  ): Promise<RadioCommandResponse> {
     return this.session.command(command, options);
   }
 }

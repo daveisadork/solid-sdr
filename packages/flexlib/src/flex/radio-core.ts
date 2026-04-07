@@ -14,7 +14,7 @@ import type {
   FlexTransport,
   RadioEndpoint,
 } from "./transport.js";
-import type { Logger } from "./adapters.js";
+import type { Logger, FlexRadioDescriptor } from "./adapters.js";
 import type {
   FlexWireMessage,
   FlexStatusMessage,
@@ -29,32 +29,71 @@ import {
   type RadioStateSnapshot,
   type RadioStateChange,
   type RadioSnapshot,
+  type RadioCwIambicMode,
+  type RadioFilterSharpnessMode,
+  type RadioOscillatorSetting,
+  type RadioStatusContext,
 } from "./state/index.js";
-import {
-  FlexClientClosedError,
-  FlexCommandRejectedError,
-} from "./errors.js";
+import { FlexClientClosedError, FlexCommandRejectedError } from "./errors.js";
+import { FlexError } from "./errors.js";
 import { describeResponseCode } from "./response-codes.js";
 import {
-  parseVitaPacket,
-  type VitaParsedPacket,
-} from "../vita/parser.js";
+  buildRadioListAttributes,
+  parseRadioInfoReply,
+  parseRadioVersionReply,
+} from "./radio-replies.js";
+import {
+  clampInteger,
+  ensureFinite,
+  formatBooleanFlag,
+  toInteger,
+} from "./controller-helpers.js";
+import type { RadioRequestSliceOptions } from "./radio.js";
+import { type SliceController, SliceControllerImpl } from "./slice.js";
+import {
+  type PanadapterController,
+  PanadapterControllerImpl,
+} from "./panadapter.js";
+import {
+  type WaterfallController,
+  WaterfallControllerImpl,
+} from "./waterfall.js";
+import { type MeterController, MeterControllerImpl } from "./meter.js";
+import {
+  type AudioStreamController,
+  AudioStreamControllerImpl,
+} from "./audio-stream.js";
+import {
+  type EqualizerController,
+  EqualizerControllerImpl,
+} from "./equalizer.js";
+import {
+  type TxBandSettingController,
+  TxBandSettingControllerImpl,
+} from "./tx-band-settings.js";
+import { type ApdController, ApdControllerImpl } from "./apd.js";
+import {
+  type FeatureLicenseController,
+  FeatureLicenseControllerImpl,
+} from "./feature-license.js";
+import type {
+  EqualizerId,
+  EqualizerStateChange,
+  TxBandSettingStateChange,
+  ApdStateChange,
+} from "./state/index.js";
+import { parseVitaPacket, type VitaParsedPacket } from "../vita/parser.js";
 
 // ---------------------------------------------------------------------------
 // Public types
 // ---------------------------------------------------------------------------
 
 /** Connection state exposed as a queryable property. */
-export type NewRadioConnectionState =
+export type RadioConnectionState =
   | "disconnected"
   | "connecting"
   | "connected"
   | "disconnecting";
-
-// Internal alias used throughout this file. Exported as NewRadioConnectionState
-// to avoid collision with the legacy RadioConnectionState in client.ts.
-// During cleanup (Task 10) this will be renamed to RadioConnectionState.
-type RadioConnectionState = NewRadioConnectionState;
 
 /** Granular progress detail emitted during the "connecting" phase. */
 export interface ConnectionProgressDetail {
@@ -151,6 +190,9 @@ export type MeterValueHandler = (meterId: number, rawValue: number) => void;
 /**
  * Unified session interface that all controllers use to interact with the
  * Radio. Replaces the per-controller `*SessionApi` interfaces.
+ *
+ * Both the new {@link Radio} class and the legacy `FlexRadioSessionImpl`
+ * implement this interface, so controllers work with either during migration.
  */
 export interface RadioSession {
   /** Send a command to the radio and await its reply. */
@@ -163,11 +205,23 @@ export interface RadioSession {
   getStore(): RadioStateStore;
 
   /**
+   * Propagate a state change from an optimistic update.
+   *
+   * Controllers call this after patching the store directly
+   * (e.g. `store.patchPanadapter(id, attrs)`) so that the change
+   * is emitted to listeners and routed to other controllers.
+   */
+  applyStateChange(change: RadioStateChange): void;
+
+  /**
    * Register a handler for VITA packets matching a specific stream ID.
    * Used by panadapter, waterfall, and audio controllers for their
    * lazy data pipelines. Returns a subscription to unregister.
    */
-  registerStreamHandler(streamId: number, handler: StreamPacketHandler): Subscription;
+  registerStreamHandler(
+    streamId: number,
+    handler: StreamPacketHandler,
+  ): Subscription;
 
   /**
    * Register a handler for a specific meter's value updates.
@@ -175,7 +229,10 @@ export interface RadioSession {
    * the Radio dispatches individual values to registered handlers.
    * Returns a subscription to unregister.
    */
-  registerMeterHandler(meterId: number, handler: MeterValueHandler): Subscription;
+  registerMeterHandler(
+    meterId: number,
+    handler: MeterValueHandler,
+  ): Subscription;
 }
 
 const DEFAULT_COMMAND_TIMEOUT_MS = 5_000;
@@ -217,6 +274,104 @@ const DEFAULT_HANDSHAKE_COMMANDS: readonly string[] = [
 ];
 
 // ---------------------------------------------------------------------------
+// Module-level helpers (merged from radio.ts RadioControllerImpl)
+// ---------------------------------------------------------------------------
+
+function sanitizeNickname(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  return trimmed
+    .replace(/[^\w\s-]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function sanitizeCallsign(value: string): string {
+  return value.toUpperCase().replace(/[^0-9A-Z]/g, "");
+}
+
+const INVALID_CLIENT_STATION_CHARS = /[*#@!%^&.,;:?")(+=`'~<>|\\[\]{}]+/g;
+
+function sanitizeClientStationName(value: string): string {
+  return value.replace(INVALID_CLIENT_STATION_CHARS, "");
+}
+
+function normalizeLogModuleName(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    throw new FlexError("Log module name cannot be empty");
+  }
+  return trimmed;
+}
+
+function normalizeLogLevel(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    throw new FlexError("Log level cannot be empty");
+  }
+  return trimmed;
+}
+
+function encodeCwIambicMode(mode: RadioCwIambicMode): number {
+  switch (mode) {
+    case "a":
+      return 0;
+    case "b":
+      return 1;
+    case "strict_b":
+      return 2;
+    case "bug":
+      return 3;
+  }
+}
+
+const FILTER_SHARPNESS_MIN_LEVEL = 0;
+const FILTER_SHARPNESS_MAX_LEVEL = 3;
+
+type ProfileLoadDomain = "global" | "tx" | "mic" | "display";
+
+type PreparedProfileName = {
+  readonly normalized: string;
+  readonly encoded: string;
+};
+
+function prepareProfileNameInput(raw: string): PreparedProfileName {
+  const normalized = normalizeProfileName(raw);
+  return {
+    normalized,
+    encoded: `"${escapeProfileName(normalized)}"`,
+  };
+}
+
+function normalizeProfileName(raw: string): string {
+  const trimmed = raw.trim();
+  const withoutMarker = trimmed.replace(/\*/g, "").trim();
+  if (!withoutMarker) {
+    throw new FlexError("Profile name cannot be empty");
+  }
+  return withoutMarker;
+}
+
+function escapeProfileName(value: string): string {
+  return value.replace(/(["\\])/g, "\\$1");
+}
+
+function normalizeSliceCreatePanStreamId(streamId: string): string {
+  const trimmed = streamId.trim();
+  if (!trimmed) {
+    throw new FlexError("Panadapter stream id cannot be empty");
+  }
+  const withoutPrefix =
+    trimmed.startsWith("0x") || trimmed.startsWith("0X")
+      ? trimmed.slice(2)
+      : trimmed;
+  if (!/^[0-9a-fA-F]+$/.test(withoutPrefix)) {
+    throw new FlexError(`Invalid panadapter stream id: ${streamId}`);
+  }
+  return `0x${withoutPrefix.toUpperCase().padStart(8, "0")}`;
+}
+
+// ---------------------------------------------------------------------------
 // Radio
 // ---------------------------------------------------------------------------
 
@@ -227,6 +382,11 @@ const DEFAULT_HANDSHAKE_COMMANDS: readonly string[] = [
  * Use {@link connect} to establish a connection and {@link disconnect}
  * to tear it down.
  */
+// Merge RadioSnapshot properties onto Radio's type so that
+// radio.nickname, radio.sliceCount, etc. are visible to TypeScript.
+// The actual values are provided by a Proxy in the constructor.
+export interface Radio extends Readonly<RadioSnapshot> {}
+
 export class Radio {
   private readonly events = new TypedEventEmitter<RadioEvents>();
   private readonly store: RadioStateStore;
@@ -246,10 +406,34 @@ export class Radio {
   private readonly streamHandlers = new Map<number, Set<StreamPacketHandler>>();
   private readonly meterHandlers = new Map<number, Set<MeterValueHandler>>();
 
+  // Controller caches
+  private readonly sliceControllers = new Map<string, SliceControllerImpl>();
+  private readonly panControllers = new Map<string, PanadapterControllerImpl>();
+  private readonly waterfallControllers = new Map<
+    string,
+    WaterfallControllerImpl
+  >();
+  private readonly meterControllers = new Map<string, MeterControllerImpl>();
+  private readonly audioControllers = new Map<
+    string,
+    AudioStreamControllerImpl
+  >();
+  private readonly equalizerControllers = new Map<
+    EqualizerId,
+    EqualizerControllerImpl
+  >();
+  private readonly txBandControllers = new Map<
+    string,
+    TxBandSettingControllerImpl
+  >();
+  private readonly _apdController: ApdControllerImpl;
+  private readonly _featureLicenseController: FeatureLicenseControllerImpl;
+
   private _clientHandle: string | null = null;
   private _clientId: string | null = null;
   private _serial: string;
   private _endpoint: RadioEndpoint;
+  private _descriptor?: FlexRadioDescriptor;
 
   private readonly handleWaiters: Array<{
     resolve: (handle: string) => void;
@@ -267,6 +451,29 @@ export class Radio {
     this._endpoint = { ...endpoint };
     this.logger = options?.logger;
     this.store = createRadioStateStore({ logger: this.logger });
+    this._apdController = new ApdControllerImpl(this);
+    this._featureLicenseController = new FeatureLicenseControllerImpl(
+      this,
+      () => this.store.getFeatureLicense(),
+    );
+
+    // Return a Proxy so that RadioSnapshot properties (nickname, sliceCount,
+    // callsign, etc.) are readable directly on the Radio instance.
+    // Properties defined on Radio itself take precedence over snapshot fields.
+    return new Proxy(this, {
+      get(target, prop, receiver) {
+        // Own properties and methods take precedence
+        if (Reflect.has(target, prop)) {
+          return Reflect.get(target, prop, receiver);
+        }
+        // Delegate to the current radio snapshot
+        const snapshot = target.store.getRadio();
+        if (snapshot && typeof prop === "string" && prop in snapshot) {
+          return (snapshot as unknown as Record<string, unknown>)[prop];
+        }
+        return undefined;
+      },
+    });
   }
 
   // -----------------------------------------------------------------------
@@ -293,6 +500,11 @@ export class Radio {
     return this._clientId;
   }
 
+  /** Last discovery descriptor, if this radio was found via discovery. */
+  get descriptor(): FlexRadioDescriptor | undefined {
+    return this._descriptor;
+  }
+
   /** Current radio state snapshot. */
   snapshot(): RadioSnapshot | undefined {
     return this.store.getRadio();
@@ -301,6 +513,211 @@ export class Radio {
   /** Full state snapshot including all entities. */
   stateSnapshot(): RadioStateSnapshot {
     return this.store.snapshot();
+  }
+
+  // -----------------------------------------------------------------------
+  // Entity controllers
+  // -----------------------------------------------------------------------
+
+  slices(): SliceController[] {
+    return Array.from(this.sliceControllers.values());
+  }
+
+  slice(id: string): SliceController | undefined {
+    return this.getOrCreateController(
+      "slice",
+      id,
+      this.sliceControllers,
+      () => {
+        if (!this.store.getSlice(id)) return undefined;
+        return new SliceControllerImpl(this, id);
+      },
+    );
+  }
+
+  panadapters(): PanadapterController[] {
+    return Array.from(this.panControllers.values());
+  }
+
+  panadapter(id: string): PanadapterController | undefined {
+    return this.getOrCreateController(
+      "panadapter",
+      id,
+      this.panControllers,
+      () => {
+        const snapshot = this.store.getPanadapter(id);
+        if (!snapshot) return undefined;
+        return new PanadapterControllerImpl(this, id, snapshot.streamId);
+      },
+    );
+  }
+
+  waterfalls(): WaterfallController[] {
+    return Array.from(this.waterfallControllers.values());
+  }
+
+  waterfall(id: string): WaterfallController | undefined {
+    return this.getOrCreateController(
+      "waterfall",
+      id,
+      this.waterfallControllers,
+      () => {
+        const snapshot = this.store.getWaterfall(id);
+        if (!snapshot) return undefined;
+        return new WaterfallControllerImpl(this, id, snapshot.streamId);
+      },
+    );
+  }
+
+  meters(): MeterController[] {
+    return Array.from(this.meterControllers.values());
+  }
+
+  meter(id: string): MeterController | undefined {
+    return this.getOrCreateController(
+      "meter",
+      id,
+      this.meterControllers,
+      () => {
+        if (!this.store.getMeter(id)) return undefined;
+        return new MeterControllerImpl(this, id);
+      },
+    );
+  }
+
+  audioStreams(): AudioStreamController[] {
+    return Array.from(this.audioControllers.values());
+  }
+
+  audioStream(id: string): AudioStreamController | undefined {
+    return this.getOrCreateController(
+      "audioStream",
+      id,
+      this.audioControllers,
+      () => {
+        if (!this.store.getAudioStream(id)) return undefined;
+        return new AudioStreamControllerImpl(this, id);
+      },
+    );
+  }
+
+  equalizer(id: EqualizerId): EqualizerController {
+    let controller = this.equalizerControllers.get(id);
+    if (!controller) {
+      controller = new EqualizerControllerImpl(this, id);
+      this.equalizerControllers.set(id, controller);
+    }
+    return controller;
+  }
+
+  txBandSettings(): TxBandSettingController[] {
+    return Array.from(this.txBandControllers.values());
+  }
+
+  txBandSetting(id: string): TxBandSettingController | undefined {
+    return this.getOrCreateController(
+      "txBandSetting",
+      id,
+      this.txBandControllers,
+      () => {
+        if (!this.store.getTxBandSetting(id)) return undefined;
+        return new TxBandSettingControllerImpl(this, id);
+      },
+    );
+  }
+
+  apd(): ApdController {
+    return this._apdController;
+  }
+
+  featureLicense(): FeatureLicenseController {
+    return this._featureLicenseController;
+  }
+
+  // -----------------------------------------------------------------------
+  // Resource creation
+  // -----------------------------------------------------------------------
+
+  async createPanadapter(options?: {
+    x?: number;
+    y?: number;
+  }): Promise<PanadapterController> {
+    let cmd = "display panafall create";
+    if (options?.x !== undefined) cmd += ` x=${toInteger(options.x, "x")}`;
+    if (options?.y !== undefined) cmd += ` y=${toInteger(options.y, "y")}`;
+    const response = await this.command(cmd);
+    const panId = normalizeEntityId(
+      response.message?.split(",")[0]?.trim() ?? "",
+    );
+    const controller = this.panadapter(panId);
+    if (!controller) {
+      throw new FlexError(`Panadapter ${panId} not available after creation`);
+    }
+    return controller;
+  }
+
+  async createRemoteAudioRxStream(options?: {
+    compression?: string;
+  }): Promise<AudioStreamController> {
+    let cmd = "stream create type=remote_audio_rx";
+    if (options?.compression) {
+      cmd += ` compression=${options.compression.toUpperCase()}`;
+    }
+    return this.createAudioStream(cmd);
+  }
+
+  async createRemoteAudioTxStream(options?: {
+    compression?: string;
+  }): Promise<AudioStreamController> {
+    let cmd = "stream create type=remote_audio_tx";
+    if (options?.compression) {
+      cmd += ` compression=${options.compression.toUpperCase()}`;
+    }
+    return this.createAudioStream(cmd);
+  }
+
+  async createDaxRxAudioStream(options: {
+    daxChannel: number;
+  }): Promise<AudioStreamController> {
+    const channel = toInteger(options.daxChannel, "DAX RX channel");
+    return this.createAudioStream(
+      `stream create type=dax_rx dax_channel=${channel}`,
+    );
+  }
+
+  async createDaxTxAudioStream(): Promise<AudioStreamController> {
+    return this.createAudioStream("stream create type=dax_tx");
+  }
+
+  async createDaxMicAudioStream(): Promise<AudioStreamController> {
+    return this.createAudioStream("stream create type=dax_mic");
+  }
+
+  private async createAudioStream(cmd: string): Promise<AudioStreamController> {
+    const response = await this.command(cmd);
+    const streamId = normalizeEntityId(
+      response.message?.split(",")[0]?.trim() ?? "",
+    );
+    const controller = this.audioStream(streamId);
+    if (!controller) {
+      throw new FlexError(
+        `Audio stream ${streamId} not available after creation`,
+      );
+    }
+    return controller;
+  }
+
+  private getOrCreateController<T>(
+    _type: string,
+    id: string,
+    cache: Map<string, T>,
+    create: () => T | undefined,
+  ): T | undefined {
+    let controller = cache.get(id);
+    if (controller) return controller;
+    controller = create();
+    if (controller) cache.set(id, controller);
+    return controller;
   }
 
   // -----------------------------------------------------------------------
@@ -437,14 +854,16 @@ export class Radio {
     command: string,
     options?: RadioCommandOptions,
   ): Promise<RadioCommandResponse> {
-    if (this._connectionState !== "connecting" && this._connectionState !== "connected") {
+    if (
+      this._connectionState !== "connecting" &&
+      this._connectionState !== "connected"
+    ) {
       throw new FlexClientClosedError();
     }
     const conn = this.connection;
     if (!conn) throw new FlexClientClosedError();
 
-    const timeoutMs =
-      options?.timeoutMs ?? this.defaultCommandTimeoutMs;
+    const timeoutMs = options?.timeoutMs ?? this.defaultCommandTimeoutMs;
 
     let sequence: number;
     if (options?.sequenceHint !== undefined) {
@@ -520,6 +939,131 @@ export class Radio {
   }
 
   /**
+   * Propagate a state change (typically from an optimistic patch).
+   * @internal Used by controllers after patching the store directly.
+   */
+  applyStateChange(change: RadioStateChange): void {
+    this.handleStateChange(change);
+  }
+
+  private handleStateChange(change: RadioStateChange): void {
+    type Identified = Extract<RadioStateChange, { id: string }>;
+    switch (change.entity) {
+      case "slice":
+        this.updateController(
+          change as Identified,
+          this.sliceControllers,
+          () => {
+            if (!this.store.getSlice(change.id)) return undefined;
+            return new SliceControllerImpl(this, change.id);
+          },
+        );
+        break;
+      case "panadapter":
+        this.updateController(change as Identified, this.panControllers, () => {
+          const snapshot = this.store.getPanadapter(change.id);
+          if (!snapshot) return undefined;
+          return new PanadapterControllerImpl(
+            this,
+            change.id,
+            snapshot.streamId,
+          );
+        });
+        break;
+      case "waterfall":
+        this.updateController(
+          change as Identified,
+          this.waterfallControllers,
+          () => {
+            const snapshot = this.store.getWaterfall(change.id);
+            if (!snapshot) return undefined;
+            return new WaterfallControllerImpl(
+              this,
+              change.id,
+              snapshot.streamId,
+            );
+          },
+        );
+        break;
+      case "meter":
+        this.updateController(
+          change as Identified,
+          this.meterControllers,
+          () => {
+            if (!this.store.getMeter(change.id)) return undefined;
+            return new MeterControllerImpl(this, change.id);
+          },
+        );
+        break;
+      case "audioStream":
+        this.updateController(
+          change as Identified,
+          this.audioControllers,
+          () => {
+            if (!this.store.getAudioStream(change.id)) return undefined;
+            return new AudioStreamControllerImpl(this, change.id);
+          },
+        );
+        break;
+      case "txBandSetting":
+        this.updateController(
+          change as Identified & TxBandSettingStateChange,
+          this.txBandControllers,
+          () => {
+            if (!this.store.getTxBandSetting(change.id)) return undefined;
+            return new TxBandSettingControllerImpl(this, change.id);
+          },
+        );
+        break;
+      case "equalizer":
+        this.updateController(
+          change as Identified & EqualizerStateChange,
+          this.equalizerControllers,
+          () => new EqualizerControllerImpl(this, change.id as EqualizerId),
+        );
+        break;
+      case "apd":
+        this._apdController.onStateChange(change as ApdStateChange);
+        break;
+    }
+    this.events.emit("change", change);
+  }
+
+  private updateController<
+    TChange extends Extract<RadioStateChange, { id: string }>,
+    TController extends { onStateChange(change: TChange): void },
+  >(
+    change: TChange,
+    cache: Map<string, TController>,
+    create: () => TController | undefined,
+  ): void {
+    const existing = cache.get(change.id);
+    if (existing) {
+      existing.onStateChange(change);
+      if (change.removed) {
+        cache.delete(change.id);
+      }
+      return;
+    }
+    const controller = create();
+    if (controller) {
+      cache.set(change.id, controller);
+    }
+  }
+
+  /**
+   * Update the radio's identity and descriptor from a discovery packet.
+   * @internal Called by FlexClient when discovery data arrives.
+   */
+  updateFromDescriptor(descriptor: FlexRadioDescriptor): void {
+    this._descriptor = descriptor;
+    if (descriptor.serial) this._serial = descriptor.serial;
+    if (descriptor.host && descriptor.port) {
+      this._endpoint = { host: descriptor.host, port: descriptor.port };
+    }
+  }
+
+  /**
    * Register a handler for VITA packets matching a specific stream ID.
    * @internal Used by controllers for lazy data pipelines.
    */
@@ -571,16 +1115,908 @@ export class Radio {
   // Descriptor updates (used by FlexClient for discovery)
   // -----------------------------------------------------------------------
 
-  /** @internal Update radio identity from a discovery descriptor. */
-  updateFromDescriptor(info: {
-    serial?: string;
-    host?: string;
-    port?: number;
-  }): void {
-    if (info.serial) this._serial = info.serial;
-    if (info.host && info.port) {
-      this._endpoint = { host: info.host, port: info.port };
+  // -----------------------------------------------------------------------
+  // Radio-level setters (merged from RadioControllerImpl)
+  // -----------------------------------------------------------------------
+
+  private patchRadio(
+    attributes: Record<string, string>,
+    context?: RadioStatusContext,
+  ): void {
+    const change = this.store.patchRadio(attributes, context);
+    if (change) this.events.emit("change", change);
+  }
+
+  private radioSnapshot(): RadioSnapshot | undefined {
+    return this.store.getRadio();
+  }
+
+  private async commandAndPatch(
+    command: string,
+    attributes: Record<string, string>,
+    context?: RadioStatusContext,
+  ): Promise<void> {
+    this.patchRadio(attributes, context);
+    try {
+      await this.command(command);
+    } catch (error) {
+      try {
+        await this.refreshInfo();
+      } catch {
+        // ignore refresh failures; original rejection is what matters
+      }
+      throw error;
     }
+  }
+
+  private async sendTransmitEntries(
+    entries: Record<string, string>,
+  ): Promise<void> {
+    const segments = Object.entries(entries).map(
+      ([entryKey, entryValue]) => `${entryKey}=${entryValue}`,
+    );
+    if (segments.length === 0) return;
+    await this.commandAndPatch(`transmit set ${segments.join(" ")}`, entries, {
+      source: "transmit",
+    });
+  }
+
+  private async setTransmitBoolean(
+    key: string,
+    enabled: boolean,
+  ): Promise<void> {
+    await this.sendTransmitEntries({
+      [key]: formatBooleanFlag(enabled),
+    });
+  }
+
+  private async setTransmitInteger(
+    key: string,
+    value: number,
+    min: number,
+    max: number,
+    label: string,
+  ): Promise<void> {
+    const clamped = clampInteger(value, min, max, label);
+    await this.sendTransmitEntries({
+      [key]: clamped.toString(10),
+    });
+  }
+
+  private async setInterlockBoolean(
+    key: string,
+    enabled: boolean,
+  ): Promise<void> {
+    await this.sendInterlockValue(key, formatBooleanFlag(enabled));
+  }
+
+  private async setInterlockInteger(
+    key: string,
+    value: number,
+    min: number,
+    max: number,
+    label: string,
+  ): Promise<void> {
+    const clamped = clampInteger(value, min, max, label);
+    await this.sendInterlockValue(key, clamped.toString(10));
+  }
+
+  private async sendInterlockValue(key: string, value: string): Promise<void> {
+    await this.commandAndPatch(
+      `interlock ${key}=${value}`,
+      { [key]: value },
+      { source: "interlock" },
+    );
+  }
+
+  private async loadProfileSelection(
+    domain: ProfileLoadDomain,
+    name: string,
+  ): Promise<void> {
+    const prepared = prepareProfileNameInput(name);
+    await this.commandAndPatch(
+      `profile ${domain} load ${prepared.encoded}`,
+      { current: prepared.normalized },
+      { source: "profile", identifier: domain },
+    );
+  }
+
+  private async sendProfileCommand(
+    command: string,
+    name: string,
+  ): Promise<void> {
+    const { encoded } = prepareProfileNameInput(name);
+    await this.command(`${command} ${encoded}`);
+  }
+
+  async refreshInfo(): Promise<void> {
+    const response = await this.command("info");
+    const message = response.message;
+    if (!message) {
+      throw new FlexError("Flex radio returned no info data");
+    }
+    const attributes = parseRadioInfoReply(message);
+    if (Object.keys(attributes).length === 0) {
+      throw new FlexError("Flex radio returned an unrecognized info payload");
+    }
+    this.patchRadio(attributes, { source: "info" });
+  }
+
+  async refreshVersions(): Promise<void> {
+    const response = await this.command("version");
+    const message = response.message;
+    if (!message) {
+      throw new FlexError("Flex radio returned no version data");
+    }
+    const attributes = parseRadioVersionReply(message);
+    if (Object.keys(attributes).length === 0) {
+      throw new FlexError(
+        "Flex radio returned an unrecognized version payload",
+      );
+    }
+    this.patchRadio(attributes, { source: "version" });
+  }
+
+  async refreshRxAntennaList(): Promise<void> {
+    const response = await this.command("ant list");
+    const attributes = buildRadioListAttributes(
+      "rx_ant_list",
+      response.message,
+    );
+    this.patchRadio(attributes);
+  }
+
+  async refreshMicList(): Promise<void> {
+    const response = await this.command("mic list");
+    const attributes = buildRadioListAttributes("mic_list", response.message);
+    this.patchRadio(attributes);
+  }
+
+  async refreshProfileLists(): Promise<void> {
+    await Promise.all([
+      this.command("profile global info"),
+      this.command("profile tx info"),
+      this.command("profile mic info"),
+      this.command("profile display info"),
+    ]);
+  }
+
+  async setClientStationName(stationName: string): Promise<void> {
+    const sanitized = sanitizeClientStationName(stationName);
+    const encoded = sanitized.replace(/ /g, "\u007f");
+    await this.command(`client station ${encoded}`);
+  }
+
+  async bindGuiClient(clientId: string): Promise<void> {
+    const trimmed = clientId.trim();
+    if (!trimmed) {
+      throw new FlexError("GUI client id cannot be empty");
+    }
+    await this.command(`client bind client_id=${trimmed}`);
+  }
+
+  async requestSlice(options: RadioRequestSliceOptions = {}): Promise<void> {
+    let command = "slice create";
+
+    const panadapterStreamId = options.panadapterStreamId?.trim();
+    if (panadapterStreamId) {
+      command += ` pan=${normalizeSliceCreatePanStreamId(panadapterStreamId)}`;
+    }
+
+    if (options.frequencyMHz !== undefined) {
+      const frequency = ensureFinite(options.frequencyMHz, "slice frequency");
+      if (frequency !== 0) {
+        command += ` freq=${frequency.toFixed(6)}`;
+      }
+    }
+
+    const rxAntenna = options.rxAntenna?.trim();
+    if (rxAntenna) {
+      command += ` rxant=${rxAntenna}`;
+    }
+
+    const demodMode = options.demodMode?.trim();
+    if (demodMode) {
+      command += ` mode=${demodMode}`;
+    }
+
+    if (options.loadPersistence) {
+      command += " load_from=PERSISTENCE";
+    }
+
+    await this.command(command);
+  }
+
+  async setNickname(nickname: string): Promise<void> {
+    const sanitized = sanitizeNickname(nickname);
+    await this.commandAndPatch(`radio name ${sanitized}`, {
+      nickname: sanitized,
+    });
+  }
+
+  async setCallsign(callsign: string): Promise<void> {
+    const sanitized = sanitizeCallsign(callsign);
+    await this.commandAndPatch(`radio callsign ${sanitized}`, {
+      callsign: sanitized,
+    });
+  }
+
+  async setFullDuplexEnabled(enabled: boolean): Promise<void> {
+    await this.commandAndPatch(
+      `radio set full_duplex_enabled=${formatBooleanFlag(enabled)}`,
+      { full_duplex_enabled: formatBooleanFlag(enabled) },
+    );
+  }
+
+  async setEnforcePrivateIpConnections(enabled: boolean): Promise<void> {
+    await this.commandAndPatch(
+      `radio set enforce_private_ip_connections=${formatBooleanFlag(enabled)}`,
+      { enforce_private_ip_connections: formatBooleanFlag(enabled) },
+    );
+  }
+
+  async setNetworkMtu(value: number): Promise<void> {
+    const mtu = toInteger(value, "network MTU");
+    const encodedMtu = mtu.toString(10);
+    await this.commandAndPatch(
+      `client set enforce_network_mtu=1 network_mtu=${encodedMtu}`,
+      { network_mtu: encodedMtu },
+    );
+  }
+
+  async setLowLatencyDigitalModes(enabled: boolean): Promise<void> {
+    await this.commandAndPatch(
+      `radio set low_latency_digital_modes=${formatBooleanFlag(enabled)}`,
+      { low_latency_digital_modes: formatBooleanFlag(enabled) },
+    );
+  }
+
+  async setMfEnabled(enabled: boolean): Promise<void> {
+    await this.commandAndPatch(
+      `radio set mf_enable=${formatBooleanFlag(enabled)}`,
+      { mf_enable: formatBooleanFlag(enabled) },
+    );
+  }
+
+  async setProfileAutoSave(enabled: boolean): Promise<void> {
+    await this.commandAndPatch(`profile autosave ${enabled ? "on" : "off"}`, {
+      auto_save: formatBooleanFlag(enabled),
+    });
+  }
+
+  async setAtuMemoriesEnabled(enabled: boolean): Promise<void> {
+    const encoded = formatBooleanFlag(enabled);
+    await this.commandAndPatch(
+      `atu set memories_enabled=${encoded}`,
+      { memories_enabled: encoded },
+      { source: "atu" },
+    );
+  }
+
+  async startAtuTune(): Promise<void> {
+    await this.command("atu start");
+  }
+
+  async bypassAtu(): Promise<void> {
+    await this.command("atu bypass");
+  }
+
+  async clearAtuMemories(): Promise<void> {
+    await this.command("atu clear");
+  }
+
+  async setLineoutGain(gain: number): Promise<void> {
+    const clamped = clampInteger(gain, 0, 100);
+    await this.commandAndPatch(`mixer lineout gain ${clamped}`, {
+      lineout_gain: clamped.toString(10),
+    });
+  }
+
+  async setLineoutMute(muted: boolean): Promise<void> {
+    const encoded = formatBooleanFlag(muted);
+    await this.commandAndPatch(`mixer lineout mute ${encoded}`, {
+      lineout_mute: encoded,
+    });
+  }
+
+  async setHeadphoneGain(gain: number): Promise<void> {
+    const clamped = clampInteger(gain, 0, 100);
+    await this.commandAndPatch(`mixer headphone gain ${clamped}`, {
+      headphone_gain: clamped.toString(10),
+    });
+  }
+
+  async setHeadphoneMute(muted: boolean): Promise<void> {
+    const encoded = formatBooleanFlag(muted);
+    await this.commandAndPatch(`mixer headphone mute ${encoded}`, {
+      headphone_mute: encoded,
+    });
+  }
+
+  async setBacklightLevel(level: number): Promise<void> {
+    const clamped = clampInteger(level, 0, 100);
+    await this.commandAndPatch(`radio backlight ${clamped}`, {
+      backlight: clamped.toString(10),
+    });
+  }
+
+  async setRemoteOnEnabled(enabled: boolean): Promise<void> {
+    const encoded = formatBooleanFlag(enabled);
+    await this.commandAndPatch(`radio set remote_on_enabled=${encoded}`, {
+      remote_on_enabled: encoded,
+    });
+  }
+
+  async setMox(enabled: boolean): Promise<void> {
+    const encoded = formatBooleanFlag(enabled);
+    await this.commandAndPatch(
+      `xmit ${encoded}`,
+      { mox: encoded },
+      { source: "interlock" },
+    );
+  }
+
+  async setTxTune(enabled: boolean): Promise<void> {
+    const encoded = formatBooleanFlag(enabled);
+    await this.commandAndPatch(
+      `transmit tune ${encoded}`,
+      { tune: encoded },
+      { source: "transmit" },
+    );
+  }
+
+  async setTuneMode(mode: "single_tone" | "two_tone"): Promise<void> {
+    const normalized = mode === "two_tone" ? "two_tone" : "single_tone";
+    await this.commandAndPatch(
+      `transmit set tune_mode=${normalized}`,
+      { tune_mode: normalized },
+      { source: "transmit" },
+    );
+  }
+
+  async setInterlockTimeoutMs(timeoutMs: number): Promise<void> {
+    await this.setInterlockInteger(
+      "timeout",
+      timeoutMs,
+      0,
+      600_000,
+      "Interlock timeout",
+    );
+  }
+
+  async setTxDelayMs(delayMs: number): Promise<void> {
+    await this.setInterlockInteger("tx_delay", delayMs, 0, 60_000, "TX delay");
+  }
+
+  async setTxReqRcaEnabled(enabled: boolean): Promise<void> {
+    await this.setInterlockBoolean("rca_txreq_enable", enabled);
+  }
+
+  async setTxReqAccEnabled(enabled: boolean): Promise<void> {
+    await this.setInterlockBoolean("acc_txreq_enable", enabled);
+  }
+
+  async setTxReqRcaPolarityHigh(enabled: boolean): Promise<void> {
+    await this.setInterlockBoolean("rca_txreq_polarity", enabled);
+  }
+
+  async setTxReqAccPolarityHigh(enabled: boolean): Promise<void> {
+    await this.setInterlockBoolean("acc_txreq_polarity", enabled);
+  }
+
+  async setTx1Enabled(enabled: boolean): Promise<void> {
+    await this.setInterlockBoolean("tx1_enabled", enabled);
+  }
+
+  async setTx2Enabled(enabled: boolean): Promise<void> {
+    await this.setInterlockBoolean("tx2_enabled", enabled);
+  }
+
+  async setTx3Enabled(enabled: boolean): Promise<void> {
+    await this.setInterlockBoolean("tx3_enabled", enabled);
+  }
+
+  async setAccTxEnabled(enabled: boolean): Promise<void> {
+    await this.setInterlockBoolean("acc_tx_enabled", enabled);
+  }
+
+  async setTx1DelayMs(delayMs: number): Promise<void> {
+    await this.setInterlockInteger("tx1_delay", delayMs, 0, 6_000, "TX1 delay");
+  }
+
+  async setTx2DelayMs(delayMs: number): Promise<void> {
+    await this.setInterlockInteger("tx2_delay", delayMs, 0, 6_000, "TX2 delay");
+  }
+
+  async setTx3DelayMs(delayMs: number): Promise<void> {
+    await this.setInterlockInteger("tx3_delay", delayMs, 0, 6_000, "TX3 delay");
+  }
+
+  async setAccTxDelayMs(delayMs: number): Promise<void> {
+    await this.setInterlockInteger(
+      "acc_tx_delay",
+      delayMs,
+      0,
+      6_000,
+      "ACC TX delay",
+    );
+  }
+
+  async setMaxPowerLevel(level: number): Promise<void> {
+    await this.setTransmitInteger(
+      "max_power_level",
+      level,
+      0,
+      100,
+      "max power level",
+    );
+  }
+
+  async setRfPower(level: number): Promise<void> {
+    await this.setTransmitInteger("rfpower", level, 0, 100, "RF power");
+  }
+
+  async setTunePower(level: number): Promise<void> {
+    await this.setTransmitInteger("tunepower", level, 0, 100, "Tune power");
+  }
+
+  async setTxFilter(lowHz: number, highHz: number): Promise<void> {
+    const low = clampInteger(lowHz, 0, 10_000, "TX filter low");
+    let high = clampInteger(highHz, 0, 10_000, "TX filter high");
+    const minimumHigh = low + 50;
+    if (high < minimumHigh) high = minimumHigh;
+    if (high > 10_000) {
+      high = 10_000;
+      if (high < minimumHigh) {
+        const adjustedLow = Math.max(0, high - 50);
+        await this.setTxFilter(adjustedLow, high);
+        return;
+      }
+    }
+    await this.commandAndPatch(
+      `transmit set filter_low=${low} filter_high=${high}`,
+      {
+        filter_low: low.toString(10),
+        filter_high: high.toString(10),
+      },
+      { source: "transmit" },
+    );
+  }
+
+  async setTxFilterLowHz(lowHz: number): Promise<void> {
+    const currentHigh = this.radioSnapshot()?.txFilterHighHz ?? 10_000;
+    await this.setTxFilter(lowHz, currentHigh);
+  }
+
+  async setTxFilterHighHz(highHz: number): Promise<void> {
+    const currentLow = this.radioSnapshot()?.txFilterLowHz ?? 0;
+    await this.setTxFilter(currentLow, highHz);
+  }
+
+  async setAmCarrierLevel(level: number): Promise<void> {
+    await this.setTransmitInteger(
+      "am_carrier",
+      level,
+      0,
+      100,
+      "AM carrier level",
+    );
+  }
+
+  async setMicSelection(selection: string): Promise<void> {
+    const trimmed = selection.trim();
+    if (!trimmed) {
+      throw new FlexError("Mic selection cannot be empty");
+    }
+    const normalized = trimmed.toUpperCase();
+    await this.commandAndPatch(
+      `mic input ${normalized}`,
+      {
+        mic_selection: normalized,
+      },
+      { source: "transmit" },
+    );
+  }
+
+  async setMicLevel(level: number): Promise<void> {
+    await this.setTransmitInteger("miclevel", level, 0, 100, "Mic level");
+  }
+
+  async setMicBoost(enabled: boolean): Promise<void> {
+    await this.setTransmitBoolean("mic_boost", enabled);
+  }
+
+  async setHwAlcEnabled(enabled: boolean): Promise<void> {
+    await this.setTransmitBoolean("hwalc_enabled", enabled);
+  }
+
+  async setTxInhibit(enabled: boolean): Promise<void> {
+    await this.setTransmitBoolean("inhibit", enabled);
+  }
+
+  async setMicBias(enabled: boolean): Promise<void> {
+    await this.setTransmitBoolean("mic_bias", enabled);
+  }
+
+  async setMicAccessoryEnabled(enabled: boolean): Promise<void> {
+    const normalized = formatBooleanFlag(enabled);
+    await this.commandAndPatch(
+      `mic acc ${normalized}`,
+      { mic_acc: normalized },
+      { source: "transmit" },
+    );
+  }
+
+  async setDaxEnabled(enabled: boolean): Promise<void> {
+    await this.setTransmitBoolean("dax", enabled);
+  }
+
+  async setCompanderEnabled(enabled: boolean): Promise<void> {
+    await this.setTransmitBoolean("compander", enabled);
+  }
+
+  async setCompanderLevel(level: number): Promise<void> {
+    await this.setTransmitInteger(
+      "compander_level",
+      level,
+      0,
+      100,
+      "Compander level",
+    );
+  }
+
+  async setSpeechProcessorEnabled(enabled: boolean): Promise<void> {
+    await this.setTransmitBoolean("speech_processor_enable", enabled);
+  }
+
+  async setSpeechProcessorLevel(level: number): Promise<void> {
+    await this.setTransmitInteger(
+      "speech_processor_level",
+      level,
+      0,
+      100,
+      "Speech processor level",
+    );
+  }
+
+  async setVoxEnabled(enabled: boolean): Promise<void> {
+    await this.setTransmitBoolean("vox_enable", enabled);
+  }
+
+  async setVoxLevel(level: number): Promise<void> {
+    await this.setTransmitInteger("vox_level", level, 0, 100, "VOX level");
+  }
+
+  async setVoxDelay(delay: number): Promise<void> {
+    await this.setTransmitInteger("vox_delay", delay, 0, 100, "VOX delay");
+  }
+
+  async setTxMonitorEnabled(enabled: boolean): Promise<void> {
+    const encoded = formatBooleanFlag(enabled);
+    await this.commandAndPatch(
+      `transmit set mon=${encoded}`,
+      { sb_monitor: encoded },
+      { source: "transmit" },
+    );
+  }
+
+  async setTxCwMonitorGain(gain: number): Promise<void> {
+    await this.setTransmitInteger(
+      "mon_gain_cw",
+      gain,
+      0,
+      100,
+      "CW monitor gain",
+    );
+  }
+
+  async setTxSbMonitorGain(gain: number): Promise<void> {
+    await this.setTransmitInteger(
+      "mon_gain_sb",
+      gain,
+      0,
+      100,
+      "SSB monitor gain",
+    );
+  }
+
+  async setTxCwMonitorPan(pan: number): Promise<void> {
+    await this.setTransmitInteger("mon_pan_cw", pan, 0, 100, "CW monitor pan");
+  }
+
+  async setTxSbMonitorPan(pan: number): Promise<void> {
+    await this.setTransmitInteger("mon_pan_sb", pan, 0, 100, "SSB monitor pan");
+  }
+
+  async setShowTxInWaterfall(enabled: boolean): Promise<void> {
+    await this.setTransmitBoolean("show_tx_in_waterfall", enabled);
+  }
+
+  async setTxRawIqEnabled(enabled: boolean): Promise<void> {
+    await this.setTransmitBoolean("raw_iq_enable", enabled);
+  }
+
+  async setMeterInRxEnabled(enabled: boolean): Promise<void> {
+    await this.setTransmitBoolean("met_in_rx", enabled);
+  }
+
+  async setTnfEnabled(enabled: boolean): Promise<void> {
+    const encoded = formatBooleanFlag(enabled);
+    await this.commandAndPatch(`radio set tnf_enabled=${encoded}`, {
+      tnf_enabled: encoded,
+    });
+  }
+
+  async setBinauralRx(enabled: boolean): Promise<void> {
+    const encoded = formatBooleanFlag(enabled);
+    await this.commandAndPatch(`radio set binaural_rx=${encoded}`, {
+      binaural_rx: encoded,
+    });
+  }
+
+  async setMuteLocalAudioWhenRemote(enabled: boolean): Promise<void> {
+    const encoded = formatBooleanFlag(enabled);
+    await this.commandAndPatch(
+      `radio set mute_local_audio_when_remote=${encoded}`,
+      { mute_local_audio_when_remote: encoded },
+    );
+  }
+
+  async setRttyMarkDefaultHz(value: number): Promise<void> {
+    const rounded = toInteger(value, "RTTY mark");
+    await this.commandAndPatch(`radio set rtty_mark_default=${rounded}`, {
+      rtty_mark_default: rounded.toString(10),
+    });
+  }
+
+  async setFrequencyErrorPpb(value: number): Promise<void> {
+    const rounded = toInteger(value, "frequency error");
+    await this.commandAndPatch(`radio set freq_error_ppb=${rounded}`, {
+      freq_error_ppb: rounded.toString(10),
+    });
+  }
+
+  async setCalibrationFrequencyMhz(value: number): Promise<void> {
+    const normalized = ensureFinite(value, "calibration frequency");
+    const formatted = normalized.toFixed(6);
+    await this.commandAndPatch(`radio set cal_freq=${formatted}`, {
+      cal_freq: formatted,
+    });
+  }
+
+  async setCwPitchHz(value: number): Promise<void> {
+    const clamped = clampInteger(value, 100, 6_000, "CW pitch");
+    await this.commandAndPatch(
+      `cw pitch ${clamped}`,
+      { pitch: clamped.toString(10) },
+      { source: "transmit" },
+    );
+  }
+
+  async setCwSpeedWpm(value: number): Promise<void> {
+    const clamped = clampInteger(value, 5, 100, "CW speed");
+    await this.commandAndPatch(
+      `cw wpm ${clamped}`,
+      { speed: clamped.toString(10) },
+      { source: "transmit" },
+    );
+  }
+
+  async setSyncCwx(enabled: boolean): Promise<void> {
+    const encoded = formatBooleanFlag(enabled);
+    await this.commandAndPatch(
+      `cw synccwx ${encoded}`,
+      { synccwx: encoded },
+      { source: "transmit" },
+    );
+  }
+
+  async setCwIambic(enabled: boolean): Promise<void> {
+    const encoded = formatBooleanFlag(enabled);
+    await this.commandAndPatch(
+      `cw iambic ${encoded}`,
+      { iambic: encoded },
+      { source: "transmit" },
+    );
+  }
+
+  async setCwIambicMode(mode: RadioCwIambicMode): Promise<void> {
+    const encoded = encodeCwIambicMode(mode);
+    await this.commandAndPatch(
+      `cw mode ${encoded}`,
+      { iambic_mode: encoded.toString(10) },
+      { source: "transmit" },
+    );
+  }
+
+  async setCwSwapPaddles(enabled: boolean): Promise<void> {
+    const encoded = formatBooleanFlag(enabled);
+    await this.commandAndPatch(
+      `cw swap ${encoded}`,
+      { swap_paddles: encoded },
+      { source: "transmit" },
+    );
+  }
+
+  async setCwBreakIn(enabled: boolean): Promise<void> {
+    const encoded = formatBooleanFlag(enabled);
+    await this.commandAndPatch(
+      `cw break_in ${encoded}`,
+      { break_in: encoded },
+      { source: "transmit" },
+    );
+  }
+
+  async setCwSidetone(enabled: boolean): Promise<void> {
+    const encoded = formatBooleanFlag(enabled);
+    await this.commandAndPatch(
+      `cw sidetone ${encoded}`,
+      { sidetone: encoded },
+      { source: "transmit" },
+    );
+  }
+
+  async setCwLeftEnabled(enabled: boolean): Promise<void> {
+    const encoded = formatBooleanFlag(enabled);
+    await this.commandAndPatch(
+      `cw cwl_enabled ${encoded}`,
+      { cwl_enabled: encoded },
+      { source: "transmit" },
+    );
+  }
+
+  async setCwBreakInDelayMs(delayMs: number): Promise<void> {
+    const clamped = clampInteger(delayMs, 0, 2_000, "CW break-in delay");
+    await this.commandAndPatch(
+      `cw break_in_delay ${clamped}`,
+      { break_in_delay: clamped.toString(10) },
+      { source: "transmit" },
+    );
+  }
+
+  async setFilterSharpnessLevel(
+    mode: RadioFilterSharpnessMode,
+    level: number,
+  ): Promise<void> {
+    const normalizedMode = mode;
+    const clamped = clampInteger(
+      level,
+      FILTER_SHARPNESS_MIN_LEVEL,
+      FILTER_SHARPNESS_MAX_LEVEL,
+    );
+    const encodedLevel = clamped.toString(10);
+    const context: RadioStatusContext = {
+      source: "radio",
+      identifier: "filter_sharpness",
+      positional: [normalizedMode.toUpperCase()] as readonly string[],
+    };
+    await this.commandAndPatch(
+      `radio filter_sharpness ${normalizedMode} level=${encodedLevel}`,
+      { level: encodedLevel },
+      context,
+    );
+  }
+
+  async setFilterSharpnessAutoLevel(
+    mode: RadioFilterSharpnessMode,
+    enabled: boolean,
+  ): Promise<void> {
+    const normalizedMode = mode;
+    const encoded = formatBooleanFlag(enabled);
+    const context: RadioStatusContext = {
+      source: "radio",
+      identifier: "filter_sharpness",
+      positional: [normalizedMode.toUpperCase()] as readonly string[],
+    };
+    await this.commandAndPatch(
+      `radio filter_sharpness ${normalizedMode} auto_level=${encoded}`,
+      { auto_level: encoded },
+      context,
+    );
+  }
+
+  async setStaticNetworkParams(params: {
+    ip: string;
+    gateway: string;
+    netmask: string;
+  }): Promise<void> {
+    const payload = {
+      ip: params.ip.trim(),
+      gateway: params.gateway.trim(),
+      netmask: params.netmask.trim(),
+    };
+    const context: RadioStatusContext = {
+      source: "radio",
+      identifier: "static_net_params",
+    };
+    await this.commandAndPatch(
+      `radio static_net_params ip=${payload.ip} gateway=${payload.gateway} netmask=${payload.netmask}`,
+      payload,
+      context,
+    );
+  }
+
+  async resetStaticNetworkParams(): Promise<void> {
+    const context: RadioStatusContext = {
+      source: "radio",
+      identifier: "static_net_params",
+    };
+    await this.commandAndPatch(
+      "radio static_net_params reset",
+      { ip: "", gateway: "", netmask: "" },
+      context,
+    );
+  }
+
+  async setOscillatorSetting(setting: RadioOscillatorSetting): Promise<void> {
+    const normalized = setting.toLowerCase() as RadioOscillatorSetting;
+    const context: RadioStatusContext = {
+      source: "radio",
+      identifier: "oscillator",
+    };
+    await this.commandAndPatch(
+      `radio oscillator ${normalized}`,
+      { setting: normalized },
+      context,
+    );
+  }
+
+  async setLogModuleLevel(module: string, level: string): Promise<void> {
+    const moduleName = normalizeLogModuleName(module);
+    const moduleLevel = normalizeLogLevel(level);
+    await this.commandAndPatch(
+      `log module=${moduleName} level=${moduleLevel}`,
+      { module: moduleName, level: moduleLevel },
+      { source: "log", identifier: moduleName },
+    );
+  }
+
+  async loadMicProfile(name: string): Promise<void> {
+    await this.loadProfileSelection("mic", name);
+  }
+
+  async loadTxProfile(name: string): Promise<void> {
+    await this.loadProfileSelection("tx", name);
+  }
+
+  async loadDisplayProfile(name: string): Promise<void> {
+    await this.loadProfileSelection("display", name);
+  }
+
+  async loadGlobalProfile(name: string): Promise<void> {
+    await this.loadProfileSelection("global", name);
+  }
+
+  async createTxProfile(name: string): Promise<void> {
+    await this.sendProfileCommand("profile transmit create", name);
+  }
+
+  async resetTxProfile(name: string): Promise<void> {
+    await this.sendProfileCommand("profile transmit reset", name);
+  }
+
+  async deleteTxProfile(name: string): Promise<void> {
+    await this.sendProfileCommand("profile transmit delete", name);
+  }
+
+  async createMicProfile(name: string): Promise<void> {
+    await this.sendProfileCommand("profile mic create", name);
+  }
+
+  async resetMicProfile(name: string): Promise<void> {
+    await this.sendProfileCommand("profile mic reset", name);
+  }
+
+  async deleteMicProfile(name: string): Promise<void> {
+    await this.sendProfileCommand("profile mic delete", name);
+  }
+
+  async saveGlobalProfile(name: string): Promise<void> {
+    await this.sendProfileCommand("profile global save", name);
+  }
+
+  async deleteGlobalProfile(name: string): Promise<void> {
+    await this.sendProfileCommand("profile global delete", name);
   }
 
   // -----------------------------------------------------------------------
@@ -602,9 +2038,7 @@ export class Radio {
     while (true) {
       const newlineIndex = this.tcpBuffer.indexOf("\n");
       if (newlineIndex === -1) break;
-      const line = this.tcpBuffer
-        .slice(0, newlineIndex)
-        .replace(/\r$/, "");
+      const line = this.tcpBuffer.slice(0, newlineIndex).replace(/\r$/, "");
       this.tcpBuffer = this.tcpBuffer.slice(newlineIndex + 1);
       this.handleLine(line);
     }
@@ -638,7 +2072,7 @@ export class Radio {
       case "status":
         this.events.emit("status", parsed);
         for (const change of this.store.apply(parsed)) {
-          this.events.emit("change", change);
+          this.handleStateChange(change);
         }
         break;
       case "reply":
@@ -719,9 +2153,7 @@ export class Radio {
   // Handle waiting
   // -----------------------------------------------------------------------
 
-  private waitForHandle(options?: {
-    timeoutMs?: number;
-  }): Promise<string> {
+  private waitForHandle(options?: { timeoutMs?: number }): Promise<string> {
     if (this._clientHandle) return Promise.resolve(this._clientHandle);
 
     return new Promise<string>((resolve, reject) => {
@@ -742,9 +2174,7 @@ export class Radio {
         waiter.timeoutHandle = setTimeout(() => {
           this.removeHandleWaiter(waiter);
           reject(
-            new Error(
-              `Timed out waiting for Flex handle after ${timeoutMs}ms`,
-            ),
+            new Error(`Timed out waiting for Flex handle after ${timeoutMs}ms`),
           );
         }, timeoutMs);
       }
@@ -763,7 +2193,9 @@ export class Radio {
     this.resolveHandleWaiters(handle);
   }
 
-  private removeHandleWaiter(waiter: (typeof this.handleWaiters)[number]): void {
+  private removeHandleWaiter(
+    waiter: (typeof this.handleWaiters)[number],
+  ): void {
     const index = this.handleWaiters.indexOf(waiter);
     if (index >= 0) this.handleWaiters.splice(index, 1);
   }
@@ -798,9 +2230,7 @@ export class Radio {
   // Handshake
   // -----------------------------------------------------------------------
 
-  private async performHandshake(
-    clientInfo?: RadioClientInfo,
-  ): Promise<void> {
+  private async performHandshake(clientInfo?: RadioClientInfo): Promise<void> {
     const info = clientInfo ?? {};
 
     // Announce program name
@@ -810,13 +2240,13 @@ export class Radio {
       this.command(`client program ${programName}`).catch(() => {});
     }
 
-    // Refresh radio info
+    // Refresh radio info — these methods parse the replies and patch the store
     this.emitProgress("sync", "radio-info");
     await Promise.all([
-      this.command("radio info").catch(() => {}),
-      this.command("version").catch(() => {}),
-      this.command("ant list").catch(() => {}),
-      this.command("mic list").catch(() => {}),
+      this.refreshInfo(),
+      this.refreshVersions(),
+      this.refreshRxAntennaList(),
+      this.refreshMicList(),
     ]);
 
     // Subscribe to status updates
@@ -840,9 +2270,7 @@ export class Radio {
       );
       this._clientId = response.message?.trim() ?? null;
     } else if (info.boundClientId) {
-      await this.command(
-        `client bind_gui_client ${info.boundClientId}`,
-      );
+      await this.command(`client bind_gui_client ${info.boundClientId}`);
     }
 
     const stationName = info.station;
@@ -923,6 +2351,13 @@ export class Radio {
     this.nextSequence = 1;
     this.streamHandlers.clear();
     this.meterHandlers.clear();
+    this.sliceControllers.clear();
+    this.panControllers.clear();
+    this.waterfallControllers.clear();
+    this.meterControllers.clear();
+    this.audioControllers.clear();
+    this.equalizerControllers.clear();
+    this.txBandControllers.clear();
   }
 
   private setConnectionState(state: RadioConnectionState): void {
@@ -956,4 +2391,16 @@ function buildCommandErrorMessage(
     parts.push(`radio="${response.message}"`);
   }
   return parts.join(" | ");
+}
+
+function normalizeEntityId(token: string): string {
+  const trimmed = token.trim();
+  if (!trimmed) return "";
+  const withoutPrefix =
+    trimmed.startsWith("0x") || trimmed.startsWith("0X")
+      ? trimmed.slice(2)
+      : trimmed;
+  const upper = withoutPrefix.toUpperCase();
+  const padded = upper.padStart(8, "0");
+  return `0x${padded}`;
 }

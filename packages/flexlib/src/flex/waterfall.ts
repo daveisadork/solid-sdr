@@ -1,8 +1,6 @@
-import type { FlexCommandOptions, FlexCommandResponse } from "./adapters.js";
 import type { WaterfallSnapshot, WaterfallStateChange } from "./state/index.js";
 import { TypedEventEmitter, type Subscription } from "../util/events.js";
 import { FlexClientClosedError, FlexStateUnavailableError } from "./errors.js";
-import type { RfGainInfo } from "./rf-gain.js";
 import {
   buildDisplaySetCommand,
   formatBooleanFlag,
@@ -12,11 +10,12 @@ import {
   clampLineSpeed,
   lineSpeedToDurationMs,
 } from "./waterfall-line-speed.js";
-import type { UdpPacketEvent, UdpScope, UdpSession } from "./udp-session.js";
+import type { RadioSession, StreamPacketHandler } from "./radio-core.js";
+import type { VitaParsedPacket } from "../vita/parser.js";
 
 export interface WaterfallControllerEvents extends Record<string, unknown> {
   readonly change: WaterfallStateChange;
-  readonly data: UdpPacketEvent<"waterfall">;
+  readonly data: VitaParsedPacket;
 }
 
 export interface WaterfallUpdateRequest {
@@ -25,17 +24,6 @@ export interface WaterfallUpdateRequest {
   colorGain?: number;
   autoBlackLevelEnabled?: boolean;
   gradientIndex?: number;
-}
-
-export interface WaterfallSessionApi {
-  command(
-    command: string,
-    options?: FlexCommandOptions,
-  ): Promise<FlexCommandResponse>;
-  getWaterfall(id: string): WaterfallSnapshot | undefined;
-  patchWaterfall(id: string, attributes: Record<string, string>): void;
-  applyWaterfallRfGainInfo(id: string, info: RfGainInfo): void;
-  readonly udp: UdpSession;
 }
 
 export interface WaterfallController {
@@ -72,11 +60,10 @@ export class WaterfallControllerImpl implements WaterfallController {
   private readonly events = new TypedEventEmitter<WaterfallControllerEvents>();
   private streamHandle?: string;
   private dataListeners = 0;
-  private dataScope?: UdpScope<"waterfall">;
   private dataSubscription?: Subscription;
 
   constructor(
-    private readonly session: WaterfallSessionApi,
+    private readonly session: RadioSession,
     readonly id: string,
     streamHandle?: string,
   ) {
@@ -84,7 +71,7 @@ export class WaterfallControllerImpl implements WaterfallController {
   }
 
   private current(): WaterfallSnapshot {
-    const snapshot = this.session.getWaterfall(this.id);
+    const snapshot = this.session.getStore().getWaterfall(this.id);
     if (!snapshot) {
       throw new FlexStateUnavailableError(
         `Waterfall ${this.id} is no longer available`,
@@ -236,12 +223,13 @@ export class WaterfallControllerImpl implements WaterfallController {
       entries,
       extras,
     );
-    this.session.patchWaterfall(this.id, { stream_id: stream, ...entries });
+    const change = this.session.getStore().patchWaterfall(this.id, { stream_id: stream, ...entries });
+    if (change) this.session.applyStateChange(change);
     await this.session.command(command);
   }
 
   private requireStreamHandle(): string {
-    const snapshot = this.session.getWaterfall(this.id);
+    const snapshot = this.session.getStore().getWaterfall(this.id);
     if (snapshot?.streamId) {
       this.streamHandle = snapshot.streamId;
     }
@@ -251,17 +239,18 @@ export class WaterfallControllerImpl implements WaterfallController {
     return this.streamHandle;
   }
 
+  private readonly handleStreamPacket: StreamPacketHandler = (packet) => {
+    this.events.emit("data", packet);
+  };
+
   private ensureDataPipeline(): void {
     if (this.dataSubscription) return;
     const streamNumericId = Number.parseInt(this.streamId, 16);
     if (!Number.isFinite(streamNumericId)) return;
-    this.dataScope = this.session.udp.scope(
-      "waterfall",
-      (event) => event.metadata.streamId === streamNumericId,
+    this.dataSubscription = this.session.registerStreamHandler(
+      streamNumericId,
+      this.handleStreamPacket,
     );
-    this.dataSubscription = this.dataScope.on((event) => {
-      this.events.emit("data", event);
-    });
   }
 
   private handleDataUnsubscribe(): void {
@@ -275,7 +264,5 @@ export class WaterfallControllerImpl implements WaterfallController {
   private teardownDataPipeline(): void {
     this.dataSubscription?.unsubscribe();
     this.dataSubscription = undefined;
-    this.dataScope?.removeAll();
-    this.dataScope = undefined;
   }
 }

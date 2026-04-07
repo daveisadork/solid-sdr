@@ -7,15 +7,19 @@ export type { MeterUnits, KnownMeterUnits } from "./state/index.js";
 export { KNOWN_METER_UNITS } from "./state/index.js";
 import { TypedEventEmitter, type Subscription } from "../util/events.js";
 import { FlexStateUnavailableError } from "./errors.js";
-import type {
-  UdpPacketEvent,
-  UdpScope,
-  UdpSession,
-} from "./udp-session.js";
+import type { RadioSession, MeterValueHandler } from "./radio-core.js";
+
+/** Payload for meter "data" events — includes both raw and scaled values. */
+export interface MeterDataEvent {
+  readonly meterId: number;
+  readonly raw: number;
+  readonly value: number;
+  readonly units: MeterUnits;
+}
 
 export interface MeterControllerEvents extends Record<string, unknown> {
   readonly change: MeterStateChange;
-  readonly data: UdpPacketEvent<"meter">;
+  readonly data: MeterDataEvent;
 }
 
 export interface MeterController {
@@ -29,6 +33,8 @@ export interface MeterController {
   readonly low: number;
   readonly high: number;
   readonly fps: number;
+  /** Last scaled meter value, updated on each VITA packet. */
+  readonly value: number | undefined;
   snapshot(): MeterSnapshot;
   on<TKey extends keyof MeterControllerEvents>(
     event: TKey,
@@ -36,24 +42,19 @@ export interface MeterController {
   ): Subscription;
 }
 
-export interface MeterSessionApi {
-  getMeter(id: string): MeterSnapshot | undefined;
-  readonly udp: UdpSession;
-}
-
 export class MeterControllerImpl implements MeterController {
   private readonly events = new TypedEventEmitter<MeterControllerEvents>();
   private dataListeners = 0;
-  private dataScope?: UdpScope<"meter">;
   private dataSubscription?: Subscription;
+  private _value: number | undefined;
 
   constructor(
-    private readonly session: MeterSessionApi,
+    private readonly session: RadioSession,
     readonly id: string,
   ) {}
 
   private current(): MeterSnapshot {
-    const snapshot = this.session.getMeter(this.id);
+    const snapshot = this.session.getStore().getMeter(this.id);
     if (!snapshot) {
       throw new FlexStateUnavailableError(
         `Meter ${this.id} is no longer available`,
@@ -98,6 +99,10 @@ export class MeterControllerImpl implements MeterController {
     return this.current().fps;
   }
 
+  get value(): number | undefined {
+    return this._value;
+  }
+
   snapshot(): MeterSnapshot {
     return this.current();
   }
@@ -127,18 +132,31 @@ export class MeterControllerImpl implements MeterController {
     }
   }
 
+  private readonly handleMeterValue: MeterValueHandler = (
+    meterId,
+    rawValue,
+  ) => {
+    const snapshot = this.session.getStore().getMeter(this.id);
+    const units = snapshot?.units ?? "none";
+    const scaled = scaleMeterRawValue(units, rawValue);
+    this._value = scaled;
+    this.events.emit("data", {
+      meterId,
+      raw: rawValue,
+      value: scaled,
+      units,
+    });
+  };
+
   private ensureDataPipeline(): void {
     if (this.dataSubscription) return;
     const meterId = this.sourceIndex;
     if (!Number.isFinite(meterId)) return;
     const numericId = Math.trunc(meterId);
-    this.dataScope = this.session.udp.scope(
-      "meter",
-      ({ packet }) => hasMeterId(packet.ids, numericId),
+    this.dataSubscription = this.session.registerMeterHandler(
+      numericId,
+      this.handleMeterValue,
     );
-    this.dataSubscription = this.dataScope.on((event) => {
-      this.events.emit("data", event);
-    });
   }
 
   private handleDataUnsubscribe(): void {
@@ -152,8 +170,6 @@ export class MeterControllerImpl implements MeterController {
   private teardownDataPipeline(): void {
     this.dataSubscription?.unsubscribe();
     this.dataSubscription = undefined;
-    this.dataScope?.removeAll();
-    this.dataScope = undefined;
   }
 }
 
@@ -188,13 +204,4 @@ export function scaleMeterRawValue(
   }
 
   return value;
-}
-
-function hasMeterId(ids: Uint16Array, expected: number): boolean {
-  for (let index = 0; index < ids.length; index++) {
-    if (ids[index] === expected) {
-      return true;
-    }
-  }
-  return false;
 }

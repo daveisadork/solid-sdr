@@ -1,12 +1,9 @@
-import type {
-  FlexCommandOptions,
-  FlexCommandResponse,
-} from "./adapters.js";
 import { TypedEventEmitter, type Subscription } from "../util/events.js";
 import { FlexStateUnavailableError } from "./errors.js";
 import type { ApdSnapshot } from "./state/apd.js";
 import type { ApdStateChange } from "./state/index.js";
 import { formatBooleanFlag } from "./controller-helpers.js";
+import type { RadioSession } from "./radio-core.js";
 
 export interface ApdControllerEvents extends Record<string, unknown> {
   readonly change: ApdStateChange;
@@ -34,22 +31,13 @@ export interface ApdController {
   onStateChange(change: ApdStateChange): void;
 }
 
-export interface ApdSessionApi {
-  command(
-    command: string,
-    options?: FlexCommandOptions,
-  ): Promise<FlexCommandResponse>;
-  patchApd(attributes: Record<string, string>): void;
-  getApd(): ApdSnapshot | undefined;
-}
-
 export class ApdControllerImpl implements ApdController {
   private readonly events = new TypedEventEmitter<ApdControllerEvents>();
 
-  constructor(private readonly session: ApdSessionApi) {}
+  constructor(private readonly session: RadioSession) {}
 
   private current(): ApdSnapshot {
-    const snapshot = this.session.getApd();
+    const snapshot = this.session.getStore().getApd();
     if (!snapshot) {
       throw new FlexStateUnavailableError("APD status is not available");
     }
@@ -57,7 +45,7 @@ export class ApdControllerImpl implements ApdController {
   }
 
   snapshot(): ApdSnapshot | undefined {
-    return this.session.getApd();
+    return this.session.getStore().getApd();
   }
 
   get enabled(): boolean {
@@ -110,7 +98,8 @@ export class ApdControllerImpl implements ApdController {
 
   async setEnabled(enabled: boolean): Promise<void> {
     const flag = formatBooleanFlag(enabled);
-    this.session.patchApd({ enable: flag });
+    const change = this.session.getStore().patchApd({ enable: flag });
+    if (change) this.session.applyStateChange(change);
     try {
       await this.session.command(`apd enable=${flag}`);
     } catch (error) {

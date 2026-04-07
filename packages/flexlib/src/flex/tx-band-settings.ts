@@ -1,11 +1,11 @@
 import { TypedEventEmitter, type Subscription } from "../util/events.js";
-import type { FlexCommandResponse } from "./adapters.js";
 import { clampInteger, formatBooleanFlag } from "./controller-helpers.js";
 import { FlexStateUnavailableError } from "./errors.js";
 import type {
   TxBandSettingSnapshot,
   TxBandSettingStateChange,
 } from "./state/index.js";
+import type { RadioSession } from "./radio-core.js";
 
 export interface TxBandSettingControllerEvents
   extends Record<string, unknown> {
@@ -41,18 +41,12 @@ export interface TxBandSettingController {
   ): Subscription;
 }
 
-interface TxBandSettingSessionApi {
-  command(command: string): Promise<FlexCommandResponse>;
-  patchTxBandSetting(id: string, attributes: Record<string, string>): void;
-  getTxBandSetting(id: string): TxBandSettingSnapshot | undefined;
-}
-
 export class TxBandSettingControllerImpl implements TxBandSettingController {
   private readonly events =
     new TypedEventEmitter<TxBandSettingControllerEvents>();
 
   constructor(
-    private readonly session: TxBandSettingSessionApi,
+    private readonly session: RadioSession,
     readonly id: string,
   ) {}
 
@@ -174,7 +168,7 @@ export class TxBandSettingControllerImpl implements TxBandSettingController {
   }
 
   private current(): TxBandSettingSnapshot {
-    const snapshot = this.session.getTxBandSetting(this.id);
+    const snapshot = this.session.getStore().getTxBandSetting(this.id);
     if (!snapshot) {
       throw new FlexStateUnavailableError(
         `TX band ${this.id} is not available`,
@@ -192,6 +186,7 @@ export class TxBandSettingControllerImpl implements TxBandSettingController {
     );
     const command = `${namespace} bandset ${this.id} ${parts.join(" ")}`;
     await this.session.command(command);
-    this.session.patchTxBandSetting(this.id, entries);
+    const change = this.session.getStore().patchTxBandSetting(this.id, entries);
+    if (change) this.session.applyStateChange(change);
   }
 }

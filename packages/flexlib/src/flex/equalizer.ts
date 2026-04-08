@@ -36,31 +36,30 @@ export interface EqualizerController
   ): Subscription;
 }
 
-export interface EqualizerControllerImpl extends Readonly<EqualizerSnapshot> {}
 export class EqualizerControllerImpl implements EqualizerController {
   private readonly events = new TypedEventEmitter<EqualizerControllerEvents>();
 
   constructor(
-    private readonly session: RadioSession,
+    private readonly radio: RadioSession,
     readonly id: EqualizerId,
-  ) {
-    return new Proxy(this, {
-      get(target, prop, receiver) {
-        return Reflect.has(target, prop)
-          ? Reflect.get(target, prop, receiver)
-          : target.current()[prop as keyof EqualizerSnapshot];
-      },
-    });
-  }
+  ) {}
 
-  current(): EqualizerSnapshot {
-    const snapshot = this.session.getStore().getEqualizer(this.id);
+  private current(): EqualizerSnapshot {
+    const snapshot = this.radio.getStore().getEqualizer(this.id);
     if (!snapshot) {
       throw new FlexStateUnavailableError(
         `Equalizer ${this.id.toUpperCase()} is not available`,
       );
     }
     return snapshot;
+  }
+
+  get enabled(): boolean {
+    return this.current().enabled;
+  }
+
+  get bands(): EqualizerBandLevels {
+    return this.current().bands;
   }
 
   get levels(): EqualizerBandLevels {
@@ -96,7 +95,7 @@ export class EqualizerControllerImpl implements EqualizerController {
   }
 
   async refresh(): Promise<void> {
-    await this.session.command(`eq ${this.commandTarget} info`);
+    await this.radio.command(`eq ${this.commandTarget} info`);
   }
 
   on<TKey extends keyof EqualizerControllerEvents>(
@@ -115,10 +114,10 @@ export class EqualizerControllerImpl implements EqualizerController {
     if (keys.length === 0) return;
     const commandParts = keys.map((key) => `${key}=${entries[key]}`);
     const command = `eq ${this.commandTarget} ${commandParts.join(" ")}`;
-    const change = this.session.getStore().patchEqualizer(this.id, entries);
-    if (change) this.session.applyStateChange(change);
+    const change = this.radio.getStore().patchEqualizer(this.id, entries);
+    if (change) this.radio.applyStateChange(change);
     try {
-      await this.session.command(command);
+      await this.radio.command(command);
     } catch (error) {
       try {
         await this.refresh();

@@ -1,6 +1,6 @@
 import type { WaterfallSnapshot, WaterfallStateChange } from "./state/index.js";
 import { TypedEventEmitter, type Subscription } from "../util/events.js";
-import { FlexClientClosedError, FlexStateUnavailableError } from "./errors.js";
+import { FlexStateUnavailableError } from "./errors.js";
 import {
   buildDisplaySetCommand,
   formatBooleanFlag,
@@ -26,7 +26,8 @@ export interface WaterfallUpdateRequest {
   gradientIndex?: number;
 }
 
-export interface WaterfallController extends Readonly<WaterfallSnapshot> {
+export interface WaterfallController
+  extends Readonly<Omit<WaterfallSnapshot, "raw">> {
   snapshot(): WaterfallSnapshot;
   on<TKey extends keyof WaterfallControllerEvents>(
     event: TKey,
@@ -41,35 +42,18 @@ export interface WaterfallController extends Readonly<WaterfallSnapshot> {
   close(): Promise<void>;
 }
 
-export interface WaterfallControllerImpl extends Readonly<WaterfallSnapshot> {}
 export class WaterfallControllerImpl implements WaterfallController {
   private readonly events = new TypedEventEmitter<WaterfallControllerEvents>();
-  private streamHandle?: string;
   private dataListeners = 0;
   private dataSubscription?: Subscription;
 
   constructor(
-    private readonly session: RadioSession,
+    private readonly radio: RadioSession,
     readonly id: string,
-    streamHandle?: string,
-  ) {
-    this.streamHandle = streamHandle;
-    return new Proxy(this, {
-      get(target, prop, receiver) {
-        if (Reflect.has(target, prop)) {
-          return Reflect.get(target, prop, receiver);
-        }
-        const snapshot = target.current();
-        if (snapshot && typeof prop === "string" && prop in snapshot) {
-          return (snapshot as unknown as Record<string, unknown>)[prop];
-        }
-        return undefined;
-      },
-    });
-  }
+  ) {}
 
-  current(): WaterfallSnapshot {
-    const snapshot = this.session.getStore().getWaterfall(this.id);
+  private current(): WaterfallSnapshot {
+    const snapshot = this.radio.getStore().getWaterfall(this.id);
     if (!snapshot) {
       throw new FlexStateUnavailableError(
         `Waterfall ${this.id} is no longer available`,
@@ -78,14 +62,134 @@ export class WaterfallControllerImpl implements WaterfallController {
     return snapshot;
   }
 
-  get state(): WaterfallSnapshot {
-    return this.current();
+  get streamId(): string {
+    return this.current().streamId;
+  }
+
+  get panadapterStreamId(): string {
+    return this.current().panadapterStreamId;
+  }
+
+  get width(): number {
+    return this.current().width;
+  }
+
+  get height(): number {
+    return this.current().height;
+  }
+
+  get lineSpeed(): number | undefined {
+    return this.current().lineSpeed;
   }
 
   get lineDurationMs(): number | undefined {
     const speed = this.current().lineSpeed;
     if (speed === undefined) return undefined;
     return lineSpeedToDurationMs(speed);
+  }
+
+  get blackLevel(): number {
+    return this.current().blackLevel;
+  }
+
+  get colorGain(): number {
+    return this.current().colorGain;
+  }
+
+  get autoBlackLevelEnabled(): boolean {
+    return this.current().autoBlackLevelEnabled;
+  }
+
+  get gradientIndex(): number {
+    return this.current().gradientIndex;
+  }
+
+  get clientHandle(): number {
+    return this.current().clientHandle;
+  }
+
+  get centerFrequencyMHz() {
+    return this.current().centerFrequencyMHz;
+  }
+
+  get bandwidthMHz() {
+    return this.current().bandwidthMHz;
+  }
+
+  get lowDbm() {
+    return this.current().lowDbm;
+  }
+
+  get highDbm() {
+    return this.current().highDbm;
+  }
+
+  get fps() {
+    return this.current().fps;
+  }
+
+  get average() {
+    return this.current().average;
+  }
+
+  get weightedAverage() {
+    return this.current().weightedAverage;
+  }
+
+  get rxAntenna() {
+    return this.current().rxAntenna;
+  }
+
+  get rfGain() {
+    return this.current().rfGain;
+  }
+
+  get rfGainLow() {
+    return this.current().rfGainLow;
+  }
+
+  get rfGainHigh() {
+    return this.current().rfGainHigh;
+  }
+
+  get rfGainStep() {
+    return this.current().rfGainStep;
+  }
+
+  get rfGainMarkers() {
+    return this.current().rfGainMarkers;
+  }
+
+  get daxIqChannel() {
+    return this.current().daxIqChannel;
+  }
+
+  get isBandZoomOn() {
+    return this.current().isBandZoomOn;
+  }
+
+  get isSegmentZoomOn() {
+    return this.current().isSegmentZoomOn;
+  }
+
+  get loopAEnabled() {
+    return this.current().loopAEnabled;
+  }
+
+  get loopBEnabled() {
+    return this.current().loopBEnabled;
+  }
+
+  get wideEnabled() {
+    return this.current().wideEnabled;
+  }
+
+  get band() {
+    return this.current().band;
+  }
+
+  get xvtr() {
+    return this.current().xvtr;
   }
 
   snapshot(): WaterfallSnapshot {
@@ -139,14 +243,10 @@ export class WaterfallControllerImpl implements WaterfallController {
 
   async close(): Promise<void> {
     this.teardownDataPipeline();
-    const stream = this.requireStreamHandle();
-    await this.session.command(`display panafall remove ${stream}`);
+    await this.radio.command(`display panafall remove ${this.id}`);
   }
 
   onStateChange(change: WaterfallStateChange): void {
-    if (change.diff?.streamId) {
-      this.streamHandle = change.diff.streamId;
-    }
     this.events.emit("change", change);
     if (change.removed) {
       this.teardownDataPipeline();
@@ -174,29 +274,17 @@ export class WaterfallControllerImpl implements WaterfallController {
     entries: Record<string, string>,
     extras: readonly string[] = [],
   ): Promise<void> {
-    const stream = this.requireStreamHandle();
     const command = buildDisplaySetCommand(
       "display panafall set",
-      stream,
+      this.id,
       entries,
       extras,
     );
-    const change = this.session
+    const change = this.radio
       .getStore()
-      .patchWaterfall(this.id, { stream_id: stream, ...entries });
-    if (change) this.session.applyStateChange(change);
-    await this.session.command(command);
-  }
-
-  private requireStreamHandle(): string {
-    const snapshot = this.session.getStore().getWaterfall(this.id);
-    if (snapshot?.streamId) {
-      this.streamHandle = snapshot.streamId;
-    }
-    if (!this.streamHandle) {
-      throw new FlexClientClosedError();
-    }
-    return this.streamHandle;
+      .patchWaterfall(this.id, { stream_id: this.id, ...entries });
+    if (change) this.radio.applyStateChange(change);
+    await this.radio.command(command);
   }
 
   private readonly handleStreamPacket: StreamPacketHandler = (packet) => {
@@ -207,7 +295,7 @@ export class WaterfallControllerImpl implements WaterfallController {
     if (this.dataSubscription) return;
     const streamNumericId = Number.parseInt(this.streamId, 16);
     if (!Number.isFinite(streamNumericId)) return;
-    this.dataSubscription = this.session.registerStreamHandler(
+    this.dataSubscription = this.radio.registerStreamHandler(
       streamNumericId,
       this.handleStreamPacket,
     );

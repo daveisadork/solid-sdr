@@ -88,273 +88,7 @@ export interface SliceUpdateRequest {
   diversityEnabled?: boolean;
 }
 
-export interface SliceController extends Readonly<SliceSnapshot> {}
-
-export interface SliceController {
-  readonly id: string;
-  readonly state: SliceSnapshot;
-  /**
-   * Slice center frequency in MHz (matches radio status reports).
-   */
-  readonly frequencyMHz: number;
-  /**
-   * Demodulation mode for the slice, e.g. "USB", "DIGU", "LSB", "DIGL", "CW", "DSB", "AM", "SAM", "FM".
-   */
-  readonly mode: string;
-  readonly sampleRateHz: number;
-  readonly indexLetter: string;
-  /**
-   * When true, the receive preselector filters in the radio are bypassed.
-   */
-  readonly isWide: boolean;
-  readonly isQskEnabled: boolean;
-  /**
-   * A list of the available RX antenna ports on the radio, e.g. "ANT1", "ANT2", "RX_A", "RX_B", "XVTR".
-   */
-  readonly availableRxAntennas: readonly string[];
-  /**
-   * A list of the available TX antenna ports on the radio, e.g. "ANT1", "ANT2", "XVTR".
-   */
-  readonly availableTxAntennas: readonly string[];
-  readonly owner: string;
-  readonly clientHandle: number;
-  /**
-   * Available demodulation modes for this slice.
-   */
-  readonly modeList: readonly string[];
-  /**
-   * Whether the slice is the active slice.
-   */
-  readonly isActive: boolean;
-  /**
-   * When true, the slice frequency is locked and cannot be changed.
-   */
-  readonly isLocked: boolean;
-  readonly isTransmitEnabled: boolean;
-  /**
-   * The receive antenna port for the slice, e.g. "ANT1", "ANT2", "RX_A", "RX_B", "XVTR".
-   */
-  readonly rxAntenna: string;
-  /**
-   * The transmit antenna port for the slice, e.g. "ANT1", "ANT2", "XVTR".
-   */
-  readonly txAntenna: string;
-  /**
-   * Stream ID of the panadapter associated with this slice.
-   */
-  readonly panadapterStreamId?: string;
-  /**
-   * DAX channel assigned to the slice (0–8).
-   */
-  readonly daxChannel: number;
-  readonly rfGain: number;
-  /**
-   * Slice receive filter low cut in Hz.
-   */
-  readonly filterLowHz: number;
-  /**
-   * Slice receive filter high cut in Hz.
-   */
-  readonly filterHighHz: number;
-  /**
-   * Slice RTTY mark offset in Hz.
-   */
-  readonly rttyMarkHz: number;
-  /**
-   * Slice RTTY shift offset in Hz.
-   */
-  readonly rttyShiftHz: number;
-  /**
-   * Slice DIGL offset in Hz.
-   */
-  readonly diglOffsetHz: number;
-  /**
-   * Slice DIGU offset in Hz.
-   */
-  readonly diguOffsetHz: number;
-  /**
-   * Left-right audio pan from 0 to 100 (50 centers the audio).
-   */
-  readonly audioPan: number;
-  /**
-   * Slice audio level from 0 to 100.
-   */
-  readonly audioGain: number;
-  /**
-   * Whether slice audio is muted.
-   */
-  readonly isMuted: boolean;
-  /**
-   * Whether the auto-notch filter (ANF) is enabled.
-   */
-  readonly anfEnabled: boolean;
-  /**
-   * Auto-notch filter (ANF) level from 0 to 100.
-   */
-  readonly anfLevel: number;
-  /**
-   * Whether the auto-peaking filter (APF) is enabled.
-   */
-  readonly apfEnabled: boolean;
-  /**
-   * Auto-peaking filter (APF) level from 0 to 100.
-   */
-  readonly apfLevel: number;
-  /**
-   * Whether the Wideband Noise Blanker (WNB) is enabled.
-   */
-  readonly wnbEnabled: boolean;
-  /**
-   * Wideband Noise Blanker (WNB) level from 0 to 100.
-   */
-  readonly wnbLevel: number;
-  /**
-   * Whether the Noise Blanker (NB) is enabled.
-   */
-  readonly nbEnabled: boolean;
-  /**
-   * Noise Blanker (NB) level from 0 to 100.
-   */
-  readonly nbLevel: number;
-  /**
-   * Whether the Noise Reduction (NR) is enabled.
-   */
-  readonly nrEnabled: boolean;
-  /**
-   * Noise Reduction (NR) level from 0 to 100.
-   */
-  readonly nrLevel: number;
-  /**
-   * Whether the LMS legacy noise reduction (NRL) is enabled for the slice.
-   */
-  readonly nrlEnabled: boolean;
-  /**
-   * LMS legacy noise reduction (NRL) level from 0 to 100.
-   */
-  readonly nrlLevel: number;
-  /**
-   * Whether the LMS legacy auto-notch filter (ANFL) is enabled for the slice.
-   */
-  readonly anflEnabled: boolean;
-  /**
-   * LMS legacy auto-notch filter (ANFL) level from 0 to 100.
-   */
-  readonly anflLevel: number;
-  /**
-   * Whether spectral subtraction noise reduction (NRS) is enabled for the slice.
-   */
-  readonly nrsEnabled: boolean;
-  /**
-   * Spectral subtraction noise reduction (NRS) level from 0 to 100.
-   */
-  readonly nrsLevel: number;
-  /**
-   * Whether AI (RNN) noise reduction is enabled for the slice.
-   */
-  readonly rnnEnabled: boolean;
-  /**
-   * Whether the FFT-based automatic notch filter (ANFT) is enabled for the slice.
-   */
-  readonly anftEnabled: boolean;
-  /**
-   * Whether noise reduction with filter (NRF) is enabled for the slice.
-   */
-  readonly nrfEnabled: boolean;
-  /**
-   * Noise reduction with filter (NRF) level from 0 to 100.
-   */
-  readonly nrfLevel: number;
-  /**
-   * Whether ESC (Enhanced Signal Clarity) processing is enabled for the slice.
-   */
-  readonly escEnabled: boolean;
-  /**
-   * Gain applied by the Enhanced Signal Clarity (ESC) processor.
-   */
-  readonly escGain: number;
-  /**
-   * Phase shift applied by the Enhanced Signal Clarity (ESC) processor.
-   */
-  readonly escPhaseShift: number;
-  /**
-   * Current AGC mode for the slice.
-   */
-  readonly agcMode: string;
-  readonly agcThreshold: number;
-  readonly agcOffLevel: number;
-  readonly loopAEnabled: boolean;
-  readonly loopBEnabled: boolean;
-  readonly ritEnabled: boolean;
-  readonly ritOffsetHz: number;
-  readonly xitEnabled: boolean;
-  readonly xitOffsetHz: number;
-  readonly tuneStepHz: number;
-  readonly tuneStepListHz: readonly number[];
-  /**
-   * Whether audio recording is enabled for the slice.
-   */
-  readonly recordingEnabled: boolean;
-  /**
-   * Whether the play button is enabled for the slice.
-   */
-  readonly playbackAvailable: boolean;
-  /**
-   * Whether audio recording playback is enabled for the slice.
-   */
-  readonly playbackEnabled: boolean;
-  readonly fmToneMode: string;
-  /**
-   * FM tone value; in most cases this is the repeater tone.
-   */
-  readonly fmToneValue: string;
-  /**
-   * Controls the FM deviation for the slice (also updates the transmitter when applicable).
-   */
-  readonly fmDeviation: number;
-  /**
-   * Whether the FM 1750 Hz tone burst (PL tone) is enabled.
-   */
-  readonly fmToneBurstEnabled: boolean;
-  /**
-   * Whether FM de-emphasis is enabled on receive (and pre-emphasis on transmit when this slice is the transmitter).
-   */
-  readonly fmPreDeEmphasisEnabled: boolean;
-  /**
-   * Whether the squelch algorithm is enabled for the slice.
-   */
-  readonly squelchEnabled: boolean;
-  /**
-   * Squelch level for modes with squelch (0–100).
-   */
-  readonly squelchLevel: number;
-  /**
-   * Transmit offset frequency in MHz.
-   */
-  readonly txOffsetFrequencyMHz: number;
-  /**
-   * FM repeater offset frequency used for wide splits in MHz.
-   */
-  readonly fmRepeaterOffsetMHz: number;
-  /**
-   * Direction that the transmit offset is applied in.
-   */
-  readonly repeaterOffsetDirection: string;
-  /**
-   * Whether the slice is treated as the diversity parent during diversity reception.
-   */
-  readonly diversityParent: boolean;
-  /**
-   * Whether simple diversity reception is enabled for the slice (FLEX-6700/FLEX-6700R only).
-   */
-  readonly diversityEnabled: boolean;
-  /**
-   * Whether the slice is the diversity child (FLEX-6700/FLEX-6700R only).
-   */
-  readonly diversityChild: boolean;
-  /**
-   * Index of the paired diversity slice.
-   */
-  readonly diversityIndex: number;
+export interface SliceController extends Readonly<Omit<SliceSnapshot, "raw">> {
   snapshot(): SliceSnapshot;
   on<TKey extends keyof SliceControllerEvents>(
     event: TKey,
@@ -593,30 +327,16 @@ export interface SliceController {
   close(): Promise<void>;
 }
 
-export interface SliceControllerImpl extends Readonly<SliceSnapshot> {}
-export class SliceControllerImpl {
+export class SliceControllerImpl implements SliceController {
   private readonly events = new TypedEventEmitter<SliceControllerEvents>();
 
   constructor(
-    private readonly session: RadioSession,
+    private readonly radio: RadioSession,
     readonly id: string,
-  ) {
-    return new Proxy(this, {
-      get(target, prop, receiver) {
-        if (Reflect.has(target, prop)) {
-          return Reflect.get(target, prop, receiver);
-        }
-        const snapshot = target.current();
-        if (snapshot && typeof prop === "string" && prop in snapshot) {
-          return (snapshot as unknown as Record<string, unknown>)[prop];
-        }
-        return undefined;
-      },
-    });
-  }
+  ) {}
 
-  current(): SliceSnapshot {
-    const snapshot = this.session.getStore().getSlice(this.id);
+  private current(): SliceSnapshot {
+    const snapshot = this.radio.getStore().getSlice(this.id);
     if (!snapshot)
       throw new FlexStateUnavailableError(
         `Slice ${this.id} is no longer available`,
@@ -624,12 +344,380 @@ export class SliceControllerImpl {
     return snapshot;
   }
 
-  get state(): SliceSnapshot {
-    return this.current();
+  get isInUse() {
+    return this.current().isInUse;
+  }
+
+  get daxIqChannel() {
+    return this.current().daxIqChannel;
+  }
+
+  get daxClientCount() {
+    return this.current().daxClientCount;
+  }
+
+  get postDemodLowHz() {
+    return this.current().postDemodLowHz;
+  }
+
+  get postDemodHighHz() {
+    return this.current().postDemodHighHz;
+  }
+
+  get postDemodBypass() {
+    return this.current().postDemodBypass;
+  }
+
+  get recordTimeSeconds() {
+    return this.current().recordTimeSeconds;
+  }
+
+  get squelchTriggeredWeight() {
+    return this.current().squelchTriggeredWeight;
+  }
+
+  get squelchAverageFactor() {
+    return this.current().squelchAverageFactor;
+  }
+
+  get squelchHangDelayMs() {
+    return this.current().squelchHangDelayMs;
+  }
+
+  get isDetached() {
+    return this.current().isDetached;
+  }
+
+  get rxErrorMilliHz() {
+    return this.current().rxErrorMilliHz;
+  }
+
+  get meterIds() {
+    return this.current().meterIds;
+  }
+
+  get maxInternalPaPowerWatts() {
+    return this.current().maxInternalPaPowerWatts;
+  }
+
+  get frequencyMHz(): number {
+    return this.current().frequencyMHz;
+  }
+
+  get mode(): string {
+    return this.current().mode;
+  }
+
+  get sampleRateHz(): number {
+    return this.current().sampleRateHz;
+  }
+
+  get indexLetter(): string {
+    return this.current().indexLetter;
+  }
+
+  get isWide(): boolean {
+    return this.current().isWide;
+  }
+
+  get isQskEnabled(): boolean {
+    return this.current().isQskEnabled;
+  }
+
+  get modeList(): readonly string[] {
+    return this.current().modeList;
+  }
+
+  get availableRxAntennas(): readonly string[] {
+    return this.current().availableRxAntennas;
+  }
+
+  get availableTxAntennas(): readonly string[] {
+    return this.current().availableTxAntennas;
+  }
+
+  get owner(): string {
+    return this.current().owner;
+  }
+
+  get clientHandle(): number {
+    return this.current().clientHandle;
+  }
+
+  get isActive(): boolean {
+    return this.current().isActive;
+  }
+
+  get isLocked(): boolean {
+    return this.current().isLocked;
+  }
+
+  get isTransmitEnabled(): boolean {
+    return this.current().isTransmitEnabled;
+  }
+
+  get rxAntenna(): string {
+    return this.current().rxAntenna;
+  }
+
+  get txAntenna(): string {
+    return this.current().txAntenna;
   }
 
   get panadapterStream(): string | undefined {
     return this.current().panadapterStreamId;
+  }
+
+  get panadapterStreamId(): string | undefined {
+    return this.current().panadapterStreamId;
+  }
+
+  get daxChannel(): number {
+    return this.current().daxChannel;
+  }
+
+  get rfGain(): number {
+    return this.current().rfGain;
+  }
+
+  get filterLowHz(): number {
+    return this.current().filterLowHz;
+  }
+
+  get filterHighHz(): number {
+    return this.current().filterHighHz;
+  }
+
+  get rttyMarkHz(): number {
+    return this.current().rttyMarkHz;
+  }
+
+  get rttyShiftHz(): number {
+    return this.current().rttyShiftHz;
+  }
+
+  get diglOffsetHz(): number {
+    return this.current().diglOffsetHz;
+  }
+
+  get diguOffsetHz(): number {
+    return this.current().diguOffsetHz;
+  }
+
+  get audioPan(): number {
+    return this.current().audioPan;
+  }
+
+  get audioGain(): number {
+    return this.current().audioGain;
+  }
+
+  get isMuted(): boolean {
+    return this.current().isMuted;
+  }
+
+  get anfEnabled(): boolean {
+    return this.current().anfEnabled;
+  }
+
+  get anfLevel(): number {
+    return this.current().anfLevel;
+  }
+
+  get apfEnabled(): boolean {
+    return this.current().apfEnabled;
+  }
+
+  get apfLevel(): number {
+    return this.current().apfLevel;
+  }
+
+  get wnbEnabled(): boolean {
+    return this.current().wnbEnabled;
+  }
+
+  get wnbLevel(): number {
+    return this.current().wnbLevel;
+  }
+
+  get nbEnabled(): boolean {
+    return this.current().nbEnabled;
+  }
+
+  get nbLevel(): number {
+    return this.current().nbLevel;
+  }
+
+  get nrEnabled(): boolean {
+    return this.current().nrEnabled;
+  }
+
+  get nrLevel(): number {
+    return this.current().nrLevel;
+  }
+
+  get nrlEnabled(): boolean {
+    return this.current().nrlEnabled;
+  }
+
+  get nrlLevel(): number {
+    return this.current().nrlLevel;
+  }
+
+  get anflEnabled(): boolean {
+    return this.current().anflEnabled;
+  }
+
+  get anflLevel(): number {
+    return this.current().anflLevel;
+  }
+
+  get nrsEnabled(): boolean {
+    return this.current().nrsEnabled;
+  }
+
+  get nrsLevel(): number {
+    return this.current().nrsLevel;
+  }
+
+  get rnnEnabled(): boolean {
+    return this.current().rnnEnabled;
+  }
+
+  get anftEnabled(): boolean {
+    return this.current().anftEnabled;
+  }
+
+  get nrfEnabled(): boolean {
+    return this.current().nrfEnabled;
+  }
+
+  get nrfLevel(): number {
+    return this.current().nrfLevel;
+  }
+
+  get escEnabled(): boolean {
+    return this.current().escEnabled;
+  }
+
+  get escGain(): number {
+    return this.current().escGain;
+  }
+
+  get escPhaseShift(): number {
+    return this.current().escPhaseShift;
+  }
+
+  get agcMode(): string {
+    return this.current().agcMode;
+  }
+
+  get agcThreshold(): number {
+    return this.current().agcThreshold;
+  }
+
+  get agcOffLevel(): number {
+    return this.current().agcOffLevel;
+  }
+
+  get loopAEnabled(): boolean {
+    return this.current().loopAEnabled;
+  }
+
+  get loopBEnabled(): boolean {
+    return this.current().loopBEnabled;
+  }
+
+  get ritEnabled(): boolean {
+    return this.current().ritEnabled;
+  }
+
+  get ritOffsetHz(): number {
+    return this.current().ritOffsetHz;
+  }
+
+  get xitEnabled(): boolean {
+    return this.current().xitEnabled;
+  }
+
+  get xitOffsetHz(): number {
+    return this.current().xitOffsetHz;
+  }
+
+  get tuneStepHz(): number {
+    return this.current().tuneStepHz;
+  }
+
+  get tuneStepListHz(): readonly number[] {
+    return this.current().tuneStepListHz;
+  }
+
+  get recordingEnabled(): boolean {
+    return this.current().recordingEnabled;
+  }
+
+  get playbackAvailable(): boolean {
+    return this.current().playbackAvailable;
+  }
+
+  get playbackEnabled(): boolean {
+    return this.current().playbackEnabled;
+  }
+
+  get fmToneMode(): string {
+    return this.current().fmToneMode;
+  }
+
+  get fmToneValue(): string {
+    return this.current().fmToneValue;
+  }
+
+  get fmDeviation(): number {
+    return this.current().fmDeviation;
+  }
+
+  get fmToneBurstEnabled(): boolean {
+    return this.current().fmToneBurstEnabled;
+  }
+
+  get fmPreDeEmphasisEnabled(): boolean {
+    return this.current().fmPreDeEmphasisEnabled;
+  }
+
+  get squelchEnabled(): boolean {
+    return this.current().squelchEnabled;
+  }
+
+  get squelchLevel(): number {
+    return this.current().squelchLevel;
+  }
+
+  get txOffsetFrequencyMHz(): number {
+    return this.current().txOffsetFrequencyMHz;
+  }
+
+  get fmRepeaterOffsetMHz(): number {
+    return this.current().fmRepeaterOffsetMHz;
+  }
+
+  get repeaterOffsetDirection(): string {
+    return this.current().repeaterOffsetDirection;
+  }
+
+  get diversityEnabled(): boolean {
+    return this.current().diversityEnabled;
+  }
+
+  get diversityChild(): boolean {
+    return this.current().diversityChild;
+  }
+
+  get diversityParent(): boolean {
+    return this.current().diversityParent;
+  }
+
+  get diversityIndex(): number {
+    return this.current().diversityIndex;
   }
 
   snapshot(): SliceSnapshot {
@@ -645,14 +733,14 @@ export class SliceControllerImpl {
 
   async setFrequency(frequencyMHz: number): Promise<void> {
     const formattedFrequency = formatMegahertz(frequencyMHz);
-    const change = this.session.getStore().patchSlice(this.id, {
+    const change = this.radio.getStore().patchSlice(this.id, {
       freq: formattedFrequency,
     });
-    if (change) this.session.applyStateChange(change);
+    if (change) this.radio.applyStateChange(change);
     try {
-      await this.session.command(`slice tune ${this.id} ${formattedFrequency}`);
+      await this.radio.command(`slice tune ${this.id} ${formattedFrequency}`);
     } catch (error) {
-      await this.session.command(`sub slice ${this.id}`);
+      await this.radio.command(`sub slice ${this.id}`);
       throw error;
     }
   }
@@ -667,7 +755,7 @@ export class SliceControllerImpl {
     if (options?.intermittent !== undefined) {
       parts.push(`int=${options.intermittent ? "1" : "0"}`);
     }
-    await this.session.command(parts.join(" "));
+    await this.radio.command(parts.join(" "));
   }
 
   async setMode(mode: string): Promise<void> {
@@ -682,14 +770,14 @@ export class SliceControllerImpl {
     const command = locked
       ? `slice lock ${this.id}`
       : `slice unlock ${this.id}`;
-    const change = this.session.getStore().patchSlice(this.id, {
+    const change = this.radio.getStore().patchSlice(this.id, {
       lock: formatBooleanFlag(locked),
     });
-    if (change) this.session.applyStateChange(change);
+    if (change) this.radio.applyStateChange(change);
     try {
-      await this.session.command(command);
+      await this.radio.command(command);
     } catch (error) {
-      await this.session.command(`sub slice ${this.id}`);
+      await this.radio.command(`sub slice ${this.id}`);
       throw error;
     }
   }
@@ -978,10 +1066,10 @@ export class SliceControllerImpl {
   }
 
   async close(): Promise<void> {
-    await this.session.command(`slice remove ${this.id}`);
-    const changes = this.session.getStore().removeSlice(this.id);
+    await this.radio.command(`slice remove ${this.id}`);
+    const changes = this.radio.getStore().removeSlice(this.id);
     if (changes) {
-      for (const change of changes) this.session.applyStateChange(change);
+      for (const change of changes) this.radio.applyStateChange(change);
     }
   }
 
@@ -994,12 +1082,14 @@ export class SliceControllerImpl {
       ([key, value]) => `${key}=${value}`,
     );
     const command = `slice set ${this.id} ${parts.join(" ")}`;
-    const change = this.session.getStore().patchSlice(this.id, { index: this.id, ...entries });
-    if (change) this.session.applyStateChange(change);
+    const change = this.radio
+      .getStore()
+      .patchSlice(this.id, { index: this.id, ...entries });
+    if (change) this.radio.applyStateChange(change);
     try {
-      await this.session.command(command);
+      await this.radio.command(command);
     } catch (error) {
-      await this.session.command(`sub slice ${this.id}`);
+      await this.radio.command(`sub slice ${this.id}`);
       throw error;
     }
   }
@@ -1008,16 +1098,16 @@ export class SliceControllerImpl {
     const low = formatInteger(lowHz);
     const high = formatInteger(highHz);
     const command = `filt ${this.id} ${low} ${high}`;
-    const change = this.session.getStore().patchSlice(this.id, {
+    const change = this.radio.getStore().patchSlice(this.id, {
       index: this.id,
       filter_lo: low,
       filter_hi: high,
     });
-    if (change) this.session.applyStateChange(change);
+    if (change) this.radio.applyStateChange(change);
     try {
-      await this.session.command(command);
+      await this.radio.command(command);
     } catch (error) {
-      await this.session.command(`sub slice ${this.id}`);
+      await this.radio.command(`sub slice ${this.id}`);
       throw error;
     }
   }

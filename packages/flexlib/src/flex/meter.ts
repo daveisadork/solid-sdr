@@ -22,19 +22,7 @@ export interface MeterControllerEvents {
   readonly data: MeterDataEvent;
 }
 
-export interface MeterController extends Readonly<MeterSnapshot> {}
-
-export interface MeterController {
-  readonly id: string;
-  readonly state: MeterSnapshot;
-  readonly source: string;
-  readonly sourceIndex: number;
-  readonly name: string;
-  readonly description: string;
-  readonly units: MeterUnits;
-  readonly low: number;
-  readonly high: number;
-  readonly fps: number;
+export interface MeterController extends Readonly<Omit<MeterSnapshot, "raw">> {
   /** Last scaled meter value, updated on each VITA packet. */
   readonly value: number | undefined;
   snapshot(): MeterSnapshot;
@@ -44,33 +32,19 @@ export interface MeterController {
   ): Subscription;
 }
 
-export interface MeterControllerImpl extends Readonly<MeterSnapshot> {}
-export class MeterControllerImpl {
+export class MeterControllerImpl implements MeterController {
   private readonly events = new TypedEventEmitter<MeterControllerEvents>();
   private dataListeners = 0;
   private dataSubscription?: Subscription;
   private _value: number | undefined;
 
   constructor(
-    private readonly session: RadioSession,
+    private readonly radio: RadioSession,
     readonly id: string,
-  ) {
-    return new Proxy(this, {
-      get(target, prop, receiver) {
-        if (Reflect.has(target, prop)) {
-          return Reflect.get(target, prop, receiver);
-        }
-        const snapshot = target.current();
-        if (snapshot && typeof prop === "string" && prop in snapshot) {
-          return (snapshot as unknown as Record<string, unknown>)[prop];
-        }
-        return undefined;
-      },
-    });
-  }
+  ) {}
 
-  current(): MeterSnapshot {
-    const snapshot = this.session.getStore().getMeter(this.id);
+  private current(): MeterSnapshot {
+    const snapshot = this.radio.getStore().getMeter(this.id);
     if (!snapshot) {
       throw new FlexStateUnavailableError(
         `Meter ${this.id} is no longer available`,
@@ -79,8 +53,36 @@ export class MeterControllerImpl {
     return snapshot;
   }
 
-  get state(): MeterSnapshot {
-    return this.current();
+  get source(): string {
+    return this.current().source;
+  }
+
+  get sourceIndex(): number {
+    return this.current().sourceIndex;
+  }
+
+  get name(): string {
+    return this.current().name;
+  }
+
+  get description(): string {
+    return this.current().description;
+  }
+
+  get units(): MeterUnits {
+    return this.current().units;
+  }
+
+  get low(): number {
+    return this.current().low;
+  }
+
+  get high(): number {
+    return this.current().high;
+  }
+
+  get fps(): number {
+    return this.current().fps;
   }
 
   get value(): number | undefined {
@@ -120,7 +122,7 @@ export class MeterControllerImpl {
     meterId,
     rawValue,
   ) => {
-    const snapshot = this.session.getStore().getMeter(this.id);
+    const snapshot = this.radio.getStore().getMeter(this.id);
     const units = snapshot?.units ?? "none";
     const scaled = scaleMeterRawValue(units, rawValue);
     this._value = scaled;
@@ -136,7 +138,7 @@ export class MeterControllerImpl {
     if (this.dataSubscription) return;
     const numericId = Number.parseInt(this.id, 10);
     if (!Number.isFinite(numericId)) return;
-    this.dataSubscription = this.session.registerMeterHandler(
+    this.dataSubscription = this.radio.registerMeterHandler(
       numericId,
       this.handleMeterValue,
     );

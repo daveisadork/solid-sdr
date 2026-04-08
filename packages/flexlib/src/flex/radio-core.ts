@@ -487,10 +487,7 @@ export class Radio {
     this.logger = options?.logger;
     this.store = createRadioStateStore({ logger: this.logger });
     this._apdController = new ApdControllerImpl(this);
-    this._featureLicenseController = new FeatureLicenseControllerImpl(
-      this,
-      () => this.store.getFeatureLicense(),
-    );
+    this._featureLicenseController = new FeatureLicenseControllerImpl(this);
 
     // Return a Proxy so that RadioSnapshot properties (nickname, sliceCount,
     // callsign, etc.) are readable directly on the Radio instance.

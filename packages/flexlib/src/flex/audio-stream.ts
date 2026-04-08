@@ -62,8 +62,6 @@ export interface RemoteAudioTxStreamController extends AudioStreamTxController {
   sendOpus(frame: Uint8Array): void;
 }
 
-export interface AudioStreamControllerImpl
-  extends Readonly<AudioStreamSnapshot> {}
 export class AudioStreamControllerImpl implements AudioStreamController {
   private readonly events =
     new TypedEventEmitter<AudioStreamControllerEvents>();
@@ -72,35 +70,50 @@ export class AudioStreamControllerImpl implements AudioStreamController {
   private dataSubscription?: Subscription;
 
   constructor(
-    protected readonly session: RadioSession,
+    protected readonly radio: RadioSession,
     readonly id: string,
-  ) {
-    const snapshot = this.session.getStore().getAudioStream(id);
-    if (snapshot) {
-      this.streamHandle = snapshot.streamId;
-    }
-    return new Proxy(this, {
-      get(target, prop, receiver) {
-        return Reflect.has(target, prop)
-          ? Reflect.get(target, prop, receiver)
-          : target.current()[prop as keyof AudioStreamSnapshot];
-      },
-    });
+  ) {}
+
+  get slice() {
+    return this.current().slice;
   }
 
-  current(): AudioStreamSnapshot {
-    const snapshot = this.session.getStore().getAudioStream(this.id);
+  get type() {
+    return this.current().type;
+  }
+
+  get compression() {
+    return this.current().compression;
+  }
+
+  get clientHandle() {
+    return this.current().clientHandle;
+  }
+
+  get ip() {
+    return this.current().ip;
+  }
+
+  get daxChannel() {
+    return this.current().daxChannel;
+  }
+
+  get streamId() {
+    return this.current().streamId;
+  }
+
+  get tx() {
+    return this.current().tx;
+  }
+
+  private current(): AudioStreamSnapshot {
+    const snapshot = this.radio.getStore().getAudioStream(this.id);
     if (!snapshot) {
       throw new FlexStateUnavailableError(
         `Audio stream ${this.id} is no longer available`,
       );
     }
-    this.streamHandle = snapshot.streamId;
     return snapshot;
-  }
-
-  get state(): AudioStreamSnapshot {
-    return this.current();
   }
 
   snapshot(): AudioStreamSnapshot {
@@ -127,13 +140,13 @@ export class AudioStreamControllerImpl implements AudioStreamController {
 
   async close(): Promise<void> {
     this.teardownDataPipeline();
-    const snapshot = this.session.getStore().getAudioStream(this.id);
+    const snapshot = this.radio.getStore().getAudioStream(this.id);
     const streamId = snapshot?.streamId ?? this.streamHandle;
     if (!streamId) return;
     this.streamHandle = streamId;
-    await this.session.command(`stream remove ${streamId}`);
-    const change = this.session.getStore().removeAudioStream(this.id);
-    if (change) this.session.applyStateChange(change);
+    await this.radio.command(`stream remove ${streamId}`);
+    const change = this.radio.getStore().removeAudioStream(this.id);
+    if (change) this.radio.applyStateChange(change);
   }
 
   onStateChange(change: AudioStreamStateChange): void {
@@ -163,9 +176,9 @@ export class AudioStreamControllerImpl implements AudioStreamController {
 
   private ensureDataPipeline(): void {
     if (this.dataSubscription) return;
-    const streamNumericId = parseStreamIdentifier(this.streamId);
+    const streamNumericId = parseStreamIdentifier(this.id);
     if (!Number.isFinite(streamNumericId)) return;
-    this.dataSubscription = this.session.registerStreamHandler(
+    this.dataSubscription = this.radio.registerStreamHandler(
       streamNumericId!,
       (packet) => {
         this.events.emit("data", packet);
@@ -211,7 +224,7 @@ export class AudioStreamTxControllerImpl
     pkt.left.set(left.subarray(0, frames));
     pkt.right.set(right.subarray(0, frames));
     this.txPacketCount = (this.txPacketCount + 1) & 0xf;
-    this.session.sendUdp(pkt.toBytes());
+    this.radio.sendUdp(pkt.toBytes());
   }
 
   sendReducedBwAudio(samples: Int16Array): void {
@@ -227,7 +240,7 @@ export class AudioStreamTxControllerImpl
     const count = Math.min(samples.length, DAX_PACKET_SAMPLES);
     pkt.samples.set(samples.subarray(0, count));
     this.txPacketCount = (this.txPacketCount + 1) & 0xf;
-    this.session.sendUdp(pkt.toBytes());
+    this.radio.sendUdp(pkt.toBytes());
   }
 }
 
@@ -247,7 +260,7 @@ export class RemoteAudioTxStreamControllerImpl
     const pkt = this.opusPkt;
     pkt.streamId = numericId;
     pkt.payload = frame;
-    this.session.sendUdp(pkt.toBytes());
+    this.radio.sendUdp(pkt.toBytes());
   }
 }
 

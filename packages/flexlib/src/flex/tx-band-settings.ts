@@ -12,7 +12,7 @@ export interface TxBandSettingControllerEvents {
 }
 
 export interface TxBandSettingController
-  extends Readonly<TxBandSettingSnapshot> {
+  extends Readonly<Omit<TxBandSettingSnapshot, "raw">> {
   snapshot(): TxBandSettingSnapshot;
   setHwAlcEnabled(enabled: boolean): Promise<void>;
   setTunePower(level: number): Promise<void>;
@@ -30,27 +30,57 @@ export interface TxBandSettingController
   ): Subscription;
 }
 
-export interface TxBandSettingControllerImpl
-  extends Readonly<TxBandSettingSnapshot> {}
 export class TxBandSettingControllerImpl implements TxBandSettingController {
   private readonly events =
     new TypedEventEmitter<TxBandSettingControllerEvents>();
 
   constructor(
-    private readonly session: RadioSession,
+    private readonly radio: RadioSession,
     readonly id: string,
-  ) {
-    return new Proxy(this, {
-      get(target, prop, receiver) {
-        return Reflect.has(target, prop)
-          ? Reflect.get(target, prop, receiver)
-          : target.current()[prop as keyof TxBandSettingSnapshot];
-      },
-    });
-  }
+  ) {}
 
   snapshot(): TxBandSettingSnapshot {
     return this.current();
+  }
+
+  get bandName(): string | undefined {
+    return this.current().bandName;
+  }
+
+  get tunePower(): number | undefined {
+    return this.current().tunePower;
+  }
+
+  get rfPower(): number | undefined {
+    return this.current().rfPower;
+  }
+
+  get pttInhibit(): boolean | undefined {
+    return this.current().pttInhibit;
+  }
+
+  get accTxReqEnabled(): boolean | undefined {
+    return this.current().accTxReqEnabled;
+  }
+
+  get rcaTxReqEnabled(): boolean | undefined {
+    return this.current().rcaTxReqEnabled;
+  }
+
+  get accTxEnabled(): boolean | undefined {
+    return this.current().accTxEnabled;
+  }
+
+  get rcaTx1Enabled(): boolean | undefined {
+    return this.current().rcaTx1Enabled;
+  }
+
+  get rcaTx2Enabled(): boolean | undefined {
+    return this.current().rcaTx2Enabled;
+  }
+
+  get rcaTx3Enabled(): boolean | undefined {
+    return this.current().rcaTx3Enabled;
   }
 
   async setHwAlcEnabled(enabled: boolean): Promise<void> {
@@ -126,8 +156,8 @@ export class TxBandSettingControllerImpl implements TxBandSettingController {
     this.events.emit("change", change);
   }
 
-  current(): TxBandSettingSnapshot {
-    const snapshot = this.session.getStore().getTxBandSetting(this.id);
+  private current(): TxBandSettingSnapshot {
+    const snapshot = this.radio.getStore().getTxBandSetting(this.id);
     if (!snapshot) {
       throw new FlexStateUnavailableError(
         `TX band ${this.id} is not available`,
@@ -144,8 +174,8 @@ export class TxBandSettingControllerImpl implements TxBandSettingController {
       ([key, value]) => `${key}=${value}`,
     );
     const command = `${namespace} bandset ${this.id} ${parts.join(" ")}`;
-    await this.session.command(command);
-    const change = this.session.getStore().patchTxBandSetting(this.id, entries);
-    if (change) this.session.applyStateChange(change);
+    await this.radio.command(command);
+    const change = this.radio.getStore().patchTxBandSetting(this.id, entries);
+    if (change) this.radio.applyStateChange(change);
   }
 }

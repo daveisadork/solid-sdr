@@ -1,4 +1,11 @@
-import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  onCleanup,
+  Show,
+} from "solid-js";
 import { Sidebar, SidebarContent } from "~/components/ui/sidebar";
 import {
   Accordion,
@@ -53,11 +60,14 @@ import { EqualizerBand } from "@repo/flexlib/flex/state/equalizer";
 import { Button } from "./ui/button";
 
 const PROCESSOR_LEVELS = ["Norm", "DX", "DX+"];
+const VOICE_MODES = new Set(["USB", "LSB", "AM", "SAM", "FM", "NFM"]);
 
 function TxSection() {
   const { state, radio } = useFlexRadio();
   const [txProfiles, setTxProfiles] = createStore<string[]>([]);
   const [rawRfPower, setRawRfPower] = createSignal(0);
+  const [fwdPwrWatts, setFwdPwrWatts] = createSignal(0);
+  const [refPwrWatts, setRefPwrWatts] = createSignal(0);
 
   const setRfPower = (value: number) => {
     if (value !== state.status.radio.rfPower) {
@@ -86,12 +96,19 @@ function TxSection() {
     Object.values(state.status.meter).find((meter) => meter.name === "REFPWR"),
   );
 
-  const fwdPwrWatts = createMemo(() =>
-    dbmToWatts(fwdPwrMeter()?.value ?? 0, 1),
-  );
-  const refPwrWatts = createMemo(() =>
-    dbmToWatts(refPwrMeter()?.value ?? 0, 1),
-  );
+  createEffect(() => {
+    const sub = radio()
+      ?.meter(fwdPwrMeter()?.id)
+      ?.on("data", (event) => setFwdPwrWatts(dbmToWatts(event.value, 1)));
+    onCleanup(() => sub?.unsubscribe());
+  });
+
+  createEffect(() => {
+    const sub = radio()
+      ?.meter(refPwrMeter()?.id)
+      ?.on("data", (event) => setRefPwrWatts(dbmToWatts(event.value, 1)));
+    onCleanup(() => sub?.unsubscribe());
+  });
 
   const swr = createMemo(() => {
     const fwdWatts = fwdPwrWatts();
@@ -117,7 +134,7 @@ function TxSection() {
                   value={
                     state.status.radio.interlockTxClientHandle ===
                     state.clientHandleInt
-                      ? dbmToWatts(meter.value, 0)
+                      ? fwdPwrWatts()
                       : 0
                   }
                   getValueLabel={({ value }) => `${value} W`}
@@ -290,6 +307,8 @@ function MicSection() {
   const { state, radio } = useFlexRadio();
   const [micInputList, setMicInputList] = createStore<string[]>([]);
   const [micProfileList, setMicProfileList] = createStore<string[]>([]);
+  const [micPeakValue, setMicPeakValue] = createSignal(-150);
+  const [compPeakValue, setCompPeakValue] = createSignal(-150);
 
   createEffect(() => setMicInputList(state?.status?.radio?.micInputList ?? []));
   createEffect(() =>
@@ -310,6 +329,29 @@ function MicSection() {
     ),
   );
 
+  createEffect(() => {
+    if (!state.status.radio.meterInRx && !state.status.radio.mox)
+      return setMicPeakValue(-150);
+
+    const sub = radio()
+      ?.meter(micPeakMeter()?.id)
+      ?.on("data", ({ value }) => setMicPeakValue(roundToDecimals(value, 1)));
+    onCleanup(() => sub?.unsubscribe());
+  });
+
+  createEffect(() => {
+    if (
+      !VOICE_MODES.has(state.status.radio.txMode) ||
+      (!state.status.radio.meterInRx && !state.status.radio.mox) ||
+      !state.status.radio.speechProcessorEnabled
+    )
+      return setCompPeakValue(-150);
+    const sub = radio()
+      ?.meter(compPeakMeter()?.id)
+      ?.on("data", ({ value }) => setCompPeakValue(roundToDecimals(value, 1)));
+    onCleanup(() => sub?.unsubscribe());
+  });
+
   return (
     <div class="flex flex-col gap-3">
       <Show when={micMeter()}>
@@ -318,12 +360,15 @@ function MicSection() {
           return (
             <SimpleMeter
               meter={meter}
-              peakValue={micPeakMeter()?.value}
+              peakValue={micPeakValue()}
+              value={
+                !state.status.radio.meterInRx && !state.status.radio.mox
+                  ? -150
+                  : undefined
+              }
               minValue={-40}
               maxValue={0}
-              getValueLabel={() =>
-                `${roundToDecimals(meter.value, 1).toFixed(1)} dB`
-              }
+              getValueLabel={() => `${micPeakValue().toFixed(1)} dB`}
               label="AF Input Level"
               showTicks
               showTickLabels
@@ -339,20 +384,22 @@ function MicSection() {
           return (
             <SimpleMeter
               meter={meter}
-              // this meter is a little different in that it shows the amount of gain reduction
-              // being applied by the compressor, with the meter filling from the right instead of the left.
-              // the radio won't send a null value, instead doing something like value ?? meter.low, when
-              // in this case we'd rather have meter.high. so we do a small hack.
-              value={meter.value > meter.low ? meter.value : 0}
+              // this meter sucks. the description is "Signal strength of signals just before CLIPPER (Compression)"
+              // and indeed the value generally tracks just a bit higher than the mic input level, but SmartSDR
+              // renders it inverted (a -25-0 meter that fills from right to left) as if it represents gain reduction
+              // in dB or something, even though it doesn't. we're just trying to match SmartSDR behavior here, even
+              // though it seems inaccurate.
+              value={compPeakValue()}
               minValue={-25}
               maxValue={0}
-              getValueLabel={({ value }) =>
-                `${roundToDecimals(value, 1).toFixed(1)} dB`
+              getValueLabel={({ value, min }) =>
+                `${roundToDecimals(min - value, 1).toFixed(1)} dB`
               }
               label="Compression"
               class="bg-linear-to-l/decreasing"
               style={{
-                "clip-path": "inset(0 0 0 var(--kb-meter-fill-width))",
+                "clip-path":
+                  "inset(0 0 0 calc(100% - var(--kb-meter-fill-width)))",
               }}
               showTicks
               showTickLabels

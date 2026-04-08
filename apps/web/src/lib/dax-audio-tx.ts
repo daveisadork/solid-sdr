@@ -1,7 +1,4 @@
-import {
-  VitaDaxAudioPacket,
-  VitaDaxReducedBwPacket,
-} from "@repo/flexlib/vita";
+import type { AudioStreamTxController } from "@repo/flexlib";
 
 const DAX_PACKET_SAMPLES = 128;
 
@@ -49,11 +46,11 @@ export class DaxAudioTx {
   });
   private readonly source: MediaStreamAudioSourceNode;
   private readonly mute: GainNode;
-  private readonly streamId: number;
   private readonly leftQueue: number[] = [];
   private readonly rightQueue: number[] = [];
-  private readonly audioPkt: VitaDaxAudioPacket;
-  private readonly reducedBwPkt: VitaDaxReducedBwPacket;
+  private readonly leftBuf = new Float32Array(DAX_PACKET_SAMPLES);
+  private readonly rightBuf = new Float32Array(DAX_PACKET_SAMPLES);
+  private readonly int16Buf = new Int16Array(DAX_PACKET_SAMPLES);
   private worklet?: AudioWorkletNode;
   private analyser?: AnalyserNode;
   private analyserBuf?: Float32Array;
@@ -62,28 +59,16 @@ export class DaxAudioTx {
   private peakHoldFrames = 0;
   private static readonly PEAK_HOLD = 120;
   private static readonly PEAK_DECAY = 0.2;
-  private packetCount = 0;
   private started = false;
 
   constructor(
-    private readonly data: RTCDataChannel,
-    streamId: string,
+    private readonly controller: AudioStreamTxController,
     private readonly reducedBw = false,
     stream: MediaStream,
   ) {
-    this.streamId = parseStreamId(streamId);
     this.source = this.context.createMediaStreamSource(stream);
     this.mute = this.context.createGain();
     this.mute.gain.value = 0;
-
-    this.audioPkt = new VitaDaxAudioPacket();
-    this.audioPkt.streamId = this.streamId;
-    this.audioPkt.left = new Float32Array(DAX_PACKET_SAMPLES);
-    this.audioPkt.right = new Float32Array(DAX_PACKET_SAMPLES);
-
-    this.reducedBwPkt = new VitaDaxReducedBwPacket();
-    this.reducedBwPkt.streamId = this.streamId;
-    this.reducedBwPkt.samples = new Int16Array(DAX_PACKET_SAMPLES);
   }
 
   async start(): Promise<void> {
@@ -95,7 +80,9 @@ export class DaxAudioTx {
         outputChannelCount: [2],
       });
 
-      worklet.port.onmessage = (event: MessageEvent<{ left: Float32Array; right: Float32Array }>) => {
+      worklet.port.onmessage = (
+        event: MessageEvent<{ left: Float32Array; right: Float32Array }>,
+      ) => {
         const { left, right } = event.data;
         for (let i = 0; i < left.length; i += 1) {
           this.leftQueue.push(left[i]);
@@ -103,32 +90,24 @@ export class DaxAudioTx {
         }
 
         while (this.leftQueue.length >= DAX_PACKET_SAMPLES) {
-          let packet: Uint8Array;
           if (this.reducedBw) {
-            this.reducedBwPkt.header.packetCount = this.packetCount;
-            const s = this.reducedBwPkt.samples;
+            const s = this.int16Buf;
             for (let i = 0; i < DAX_PACKET_SAMPLES; i += 1) {
               s[i] = Math.round(clamp(this.leftQueue[i]) * 32767);
             }
-            packet = this.reducedBwPkt.toBytes();
+            this.controller.sendReducedBwAudio(s);
           } else {
-            this.audioPkt.header.packetCount = this.packetCount;
-            const l = this.audioPkt.left;
-            const r = this.audioPkt.right;
+            const l = this.leftBuf;
+            const r = this.rightBuf;
             for (let i = 0; i < DAX_PACKET_SAMPLES; i += 1) {
               l[i] = clamp(this.leftQueue[i]);
               r[i] = clamp(this.rightQueue[i]);
             }
-            packet = this.audioPkt.toBytes();
+            this.controller.sendAudio(l, r);
           }
 
           this.leftQueue.splice(0, DAX_PACKET_SAMPLES);
           this.rightQueue.splice(0, DAX_PACKET_SAMPLES);
-          this.packetCount = (this.packetCount + 1) % 16;
-
-          if (this.data.readyState === "open") {
-            this.data.send(packet.buffer as ArrayBuffer);
-          }
         }
       };
 
@@ -151,7 +130,9 @@ export class DaxAudioTx {
 
   getLevel(): number {
     if (!this.analyser || !this.analyserBuf) return -Infinity;
-    this.analyser.getFloatTimeDomainData(this.analyserBuf as Float32Array<ArrayBuffer>);
+    this.analyser.getFloatTimeDomainData(
+      this.analyserBuf as Float32Array<ArrayBuffer>,
+    );
     let sum = 0;
     let maxAbs = 0;
     for (const s of this.analyserBuf) {
@@ -174,22 +155,18 @@ export class DaxAudioTx {
     return 20 * Math.log10(Math.max(this.smoothedRms, 1e-7));
   }
 
-  get peak(): number { return this._peak; }
+  get peak(): number {
+    return this._peak;
+  }
 
   async close(): Promise<void> {
+    console.log("Closing dax tx");
+    this.worklet?.port.close();
     this.worklet?.disconnect();
     this.mute.disconnect();
     this.source.disconnect();
     await this.context.close();
   }
-}
-
-function parseStreamId(streamId: string): number {
-  const trimmed = streamId.trim();
-  if (trimmed.startsWith("0x") || trimmed.startsWith("0X")) {
-    return Number.parseInt(trimmed.slice(2), 16);
-  }
-  return Number.parseInt(trimmed, 10);
 }
 
 function clamp(sample: number): number {

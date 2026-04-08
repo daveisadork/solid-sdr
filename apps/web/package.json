@@ -10,7 +10,7 @@
     "dev:server": "vite build --watch",
     "build": "vite build",
     "serve": "vite preview",
-    "typecheck": "tsc --noEmit",
+    "check-types": "tsc --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix"
   },

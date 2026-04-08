@@ -1,30 +1,19 @@
 import { TypedEventEmitter, type Subscription } from "../util/events.js";
-import type { FlexCommandResponse } from "./adapters.js";
 import { clampInteger, formatBooleanFlag } from "./controller-helpers.js";
 import { FlexStateUnavailableError } from "./errors.js";
 import type {
   TxBandSettingSnapshot,
   TxBandSettingStateChange,
 } from "./state/index.js";
+import type { RadioSession } from "./radio-core.js";
 
-export interface TxBandSettingControllerEvents
-  extends Record<string, unknown> {
+export interface TxBandSettingControllerEvents {
   readonly change: TxBandSettingStateChange;
 }
 
-export interface TxBandSettingController {
-  readonly id: string;
+export interface TxBandSettingController
+  extends Readonly<Omit<TxBandSettingSnapshot, "raw">> {
   snapshot(): TxBandSettingSnapshot;
-  get bandName(): string | undefined;
-  get tunePower(): number | undefined;
-  get rfPower(): number | undefined;
-  get pttInhibit(): boolean | undefined;
-  get accTxReqEnabled(): boolean | undefined;
-  get rcaTxReqEnabled(): boolean | undefined;
-  get accTxEnabled(): boolean | undefined;
-  get rcaTx1Enabled(): boolean | undefined;
-  get rcaTx2Enabled(): boolean | undefined;
-  get rcaTx3Enabled(): boolean | undefined;
   setHwAlcEnabled(enabled: boolean): Promise<void>;
   setTunePower(level: number): Promise<void>;
   setRfPower(level: number): Promise<void>;
@@ -41,18 +30,12 @@ export interface TxBandSettingController {
   ): Subscription;
 }
 
-interface TxBandSettingSessionApi {
-  command(command: string): Promise<FlexCommandResponse>;
-  patchTxBandSetting(id: string, attributes: Record<string, string>): void;
-  getTxBandSetting(id: string): TxBandSettingSnapshot | undefined;
-}
-
 export class TxBandSettingControllerImpl implements TxBandSettingController {
   private readonly events =
     new TypedEventEmitter<TxBandSettingControllerEvents>();
 
   constructor(
-    private readonly session: TxBandSettingSessionApi,
+    private readonly radio: RadioSession,
     readonly id: string,
   ) {}
 
@@ -174,7 +157,7 @@ export class TxBandSettingControllerImpl implements TxBandSettingController {
   }
 
   private current(): TxBandSettingSnapshot {
-    const snapshot = this.session.getTxBandSetting(this.id);
+    const snapshot = this.radio.getStore().getTxBandSetting(this.id);
     if (!snapshot) {
       throw new FlexStateUnavailableError(
         `TX band ${this.id} is not available`,
@@ -191,7 +174,8 @@ export class TxBandSettingControllerImpl implements TxBandSettingController {
       ([key, value]) => `${key}=${value}`,
     );
     const command = `${namespace} bandset ${this.id} ${parts.join(" ")}`;
-    await this.session.command(command);
-    this.session.patchTxBandSetting(this.id, entries);
+    await this.radio.command(command);
+    const change = this.radio.getStore().patchTxBandSetting(this.id, entries);
+    if (change) this.radio.applyStateChange(change);
   }
 }

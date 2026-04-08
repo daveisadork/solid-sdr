@@ -1,9 +1,6 @@
-import type {
-  FlexCommandOptions,
-  FlexCommandResponse,
-} from "./adapters.js";
 import { TypedEventEmitter, type Subscription } from "../util/events.js";
 import { FlexStateUnavailableError } from "./errors.js";
+import type { RadioSession } from "./radio-core.js";
 import {
   EQUALIZER_BANDS,
   type EqualizerBand,
@@ -19,17 +16,14 @@ import { clampInteger, formatBooleanFlag } from "./controller-helpers.js";
 const LEVEL_MIN = -10;
 const LEVEL_MAX = 10;
 
-export interface EqualizerControllerEvents extends Record<string, unknown> {
+export interface EqualizerControllerEvents {
   readonly change: EqualizerStateChange;
 }
 
 export type EqualizerLevelUpdate = Partial<Record<EqualizerBand, number>>;
 
-export interface EqualizerController {
-  readonly id: EqualizerId;
-  readonly state: EqualizerSnapshot;
-  readonly enabled: boolean;
-  readonly levels: EqualizerBandLevels;
+export interface EqualizerController
+  extends Readonly<Omit<EqualizerSnapshot, "raw">> {
   getLevel(band: EqualizerBand): number;
   snapshot(): EqualizerSnapshot;
   setEnabled(enabled: boolean): Promise<void>;
@@ -42,25 +36,16 @@ export interface EqualizerController {
   ): Subscription;
 }
 
-export interface EqualizerSessionApi {
-  command(
-    command: string,
-    options?: FlexCommandOptions,
-  ): Promise<FlexCommandResponse>;
-  patchEqualizer(id: EqualizerId, attributes: Record<string, string>): void;
-  getEqualizer(id: EqualizerId): EqualizerSnapshot | undefined;
-}
-
 export class EqualizerControllerImpl implements EqualizerController {
   private readonly events = new TypedEventEmitter<EqualizerControllerEvents>();
 
   constructor(
-    private readonly session: EqualizerSessionApi,
+    private readonly radio: RadioSession,
     readonly id: EqualizerId,
   ) {}
 
   private current(): EqualizerSnapshot {
-    const snapshot = this.session.getEqualizer(this.id);
+    const snapshot = this.radio.getStore().getEqualizer(this.id);
     if (!snapshot) {
       throw new FlexStateUnavailableError(
         `Equalizer ${this.id.toUpperCase()} is not available`,
@@ -69,12 +54,12 @@ export class EqualizerControllerImpl implements EqualizerController {
     return snapshot;
   }
 
-  get state(): EqualizerSnapshot {
-    return this.current();
-  }
-
   get enabled(): boolean {
     return this.current().enabled;
+  }
+
+  get bands(): EqualizerBandLevels {
+    return this.current().bands;
   }
 
   get levels(): EqualizerBandLevels {
@@ -110,7 +95,7 @@ export class EqualizerControllerImpl implements EqualizerController {
   }
 
   async refresh(): Promise<void> {
-    await this.session.command(`eq ${this.commandTarget} info`);
+    await this.radio.command(`eq ${this.commandTarget} info`);
   }
 
   on<TKey extends keyof EqualizerControllerEvents>(
@@ -129,9 +114,10 @@ export class EqualizerControllerImpl implements EqualizerController {
     if (keys.length === 0) return;
     const commandParts = keys.map((key) => `${key}=${entries[key]}`);
     const command = `eq ${this.commandTarget} ${commandParts.join(" ")}`;
-    this.session.patchEqualizer(this.id, entries);
+    const change = this.radio.getStore().patchEqualizer(this.id, entries);
+    if (change) this.radio.applyStateChange(change);
     try {
-      await this.session.command(command);
+      await this.radio.command(command);
     } catch (error) {
       try {
         await this.refresh();

@@ -26,6 +26,16 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
+    "./node": {
+      "types": "./dist/node.d.ts",
+      "import": "./dist/node.js",
+      "require": "./dist/node.cjs"
+    },
+    "./bridge": {
+      "types": "./dist/bridge.d.ts",
+      "import": "./dist/bridge.js",
+      "require": "./dist/bridge.cjs"
+    },
     "./flex": {
       "types": "./dist/flex.d.ts",
       "import": "./dist/flex.js",
@@ -48,6 +58,7 @@
     "build": "tsdown",
     "test": "vitest",
     "typecheck": "tsc --noEmit",
+    "check-types": "tsc --noEmit",
     "lint": "eslint src tests",
     "lint:fix": "eslint src tests --fix",
     "format": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",

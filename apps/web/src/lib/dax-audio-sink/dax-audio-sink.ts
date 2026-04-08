@@ -100,10 +100,10 @@ export class DaxAudioSink {
   play(event: AudioStreamDataEvent): void {
     if (!this.worker) return;
 
-    const { kind, metadata } = event;
+    const { kind, header } = event;
     this.maybeResume();
 
-    const seq = metadata.header.packetCount;
+    const seq = header.packetCount;
 
     if (kind === "daxAudio") {
       const pkt = event.packet as VitaDaxAudioPacket;

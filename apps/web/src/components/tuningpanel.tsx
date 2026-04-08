@@ -408,6 +408,13 @@ export function TuningPanel(props: {
         label="Show TX in Waterfall"
       />
       <SimpleSwitch
+        checked={state.status.radio.meterInRx}
+        onChange={(isChecked) => {
+          radio()?.setMeterInRxEnabled(isChecked);
+        }}
+        label="Meters in RX"
+      />
+      <SimpleSwitch
         checked={props.panadapter.isBandZoomOn}
         onChange={(isChecked) => {
           props.panadapterController.setBandZoom(isChecked);

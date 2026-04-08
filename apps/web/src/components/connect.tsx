@@ -25,7 +25,7 @@ export default function Connect() {
   const { client, connect, disconnect, state } = useFlexRadio();
   const [radios, setRadios] = createStore<Record<string, FlexRadioDescriptor>>(
     client()
-      .getRadios()
+      .radios()
       .reduce((acc, radio) => {
         acc[radio.descriptor.host] = { ...radio.descriptor };
         return acc;
@@ -65,15 +65,15 @@ export default function Connect() {
   };
 
   onMount(() => {
-    const radioClient = client();
+    const flexClient = client();
     const clientSubscriptions = [
-      radioClient.on("radioDiscovered", (handle) =>
-        updateDiscoveryRadio(handle.descriptor),
+      flexClient.on("radioDiscovered", (radio) =>
+        updateDiscoveryRadio(radio.descriptor),
       ),
-      radioClient.on("radioChange", (change) =>
-        updateDiscoveryRadio(radioClient.radio(change.radioSerial)?.descriptor),
+      flexClient.on("radioUpdated", (radio) =>
+        updateDiscoveryRadio(radio.descriptor),
       ),
-      radioClient.on("radioLost", ({ serial, endpoint }) => {
+      flexClient.on("radioLost", ({ serial, endpoint }) => {
         setRadios((radios) => {
           const next = { ...radios };
           const removalKey =
@@ -89,14 +89,14 @@ export default function Connect() {
       }),
     ];
 
-    radioClient.startDiscovery().catch((error) => {
+    flexClient.startDiscovery().catch((error) => {
       console.error("Failed to start discovery session", error);
     });
 
     onCleanup(() => {
       console.log("Cleaning up discovery subscriptions and session");
       for (const sub of clientSubscriptions) sub.unsubscribe();
-      radioClient
+      flexClient
         .stopDiscovery()
         .catch((error) =>
           console.error("Failed to stop discovery session", error),

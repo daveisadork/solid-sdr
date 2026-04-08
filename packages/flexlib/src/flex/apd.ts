@@ -1,30 +1,15 @@
-import type {
-  FlexCommandOptions,
-  FlexCommandResponse,
-} from "./adapters.js";
 import { TypedEventEmitter, type Subscription } from "../util/events.js";
 import { FlexStateUnavailableError } from "./errors.js";
 import type { ApdSnapshot } from "./state/apd.js";
 import type { ApdStateChange } from "./state/index.js";
 import { formatBooleanFlag } from "./controller-helpers.js";
+import type { RadioSession } from "./radio-core.js";
 
-export interface ApdControllerEvents extends Record<string, unknown> {
+export interface ApdControllerEvents {
   readonly change: ApdStateChange;
 }
 
-export interface ApdController {
-  readonly enabled: boolean;
-  readonly configurable: boolean;
-  readonly equalizerActive: boolean;
-  readonly equalizerCalibrating: boolean;
-  readonly antenna: string | undefined;
-  readonly frequencyMHz: number | undefined;
-  readonly txErrorMilliHz: number | undefined;
-  readonly rxErrorMilliHz: number | undefined;
-  readonly sliceId: string | undefined;
-  readonly mmx: number | undefined;
-  readonly clientHandle: number | undefined;
-  readonly sampleIndex: number | undefined;
+export interface ApdController extends Readonly<Omit<ApdSnapshot, "raw">> {
   snapshot(): ApdSnapshot | undefined;
   setEnabled(enabled: boolean): Promise<void>;
   on<TKey extends keyof ApdControllerEvents>(
@@ -34,30 +19,21 @@ export interface ApdController {
   onStateChange(change: ApdStateChange): void;
 }
 
-export interface ApdSessionApi {
-  command(
-    command: string,
-    options?: FlexCommandOptions,
-  ): Promise<FlexCommandResponse>;
-  patchApd(attributes: Record<string, string>): void;
-  getApd(): ApdSnapshot | undefined;
-}
-
 export class ApdControllerImpl implements ApdController {
   private readonly events = new TypedEventEmitter<ApdControllerEvents>();
 
-  constructor(private readonly session: ApdSessionApi) {}
+  constructor(private readonly radio: RadioSession) {}
 
   private current(): ApdSnapshot {
-    const snapshot = this.session.getApd();
+    const snapshot = this.radio.getStore().getApd();
     if (!snapshot) {
       throw new FlexStateUnavailableError("APD status is not available");
     }
     return snapshot;
   }
 
-  snapshot(): ApdSnapshot | undefined {
-    return this.session.getApd();
+  snapshot(): ApdSnapshot {
+    return this.current();
   }
 
   get enabled(): boolean {
@@ -110,11 +86,12 @@ export class ApdControllerImpl implements ApdController {
 
   async setEnabled(enabled: boolean): Promise<void> {
     const flag = formatBooleanFlag(enabled);
-    this.session.patchApd({ enable: flag });
+    const change = this.radio.getStore().patchApd({ enable: flag });
+    if (change) this.radio.applyStateChange(change);
     try {
-      await this.session.command(`apd enable=${flag}`);
+      await this.radio.command(`apd enable=${flag}`);
     } catch (error) {
-      await this.session.command("sub apd all");
+      await this.radio.command("sub apd all");
       throw error;
     }
   }

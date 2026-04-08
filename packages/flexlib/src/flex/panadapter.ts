@@ -1,16 +1,10 @@
-import type { FlexCommandOptions, FlexCommandResponse } from "./adapters.js";
 import type {
   PanadapterSnapshot,
   PanadapterStateChange,
 } from "./state/index.js";
 import { TypedEventEmitter, type Subscription } from "../util/events.js";
-import {
-  FlexClientClosedError,
-  FlexError,
-  FlexStateUnavailableError,
-} from "./errors.js";
+import { FlexError, FlexStateUnavailableError } from "./errors.js";
 import { parseRfGainInfo } from "./rf-gain.js";
-import type { RfGainInfo } from "./rf-gain.js";
 import {
   buildDisplaySetCommand,
   clampInteger,
@@ -20,11 +14,12 @@ import {
   formatInteger,
   formatMegahertz,
 } from "./controller-helpers.js";
-import type { UdpPacketEvent, UdpScope, UdpSession } from "./udp-session.js";
+import type { RadioSession } from "./radio-core.js";
+import type { VitaParsedPacket } from "../vita/parser.js";
 
-export interface PanadapterControllerEvents extends Record<string, unknown> {
+export interface PanadapterControllerEvents {
   readonly change: PanadapterStateChange;
-  readonly data: UdpPacketEvent<"panadapter">;
+  readonly data: VitaParsedPacket;
 }
 
 export interface PanadapterUpdateRequest {
@@ -60,74 +55,8 @@ export interface PanadapterUpdateRequest {
   loggerDisplayRadioNum?: number;
 }
 
-export interface PanadapterSessionApi {
-  command(
-    command: string,
-    options?: FlexCommandOptions,
-  ): Promise<FlexCommandResponse>;
-  getPanadapter(id: string): PanadapterSnapshot | undefined;
-  patchPanadapter(id: string, attributes: Record<string, string>): void;
-  applyPanadapterRfGainInfo(id: string, info: RfGainInfo): void;
-  readonly udp: UdpSession;
-}
-
-export interface PanadapterController {
-  readonly id: string;
-  readonly state: PanadapterSnapshot;
-  readonly streamId: string;
-  readonly band: string;
-  readonly centerFrequencyMHz: number;
-  readonly bandwidthMHz: number;
-  readonly autoCenterEnabled: boolean;
-  readonly minBandwidthMHz: number;
-  readonly maxBandwidthMHz: number;
-  readonly lowDbm: number;
-  readonly highDbm: number;
-  readonly fps: number;
-  readonly average: number;
-  readonly weightedAverage: boolean;
-  readonly isBandZoomOn: boolean;
-  readonly isSegmentZoomOn: boolean;
-  /**
-   * Whether the Wideband Noise Blanker (WNB) is enabled for the panadapter.
-   */
-  readonly wnbEnabled: boolean;
-  /**
-   * Wideband Noise Blanker (WNB) level from 0 to 100.
-   */
-  readonly wnbLevel: number;
-  /**
-   * Whether the noise blanker is currently updating.
-   */
-  readonly wnbUpdating: boolean;
-  readonly noiseFloorPosition: number;
-  readonly noiseFloorPositionEnabled: boolean;
-  readonly rxAntenna: string;
-  readonly rfGain: number;
-  readonly rfGainLow: number;
-  readonly rfGainHigh: number;
-  readonly rfGainStep: number;
-  readonly rfGainMarkers: readonly number[];
-  readonly daxIqChannel: number;
-  readonly daxIqRate: number;
-  readonly width: number;
-  readonly height: number;
-  /**
-   * Available RX antenna ports for the radio, e.g. "ANT1", "ANT2", "RX_A", "RX_B", "XVTR".
-   */
-  readonly rxAntennas: readonly string[];
-  readonly loopAEnabled: boolean;
-  readonly loopBEnabled: boolean;
-  readonly wideEnabled: boolean;
-  readonly loggerDisplayEnabled: boolean;
-  readonly loggerDisplayAddress: string;
-  readonly loggerDisplayPort: number;
-  readonly loggerDisplayRadioNum: number;
-  readonly waterfallStreamId: string;
-  readonly attachedSlices: readonly string[];
-  readonly clientHandle: number;
-  readonly xvtr: string;
-  readonly preampSetting: string;
+export interface PanadapterController
+  extends Readonly<Omit<PanadapterSnapshot, "raw">> {
   snapshot(): PanadapterSnapshot;
   on<TKey extends keyof PanadapterControllerEvents>(
     event: TKey,
@@ -175,31 +104,22 @@ export interface PanadapterController {
 
 export class PanadapterControllerImpl implements PanadapterController {
   private readonly events = new TypedEventEmitter<PanadapterControllerEvents>();
-  private streamHandle?: string;
   private dataListeners = 0;
-  private dataScope?: UdpScope<"panadapter">;
   private dataSubscription?: Subscription;
 
   constructor(
-    private readonly session: PanadapterSessionApi,
+    private readonly radio: RadioSession,
     readonly id: string,
-    streamHandle?: string,
-  ) {
-    this.streamHandle = streamHandle;
-  }
+  ) {}
 
   private current(): PanadapterSnapshot {
-    const snapshot = this.session.getPanadapter(this.id);
+    const snapshot = this.radio.getStore().getPanadapter(this.id);
     if (!snapshot) {
       throw new FlexStateUnavailableError(
         `Panadapter ${this.id} is no longer available`,
       );
     }
     return snapshot;
-  }
-
-  get state(): PanadapterSnapshot {
-    return this.current();
   }
 
   get streamId(): string {
@@ -538,9 +458,8 @@ export class PanadapterControllerImpl implements PanadapterController {
   }
 
   async refreshRfGainInfo(): Promise<void> {
-    const stream = this.requireStreamHandle();
-    const response = await this.session.command(
-      `display pan rfgain_info ${stream}`,
+    const response = await this.radio.command(
+      `display pan rfgain_info ${this.id}`,
     );
     if (!response.message) {
       throw new FlexError("Flex radio returned no RF gain info");
@@ -551,13 +470,15 @@ export class PanadapterControllerImpl implements PanadapterController {
         `Unable to parse RF gain info reply: ${response.message}`,
       );
     }
-    this.session.applyPanadapterRfGainInfo(this.id, info);
+    const change = this.radio
+      .getStore()
+      .applyPanadapterRfGainInfo(this.id, info);
+    if (change) this.radio.applyStateChange(change);
   }
 
   async clickTune(frequencyMHz: number): Promise<void> {
-    const stream = this.requireStreamHandle();
-    const command = `slice m ${formatMegahertz(frequencyMHz)} pan=${stream}`;
-    await this.session.command(command);
+    const command = `slice m ${formatMegahertz(frequencyMHz)} pan=${this.id}`;
+    await this.radio.command(command);
   }
 
   async update(request: PanadapterUpdateRequest): Promise<void> {
@@ -572,14 +493,10 @@ export class PanadapterControllerImpl implements PanadapterController {
 
   async close(): Promise<void> {
     this.teardownDataPipeline();
-    const stream = this.requireStreamHandle();
-    await this.session.command(`display pan remove ${stream}`);
+    await this.radio.command(`display pan remove ${this.id}`);
   }
 
   onStateChange(change: PanadapterStateChange): void {
-    if (change.diff?.streamId) {
-      this.streamHandle = change.diff.streamId;
-    }
     this.events.emit("change", change);
     if (change.removed) {
       this.teardownDataPipeline();
@@ -655,13 +572,15 @@ export class PanadapterControllerImpl implements PanadapterController {
   }
 
   private async sendSet(entries: Record<string, string>): Promise<void> {
-    const stream = this.requireStreamHandle();
-    const command = buildDisplaySetCommand("display pan set", stream, entries);
-    this.session.patchPanadapter(this.id, { stream_id: stream, ...entries });
+    const command = buildDisplaySetCommand("display pan set", this.id, entries);
+    const change = this.radio
+      .getStore()
+      .patchPanadapter(this.id, { stream_id: this.id, ...entries });
+    if (change) this.radio.applyStateChange(change);
     try {
-      await this.session.command(command);
+      await this.radio.command(command);
     } catch (error) {
-      await this.session.command("sub pan all");
+      await this.radio.command("sub pan all");
       throw error;
     }
   }
@@ -670,13 +589,15 @@ export class PanadapterControllerImpl implements PanadapterController {
     if (this.dataSubscription) return;
     const streamNumericId = Number.parseInt(this.streamId, 16);
     if (!Number.isFinite(streamNumericId)) return;
-    this.dataScope = this.session.udp.scope(
-      "panadapter",
-      (event) => event.metadata.streamId === streamNumericId,
+    this.dataSubscription = this.radio.registerStreamHandler(
+      streamNumericId,
+      (packet) => {
+        this.events.emit(
+          "data",
+          packet as unknown as PanadapterControllerEvents["data"],
+        );
+      },
     );
-    this.dataSubscription = this.dataScope.on((event) => {
-      this.events.emit("data", event);
-    });
   }
 
   private handleDataUnsubscribe(): void {
@@ -690,19 +611,6 @@ export class PanadapterControllerImpl implements PanadapterController {
   private teardownDataPipeline(): void {
     this.dataSubscription?.unsubscribe();
     this.dataSubscription = undefined;
-    this.dataScope?.removeAll();
-    this.dataScope = undefined;
-  }
-
-  private requireStreamHandle(): string {
-    const snapshot = this.session.getPanadapter(this.id);
-    if (snapshot?.streamId) {
-      this.streamHandle = snapshot.streamId;
-    }
-    if (!this.streamHandle) {
-      throw new FlexClientClosedError();
-    }
-    return this.streamHandle;
   }
 
   /**
@@ -710,9 +618,10 @@ export class PanadapterControllerImpl implements PanadapterController {
    * bandwidth updates can include the `autocenter` flag.
    */
   private applyAutoCenter(enabled: boolean): void {
-    this.session.patchPanadapter(this.id, {
+    const change = this.radio.getStore().patchPanadapter(this.id, {
       auto_center: formatBooleanFlag(enabled),
     });
+    if (change) this.radio.applyStateChange(change);
   }
 
   private clampBandwidth(

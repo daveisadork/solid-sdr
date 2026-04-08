@@ -1,10 +1,4 @@
-import type {
-  Clock,
-  DiscoveryAdapter,
-  FlexRadioDescriptor,
-  Logger,
-} from "./adapters.js";
-import { parseVitaPacket } from "../vita/parser.js";
+import type { FlexRadioDescriptor } from "./adapters.js";
 import { parseDiscoveredGuiClients } from "./gui-client.js";
 import {
   parseBooleanFlag,
@@ -13,116 +7,7 @@ import {
   valueOrUndefined,
 } from "../util/parsers.js";
 
-const DEFAULT_CLOCK: Clock = { now: () => Date.now() };
-
-export interface DiscoveryTransport {
-  close(): Promise<void>;
-}
-
-export interface DiscoveryTransportHandlers {
-  onMessage(data: Uint8Array): void;
-  onError?(error: unknown): void;
-}
-
-export interface DiscoveryTransportFactory {
-  start(handlers: DiscoveryTransportHandlers): Promise<DiscoveryTransport>;
-}
-
-export interface VitaDiscoveryAdapterOptions {
-  transportFactory: DiscoveryTransportFactory;
-  clock?: Clock;
-  logger?: Logger;
-  offlineTimeoutMs?: number;
-  defaultProtocol?: "tcp" | "tls";
-}
-
-export function createVitaDiscoveryAdapter(
-  options: VitaDiscoveryAdapterOptions,
-): DiscoveryAdapter {
-  const clock = options.clock ?? DEFAULT_CLOCK;
-  const logger = options.logger;
-  const offlineTimeout =
-    options.offlineTimeoutMs !== undefined ? options.offlineTimeoutMs : 20_000;
-  const defaultProtocol = options.defaultProtocol ?? "tcp";
-
-  return {
-    async start(callbacks) {
-      const timers = new Map<string, ReturnType<typeof setTimeout>>();
-      let stopped = false;
-
-      const clearTimers = () => {
-        for (const timer of timers.values()) clearTimeout(timer);
-        timers.clear();
-      };
-
-      const scheduleOffline =
-        offlineTimeout > 0 && callbacks.onOffline
-          ? (serial: string) => {
-              const existing = timers.get(serial);
-              if (existing !== undefined) clearTimeout(existing);
-              const timeoutId = setTimeout(() => {
-                timers.delete(serial);
-                if (!stopped) callbacks.onOffline?.(serial);
-              }, offlineTimeout);
-              timers.set(serial, timeoutId);
-            }
-          : undefined;
-
-      const handleError = (error: unknown) => {
-        if (stopped) return;
-        if (callbacks.onError) callbacks.onError(error);
-        else logger?.warn?.("discovery adapter error", { error });
-      };
-
-      const handleMessage = (data: Uint8Array) => {
-        if (stopped) return;
-
-        try {
-          const parsed = parseVitaPacket(
-            data instanceof Uint8Array ? data : new Uint8Array(data),
-          );
-          if (!parsed || parsed.kind !== "discovery") return;
-
-          const now = clock.now();
-          const descriptor = decodeDiscoveryPayload(
-            parsed.packet.payload,
-            now,
-            defaultProtocol,
-          );
-
-          scheduleOffline?.(descriptor.serial);
-          callbacks.onOnline(descriptor);
-        } catch (error) {
-          handleError(error);
-        }
-      };
-
-      let transport: DiscoveryTransport;
-      try {
-        transport = await options.transportFactory.start({
-          onMessage: handleMessage,
-          onError: handleError,
-        });
-      } catch (error) {
-        handleError(error);
-        throw error;
-      }
-
-      return {
-        async stop() {
-          if (stopped) return;
-          stopped = true;
-          clearTimers();
-          await transport.close();
-        },
-      };
-    },
-  };
-}
-
-export function parseDiscoveryPayload(
-  payload: string,
-): Map<string, string> {
+export function parseDiscoveryPayload(payload: string): Map<string, string> {
   const map = new Map<string, string>();
   const text = payload.trim();
   if (!text) return map;
@@ -155,8 +40,10 @@ export function decodeDiscoveryPayload(
   const availableSlices =
     parseInteger(fields.get("available_slices"), "available_slices") ?? 0;
   const availablePanadapters =
-    parseInteger(fields.get("available_panadapters"), "available_panadapters") ??
-    0;
+    parseInteger(
+      fields.get("available_panadapters"),
+      "available_panadapters",
+    ) ?? 0;
 
   if (!serial) throw new Error("Discovery payload missing serial");
   if (!model) throw new Error("Discovery payload missing model");

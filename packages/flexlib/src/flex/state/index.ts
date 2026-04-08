@@ -145,6 +145,8 @@ export interface RadioStateSnapshot {
 }
 
 export interface RadioStateStore {
+  /** Clear all state, returning the store to its initial empty state. */
+  reset(): void;
   apply(message: FlexStatusMessage): RadioStateChange[];
   snapshot(): RadioStateSnapshot;
   getSlice(id: string): SliceSnapshot | undefined;
@@ -227,7 +229,24 @@ export function createRadioStateStore(
   let apd: ApdSnapshot | undefined;
   let localClientHandle: number | undefined;
 
+  function reset(): void {
+    slices.clear();
+    panadapters.clear();
+    waterfalls.clear();
+    meters.clear();
+    audioStreams.clear();
+    guiClients.clear();
+    guiClientsByHandle.clear();
+    equalizers.clear();
+    txBandSettings.clear();
+    radio = undefined as unknown as RadioSnapshot;
+    featureLicense = undefined;
+    apd = undefined;
+    localClientHandle = undefined;
+  }
+
   return {
+    reset,
     apply(message) {
       switch (message.source) {
         case "slice":

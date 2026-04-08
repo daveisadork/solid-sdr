@@ -26,24 +26,7 @@ export interface WaterfallUpdateRequest {
   gradientIndex?: number;
 }
 
-export interface WaterfallController extends Readonly<WaterfallSnapshot> {}
-
-export interface WaterfallController {
-  readonly id: string;
-  readonly state: WaterfallSnapshot;
-  readonly streamId: string;
-  readonly panadapterStreamId: string;
-  readonly width: number;
-  readonly height: number;
-  /** Raw 0-100 line speed as reported by the radio. */
-  readonly lineSpeed: number | undefined;
-  /** Derived line duration in milliseconds computed from lineSpeed. */
-  readonly lineDurationMs: number | undefined;
-  readonly blackLevel: number;
-  readonly colorGain: number;
-  readonly autoBlackLevelEnabled: boolean;
-  readonly gradientIndex: number;
-  readonly clientHandle: number;
+export interface WaterfallController extends Readonly<WaterfallSnapshot> {
   snapshot(): WaterfallSnapshot;
   on<TKey extends keyof WaterfallControllerEvents>(
     event: TKey,
@@ -59,7 +42,7 @@ export interface WaterfallController {
 }
 
 export interface WaterfallControllerImpl extends Readonly<WaterfallSnapshot> {}
-export class WaterfallControllerImpl {
+export class WaterfallControllerImpl implements WaterfallController {
   private readonly events = new TypedEventEmitter<WaterfallControllerEvents>();
   private streamHandle?: string;
   private dataListeners = 0;
@@ -198,7 +181,9 @@ export class WaterfallControllerImpl {
       entries,
       extras,
     );
-    const change = this.session.getStore().patchWaterfall(this.id, { stream_id: stream, ...entries });
+    const change = this.session
+      .getStore()
+      .patchWaterfall(this.id, { stream_id: stream, ...entries });
     if (change) this.session.applyStateChange(change);
     await this.session.command(command);
   }

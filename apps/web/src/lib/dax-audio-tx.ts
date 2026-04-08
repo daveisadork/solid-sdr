@@ -80,7 +80,9 @@ export class DaxAudioTx {
         outputChannelCount: [2],
       });
 
-      worklet.port.onmessage = (event: MessageEvent<{ left: Float32Array; right: Float32Array }>) => {
+      worklet.port.onmessage = (
+        event: MessageEvent<{ left: Float32Array; right: Float32Array }>,
+      ) => {
         const { left, right } = event.data;
         for (let i = 0; i < left.length; i += 1) {
           this.leftQueue.push(left[i]);
@@ -128,7 +130,9 @@ export class DaxAudioTx {
 
   getLevel(): number {
     if (!this.analyser || !this.analyserBuf) return -Infinity;
-    this.analyser.getFloatTimeDomainData(this.analyserBuf as Float32Array<ArrayBuffer>);
+    this.analyser.getFloatTimeDomainData(
+      this.analyserBuf as Float32Array<ArrayBuffer>,
+    );
     let sum = 0;
     let maxAbs = 0;
     for (const s of this.analyserBuf) {
@@ -151,9 +155,13 @@ export class DaxAudioTx {
     return 20 * Math.log10(Math.max(this.smoothedRms, 1e-7));
   }
 
-  get peak(): number { return this._peak; }
+  get peak(): number {
+    return this._peak;
+  }
 
   async close(): Promise<void> {
+    console.log("Closing dax tx");
+    this.worklet?.port.close();
     this.worklet?.disconnect();
     this.mute.disconnect();
     this.source.disconnect();

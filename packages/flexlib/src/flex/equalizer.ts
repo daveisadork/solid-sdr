@@ -22,13 +22,8 @@ export interface EqualizerControllerEvents {
 
 export type EqualizerLevelUpdate = Partial<Record<EqualizerBand, number>>;
 
-export interface EqualizerController extends Readonly<EqualizerSnapshot> {}
-
-export interface EqualizerController {
-  readonly id: EqualizerId;
-  readonly state: EqualizerSnapshot;
-  readonly enabled: boolean;
-  readonly levels: EqualizerBandLevels;
+export interface EqualizerController
+  extends Readonly<Omit<EqualizerSnapshot, "raw">> {
   getLevel(band: EqualizerBand): number;
   snapshot(): EqualizerSnapshot;
   setEnabled(enabled: boolean): Promise<void>;
@@ -42,7 +37,7 @@ export interface EqualizerController {
 }
 
 export interface EqualizerControllerImpl extends Readonly<EqualizerSnapshot> {}
-export class EqualizerControllerImpl {
+export class EqualizerControllerImpl implements EqualizerController {
   private readonly events = new TypedEventEmitter<EqualizerControllerEvents>();
 
   constructor(
@@ -51,14 +46,9 @@ export class EqualizerControllerImpl {
   ) {
     return new Proxy(this, {
       get(target, prop, receiver) {
-        if (Reflect.has(target, prop)) {
-          return Reflect.get(target, prop, receiver);
-        }
-        const snapshot = target.current();
-        if (snapshot && typeof prop === "string" && prop in snapshot) {
-          return (snapshot as unknown as Record<string, unknown>)[prop];
-        }
-        return undefined;
+        return Reflect.has(target, prop)
+          ? Reflect.get(target, prop, receiver)
+          : target.current()[prop as keyof EqualizerSnapshot];
       },
     });
   }
@@ -71,10 +61,6 @@ export class EqualizerControllerImpl {
       );
     }
     return snapshot;
-  }
-
-  get state(): EqualizerSnapshot {
-    return this.current();
   }
 
   get levels(): EqualizerBandLevels {

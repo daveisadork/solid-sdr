@@ -2,7 +2,11 @@ import type {
   FeatureLicenseFeature,
   FeatureLicenseSnapshot,
 } from "./state/feature-license.js";
-import type { RadioSession, RadioCommandOptions, RadioCommandResponse } from "./radio-core.js";
+import type {
+  RadioSession,
+  RadioCommandOptions,
+  RadioCommandResponse,
+} from "./radio-core.js";
 
 export type { FeatureLicenseFeature } from "./state/feature-license.js";
 
@@ -16,9 +20,7 @@ export interface FeatureLicenseController {
   ): Promise<RadioCommandResponse>;
 }
 
-export class FeatureLicenseControllerImpl
-  implements FeatureLicenseController
-{
+export class FeatureLicenseControllerImpl implements FeatureLicenseController {
   constructor(
     private readonly session: RadioSession,
     private readonly getSnapshot: () => FeatureLicenseSnapshot | undefined,

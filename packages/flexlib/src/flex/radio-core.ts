@@ -449,7 +449,9 @@ export class Radio {
   private readonly meterControllers = new Map<string, MeterControllerImpl>();
   private readonly audioControllers = new Map<
     string,
-    AudioStreamControllerImpl
+    | AudioStreamControllerImpl
+    | AudioStreamTxControllerImpl
+    | RemoteAudioTxStreamControllerImpl
   >();
   private readonly equalizerControllers = new Map<
     EqualizerId,
@@ -496,15 +498,10 @@ export class Radio {
     return new Proxy(this, {
       get(target, prop, receiver) {
         // Own properties and methods take precedence
-        if (Reflect.has(target, prop)) {
-          return Reflect.get(target, prop, receiver);
-        }
-        // Delegate to the current radio snapshot
-        const snapshot = target.store.getRadio();
-        if (snapshot && typeof prop === "string" && prop in snapshot) {
-          return (snapshot as unknown as Record<string, unknown>)[prop];
-        }
-        return undefined;
+        return Reflect.has(target, prop)
+          ? Reflect.get(target, prop, receiver)
+          : // Delegate to the current radio snapshot
+            target.store.getRadio()?.[prop as keyof RadioSnapshot];
       },
     });
   }
@@ -618,7 +615,11 @@ export class Radio {
     );
   }
 
-  audioStreams(): AudioStreamController[] {
+  audioStreams(): Array<
+    | AudioStreamController
+    | AudioStreamTxController
+    | RemoteAudioTxStreamController
+  > {
     return Array.from(this.audioControllers.values());
   }
 
@@ -628,8 +629,16 @@ export class Radio {
       id,
       this.audioControllers,
       () => {
-        if (!this.store.getAudioStream(id)) return undefined;
-        return new AudioStreamControllerImpl(this, id);
+        const stream = this.store.getAudioStream(id);
+        if (!stream) return undefined;
+        switch (stream.type) {
+          case "dax_tx":
+            return new AudioStreamTxControllerImpl(this, id);
+          case "remote_audio_tx":
+            return new RemoteAudioTxStreamControllerImpl(this, id);
+          default:
+            return new AudioStreamControllerImpl(this, id);
+        }
       },
     );
   }
@@ -1044,8 +1053,16 @@ export class Radio {
           change as Identified,
           this.audioControllers,
           () => {
-            if (!this.store.getAudioStream(change.id)) return undefined;
-            return new AudioStreamControllerImpl(this, change.id);
+            const stream = this.store.getAudioStream(change.id);
+            if (!stream) return undefined;
+            switch (stream.type) {
+              case "dax_tx":
+                return new AudioStreamTxControllerImpl(this, change.id);
+              case "remote_audio_tx":
+                return new RemoteAudioTxStreamControllerImpl(this, change.id);
+              default:
+                return new AudioStreamControllerImpl(this, change.id);
+            }
           },
         );
         break;

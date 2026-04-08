@@ -21,7 +21,11 @@ import useFlexRadio from "~/context/flexradio";
 import { usePreferences } from "~/context/preferences";
 import MaterialSymbolsMic from "~icons/material-symbols/mic";
 import MaterialSymbolsSpeaker from "~icons/material-symbols/speaker";
-import { type AudioStreamController } from "@repo/flexlib";
+import {
+  type AudioStreamTxController,
+  type RemoteAudioTxStreamController,
+  type AudioStreamController,
+} from "@repo/flexlib";
 import {
   Popover,
   PopoverContent,
@@ -93,7 +97,6 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
   const [remoteAudioTxStreamId, setRemoteAudioTxStreamId] = createSignal<
     string | undefined
   >();
-  const [daxTxStreamId, setDaxTxStreamId] = createSignal<string | undefined>();
   const [daxRxMeters, setDaxRxMeters] = createStore<
     Record<number, { level: number; peak: number }>
   >({});
@@ -102,6 +105,9 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
   const [daxTxInstance, setDaxTxInstance] = createSignal<
     DaxAudioTx | undefined
   >();
+
+  const [daxTxController, setDaxTxController] =
+    createSignal<AudioStreamTxController>();
   const outputs = createSpeakers();
   const inputs = createMicrophones();
 
@@ -147,13 +153,6 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
             stream.type === "remote_audio_tx",
         )?.streamId,
       );
-      setDaxTxStreamId(
-        Object.values(state.status.audioStream).find(
-          (stream) =>
-            stream.clientHandle === state.clientHandleInt &&
-            stream.type === "dax_tx",
-        )?.streamId,
-      );
     }),
   );
 
@@ -168,7 +167,7 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
         });
   });
 
-  createEffect((promise?: Promise<AudioStreamController>) => {
+  createEffect((promise?: Promise<RemoteAudioTxStreamController>) => {
     if (!state.clientHandle || !preferences.enableRemoteAudio) return;
     return remoteAudioTxStreamId()
       ? onCleanup(() =>
@@ -191,13 +190,18 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
     });
   }
 
-  createEffect((promise?: Promise<AudioStreamController>) => {
+  createEffect(() => {
     if (!state.clientHandle || !preferences.daxTxConfig.enabled) return;
-    return daxTxStreamId()
-      ? onCleanup(() =>
-          promise?.then((stream) => radio()?.audioStream(stream.id)?.close()),
-        )
-      : radio()?.createDaxTxAudioStream();
+    const promise = radio()?.createDaxTxAudioStream();
+    promise?.then(setDaxTxController);
+    onCleanup(() => {
+      setDaxTxController(undefined);
+      promise?.then((controller) =>
+        controller.close().catch(() => {
+          // this throws an error if the radio is already disconnected
+        }),
+      );
+    });
   });
 
   createEffect(() => {
@@ -224,10 +228,7 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
   });
 
   createEffect(() => {
-    const streamId = daxTxStreamId();
-    const currentRadio = radio();
-    if (!currentRadio || !streamId) return;
-    const controller = currentRadio.audioStream(streamId);
+    const controller = daxTxController();
     if (!controller) return;
     const reducedBandwidth = preferences.daxTxConfig.reducedBandwidth;
 
@@ -236,9 +237,6 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
     });
 
     const daxPromise = streamPromise.then(async (stream) => {
-      stream.getAudioTracks().forEach((track) => {
-        console.log("DAX TX ", track.getSettings());
-      });
       const tx = new DaxAudioTx(controller, reducedBandwidth, stream);
       await tx.start();
       setDaxTxInstance(tx);

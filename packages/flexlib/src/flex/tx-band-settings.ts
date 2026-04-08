@@ -7,26 +7,13 @@ import type {
 } from "./state/index.js";
 import type { RadioSession } from "./radio-core.js";
 
-export interface TxBandSettingControllerEvents
-  {
+export interface TxBandSettingControllerEvents {
   readonly change: TxBandSettingStateChange;
 }
 
-export interface TxBandSettingController extends Readonly<TxBandSettingSnapshot> {}
-
-export interface TxBandSettingController {
-  readonly id: string;
+export interface TxBandSettingController
+  extends Readonly<TxBandSettingSnapshot> {
   snapshot(): TxBandSettingSnapshot;
-  get bandName(): string | undefined;
-  get tunePower(): number | undefined;
-  get rfPower(): number | undefined;
-  get pttInhibit(): boolean | undefined;
-  get accTxReqEnabled(): boolean | undefined;
-  get rcaTxReqEnabled(): boolean | undefined;
-  get accTxEnabled(): boolean | undefined;
-  get rcaTx1Enabled(): boolean | undefined;
-  get rcaTx2Enabled(): boolean | undefined;
-  get rcaTx3Enabled(): boolean | undefined;
   setHwAlcEnabled(enabled: boolean): Promise<void>;
   setTunePower(level: number): Promise<void>;
   setRfPower(level: number): Promise<void>;
@@ -43,8 +30,9 @@ export interface TxBandSettingController {
   ): Subscription;
 }
 
-export interface TxBandSettingControllerImpl extends Readonly<TxBandSettingSnapshot> {}
-export class TxBandSettingControllerImpl {
+export interface TxBandSettingControllerImpl
+  extends Readonly<TxBandSettingSnapshot> {}
+export class TxBandSettingControllerImpl implements TxBandSettingController {
   private readonly events =
     new TypedEventEmitter<TxBandSettingControllerEvents>();
 
@@ -54,14 +42,9 @@ export class TxBandSettingControllerImpl {
   ) {
     return new Proxy(this, {
       get(target, prop, receiver) {
-        if (Reflect.has(target, prop)) {
-          return Reflect.get(target, prop, receiver);
-        }
-        const snapshot = target.current();
-        if (snapshot && typeof prop === "string" && prop in snapshot) {
-          return (snapshot as unknown as Record<string, unknown>)[prop];
-        }
-        return undefined;
+        return Reflect.has(target, prop)
+          ? Reflect.get(target, prop, receiver)
+          : target.current()[prop as keyof TxBandSettingSnapshot];
       },
     });
   }

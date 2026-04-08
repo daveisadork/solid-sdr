@@ -22,20 +22,9 @@ export interface AudioStreamControllerEvents {
   readonly data: AudioStreamDataEvent;
 }
 
-export interface AudioStreamController extends Readonly<AudioStreamSnapshot> {}
-
 /** Base controller for all audio streams (RX and TX). */
-export interface AudioStreamController {
-  readonly id: string;
-  readonly state: AudioStreamSnapshot;
-  readonly streamId: string;
-  readonly type: string;
-  readonly compression?: string;
-  readonly clientHandle?: number;
-  readonly ip?: string;
-  readonly daxChannel?: number;
-  readonly slice?: string;
-  readonly tx: boolean;
+export interface AudioStreamController
+  extends Readonly<Omit<AudioStreamSnapshot, "raw">> {
   snapshot(): AudioStreamSnapshot;
   on<TKey extends keyof AudioStreamControllerEvents>(
     event: TKey,
@@ -63,8 +52,7 @@ export interface AudioStreamTxController extends AudioStreamController {
 }
 
 /** Remote audio TX stream controller — supports PCM and Opus. */
-export interface RemoteAudioTxStreamController
-  extends AudioStreamTxController {
+export interface RemoteAudioTxStreamController extends AudioStreamTxController {
   /**
    * Send an Opus-encoded audio frame to the radio.
    *
@@ -74,11 +62,9 @@ export interface RemoteAudioTxStreamController
   sendOpus(frame: Uint8Array): void;
 }
 
-// Convenience alias for backward compatibility
-export type RemoteAudioRxStreamController = AudioStreamController;
-
-export interface AudioStreamControllerImpl extends Readonly<AudioStreamSnapshot> {}
-export class AudioStreamControllerImpl {
+export interface AudioStreamControllerImpl
+  extends Readonly<AudioStreamSnapshot> {}
+export class AudioStreamControllerImpl implements AudioStreamController {
   private readonly events =
     new TypedEventEmitter<AudioStreamControllerEvents>();
   private streamHandle?: string;
@@ -95,14 +81,9 @@ export class AudioStreamControllerImpl {
     }
     return new Proxy(this, {
       get(target, prop, receiver) {
-        if (Reflect.has(target, prop)) {
-          return Reflect.get(target, prop, receiver);
-        }
-        const snapshot = target.current();
-        if (snapshot && typeof prop === "string" && prop in snapshot) {
-          return (snapshot as unknown as Record<string, unknown>)[prop];
-        }
-        return undefined;
+        return Reflect.has(target, prop)
+          ? Reflect.get(target, prop, receiver)
+          : target.current()[prop as keyof AudioStreamSnapshot];
       },
     });
   }
@@ -209,6 +190,7 @@ export class AudioStreamControllerImpl {
 /** TX-capable audio stream (DAX TX, DAX Mic). */
 export class AudioStreamTxControllerImpl
   extends AudioStreamControllerImpl
+  implements AudioStreamTxController
 {
   private txAudioPkt?: VitaDaxAudioPacket;
   private txReducedBwPkt?: VitaDaxReducedBwPacket;
@@ -252,6 +234,7 @@ export class AudioStreamTxControllerImpl
 /** Remote audio TX stream — supports PCM and Opus. */
 export class RemoteAudioTxStreamControllerImpl
   extends AudioStreamTxControllerImpl
+  implements RemoteAudioTxStreamController
 {
   private opusPkt?: VitaOpusPacket;
 

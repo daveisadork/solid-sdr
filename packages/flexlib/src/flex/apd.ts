@@ -9,21 +9,7 @@ export interface ApdControllerEvents {
   readonly change: ApdStateChange;
 }
 
-export interface ApdController extends Readonly<ApdSnapshot> {}
-
-export interface ApdController {
-  readonly enabled: boolean;
-  readonly configurable: boolean;
-  readonly equalizerActive: boolean;
-  readonly equalizerCalibrating: boolean;
-  readonly antenna: string | undefined;
-  readonly frequencyMHz: number | undefined;
-  readonly txErrorMilliHz: number | undefined;
-  readonly rxErrorMilliHz: number | undefined;
-  readonly sliceId: string | undefined;
-  readonly mmx: number | undefined;
-  readonly clientHandle: number | undefined;
-  readonly sampleIndex: number | undefined;
+export interface ApdController extends Readonly<Omit<ApdSnapshot, "raw">> {
   snapshot(): ApdSnapshot | undefined;
   setEnabled(enabled: boolean): Promise<void>;
   on<TKey extends keyof ApdControllerEvents>(
@@ -34,20 +20,15 @@ export interface ApdController {
 }
 
 export interface ApdControllerImpl extends Readonly<ApdSnapshot> {}
-export class ApdControllerImpl {
+export class ApdControllerImpl implements ApdController {
   private readonly events = new TypedEventEmitter<ApdControllerEvents>();
 
   constructor(private readonly session: RadioSession) {
     return new Proxy(this, {
       get(target, prop, receiver) {
-        if (Reflect.has(target, prop)) {
-          return Reflect.get(target, prop, receiver);
-        }
-        const snapshot = target.current();
-        if (snapshot && typeof prop === "string" && prop in snapshot) {
-          return (snapshot as unknown as Record<string, unknown>)[prop];
-        }
-        return undefined;
+        return Reflect.has(target, prop)
+          ? Reflect.get(target, prop, receiver)
+          : target.current()[prop as keyof ApdSnapshot];
       },
     });
   }

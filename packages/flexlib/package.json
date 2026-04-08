@@ -58,6 +58,7 @@
     "build": "tsdown",
     "test": "vitest",
     "typecheck": "tsc --noEmit",
+    "check-types": "tsc --noEmit",
     "lint": "eslint src tests",
     "lint:fix": "eslint src tests --fix",
     "format": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",

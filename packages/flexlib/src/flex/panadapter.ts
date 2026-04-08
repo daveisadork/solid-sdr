@@ -3,11 +3,7 @@ import type {
   PanadapterStateChange,
 } from "./state/index.js";
 import { TypedEventEmitter, type Subscription } from "../util/events.js";
-import {
-  FlexClientClosedError,
-  FlexError,
-  FlexStateUnavailableError,
-} from "./errors.js";
+import { FlexError, FlexStateUnavailableError } from "./errors.js";
 import { parseRfGainInfo } from "./rf-gain.js";
 import {
   buildDisplaySetCommand,
@@ -108,17 +104,13 @@ export interface PanadapterController
 
 export class PanadapterControllerImpl implements PanadapterController {
   private readonly events = new TypedEventEmitter<PanadapterControllerEvents>();
-  private streamHandle?: string;
   private dataListeners = 0;
   private dataSubscription?: Subscription;
 
   constructor(
     private readonly radio: RadioSession,
     readonly id: string,
-    streamHandle?: string,
-  ) {
-    this.streamHandle = streamHandle;
-  }
+  ) {}
 
   private current(): PanadapterSnapshot {
     const snapshot = this.radio.getStore().getPanadapter(this.id);
@@ -466,9 +458,8 @@ export class PanadapterControllerImpl implements PanadapterController {
   }
 
   async refreshRfGainInfo(): Promise<void> {
-    const stream = this.requireStreamHandle();
     const response = await this.radio.command(
-      `display pan rfgain_info ${stream}`,
+      `display pan rfgain_info ${this.id}`,
     );
     if (!response.message) {
       throw new FlexError("Flex radio returned no RF gain info");
@@ -486,8 +477,7 @@ export class PanadapterControllerImpl implements PanadapterController {
   }
 
   async clickTune(frequencyMHz: number): Promise<void> {
-    const stream = this.requireStreamHandle();
-    const command = `slice m ${formatMegahertz(frequencyMHz)} pan=${stream}`;
+    const command = `slice m ${formatMegahertz(frequencyMHz)} pan=${this.id}`;
     await this.radio.command(command);
   }
 
@@ -503,14 +493,10 @@ export class PanadapterControllerImpl implements PanadapterController {
 
   async close(): Promise<void> {
     this.teardownDataPipeline();
-    const stream = this.requireStreamHandle();
-    await this.radio.command(`display pan remove ${stream}`);
+    await this.radio.command(`display pan remove ${this.id}`);
   }
 
   onStateChange(change: PanadapterStateChange): void {
-    if (change.diff?.streamId) {
-      this.streamHandle = change.diff.streamId;
-    }
     this.events.emit("change", change);
     if (change.removed) {
       this.teardownDataPipeline();
@@ -586,11 +572,10 @@ export class PanadapterControllerImpl implements PanadapterController {
   }
 
   private async sendSet(entries: Record<string, string>): Promise<void> {
-    const stream = this.requireStreamHandle();
-    const command = buildDisplaySetCommand("display pan set", stream, entries);
+    const command = buildDisplaySetCommand("display pan set", this.id, entries);
     const change = this.radio
       .getStore()
-      .patchPanadapter(this.id, { stream_id: stream, ...entries });
+      .patchPanadapter(this.id, { stream_id: this.id, ...entries });
     if (change) this.radio.applyStateChange(change);
     try {
       await this.radio.command(command);
@@ -626,17 +611,6 @@ export class PanadapterControllerImpl implements PanadapterController {
   private teardownDataPipeline(): void {
     this.dataSubscription?.unsubscribe();
     this.dataSubscription = undefined;
-  }
-
-  private requireStreamHandle(): string {
-    const snapshot = this.radio.getStore().getPanadapter(this.id);
-    if (snapshot?.streamId) {
-      this.streamHandle = snapshot.streamId;
-    }
-    if (!this.streamHandle) {
-      throw new FlexClientClosedError();
-    }
-    return this.streamHandle;
   }
 
   /**

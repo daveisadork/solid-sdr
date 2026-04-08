@@ -574,7 +574,7 @@ export class Radio {
       () => {
         const snapshot = this.store.getPanadapter(id);
         if (!snapshot) return undefined;
-        return new PanadapterControllerImpl(this, id, snapshot.streamId);
+        return new PanadapterControllerImpl(this, id);
       },
     );
   }
@@ -591,7 +591,7 @@ export class Radio {
       () => {
         const snapshot = this.store.getWaterfall(id);
         if (!snapshot) return undefined;
-        return new WaterfallControllerImpl(this, id, snapshot.streamId);
+        return new WaterfallControllerImpl(this, id);
       },
     );
   }
@@ -1013,11 +1013,7 @@ export class Radio {
         this.updateController(change as Identified, this.panControllers, () => {
           const snapshot = this.store.getPanadapter(change.id);
           if (!snapshot) return undefined;
-          return new PanadapterControllerImpl(
-            this,
-            change.id,
-            snapshot.streamId,
-          );
+          return new PanadapterControllerImpl(this, change.id);
         });
         break;
       case "waterfall":
@@ -1027,11 +1023,7 @@ export class Radio {
           () => {
             const snapshot = this.store.getWaterfall(change.id);
             if (!snapshot) return undefined;
-            return new WaterfallControllerImpl(
-              this,
-              change.id,
-              snapshot.streamId,
-            );
+            return new WaterfallControllerImpl(this, change.id);
           },
         );
         break;

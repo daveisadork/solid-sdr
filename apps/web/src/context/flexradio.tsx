@@ -168,22 +168,6 @@ export const FlexRadioProvider: ParentComponent = (props) => {
   const { session: rtcSession } = useRtc();
   const [activeRadio, setActiveRadio] = createSignal<Radio | null>(null);
 
-  // const logger = {
-  //   debug(message: string, meta?: Record<string, unknown>) {
-  //     console.debug(message, meta);
-  //   },
-  //   info(message: string, meta?: Record<string, unknown>) {
-  //     console.info(message, meta);
-  //   },
-  //   warn(message: string, meta?: Record<string, unknown>) {
-  //     console.warn(message, meta);
-  //   },
-  //   error(message: string, meta?: Record<string, unknown>) {
-  //     console.error(message, meta);
-  //   },
-  // };
-  const logger = console;
-
   let radioSubscriptions: Subscription[] = [];
 
   const flexClient = createMemo(() => {

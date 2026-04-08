@@ -71,10 +71,11 @@ const STEP_SIZES = [
 export function SimpleMeter(props: MeterProps) {
   const { radio } = useFlexRadio();
   const [value, setValue] = createSignal(0);
-  const controller = createMemo(() => radio()?.meter(props.meter.id));
 
   createEffect(() => {
-    const sub = controller()?.on("data", (e) => setValue(e.value));
+    const sub = radio()
+      ?.meter(props.meter?.id)
+      ?.on("data", ({ value }) => setValue(value));
     onCleanup(() => sub?.unsubscribe());
   });
 

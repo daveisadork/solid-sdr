@@ -246,6 +246,9 @@ export interface RadioSnapshot {
   readonly cwBreakInDelayMs?: number;
   readonly logLevels: readonly string[];
   readonly logModules: readonly RadioLogModule[];
+  readonly txFreqMhz: number;
+  readonly txMode: string;
+  readonly txAntenna: string;
   readonly raw: Readonly<Record<string, string>>;
 }
 
@@ -887,9 +890,13 @@ function applyTransmitAttributes(
         );
         break;
       case "freq":
+        partial.txFreqMhz = parseFloat(value);
+        break;
       case "tx_slice_mode":
+        partial.txMode = value;
+        break;
       case "tx_antenna":
-        // Informational fields handled elsewhere; ignore to keep logs clean.
+        partial.txAntenna = value;
         break;
       default:
         logUnknownAttribute("transmit", key, value);

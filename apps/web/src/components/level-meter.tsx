@@ -72,12 +72,10 @@ export const LevelMeter = <T extends ValidComponent = "div">(
   const [value, setValue] = createSignal(0);
   const { radio } = useFlexRadio();
 
-  const controller = createMemo(() => {
-    return radio()?.meter(local.meter.id);
-  });
-
   createEffect(() => {
-    const sub = controller()?.on("data", (e) => setValue(e.value));
+    const sub = radio()
+      ?.meter(local.meter?.id)
+      ?.on("data", (e) => setValue(e.value));
     onCleanup(() => sub?.unsubscribe());
   });
 

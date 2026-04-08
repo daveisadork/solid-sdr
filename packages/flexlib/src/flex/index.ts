@@ -30,7 +30,7 @@ export * from "./protocol.js";
 export * from "./response-codes.js";
 
 // Shared types from adapters that are still needed
-export type { Logger, Clock, FlexRadioDescriptor } from "./adapters.js";
+export type { Logger, FlexRadioDescriptor } from "./adapters.js";
 
 // Discovery parsing
 export { decodeDiscoveryPayload, parseDiscoveryPayload } from "./discovery.js";

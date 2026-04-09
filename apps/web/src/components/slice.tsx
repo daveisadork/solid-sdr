@@ -550,9 +550,6 @@ export function Slice(props: { slice: SliceState; pan: Panadapter }) {
       ? windowSize
       : panafallBounds;
     if (!width) return;
-    const sidebarOffset = preferences.enableTransparencyEffects
-      ? 0
-      : panafallBounds.left;
     const leftFreq = props.pan.centerFrequencyMHz - props.pan.bandwidthMHz / 2;
     const offsetMhz = props.slice.frequencyMHz - leftFreq;
     const offsetPixels = (offsetMhz / props.pan.bandwidthMHz) * width;
@@ -661,14 +658,15 @@ export function Slice(props: { slice: SliceState; pan: Panadapter }) {
               </Show>
             </Show>
           </div>
-          <Portal mount={panafallPortalRef()}>
+          <Portal>
             <div
-              class="absolute top-0 left-0 w-0 max-w-0 translate-x-(--flag-offset) overflow-visible"
+              class="absolute top-0 left-0 w-0 max-w-0 translate-y-(--panafall-top) translate-x-(--flag-offset) overflow-visible"
               classList={{
                 "z-20": props.slice.isActive,
                 "z-10": !props.slice.isActive,
               }}
               style={{
+                "--panafall-top": `${panafallBounds.top}px`,
                 "--flag-offset": `${sentinelBounds.left}px`,
               }}
             >

@@ -15,7 +15,7 @@ import type { VitaParsedPacket } from "../vita/parser.js";
 
 export interface WaterfallControllerEvents {
   readonly change: WaterfallStateChange;
-  readonly data: VitaParsedPacket;
+  readonly data: VitaParsedPacket<"waterfall">;
 }
 
 export interface WaterfallUpdateRequest {
@@ -244,6 +244,10 @@ export class WaterfallControllerImpl implements WaterfallController {
   async close(): Promise<void> {
     this.teardownDataPipeline();
     await this.radio.command(`display panafall remove ${this.id}`);
+    const changes = this.radio.getStore().removeWaterfall(this.id);
+    if (changes) {
+      for (const change of changes) this.radio.applyStateChange(change);
+    }
   }
 
   onStateChange(change: WaterfallStateChange): void {

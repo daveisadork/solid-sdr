@@ -140,11 +140,7 @@ export class AudioStreamControllerImpl implements AudioStreamController {
 
   async close(): Promise<void> {
     this.teardownDataPipeline();
-    const snapshot = this.radio.getStore().getAudioStream(this.id);
-    const streamId = snapshot?.streamId ?? this.streamHandle;
-    if (!streamId) return;
-    this.streamHandle = streamId;
-    await this.radio.command(`stream remove ${streamId}`);
+    await this.radio.command(`stream remove ${this.id}`);
     const change = this.radio.getStore().removeAudioStream(this.id);
     if (change) this.radio.applyStateChange(change);
   }

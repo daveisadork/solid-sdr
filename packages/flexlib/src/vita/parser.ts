@@ -36,21 +36,38 @@ export interface VitaPacketMetadata {
   timestampFrac: bigint;
 }
 
-export type VitaParsedPacket =
-  | (VitaPacketMetadata & { kind: "meter"; packet: VitaMeterPacket })
-  | (VitaPacketMetadata & { kind: "panadapter"; packet: VitaFFTPacket })
-  | (VitaPacketMetadata & { kind: "waterfall"; packet: VitaWaterfallPacket })
-  | (VitaPacketMetadata & { kind: "discovery"; packet: VitaDiscoveryPacket })
-  | (VitaPacketMetadata & { kind: "opus"; packet: Uint8Array })
-  | (VitaPacketMetadata & {
-      kind: "daxReducedBw";
-      packet: VitaDaxReducedBwPacket;
-    })
-  | (VitaPacketMetadata & { kind: "daxIq24"; packet: Uint8Array })
-  | (VitaPacketMetadata & { kind: "daxIq48"; packet: Uint8Array })
-  | (VitaPacketMetadata & { kind: "daxIq96"; packet: Uint8Array })
-  | (VitaPacketMetadata & { kind: "daxIq192"; packet: Uint8Array })
-  | (VitaPacketMetadata & { kind: "daxAudio"; packet: VitaDaxAudioPacket });
+export interface VitaParsedPacketMap {
+  meter: VitaPacketMetadata & { kind: "meter"; packet: VitaMeterPacket };
+  panadapter: VitaPacketMetadata & {
+    kind: "panadapter";
+    packet: VitaFFTPacket;
+  };
+  waterfall: VitaPacketMetadata & {
+    kind: "waterfall";
+    packet: VitaWaterfallPacket;
+  };
+  discovery: VitaPacketMetadata & {
+    kind: "discovery";
+    packet: VitaDiscoveryPacket;
+  };
+  opus: VitaPacketMetadata & { kind: "opus"; packet: Uint8Array };
+  daxReducedBw: VitaPacketMetadata & {
+    kind: "daxReducedBw";
+    packet: VitaDaxReducedBwPacket;
+  };
+  daxIq24: VitaPacketMetadata & { kind: "daxIq24"; packet: Uint8Array };
+  daxIq48: VitaPacketMetadata & { kind: "daxIq48"; packet: Uint8Array };
+  daxIq96: VitaPacketMetadata & { kind: "daxIq96"; packet: Uint8Array };
+  daxIq192: VitaPacketMetadata & { kind: "daxIq192"; packet: Uint8Array };
+  daxAudio: VitaPacketMetadata & {
+    kind: "daxAudio";
+    packet: VitaDaxAudioPacket;
+  };
+}
+
+export type VitaParsedPacket<
+  TKind extends VitaPacketKind = VitaPacketKind,
+> = VitaParsedPacketMap[TKind];
 
 export interface ParseVitaPacketOptions {
   meter?: { ids?: Uint16Array; values?: Int16Array };

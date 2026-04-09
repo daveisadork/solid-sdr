@@ -19,7 +19,7 @@ import type { VitaParsedPacket } from "../vita/parser.js";
 
 export interface PanadapterControllerEvents {
   readonly change: PanadapterStateChange;
-  readonly data: VitaParsedPacket;
+  readonly data: VitaParsedPacket<"panadapter">;
 }
 
 export interface PanadapterUpdateRequest {
@@ -494,6 +494,10 @@ export class PanadapterControllerImpl implements PanadapterController {
   async close(): Promise<void> {
     this.teardownDataPipeline();
     await this.radio.command(`display pan remove ${this.id}`);
+    const changes = this.radio.getStore().removePanadapter(this.id);
+    if (changes) {
+      for (const change of changes) this.radio.applyStateChange(change);
+    }
   }
 
   onStateChange(change: PanadapterStateChange): void {

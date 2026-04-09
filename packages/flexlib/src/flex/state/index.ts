@@ -176,10 +176,12 @@ export interface RadioStateStore {
     id: string,
     attributes: Record<string, string>,
   ): PanadapterStateChange | undefined;
+  removePanadapter(id: string): readonly RadioStateChange[] | undefined;
   patchWaterfall(
     id: string,
     attributes: Record<string, string>,
   ): WaterfallStateChange | undefined;
+  removeWaterfall(id: string): readonly RadioStateChange[] | undefined;
   patchAudioStream(
     id: string,
     attributes: Record<string, string>,
@@ -388,8 +390,14 @@ export function createRadioStateStore(
     patchPanadapter(id, attributes) {
       return patchPanadapter(id, attributes);
     },
+    removePanadapter(id) {
+      return removePanadapter(id);
+    },
     patchWaterfall(id, attributes) {
       return patchWaterfall(id, attributes);
+    },
+    removeWaterfall(id) {
+      return removeWaterfall(id);
     },
     patchAudioStream(id, attributes) {
       return patchAudioStream(id, attributes);
@@ -483,11 +491,7 @@ export function createRadioStateStore(
     const previous = slices.get(id);
     if (!previous) return undefined;
     slices.delete(id);
-    updatePanadapterSliceMembership(
-      id,
-      undefined,
-      previous.panadapterStreamId,
-    );
+    updatePanadapterSliceMembership(id, undefined, previous.panadapterStreamId);
     const changes: RadioStateChange[] = [
       {
         entity: "slice",
@@ -495,9 +499,7 @@ export function createRadioStateStore(
         removed: true,
       },
     ];
-    changes.push(
-      ...recomputeGuiClientTransmitSlices([previous.clientHandle]),
-    );
+    changes.push(...recomputeGuiClientTransmitSlices([previous.clientHandle]));
     return changes;
   }
 
@@ -1112,6 +1114,37 @@ export function createRadioStateStore(
     };
   }
 
+  function removePanadapter(
+    id: string,
+  ): readonly RadioStateChange[] | undefined {
+    const previous = panadapters.get(id);
+    if (!previous) return undefined;
+    panadapters.delete(id);
+    waterfalls.delete(previous.waterfallStreamId);
+    previous.attachedSlices.forEach(slices.delete);
+    const changes: RadioStateChange[] = [
+      {
+        entity: "panadapter",
+        id,
+        removed: true,
+      },
+      {
+        entity: "waterfall",
+        id: previous.waterfallStreamId,
+        removed: true,
+      },
+      ...previous.attachedSlices.map(
+        (id) =>
+          ({
+            entity: "slice",
+            id,
+            removed: true,
+          }) as RadioStateChange,
+      ),
+    ];
+    return changes;
+  }
+
   function patchWaterfall(
     id: string,
     attributes: Record<string, string>,
@@ -1130,6 +1163,15 @@ export function createRadioStateStore(
       diff,
       removed: false,
     };
+  }
+
+  function removeWaterfall(
+    id: string,
+  ): readonly RadioStateChange[] | undefined {
+    const panadapterStreamId = waterfalls.get(id)?.panadapterStreamId;
+    return panadapterStreamId
+      ? removePanadapter(panadapterStreamId)
+      : undefined;
   }
 
   function patchAudioStream(
@@ -1159,9 +1201,7 @@ export function createRadioStateStore(
     };
   }
 
-  function removeAudioStream(
-    id: string,
-  ): AudioStreamStateChange | undefined {
+  function removeAudioStream(id: string): AudioStreamStateChange | undefined {
     if (!audioStreams.has(id)) return undefined;
     audioStreams.delete(id);
     return {

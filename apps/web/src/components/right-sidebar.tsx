@@ -917,44 +917,46 @@ export function RightSidebar() {
   const { preferences, setPreferences } = usePreferences();
 
   return (
-    <Sidebar
-      gap
-      side="right"
-      variant={preferences.enableTransparencyEffects ? "floating" : "sidebar"}
-      class="absolute h-full bg-transparent pointer-events-none z-50"
-    >
-      <SidebarContent
-        class="gap-0 my-4 overflow-y-auto overflow-x-hidden pointer-events-auto"
-        style={{
-          "scrollbar-gutter": "stable",
-          "scrollbar-width": "thin",
-        }}
+    <Show when={state.clientHandle}>
+      <Sidebar
+        gap
+        side="right"
+        variant={preferences.enableTransparencyEffects ? "floating" : "sidebar"}
+        class="absolute h-full bg-transparent pointer-events-none z-50"
       >
-        <Accordion
-          multiple
-          collapsible
-          value={preferences.sidebarPanels}
-          onChange={(value) => setPreferences("sidebarPanels", value)}
-          class="select-none"
+        <SidebarContent
+          class="gap-0 my-4 overflow-y-auto overflow-x-hidden pointer-events-auto"
+          style={{
+            "scrollbar-gutter": "stable",
+            "scrollbar-width": "thin",
+          }}
         >
-          <TxSection />
-          <PcwSection />
-          <PhoneSection />
-          <AccordionItem value="rx">
-            <AccordionTrigger>Receive</AccordionTrigger>
-            <AccordionContent>
-              <SimpleSwitch
-                checked={state.status.radio.fullDuplexEnabled}
-                onChange={(isChecked) => {
-                  radio()?.setFullDuplexEnabled(isChecked);
-                }}
-                label="Full Duplex"
-              />
-            </AccordionContent>
-          </AccordionItem>
-          <EqSection />
-        </Accordion>
-      </SidebarContent>
-    </Sidebar>
+          <Accordion
+            multiple
+            collapsible
+            value={preferences.sidebarPanels}
+            onChange={(value) => setPreferences("sidebarPanels", value)}
+            class="select-none"
+          >
+            <TxSection />
+            <PcwSection />
+            <PhoneSection />
+            <AccordionItem value="rx">
+              <AccordionTrigger>Receive</AccordionTrigger>
+              <AccordionContent>
+                <SimpleSwitch
+                  checked={state.status.radio.fullDuplexEnabled}
+                  onChange={(isChecked) => {
+                    radio()?.setFullDuplexEnabled(isChecked);
+                  }}
+                  label="Full Duplex"
+                />
+              </AccordionContent>
+            </AccordionItem>
+            <EqSection />
+          </Accordion>
+        </SidebarContent>
+      </Sidebar>
+    </Show>
   );
 }

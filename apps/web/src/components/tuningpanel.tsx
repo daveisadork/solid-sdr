@@ -1,5 +1,5 @@
 import useFlexRadio, { Panadapter, Waterfall } from "~/context/flexradio";
-import { createEffect, createSignal, For } from "solid-js";
+import { createEffect, createMemo, createSignal, For } from "solid-js";
 import {
   NumberField,
   NumberFieldDecrementTrigger,
@@ -36,6 +36,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "./ui/dialog";
+import { Button } from "./ui/button";
 
 import { ColorField, ColorFieldInput, ColorFieldLabel } from "./ui/color-field";
 import { ColorSwatch } from "@kobalte/core/color-swatch";
@@ -43,6 +44,7 @@ import { parseColor } from "@kobalte/core/colors";
 import { PanadapterController, WaterfallController } from "@repo/flexlib";
 import { SimpleMeter } from "./ui/simple-meter";
 import { usePreferences } from "~/context/preferences";
+import { produce } from "solid-js/store";
 
 const BANDS: { id: string; label: string }[] = [
   { id: "160", label: "160m" },
@@ -77,7 +79,7 @@ export function TuningPanel(props: {
   panadapterController: PanadapterController;
   waterfallController: WaterfallController;
 }) {
-  const { radio, state } = useFlexRadio();
+  const { radio, state, setState } = useFlexRadio();
   const { preferences, setPreferences } = usePreferences();
   const [rawFrequency, setRawFrequency] = createSignal(
     props.panadapterController.centerFrequencyMHz,
@@ -109,11 +111,63 @@ export function TuningPanel(props: {
     }
   });
 
+  const panadapters = createMemo(() =>
+    Object.keys(state.status.panadapter).toSorted(),
+  );
+
   return (
     <div
       class="flex flex-col px-4 gap-4 size-full text-sm overflow-y-auto overflow-x-hidden select-none overscroll-y-contain"
       style={{ "scrollbar-width": "thin" }}
     >
+      <Select
+        class="flex flex-col gap-2 select-none pt-4"
+        value={state.selectedPanadapter}
+        onChange={(value: string) => {
+          if (!value || value === state.selectedPanadapter) return;
+          setState("selectedPanadapter", value);
+        }}
+        options={panadapters()}
+        itemComponent={(props) => (
+          <SelectItem item={props.item}>{props.item.rawValue}</SelectItem>
+        )}
+      >
+        <SelectLabel class="flex">
+          <div class="grow">Panadapter</div>
+          <Button
+            size="icon"
+            class="size-4"
+            variant="outline"
+            onClick={() => {
+              props.panadapterController.close();
+            }}
+          >
+            -
+          </Button>
+          <Button
+            size="icon"
+            class="size-4"
+            variant="outline"
+            onClick={() => {
+              radio()
+                ?.createPanadapter({
+                  x: props.panadapterController.width,
+                  y: props.panadapterController.height,
+                })
+                .then((controller) => {
+                  setState("selectedPanadapter", controller.id);
+                });
+            }}
+            disabled={state.status.radio.availablePanadapters < 1}
+          >
+            +
+          </Button>
+        </SelectLabel>
+        <SelectTrigger>
+          <SelectValue<string>>{(state) => state.selectedOption()}</SelectValue>
+        </SelectTrigger>
+        <SelectContent />
+      </Select>
       <Dialog>
         <DialogTrigger>Show Meters</DialogTrigger>
         <DialogContent class="size-full max-h-[90vh] overflow-y-hidden pr-3">
@@ -287,7 +341,7 @@ export function TuningPanel(props: {
             props.panadapterController.setRxAntenna(value);
           }
         }}
-        options={Array.from(props.panadapter.rxAntennas)}
+        options={Array.from(state.status.radio.rxAntennaList)}
         itemComponent={(props) => (
           <SelectItem item={props.item}>{props.item.rawValue}</SelectItem>
         )}

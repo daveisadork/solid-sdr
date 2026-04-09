@@ -456,7 +456,7 @@ const SliceFilter = (props: {
 
 export function Slice(props: { slice: SliceState; pan: Panadapter }) {
   const { radio, state, setState } = useFlexRadio();
-  const { panafallBounds } = usePanafall();
+  const { panafallBounds, panafallPortalRef } = usePanafall();
   const sliceController = createMemo(() => radio()?.slice(props.slice.id));
   const [offset, setOffset] = createSignal(0);
   const [sentinel, setSentinel] = createSignal<HTMLDivElement>();
@@ -661,7 +661,7 @@ export function Slice(props: { slice: SliceState; pan: Panadapter }) {
               </Show>
             </Show>
           </div>
-          <Portal>
+          <Portal mount={panafallPortalRef()}>
             <div
               class="absolute top-0 left-0 w-0 max-w-0 translate-x-(--flag-offset) overflow-visible"
               classList={{

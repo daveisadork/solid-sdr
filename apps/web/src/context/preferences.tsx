@@ -39,8 +39,7 @@ export interface Preferences {
   enableRemoteAudio: boolean;
   inputDeviceId: string;
   outputDeviceId: string;
-  panadapterSize: number;
-  waterfallSize: number;
+  panadapterSizes: number[][];
   sidebarPanels: string[];
   daxRxConfig: Record<number, DaxRxConfig>;
   daxTxConfig: {
@@ -77,8 +76,7 @@ const initialPreferences = () =>
     sMeterEnabled: true,
     showTuningGuide: false,
     preventScreenSleep: false,
-    panadapterSize: 0.25,
-    waterfallSize: 0.75,
+    panadapterSizes: [],
     enableRemoteAudio: true,
     inputDeviceId: "default",
     outputDeviceId: "default",

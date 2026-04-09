@@ -10,10 +10,9 @@ import {
 import useFlexRadio, {
   type Panadapter,
   type Waterfall as WaterfallState,
-  type UdpPacketEvent,
 } from "~/context/flexradio";
 import { LinearScale } from "../linear-scale";
-import { WaterfallController } from "@repo/flexlib";
+import type { VitaParsedPacket, WaterfallController } from "@repo/flexlib";
 import { usePreferences } from "~/context/preferences";
 import { usePanafall } from "~/context/panafall";
 import { PanafallControl } from "./controls";
@@ -203,7 +202,7 @@ export function Waterfall(props: {
       screenCtx.drawImage(offscreen, 0, 0, canvas.width, canvas.height);
     };
 
-    return ({ packet }: UdpPacketEvent<"waterfall">) => {
+    return ({ packet }: VitaParsedPacket<"waterfall">) => {
       const tile = packet.tile;
       const binBandwidth = tile.binBandwidth.freqHz;
       const firstBinFreq = tile.frameLowFreq.freqHz;

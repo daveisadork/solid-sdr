@@ -106,7 +106,7 @@ export function PanafallToggleButton(props: PanafallToggleButtonProps) {
   );
 }
 
-export function Panafall() {
+export function Panafall(props: { index: number }) {
   const { preferences, setPreferences } = usePreferences();
   const { colorMode, setColorMode } = useColorMode();
   const storageManager = createLocalStorageManager("vite-ui-theme");
@@ -165,6 +165,7 @@ export function Panafall() {
     xToFreq,
     setPanafallControlsRef,
     panafallBounds,
+    setPanafallPortalRef,
   } = usePanafall();
 
   createEffect(() => setFullscreen(fullscreen()));
@@ -342,7 +343,8 @@ export function Panafall() {
       }}
     >
       <div
-        class="absolute overflow-visible"
+        class="absolute overflow-visible bg-background"
+        ref={setPanafallPortalRef}
         classList={{
           "top-0 left-0 w-dvw h-full": preferences.enableTransparencyEffects,
           "inset-0": !preferences.enableTransparencyEffects,
@@ -365,15 +367,11 @@ export function Panafall() {
                 <Resizable
                   class="size-full overflow-visible select-none"
                   orientation="vertical"
-                  sizes={[
-                    preferences.panadapterSize,
-                    preferences.waterfallSize,
-                  ]}
+                  sizes={preferences.panadapterSizes[props.index]}
                   initialSizes={[0.25, 0.75]}
                   onSizesChange={(sizes) => {
                     if (sizes?.length !== 2) return;
-                    const [panadapterSize, waterfallSize] = sizes;
-                    setPreferences({ panadapterSize, waterfallSize });
+                    setPreferences("panadapterSizes", props.index, sizes);
                   }}
                 >
                   <ResizablePanel class="overflow-clip select-none">

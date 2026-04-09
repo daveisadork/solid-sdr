@@ -9,7 +9,6 @@ import {
 import useFlexRadio, {
   Panadapter as PanadapterState,
   Waterfall,
-  type UdpPacketEvent,
 } from "~/context/flexradio";
 import { DetachedSlices, Slice } from "../slice";
 import { debounce } from "@solid-primitives/scheduled";
@@ -20,7 +19,7 @@ import { PanadapterGrid } from "./panadapter-grid";
 import { buildFrequencyGrid } from "./scale";
 import type { FrequencyGridTick } from "./scale";
 import { parseColor } from "@kobalte/core/colors";
-import { PanadapterController } from "@repo/flexlib";
+import type { PanadapterController, VitaParsedPacket } from "@repo/flexlib";
 import { usePanafall } from "~/context/panafall";
 import { usePreferences } from "~/context/preferences";
 import { PanafallControl } from "./controls";
@@ -167,7 +166,7 @@ export function Panadapter(props: {
 
     let lastBinValue = 0;
 
-    return ({ packet }: UdpPacketEvent<"panadapter">) => {
+    return ({ packet }: VitaParsedPacket<"panadapter">) => {
       const startingBin = packet.startBinIndex;
       const binsInThisFrame = packet.numBins;
       const totalBins = packet.totalBinsInFrame;

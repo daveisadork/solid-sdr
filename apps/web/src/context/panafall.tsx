@@ -53,6 +53,8 @@ const PanafallContext = createContext<{
   pxPerMHz: Accessor<number>;
   /** Converts a pixel width to a frequency width in MHz. */
   pxToMHz: (px: number) => number;
+  panafallPortalRef: Accessor<HTMLElement | undefined>;
+  setPanafallPortalRef: (el: HTMLElement) => void;
   panafallControlsRef: Accessor<HTMLElement | undefined>;
   setPanafallControlsRef: (el: HTMLElement) => void;
   panadapterControlsRef: Accessor<HTMLElement | undefined>;
@@ -72,9 +74,12 @@ const PanafallContext = createContext<{
   xToFreq: (x: number) => number;
 }>();
 
-export const PanafallProvider: ParentComponent = (props) => {
+export const PanafallProvider: ParentComponent<{ streamId?: string }> = (
+  props,
+) => {
   const { radio, state } = useFlexRadio();
   const { preferences } = usePreferences();
+  const [panafallPortalRef, setPanafallPortalRef] = createSignal<HTMLElement>();
   const [panafallControlsRef, setPanafallControlsRef] =
     createSignal<HTMLElement>();
   const [waterfallControlsRef, setWaterfallControlsRef] =
@@ -84,16 +89,16 @@ export const PanafallProvider: ParentComponent = (props) => {
   const [wakeLock, setWakeLock] = createSignal<WakeLockSentinel>();
   const panafallBounds = createElementBounds(panafallControlsRef);
   const panadapter = createMemo(
-    () => state.status.panadapter[state.selectedPanadapter],
+    () => state.status.panadapter[props.streamId ?? state.selectedPanadapter],
   );
   const waterfall = createMemo(
     () => state.status.waterfall[panadapter()?.waterfallStreamId],
   );
   const panadapterController = createMemo(() =>
-    radio()?.panadapter(panadapter()?.id),
+    radio()?.panadapter(panadapter()?.streamId),
   );
   const waterfallController = createMemo(() =>
-    radio()?.waterfall(waterfall()?.id),
+    radio()?.waterfall(waterfall()?.streamId),
   );
   const slices = createMemo(() => {
     const streamId = panadapter()?.streamId;
@@ -179,6 +184,8 @@ export const PanafallProvider: ParentComponent = (props) => {
           panafallBounds,
           pxPerMHz,
           pxToMHz,
+          setPanafallPortalRef,
+          panafallPortalRef,
           setPanafallControlsRef,
           panafallControlsRef,
           setPanadapterControlsRef,

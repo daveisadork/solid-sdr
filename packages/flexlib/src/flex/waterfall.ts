@@ -292,7 +292,10 @@ export class WaterfallControllerImpl implements WaterfallController {
   }
 
   private readonly handleStreamPacket: StreamPacketHandler = (packet) => {
-    this.events.emit("data", packet);
+    this.events.emit(
+      "data",
+      packet as unknown as WaterfallControllerEvents["data"],
+    );
   };
 
   private ensureDataPipeline(): void {

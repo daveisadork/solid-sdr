@@ -389,8 +389,7 @@ export const FrequencyInput: Component<FrequencyInputProps> = (props) => {
       spellcheck={false}
       class={local.class}
       classList={local.classList}
-      onAbort={console.log}
-      // onKeyDown={onKeyDown}
+      onKeyDown={onKeyDown}
       onFocus={handleFocus}
       onBlur={handleBlur}
       onPaste={handlePaste}

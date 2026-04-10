@@ -195,48 +195,6 @@ export function PanafallSettings(props: {
           </div>
         </DialogContent>
       </Dialog>
-      <SimpleSwitch
-        checked={preferences.enableTransparencyEffects}
-        onChange={(isChecked) => {
-          setPreferences("enableTransparencyEffects", isChecked);
-        }}
-        label="Transparency Effects"
-      />
-      <SimpleSwitch
-        checked={preferences.enableBlurEffects}
-        onChange={(isChecked) => {
-          setPreferences("enableBlurEffects", isChecked);
-        }}
-        label="Blur Effects"
-      />
-      <SimpleSwitch
-        checked={preferences.smoothScroll}
-        onChange={(isChecked) => {
-          setPreferences("smoothScroll", isChecked);
-        }}
-        label="Smooth Scroll"
-      />
-      <SimpleSwitch
-        checked={preferences.showTuningGuide}
-        onChange={(isChecked) => {
-          setPreferences("showTuningGuide", isChecked);
-        }}
-        label="Tuning Guide"
-      />
-      <SimpleSwitch
-        checked={preferences.showFps}
-        onChange={(isChecked) => {
-          setPreferences("showFps", isChecked);
-        }}
-        label="Show FPS"
-      />
-      <SimpleSwitch
-        checked={preferences.preventScreenSleep}
-        onChange={(isChecked) => {
-          setPreferences("preventScreenSleep", isChecked);
-        }}
-        label="Prevent Screensaver"
-      />
       <SegmentedControl
         value={preferences.peakStyle}
         onChange={(value) => {

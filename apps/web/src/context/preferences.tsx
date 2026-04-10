@@ -1,3 +1,4 @@
+import { ConfigColorMode } from "@kobalte/core";
 import { makePersisted } from "@solid-primitives/storage";
 import {
   createContext,
@@ -29,6 +30,7 @@ export interface Preferences {
   fillStyle: "none" | "solid" | "gradient";
   gradientStyle: "color" | "classic";
   meterStyle: "instant" | "smooth" | "ballistic";
+  theme: ConfigColorMode;
   panBackgroundColor: string;
   showFps: boolean;
   sMeterEnabled: boolean;
@@ -71,6 +73,7 @@ const initialPreferences = () =>
     fillStyle: "solid",
     gradientStyle: "color",
     meterStyle: "smooth",
+    theme: "dark",
     panBackgroundColor: "#02517e",
     showFps: false,
     sMeterEnabled: true,

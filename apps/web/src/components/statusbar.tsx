@@ -10,7 +10,7 @@ import Connect from "./connect";
 import { GpsStatus } from "./gps-status";
 import { usePreferences } from "~/context/preferences";
 import { FullscreenButton } from "./fullscreen-button";
-import { ThemeButton } from "./theme-button";
+import { Settings } from "./settings";
 
 export function StatusBar() {
   const { state, radio } = useFlexRadio();
@@ -58,7 +58,7 @@ export function StatusBar() {
         )}
       </Show>
       <div class="grow" />
-      <ThemeButton />
+      <Settings />
       <FullscreenButton />
       <GpsStatus class="justify-self-end justify-end" />
     </div>

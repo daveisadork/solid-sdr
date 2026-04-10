@@ -13,7 +13,11 @@ import { cn } from "~/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { Button } from "./ui/button";
 
-import { createLocalStorageManager, useColorMode } from "@kobalte/core";
+import {
+  ConfigColorMode,
+  createLocalStorageManager,
+  useColorMode,
+} from "@kobalte/core";
 
 import ThemeLightDark from "~icons/mdi/theme-light-dark";
 import LightMode from "~icons/material-symbols/light-mode-outline";
@@ -32,9 +36,9 @@ export function ThemeButton(props: ThemeButtonProps) {
   const { colorMode, setColorMode } = useColorMode();
   const storageManager = createLocalStorageManager("vite-ui-theme");
   const themeSequence = ["system", "light", "dark"] as const;
-  const [modePreference, setModePreference] = createSignal<
-    (typeof themeSequence)[number]
-  >(storageManager.get("system") ?? "dark");
+  const [modePreference, setModePreference] = createSignal<ConfigColorMode>(
+    storageManager.get("system") ?? "dark",
+  );
 
   createEffect(() => {
     const preference = modePreference();

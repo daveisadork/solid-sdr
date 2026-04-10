@@ -22,14 +22,14 @@ import { Button } from "@kobalte/core/button";
 
 export function Settings() {
   return (
-    <Dialog modal={false} defaultOpen>
+    <Dialog modal={false}>
       <DialogTrigger
         as={Button<"button">}
-        class="size-10 not-pointer-coarse:size-5 aspect-square"
+        class="size-8 not-pointer-coarse:size-5 aspect-square"
       >
         <MdiSettings class="size-full" />
       </DialogTrigger>
-      <DialogContent class="max-w-lg translate-y-0 top-1/12 flex flex-col max-h-10/12 overflow-hidden">
+      <DialogContent class="translate-y-0 top-1/12 flex flex-col max-h-10/12 overflow-hidden">
         <DialogHeader>
           <DialogTitle>Settings</DialogTitle>
         </DialogHeader>

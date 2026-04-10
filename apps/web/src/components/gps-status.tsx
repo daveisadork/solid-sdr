@@ -62,7 +62,7 @@ export function GpsStatus(props: { class?: string }) {
   return (
     <div
       class={cn(
-        "flex items-center w-full gap-4 cursor-default select-none",
+        "flex items-center gap-4 cursor-default select-none",
         props.class,
       )}
     >

@@ -4,7 +4,6 @@ import {
   type ParentComponent,
   useContext,
   createEffect,
-  onMount,
 } from "solid-js";
 import { createStore, SetStoreFunction } from "solid-js/store";
 
@@ -40,6 +39,7 @@ export interface Preferences {
   inputDeviceId: string;
   outputDeviceId: string;
   panadapterSizes: number[][];
+  panadapterSettingsOpen: boolean[];
   sidebarPanels: string[];
   daxRxConfig: Record<number, DaxRxConfig>;
   daxTxConfig: {
@@ -81,6 +81,7 @@ const initialPreferences = () =>
     inputDeviceId: "default",
     outputDeviceId: "default",
     sidebarPanels: ["tx", "p-cw", "phone", "rx", "eq"],
+    panadapterSettingsOpen: [],
     daxRxConfig: defaultDaxConfig(),
     daxTxConfig: {
       enabled: false,

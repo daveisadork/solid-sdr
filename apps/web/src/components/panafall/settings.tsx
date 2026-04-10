@@ -7,7 +7,7 @@ import {
   NumberFieldIncrementTrigger,
   NumberFieldInput,
   NumberFieldLabel,
-} from "./ui/number-field";
+} from "../ui/number-field";
 import {
   Select,
   SelectContent,
@@ -15,7 +15,7 @@ import {
   SelectLabel,
   SelectTrigger,
   SelectValue,
-} from "./ui/select";
+} from "../ui/select";
 import {
   SegmentedControl,
   SegmentedControlGroup,
@@ -24,27 +24,32 @@ import {
   SegmentedControlItemLabel,
   SegmentedControlItemsList,
   SegmentedControlLabel,
-} from "./ui/segmented-control";
+} from "../ui/segmented-control";
 
-import { SliderToggle } from "./ui/slider-toggle";
-import { SimpleSwitch } from "./ui/simple-switch";
-import { SimpleSlider } from "./ui/simple-slider";
+import { SliderToggle } from "../ui/slider-toggle";
+import { SimpleSwitch } from "../ui/simple-switch";
+import { SimpleSlider } from "../ui/simple-slider";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "./ui/dialog";
-import { Button } from "./ui/button";
+} from "../ui/dialog";
+import { Button } from "../ui/button";
 
-import { ColorField, ColorFieldInput, ColorFieldLabel } from "./ui/color-field";
+import {
+  ColorField,
+  ColorFieldInput,
+  ColorFieldLabel,
+} from "../ui/color-field";
 import { ColorSwatch } from "@kobalte/core/color-swatch";
 import { parseColor } from "@kobalte/core/colors";
 import { PanadapterController, WaterfallController } from "@repo/flexlib";
-import { SimpleMeter } from "./ui/simple-meter";
+import { SimpleMeter } from "../ui/simple-meter";
 import { usePreferences } from "~/context/preferences";
-import { produce } from "solid-js/store";
+import { Sidebar, SidebarContent } from "../ui/sidebar";
+import { usePanafall } from "~/context/panafall";
 
 const BANDS: { id: string; label: string }[] = [
   { id: "160", label: "160m" },
@@ -73,7 +78,7 @@ function createGradientStyle(
     .join(", ")})`;
 }
 
-export function TuningPanel(props: {
+export function PanafallSettings(props: {
   panadapter: Panadapter;
   waterfall: Waterfall;
   panadapterController: PanadapterController;
@@ -117,8 +122,8 @@ export function TuningPanel(props: {
 
   return (
     <div
-      class="flex flex-col px-4 gap-4 size-full text-sm overflow-y-auto overflow-x-hidden select-none overscroll-y-contain"
-      style={{ "scrollbar-width": "thin" }}
+      class="flex flex-col gap-4 text-sm select-none"
+      // style={{ "scrollbar-width": "thin" }}
     >
       <Select
         class="flex flex-col gap-2 select-none pt-4"
@@ -571,7 +576,7 @@ export function TuningPanel(props: {
           if (value === props.waterfall.blackLevel) return;
           props.waterfallController.setBlackLevel(Math.floor(value));
         }}
-        getValueLabel={(params) => params.values[0].toString()}
+        getValueLabel={(params) => params.values[0]?.toString()}
         label="Black Level"
       />
       <ColorField
@@ -595,5 +600,34 @@ export function TuningPanel(props: {
         {JSON.stringify(state.status.waterfall, null, 2)}
       </pre>
     </div>
+  );
+}
+
+export function PanafallSettingsSidebar() {
+  const { preferences } = usePreferences();
+  const { waterfall, panadapter, waterfallController, panadapterController } =
+    usePanafall();
+  return (
+    <Sidebar
+      gap={true}
+      side="left"
+      variant="floating"
+      class="absolute h-full z-50 pr-0"
+    >
+      <SidebarContent
+        class="my-4 px-4 overflow-y-scroll"
+        style={{
+          "scrollbar-gutter": "stable both-edges",
+          "scrollbar-width": "thin",
+        }}
+      >
+        <PanafallSettings
+          waterfall={waterfall()}
+          panadapter={panadapter()}
+          waterfallController={waterfallController()}
+          panadapterController={panadapterController()}
+        />
+      </SidebarContent>
+    </Sidebar>
   );
 }

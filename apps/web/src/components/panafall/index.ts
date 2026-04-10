@@ -1,1 +1,1 @@
-export { Panafall } from "./panafall";
+export { Panafalls } from "./panafalls";

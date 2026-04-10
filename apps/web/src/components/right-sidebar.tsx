@@ -922,7 +922,7 @@ export function RightSidebar() {
         gap
         side="right"
         variant={preferences.enableTransparencyEffects ? "floating" : "sidebar"}
-        class="absolute h-full bg-transparent pointer-events-none z-50"
+        class="absolute h-full pl-0 bg-transparent pointer-events-none z-50"
       >
         <SidebarContent
           class="gap-0 my-4 overflow-y-auto overflow-x-hidden pointer-events-auto"

@@ -114,11 +114,12 @@ export default function Connect() {
     >
       <DialogTrigger
         as={Button<"button">}
-        size="xs"
         variant="outline"
-        class="font-sans"
+        class="font-sans not-pointer-coarse:h-6 not-pointer-coarse:px-2"
       >
-        {state.clientHandle ? "Disconnect" : "Connect"}
+        <span class="not-pointer-coarse:text-xs">
+          {state.clientHandle ? "Disconnect" : "Connect"}
+        </span>
       </DialogTrigger>
       <DialogContent class="sm:max-w-md data-closed:slide-out-to-left data-closed:slide-out-to-bottom data-expanded:slide-in-from-left data-expanded:slide-in-from-bottom">
         <DialogHeader>

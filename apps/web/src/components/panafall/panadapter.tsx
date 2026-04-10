@@ -57,7 +57,7 @@ export function Panadapter(props: {
     });
   });
 
-  const { slices } = usePanafall();
+  const { slices, setPanadapterControlsRef } = usePanafall();
 
   createEffect(() => {
     const canvas = canvasRef();
@@ -366,8 +366,17 @@ export function Panadapter(props: {
           </div>
         </PanafallControl>
       </Show>
-      <div class="absolute top-0 left-(--panafall-left) h-(--panadapter-available-height) w-(--panafall-available-width)">
-        <div class="absolute inset-y-0 right-0 w-10">
+      <div class="flex absolute top-0 left-(--panafall-left) h-(--panadapter-available-height) w-(--panafall-available-width)">
+        <div class="relative size-full" ref={setPanadapterControlsRef}>
+          <div class="flex pointer-events-none absolute top-4 right-4 text-fg text-xl font-bold opacity-50 space-x-2">
+            <div>{props.pan.preampSetting}</div>
+            <Show when={props.pan.wideEnabled}>
+              <div>WIDE</div>
+            </Show>
+          </div>
+          <DetachedSlices pan={props.pan} slices={slices()} />
+        </div>
+        <div class="grow-0 shrink-0 w-10">
           <div class="relative h-full px-1.5 flex items-center">
             <LinearScale
               min={props.pan.lowDbm}
@@ -380,13 +389,6 @@ export function Panadapter(props: {
             />
           </div>
         </div>
-        <div class="flex pointer-events-none absolute top-4 right-14 text-fg text-xl font-bold opacity-50 space-x-2">
-          <div>{props.pan.preampSetting}</div>
-          <Show when={props.pan.wideEnabled}>
-            <div>WIDE</div>
-          </Show>
-        </div>
-        <DetachedSlices pan={props.pan} slices={slices()} />
       </div>
       <div class="absolute inset-0">
         <For each={slices()}>

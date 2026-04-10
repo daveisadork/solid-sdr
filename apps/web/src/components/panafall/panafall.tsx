@@ -108,39 +108,7 @@ export function PanafallToggleButton(props: PanafallToggleButtonProps) {
 
 export function Panafall(props: { index: number }) {
   const { preferences, setPreferences } = usePreferences();
-  const { colorMode, setColorMode } = useColorMode();
-  const storageManager = createLocalStorageManager("vite-ui-theme");
-  const themeSequence = ["system", "light", "dark"] as const;
-  const [modePreference, setModePreference] = createSignal<
-    (typeof themeSequence)[number]
-  >(storageManager.get("system") ?? "dark");
-
-  createEffect(() => {
-    const preference = modePreference();
-    storageManager.set(preference);
-    setColorMode(preference);
-  });
-
-  createEffect(() => {
-    if (modePreference() !== "system") return;
-    if (typeof window === "undefined") return;
-    const media = window.matchMedia("(prefers-color-scheme: dark)");
-    const sync = () => setColorMode(media.matches ? "dark" : "light");
-    sync();
-    media.addEventListener("change", sync);
-    onCleanup(() => media.removeEventListener("change", sync));
-  });
-
-  const cycleTheme = () => {
-    const currentPref = modePreference();
-    const index = themeSequence.indexOf(currentPref);
-    const next = themeSequence[(index + 1) % themeSequence.length];
-    setModePreference(next);
-  };
-
   const { radio } = useFlexRadio();
-  const [fs, setFullscreen] = createSignal(false);
-  const fullscreen = createFullscreen(() => document.documentElement, fs);
   const [clickRef, setClickRef] = createSignal<HTMLElement>();
 
   const [dragState, setDragState] = createStore({
@@ -168,7 +136,6 @@ export function Panafall(props: { index: number }) {
     setPanafallPortalRef,
   } = usePanafall();
 
-  createEffect(() => setFullscreen(fullscreen()));
   createEffect(
     (lastSize: { width: number; height: number }) => {
       if (
@@ -338,9 +305,11 @@ export function Panafall(props: { index: number }) {
   return (
     <div
       class="size-full overflow-visible"
-      classList={{
-        relative: !preferences.enableTransparencyEffects,
-      }}
+      classList={
+        {
+          // relative: !preferences.enableTransparencyEffects,
+        }
+      }
     >
       <div
         class="absolute overflow-visible bg-background"
@@ -352,7 +321,7 @@ export function Panafall(props: { index: number }) {
         style={{
           "--panafall-available-width": `${panafallBounds.width}px`,
           "--panafall-available-height": `${panafallBounds.height}px`,
-          "--panafall-left": `${preferences.enableTransparencyEffects ? panafallBounds.left : 0}px`,
+          "--panafall-left": `${panafallBounds.left}px`,
           "--panafall-top": `${panafallBounds.top}px`,
           "--panafall-right": `${panafallBounds.right}px`,
           "--panafall-bottom": `${panafallBounds.bottom}px`,
@@ -493,37 +462,6 @@ export function Panafall(props: { index: number }) {
                     }
                   >
                     <ArrowExpandHorizontal />
-                  </PanafallButton>
-                </div>
-                <div class="absolute bottom-2 right-2 grid grid-cols-2 gap-1">
-                  <PanafallButton
-                    onClick={cycleTheme}
-                    aria-label="Toggle theme"
-                    tooltip={
-                      <>
-                        Theme: {modePreference()} ({colorMode()} active)
-                      </>
-                    }
-                  >
-                    <Switch fallback={<ThemeLightDark />}>
-                      <Match when={modePreference() === "light"}>
-                        <LightMode />
-                      </Match>
-                      <Match when={modePreference() === "dark"}>
-                        <DarkMode />
-                      </Match>
-                    </Switch>
-                  </PanafallButton>
-                  <PanafallButton
-                    onClick={() => setFullscreen(!fullscreen())}
-                    tooltip={<>{fullscreen() ? "Exit" : "Enter"} Fullscreen</>}
-                    aria-label={
-                      fullscreen() ? "Exit fullscreen" : "Enter fullscreen"
-                    }
-                  >
-                    <Show when={fullscreen()} fallback={<Fullscreen />}>
-                      <FullscreenExit />
-                    </Show>
                   </PanafallButton>
                 </div>
               </PanafallControl>

@@ -239,20 +239,28 @@ export function DetachedSlice(props: { slice: SliceState; pan: Panadapter }) {
 
   return (
     <Button
-      variant="ghost"
-      size="sm"
-      class="font-extrabold text-md font-mono z-10 pointer-events-auto text-shadow-md text-shadow-background"
+      variant="outline"
+      class="flex p-2 font-extrabold text-md font-mono z-10 pointer-events-auto text-shadow-md text-shadow-background gap-1 [&_svg]:size-8 hover:bg-muted"
       onClick={() => {
         panadapterController()?.setCenterFrequency(props.slice.frequencyMHz);
         sliceController()?.setActive(true);
       }}
     >
       <Show when={props.slice.frequencyMHz < props.pan.centerFrequencyMHz}>
-        <BaselineChevronLeft />
+        <div class="flex w-3.5 max-w-3.5 justify-center">
+          <BaselineChevronLeft />
+        </div>
       </Show>
-      <span>{props.slice.indexLetter}</span>
+      <div class="flex flex-col">
+        <span class="leading-tight">{props.slice.indexLetter}</span>
+        <span class="text-[0.5rem] italic font-normal leading-tight">
+          {props.slice.frequencyMHz}
+        </span>
+      </div>
       <Show when={props.slice.frequencyMHz > props.pan.centerFrequencyMHz}>
-        <BaselineChevronRight />
+        <div class="flex w-3.5 max-w-3.5 justify-center">
+          <BaselineChevronRight />
+        </div>
       </Show>
     </Button>
   );
@@ -263,8 +271,8 @@ export function DetachedSlices(props: {
   slices: SliceState[];
 }) {
   return (
-    <div class="flex absolute top-10 left-0 bottom-0 w-(--panafall-available-width) pr-10 pointer-events-none">
-      <div class="flex flex-col">
+    <div class="flex absolute inset-0 pt-16 px-2 pointer-events-none">
+      <div class="flex flex-col gap-1">
         <For
           each={props.slices.filter(
             (slice) =>
@@ -276,7 +284,7 @@ export function DetachedSlices(props: {
         </For>
       </div>
       <div class="grow" />
-      <div class="flex flex-col">
+      <div class="flex flex-col gap-1">
         <For
           each={props.slices.filter(
             (slice) =>
@@ -456,7 +464,7 @@ const SliceFilter = (props: {
 
 export function Slice(props: { slice: SliceState; pan: Panadapter }) {
   const { radio, state, setState } = useFlexRadio();
-  const { panafallBounds, panafallPortalRef } = usePanafall();
+  const { panafallBounds } = usePanafall();
   const sliceController = createMemo(() => radio()?.slice(props.slice.id));
   const [offset, setOffset] = createSignal(0);
   const [sentinel, setSentinel] = createSignal<HTMLDivElement>();
@@ -546,9 +554,9 @@ export function Slice(props: { slice: SliceState; pan: Panadapter }) {
   });
 
   createEffect(() => {
-    const { width } = preferences.enableTransparencyEffects
-      ? windowSize
-      : panafallBounds;
+    const width = preferences.enableTransparencyEffects
+      ? windowSize.width
+      : panafallBounds.left + panafallBounds.width;
     if (!width) return;
     const leftFreq = props.pan.centerFrequencyMHz - props.pan.bandwidthMHz / 2;
     const offsetMhz = props.slice.frequencyMHz - leftFreq;

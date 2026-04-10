@@ -29,14 +29,20 @@ export function StatusBar() {
     const sub = radio()
       ?.meter(voltageMeter()?.id)
       ?.on("data", ({ value }) => setVoltage(value));
-    onCleanup(() => sub?.unsubscribe());
+    onCleanup(() => {
+      sub?.unsubscribe();
+      setVoltage();
+    });
   });
 
   createEffect(() => {
     const sub = radio()
       ?.meter(tempMeter()?.id)
       ?.on("data", ({ value }) => setTemp(value));
-    onCleanup(() => sub?.unsubscribe());
+    onCleanup(() => {
+      sub?.unsubscribe();
+      setTemp();
+    });
   });
 
   return (
@@ -47,15 +53,13 @@ export function StatusBar() {
       }}
     >
       <Connect />
-      <Show when={voltageMeter()}>
+      <Show when={voltage() !== undefined}>
         <span class="textbox-trim-both textbox-edge-cap-alphabetic">
           {voltage()?.toFixed(2)}V
         </span>
       </Show>
-      <Show when={tempMeter()}>
-        {(meter) => (
-          <span class="textbox-trim-both textbox-edge-cap-alphabetic">{`${temp()?.toFixed(1)}${meter().units?.replace("deg", "°")}`}</span>
-        )}
+      <Show when={tempMeter() && temp() !== undefined}>
+        <span class="textbox-trim-both textbox-edge-cap-alphabetic">{`${temp()?.toFixed(1)}${tempMeter().units?.replace("deg", "°")}`}</span>
       </Show>
       <div class="grow" />
       <Settings />

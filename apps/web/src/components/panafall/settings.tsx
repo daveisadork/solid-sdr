@@ -573,7 +573,7 @@ export function PanafallSettingsSidebar() {
       class="absolute h-full z-50 pr-0"
     >
       <SidebarContent
-        class="my-4 px-4 overflow-y-scroll"
+        class="absolute inset-y-4 inset-x-0 px-4 overflow-y-scroll"
         style={{
           "scrollbar-gutter": "stable both-edges",
           "scrollbar-width": "thin",

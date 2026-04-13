@@ -144,7 +144,12 @@ function TxBandSettings(props: { radio: Radio }) {
                           maxValue={100}
                           changeOnWheel={false}
                         >
-                          <NumberFieldPrimitive.Input size={4} />
+                          <NumberFieldPrimitive.Input
+                            size={4}
+                            style={{
+                              "touch-action": "manipulation",
+                            }}
+                          />
                         </NumberFieldPrimitive.Root>
                       </TableCell>
                       <TableCell>
@@ -155,7 +160,12 @@ function TxBandSettings(props: { radio: Radio }) {
                           maxValue={100}
                           changeOnWheel={false}
                         >
-                          <NumberFieldPrimitive.Input size={4} />
+                          <NumberFieldPrimitive.Input
+                            size={4}
+                            style={{
+                              "touch-action": "manipulation",
+                            }}
+                          />
                         </NumberFieldPrimitive.Root>
                       </TableCell>
                       <TableCell>

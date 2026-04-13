@@ -368,8 +368,11 @@ export function Panadapter(props: {
       </Show>
       <div class="flex absolute top-0 left-(--panafall-left) h-(--panadapter-available-height) w-(--panafall-available-width)">
         <div class="relative size-full" ref={setPanadapterControlsRef}>
-          <div class="flex pointer-events-none absolute top-4 right-4 text-fg text-xl font-bold opacity-50 space-x-2">
+          <div class="flex pointer-events-none absolute top-4 right-4 text-fg text-xl font-bold opacity-50 gap-4">
             <div>{props.pan.preampSetting}</div>
+            <Show when={props.pan.xvtr}>
+              <div>{props.pan.xvtr}</div>
+            </Show>
             <Show when={props.pan.wideEnabled}>
               <div>WIDE</div>
             </Show>

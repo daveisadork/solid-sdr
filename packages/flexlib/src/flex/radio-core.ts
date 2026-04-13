@@ -87,6 +87,7 @@ import {
   TxBandSettingControllerImpl,
 } from "./tx-band-settings.js";
 import { type ApdController, ApdControllerImpl } from "./apd.js";
+import { type XvtrController, XvtrControllerImpl } from "./xvtr.js";
 import {
   type FeatureLicenseController,
   FeatureLicenseControllerImpl,
@@ -96,6 +97,7 @@ import type {
   EqualizerStateChange,
   TxBandSettingStateChange,
   ApdStateChange,
+  XvtrStateChange,
 } from "./state/index.js";
 import { parseVitaPacket, type VitaParsedPacket } from "../vita/parser.js";
 
@@ -461,6 +463,7 @@ export class Radio {
     string,
     TxBandSettingControllerImpl
   >();
+  private readonly xvtrControllers = new Map<string, XvtrControllerImpl>();
   private readonly _apdController: ApdControllerImpl;
   private readonly _featureLicenseController: FeatureLicenseControllerImpl;
 
@@ -663,6 +666,30 @@ export class Radio {
         return new TxBandSettingControllerImpl(this, id);
       },
     );
+  }
+
+  xvtrs(): XvtrController[] {
+    return Array.from(this.xvtrControllers.values());
+  }
+
+  xvtr(id: string): XvtrController | undefined {
+    return this.getOrCreateController(
+      "xvtr",
+      id,
+      this.xvtrControllers,
+      () => {
+        if (!this.store.getXvtr(id)) return undefined;
+        return new XvtrControllerImpl(this, id);
+      },
+    );
+  }
+
+  /**
+   * Creates a new transverter definition on the radio.
+   * The radio will respond with a status message containing the new XVTR's index.
+   */
+  async createXvtr(): Promise<void> {
+    await this.command("xvtr create");
   }
 
   apd(): ApdController {
@@ -1070,6 +1097,17 @@ export class Radio {
           change as Identified & EqualizerStateChange,
           this.equalizerControllers,
           () => new EqualizerControllerImpl(this, change.id as EqualizerId),
+        );
+        break;
+      case "xvtr":
+        this.updateController(
+          change as Extract<RadioStateChange, { id: string }> &
+            XvtrStateChange,
+          this.xvtrControllers,
+          () => {
+            if (!this.store.getXvtr(change.id)) return undefined;
+            return new XvtrControllerImpl(this, change.id);
+          },
         );
         break;
       case "apd":
@@ -2436,6 +2474,7 @@ export class Radio {
     this.audioControllers.clear();
     this.equalizerControllers.clear();
     this.txBandControllers.clear();
+    this.xvtrControllers.clear();
   }
 
   private setConnectionState(state: RadioConnectionState): void {

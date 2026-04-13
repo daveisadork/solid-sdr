@@ -41,6 +41,7 @@ import {
   createTxBandSettingSnapshot,
   type TxBandSettingSnapshot,
 } from "./tx-band-settings.js";
+import { createXvtrSnapshot, type XvtrSnapshot } from "./xvtr.js";
 
 export type { SnapshotDiff } from "./common.js";
 export type { SliceSnapshot } from "./slice.js";
@@ -52,6 +53,7 @@ export type { ApdSnapshot } from "./apd.js";
 export type { EqualizerSnapshot, EqualizerId } from "./equalizer.js";
 export type { KnownMeterUnits, MeterSnapshot, MeterUnits } from "./meter.js";
 export type { TxBandSettingSnapshot } from "./tx-band-settings.js";
+export type { XvtrSnapshot } from "./xvtr.js";
 export type {
   RadioAtuTuneStatus,
   RadioFilterSharpnessMode,
@@ -92,6 +94,7 @@ export type RadioStateChange =
       id: string;
     } & ChangeMetadata<TxBandSettingSnapshot>)
   | ({ entity: "guiClient"; id: string } & ChangeMetadata<GuiClientSnapshot>)
+  | ({ entity: "xvtr"; id: string } & ChangeMetadata<XvtrSnapshot>)
   | ({ entity: "radio" } & ChangeMetadata<RadioSnapshot>)
   | ({ entity: "featureLicense" } & ChangeMetadata<FeatureLicenseSnapshot>)
   | ({ entity: "apd" } & ChangeMetadata<ApdSnapshot>)
@@ -129,6 +132,7 @@ export type TxBandSettingStateChange = Extract<
   RadioStateChange,
   { entity: "txBandSetting" }
 >;
+export type XvtrStateChange = Extract<RadioStateChange, { entity: "xvtr" }>;
 
 export interface RadioStateSnapshot {
   readonly slices: readonly SliceSnapshot[];
@@ -139,6 +143,7 @@ export interface RadioStateSnapshot {
   readonly guiClients: readonly GuiClientSnapshot[];
   readonly equalizers: readonly EqualizerSnapshot[];
   readonly txBandSettings: readonly TxBandSettingSnapshot[];
+  readonly xvtrs: readonly XvtrSnapshot[];
   readonly radio: RadioSnapshot;
   readonly featureLicense?: FeatureLicenseSnapshot;
   readonly apd?: ApdSnapshot;
@@ -160,6 +165,8 @@ export interface RadioStateStore {
   getEqualizers(): readonly EqualizerSnapshot[];
   getTxBandSetting(id: string): TxBandSettingSnapshot | undefined;
   getTxBandSettings(): readonly TxBandSettingSnapshot[];
+  getXvtr(id: string): XvtrSnapshot | undefined;
+  getXvtrs(): readonly XvtrSnapshot[];
   getApd(): ApdSnapshot | undefined;
   getRadio(): RadioSnapshot | undefined;
   getFeatureLicense(): FeatureLicenseSnapshot | undefined;
@@ -195,6 +202,11 @@ export interface RadioStateStore {
     id: string,
     attributes: Record<string, string>,
   ): TxBandSettingStateChange | undefined;
+  patchXvtr(
+    id: string,
+    attributes: Record<string, string>,
+  ): XvtrStateChange | undefined;
+  removeXvtr(id: string): XvtrStateChange | undefined;
   patchApd(attributes: Record<string, string>): ApdStateChange | undefined;
   applyPanadapterRfGainInfo(
     id: string,
@@ -226,6 +238,7 @@ export function createRadioStateStore(
   const guiClientsByHandle = new Map<number, string>();
   const equalizers = new Map<EqualizerId, EqualizerSnapshot>();
   const txBandSettings = new Map<string, TxBandSettingSnapshot>();
+  const xvtrs = new Map<string, XvtrSnapshot>();
   let radio: RadioSnapshot;
   let featureLicense: FeatureLicenseSnapshot | undefined;
   let apd: ApdSnapshot | undefined;
@@ -241,6 +254,7 @@ export function createRadioStateStore(
     guiClientsByHandle.clear();
     equalizers.clear();
     txBandSettings.clear();
+    xvtrs.clear();
     radio = undefined as unknown as RadioSnapshot;
     featureLicense = undefined;
     apd = undefined;
@@ -278,6 +292,8 @@ export function createRadioStateStore(
           if (change) return [change];
           return [];
         }
+        case "xvtr":
+          return [handleXvtr(message)];
         case "apd": {
           const change = handleApd(message);
           if (change) return [change];
@@ -331,6 +347,7 @@ export function createRadioStateStore(
         guiClients: Array.from(guiClients.values()),
         equalizers: Array.from(equalizers.values()),
         txBandSettings: Array.from(txBandSettings.values()),
+        xvtrs: Array.from(xvtrs.values()),
         radio,
         featureLicense,
         apd,
@@ -368,6 +385,12 @@ export function createRadioStateStore(
     },
     getTxBandSettings() {
       return Array.from(txBandSettings.values());
+    },
+    getXvtr(id) {
+      return xvtrs.get(id);
+    },
+    getXvtrs() {
+      return Array.from(xvtrs.values());
     },
     getApd() {
       return apd;
@@ -410,6 +433,12 @@ export function createRadioStateStore(
     },
     patchTxBandSetting(id, attributes) {
       return patchTxBandSetting(id, attributes);
+    },
+    patchXvtr(id, attributes) {
+      return patchXvtr(id, attributes);
+    },
+    removeXvtr(id) {
+      return removeXvtr(id);
     },
     patchApd(attributes) {
       return patchApd(attributes);
@@ -1255,6 +1284,68 @@ export function createRadioStateStore(
       id,
       diff,
       removed: false,
+    };
+  }
+
+  function handleXvtr(message: FlexStatusMessage): RadioStateChange {
+    const id = resolveIdentifier(message, message.identifier);
+    if (!id) {
+      return {
+        entity: "unknown",
+        source: message.source,
+        attributes: message.attributes,
+      };
+    }
+
+    if (isMarkedDeleted(message.attributes)) {
+      xvtrs.delete(id);
+      return {
+        entity: "xvtr",
+        id,
+        removed: true,
+      };
+    }
+
+    const previous = xvtrs.get(id);
+    const { snapshot, diff } = createXvtrSnapshot(
+      id,
+      message.attributes,
+      previous,
+    );
+    xvtrs.set(id, snapshot);
+    return {
+      entity: "xvtr",
+      id,
+      diff,
+      removed: false,
+    };
+  }
+
+  function patchXvtr(
+    id: string,
+    attributes: Record<string, string>,
+  ): XvtrStateChange | undefined {
+    if (Object.keys(attributes).length === 0) return undefined;
+    const previous = xvtrs.get(id);
+    const { snapshot, diff } = createXvtrSnapshot(id, attributes, previous);
+    const diffKeys = Object.keys(diff as Record<string, unknown>);
+    xvtrs.set(id, snapshot);
+    if (diffKeys.length === 0) return undefined;
+    return {
+      entity: "xvtr",
+      id,
+      diff,
+      removed: false,
+    };
+  }
+
+  function removeXvtr(id: string): XvtrStateChange | undefined {
+    if (!xvtrs.has(id)) return undefined;
+    xvtrs.delete(id);
+    return {
+      entity: "xvtr",
+      id,
+      removed: true,
     };
   }
 

@@ -40,6 +40,7 @@ import {
 import { createFlexClient } from "@repo/flexlib/bridge";
 import { useRtc } from "./rtc";
 import { usePreferences } from "./preferences";
+import { XvtrSnapshot } from "@repo/flexlib";
 
 export enum ConnectionState {
   disconnected,
@@ -80,6 +81,7 @@ export type Equalizer = Omit<MutableProps<EqualizerSnapshot>, "raw">;
 export type APD = Omit<MutableProps<ApdSnapshot>, "raw">;
 export type TxBandSetting = Omit<MutableProps<TxBandSettingSnapshot>, "raw">;
 export type Meter = Omit<MutableProps<MeterSnapshot>, "raw">;
+export type Xvtr = Omit<MutableProps<XvtrSnapshot>, "raw">;
 
 export interface ConnectModalState {
   status: ConnectionState;
@@ -99,6 +101,7 @@ export interface StatusState {
   audioStream: Record<string, AudioStream>;
   guiClient: Record<string, GuiClient>;
   txBandSetting: Record<string, TxBandSetting>;
+  xvtr: Record<string, Xvtr>;
 }
 
 export interface AppState {
@@ -145,6 +148,7 @@ export const initialState = () =>
       featureLicense: {},
       audioStream: {},
       txBandSetting: {},
+      xvtr: {},
     },
   }) as AppState;
 

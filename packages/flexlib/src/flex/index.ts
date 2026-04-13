@@ -19,6 +19,7 @@ export * from "./apd.js";
 export * from "./feature-license.js";
 export * from "./gui-client.js";
 export * from "./tx-band-settings.js";
+export * from "./xvtr.js";
 export * from "./waterfall-line-speed.js";
 
 // State/snapshot types

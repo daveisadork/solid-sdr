@@ -22,7 +22,7 @@ import { Button } from "@kobalte/core/button";
 
 export function Settings() {
   return (
-    <Dialog modal={false} defaultOpen>
+    <Dialog modal={false}>
       <DialogTrigger
         as={Button<"button">}
         class="size-8 not-pointer-coarse:size-5 aspect-square"

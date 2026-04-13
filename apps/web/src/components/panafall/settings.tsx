@@ -120,6 +120,14 @@ export function PanafallSettings(props: {
     Object.keys(state.status.panadapter).toSorted(),
   );
 
+  const bands = createMemo(() => [
+    ...BANDS,
+    ...(Object.values(state.status.xvtr)?.map((xvtr) => ({
+      id: `x${xvtr.id}`,
+      label: xvtr.name,
+    })) ?? []),
+  ]);
+
   return (
     <div
       class="flex flex-col gap-4 text-sm select-none"
@@ -317,15 +325,23 @@ export function PanafallSettings(props: {
       </Select>
       <Select
         class="flex flex-col gap-2 select-none"
-        value={props.panadapter.band}
+        value={
+          props.panadapter.xvtr
+            ? `x${
+                Object.values(state.status.xvtr).find(
+                  (xvtr) => xvtr.name === props.panadapter.xvtr,
+                ).id
+              }`
+            : props.panadapter.band
+        }
         onChange={(value: string) => {
-          if (!value || value === props.panadapter.band) return;
+          if (!value) return;
           props.panadapterController.setBand(value);
         }}
-        options={BANDS.map((b) => b.id)}
+        options={bands().map((b) => b.id)}
         itemComponent={(props) => (
           <SelectItem item={props.item}>
-            {BANDS.find((b) => b.id === props.item.rawValue)?.label}
+            {bands().find((b) => b.id === props.item.rawValue)?.label}
           </SelectItem>
         )}
       >
@@ -333,7 +349,7 @@ export function PanafallSettings(props: {
         <SelectTrigger>
           <SelectValue<string>>
             {(state) =>
-              BANDS.find((b) => b.id === state.selectedOption())?.label
+              bands().find((b) => b.id === state.selectedOption())?.label
             }
           </SelectValue>
         </SelectTrigger>

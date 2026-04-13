@@ -27,7 +27,7 @@ import {
   SegmentedControlItemsList,
   SegmentedControlLabel,
 } from "../ui/segmented-control";
-import { createEffect, createSignal, For, Show } from "solid-js";
+import { createEffect, createSignal, For, JSXElement, Show } from "solid-js";
 import useFlexRadio from "~/context/flexradio";
 import type { Radio } from "@repo/flexlib";
 import { TextField, TextFieldInput, TextFieldLabel } from "../ui/text-field";
@@ -64,8 +64,9 @@ import { ProgressCircle } from "../ui/progress-circle";
 import MaterialSymbolsProgressActivity from "~icons/material-symbols/progress-activity";
 import { RadioOscillatorSetting } from "@repo/flexlib";
 import { SliderToggle } from "../ui/slider-toggle";
+import { Badge } from "../ui/badge";
 
-function InfoItem(props: { label: string; value: string }) {
+function InfoItem(props: { label: JSXElement; value: JSXElement }) {
   return (
     <div class="flex">
       <div class="grow">{props.label}:</div>
@@ -232,553 +233,266 @@ function RadioSettingsInner(props: { radio: Radio }) {
   createEffect(() => setTxProfiles(state?.status?.radio?.profileTxList ?? []));
 
   return (
-    <div class="flex flex-col gap-4">
+    <div class="flex flex-col gap-4 text-sm">
       <Card class="bg-transparent">
-        <CardContent class="text-sm select-none">
-          <CardHeader class="px-0">
-            <CardTitle>Radio Information</CardTitle>
-          </CardHeader>
-          <div class="flex flex-col gap-4">
-            <InfoItem label="Model" value={state.status.radio.model} />
-            <InfoItem label="Serial Number" value={state.status.radio.serial} />
-            <InfoItem
-              label="Hardware Version"
-              value={state.status.radio.version}
+        <CardHeader>
+          <CardTitle>Radio Information</CardTitle>
+        </CardHeader>
+        <CardContent class="flex flex-col gap-4">
+          <InfoItem label="Model" value={state.status.radio.model} />
+          <InfoItem label="Serial Number" value={state.status.radio.serial} />
+          <InfoItem
+            label="Hardware Version"
+            value={state.status.radio.version}
+          />
+          <InfoItem label="Options" value={state.status.radio.radioOptions} />
+          <InfoItem label="Region" value={state.status.radio.region} />
+          <SimpleSwitch
+            checked={state.status.radio.remoteOnEnabled}
+            onChange={(isChecked) => props.radio.setRemoteOnEnabled(isChecked)}
+            label="Remote On"
+          />
+          <SimpleSwitch
+            checked={state.status.radio.mfEnabled}
+            onChange={(isChecked) => props.radio.setMfEnabled(isChecked)}
+            label="multiFLEX"
+          />
+          <TextField
+            value={nickname()}
+            onChange={setNickname}
+            class="flex flex-col gap-2"
+          >
+            <TextFieldLabel>Nickname</TextFieldLabel>
+            <TextFieldInput
+              onBlur={() => props.radio.setNickname(nickname())}
             />
-            <InfoItem label="Options" value={state.status.radio.radioOptions} />
-            <InfoItem label="Region" value={state.status.radio.region} />
-            <SimpleSwitch
-              checked={state.status.radio.remoteOnEnabled}
-              onChange={(isChecked) =>
-                props.radio.setRemoteOnEnabled(isChecked)
-              }
-              label="Remote On"
+          </TextField>
+          <TextField
+            value={callsign()}
+            onChange={setCallsign}
+            class="flex flex-col gap-2"
+          >
+            <TextFieldLabel>Callsign</TextFieldLabel>
+            <TextFieldInput
+              onBlur={() => props.radio.setCallsign(callsign())}
             />
-            <SimpleSwitch
-              checked={state.status.radio.mfEnabled}
-              onChange={(isChecked) => props.radio.setMfEnabled(isChecked)}
-              label="multiFLEX"
-            />
-            <TextField
-              value={nickname()}
-              onChange={setNickname}
-              class="flex flex-col gap-2"
-            >
-              <TextFieldLabel>Nickname</TextFieldLabel>
-              <TextFieldInput
-                onBlur={() => props.radio.setNickname(nickname())}
-              />
-            </TextField>
-            <TextField
-              value={callsign()}
-              onChange={setCallsign}
-              class="flex flex-col gap-2"
-            >
-              <TextFieldLabel>Callsign</TextFieldLabel>
-              <TextFieldInput
-                onBlur={() => props.radio.setCallsign(callsign())}
-              />
-            </TextField>
-            <SimpleSlider
-              minValue={0}
-              maxValue={100}
-              value={[state.status.radio.backlightLevel]}
-              onChange={([value]) => props.radio.setBacklightLevel(value)}
-              getValueLabel={({ values }) => {
-                return `${values[0]}%`;
-              }}
-              label="Backlight Brightness"
-            />
-          </div>
+          </TextField>
+          <SimpleSlider
+            minValue={0}
+            maxValue={100}
+            value={[state.status.radio.backlightLevel]}
+            onChange={([value]) => props.radio.setBacklightLevel(value)}
+            getValueLabel={({ values }) => {
+              return `${values[0]}%`;
+            }}
+            label="Backlight Brightness"
+          />
         </CardContent>
       </Card>
       <Card class="bg-transparent">
-        <CardContent class="text-sm select-none">
-          <CardHeader class="px-0">
-            <CardTitle>License Information</CardTitle>
-          </CardHeader>
-          <div class="flex flex-col gap-4">
-            <For
-              each={Object.values(state.status.featureLicense.subscriptions)}
-            >
-              {({ name, expiration }) => {
-                return (
-                  <>
-                    <InfoItem label="Subscription" value={name} />
-                    <InfoItem
-                      label="Expiration"
-                      value={expiration.toLocaleDateString()}
-                    />
-                  </>
-                );
-              }}
-            </For>
-            <InfoItem
-              label="Radio ID"
-              value={state.status.featureLicense.radioId}
-            />
-            <InfoItem
-              label="Licensed Version"
-              value={`v${state.status.featureLicense.highestMajorVersion}.x`}
-            />
-          </div>
+        <CardHeader>
+          <CardTitle>License Information</CardTitle>
+        </CardHeader>
+        <CardContent class="flex flex-col gap-4">
+          <For each={Object.values(state.status.featureLicense.subscriptions)}>
+            {({ name, expiration }) => {
+              return (
+                <>
+                  <InfoItem label="Subscription" value={name} />
+                  <InfoItem
+                    label="Expiration"
+                    value={expiration.toLocaleDateString()}
+                  />
+                </>
+              );
+            }}
+          </For>
+          <InfoItem
+            label="Radio ID"
+            value={state.status.featureLicense.radioId}
+          />
+          <InfoItem
+            label="Licensed Version"
+            value={`v${state.status.featureLicense.highestMajorVersion}.x`}
+          />
         </CardContent>
       </Card>
       <Card class="bg-transparent">
-        <CardContent class="text-sm select-none">
-          <CardHeader class="px-0">
-            <CardTitle>Network</CardTitle>
-          </CardHeader>
-          <div class="flex flex-col gap-4">
-            <InfoItem label="IP Address" value={state.status.radio.ipAddress} />
-            <InfoItem label="Subnet Mask" value={state.status.radio.netmask} />
-            <InfoItem
-              label="MAC Address"
-              value={state.status.radio.macAddress}
-            />
-          </div>
+        <CardHeader>
+          <CardTitle>Network</CardTitle>
+        </CardHeader>
+        <CardContent class="flex flex-col gap-4">
+          <InfoItem label="IP Address" value={state.status.radio.ipAddress} />
+          <InfoItem label="Subnet Mask" value={state.status.radio.netmask} />
+          <InfoItem label="MAC Address" value={state.status.radio.macAddress} />
         </CardContent>
       </Card>
       <Card class="bg-transparent">
-        <CardContent class="text-sm select-none">
-          <CardHeader class="px-0">
-            <CardTitle>GPS</CardTitle>
-          </CardHeader>
+        <CardHeader>
+          <CardTitle>GPS</CardTitle>
+        </CardHeader>
+        <CardContent class="flex flex-col gap-4">
           <Show when={state.status.radio.gpsInstalled} fallback="Not Installed">
-            <div class="flex flex-col gap-4">
-              <InfoItem
-                label="Latitude"
-                value={state.status.radio.gpsLatitude.toString()}
-              />
-              <InfoItem
-                label="Longitude"
-                value={state.status.radio.gpsLongitude.toString()}
-              />
-              <InfoItem
-                label="Grid Square"
-                value={state.status.radio.gpsGrid}
-              />
-              <InfoItem
-                label="Altitude"
-                value={state.status.radio.gpsAltitude}
-              />
-              <InfoItem
-                label="Satellites Tracked"
-                value={state.status.radio.gpsSatellitesTracked.toString()}
-              />
-              <InfoItem
-                label="Satellites Visible"
-                value={state.status.radio.gpsSatellitesVisible.toString()}
-              />
-              <InfoItem label="Speed" value={state.status.radio.gpsSpeed} />
-              <InfoItem
-                label="Frequency Error"
-                value={state.status.radio.gpsFreqError}
-              />
-              <InfoItem label="Status" value={state.status.radio.gpsStatus} />
-              <InfoItem
-                label="UTC Time"
-                value={state.status.radio.gpsUtcTime}
-              />
-            </div>
+            <InfoItem
+              label="Latitude"
+              value={state.status.radio.gpsLatitude.toString()}
+            />
+            <InfoItem
+              label="Longitude"
+              value={state.status.radio.gpsLongitude.toString()}
+            />
+            <InfoItem label="Grid Square" value={state.status.radio.gpsGrid} />
+            <InfoItem label="Altitude" value={state.status.radio.gpsAltitude} />
+            <InfoItem
+              label="Satellites Tracked"
+              value={state.status.radio.gpsSatellitesTracked.toString()}
+            />
+            <InfoItem
+              label="Satellites Visible"
+              value={state.status.radio.gpsSatellitesVisible.toString()}
+            />
+            <InfoItem label="Speed" value={state.status.radio.gpsSpeed} />
+            <InfoItem
+              label="Frequency Error"
+              value={state.status.radio.gpsFreqError}
+            />
+            <InfoItem label="Status" value={state.status.radio.gpsStatus} />
+            <InfoItem label="UTC Time" value={state.status.radio.gpsUtcTime} />
           </Show>
         </CardContent>
       </Card>
       <Card class="bg-transparent">
-        <CardContent class="text-sm select-none">
-          <CardHeader class="px-0">
-            <CardTitle>TX Timings</CardTitle>
-          </CardHeader>
-
-          <div class="flex flex-col gap-4">
-            <Select
-              class="flex flex-col gap-2 select-none"
-              value={state.status.radio.profileTxSelection}
-              onChange={(value: string) => {
-                if (!value) return;
-                props.radio.loadTxProfile(value);
-              }}
-              options={txProfiles}
-              itemComponent={(props) => {
-                return (
-                  <SelectItem item={props.item}>
-                    {props.item.rawValue}
-                  </SelectItem>
-                );
-              }}
-            >
-              <SelectLabel>TX Profile</SelectLabel>
-              <SelectTrigger>
-                <SelectValue<string>>
-                  {(state) => state.selectedOption()}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent />
-            </Select>
-            <div class="grid grid-cols-2 gap-4">
-              <NumberField
-                class="flex flex-col gap-2 select-none"
-                rawValue={state.status.radio.interlockAccTxDelayMs}
-                format={false}
-                minValue={0}
-                maxValue={2000}
-                onRawValueChange={(value) => {
-                  if (value === state.status.radio.interlockAccTxDelayMs)
-                    return;
-                  props.radio.setAccTxDelayMs(value);
-                }}
-              >
-                <NumberFieldLabel class="select-none">ACC TX</NumberFieldLabel>
-                <NumberFieldGroup class="select-none">
-                  <NumberFieldInput />
-                  <NumberFieldIncrementTrigger class="select-none" />
-                  <NumberFieldDecrementTrigger class="select-none" />
-                </NumberFieldGroup>
-              </NumberField>
-              <NumberField
-                class="flex flex-col gap-2 select-none"
-                rawValue={state.status.radio.interlockTx1DelayMs}
-                format={false}
-                minValue={0}
-                maxValue={2000}
-                onRawValueChange={(value) => {
-                  if (value === state.status.radio.interlockTx1DelayMs) return;
-                  props.radio.setTx1DelayMs(value);
-                }}
-              >
-                <NumberFieldLabel class="select-none">RCA TX1</NumberFieldLabel>
-                <NumberFieldGroup class="select-none">
-                  <NumberFieldInput />
-                  <NumberFieldIncrementTrigger class="select-none" />
-                  <NumberFieldDecrementTrigger class="select-none" />
-                </NumberFieldGroup>
-              </NumberField>
-              <NumberField
-                class="flex flex-col gap-2 select-none"
-                rawValue={state.status.radio.interlockTx2DelayMs}
-                format={false}
-                minValue={0}
-                maxValue={2000}
-                onRawValueChange={(value) => {
-                  if (value === state.status.radio.interlockTx2DelayMs) return;
-                  props.radio.setTx2DelayMs(value);
-                }}
-              >
-                <NumberFieldLabel class="select-none">RCA TX2</NumberFieldLabel>
-                <NumberFieldGroup class="select-none">
-                  <NumberFieldInput />
-                  <NumberFieldIncrementTrigger class="select-none" />
-                  <NumberFieldDecrementTrigger class="select-none" />
-                </NumberFieldGroup>
-              </NumberField>
-              <NumberField
-                class="flex flex-col gap-2 select-none"
-                rawValue={state.status.radio.interlockTx3DelayMs}
-                format={false}
-                minValue={0}
-                maxValue={2000}
-                onRawValueChange={(value) => {
-                  if (value === state.status.radio.interlockTx3DelayMs) return;
-                  props.radio.setTx3DelayMs(value);
-                }}
-              >
-                <NumberFieldLabel class="select-none">RCA TX3</NumberFieldLabel>
-                <NumberFieldGroup class="select-none">
-                  <NumberFieldInput />
-                  <NumberFieldIncrementTrigger class="select-none" />
-                  <NumberFieldDecrementTrigger class="select-none" />
-                </NumberFieldGroup>
-              </NumberField>
-              <NumberField
-                class="flex flex-col gap-2 select-none"
-                rawValue={state.status.radio.interlockTxDelayMs}
-                format={false}
-                minValue={0}
-                maxValue={2000}
-                onRawValueChange={(value) => {
-                  if (value === state.status.radio.interlockTxDelayMs) return;
-                  props.radio.setTxDelayMs(value);
-                }}
-              >
-                <NumberFieldLabel class="select-none">
-                  TX Delay
-                </NumberFieldLabel>
-                <NumberFieldGroup class="select-none">
-                  <NumberFieldInput />
-                  <NumberFieldIncrementTrigger class="select-none" />
-                  <NumberFieldDecrementTrigger class="select-none" />
-                </NumberFieldGroup>
-              </NumberField>
-              <NumberField
-                class="flex flex-col gap-2 select-none"
-                rawValue={state.status.radio.interlockTimeoutMs / 60_000}
-                format={false}
-                minValue={0}
-                maxValue={2000}
-                onRawValueChange={(valueMin) => {
-                  const valueMs = valueMin * 60_000;
-                  if (valueMs === state.status.radio.interlockTimeoutMs) return;
-                  props.radio.setInterlockTimeoutMs(valueMs);
-                }}
-              >
-                <NumberFieldLabel class="select-none">
-                  Timeout (minutes)
-                </NumberFieldLabel>
-                <NumberFieldGroup class="select-none">
-                  <NumberFieldInput />
-                  <NumberFieldIncrementTrigger class="select-none" />
-                  <NumberFieldDecrementTrigger class="select-none" />
-                </NumberFieldGroup>
-              </NumberField>
-            </div>
-            <TxBandSettings radio={props.radio} />
-          </div>
-        </CardContent>
-      </Card>
-      <Card class="bg-transparent">
-        <CardContent class="text-sm select-none">
-          <CardHeader class="px-0">
-            <CardTitle>Interlocks</CardTitle>
-          </CardHeader>
-
-          <div class="flex flex-col gap-4">
-            <SegmentedControl
-              value={
-                state.status.radio.interlockRcaTxReqPolarityHigh
-                  ? "high"
-                  : "low"
-              }
-              onChange={(value) => {
-                if (!value) return;
-                props.radio.setTxReqRcaPolarityHigh(value === "high");
-              }}
-            >
-              <SegmentedControlLabel>RCA TX Req</SegmentedControlLabel>
-              <SegmentedControlGroup>
-                <SegmentedControlIndicator />
-                <SegmentedControlItemsList>
-                  <For each={["low", "high"]}>
-                    {(polarity) => (
-                      <SegmentedControlItem value={polarity}>
-                        <SegmentedControlItemLabel class="capitalize">
-                          Active {polarity}
-                        </SegmentedControlItemLabel>
-                      </SegmentedControlItem>
-                    )}
-                  </For>
-                </SegmentedControlItemsList>
-              </SegmentedControlGroup>
-            </SegmentedControl>
-            <SegmentedControl
-              value={
-                state.status.radio.interlockAccTxReqPolarityHigh
-                  ? "high"
-                  : "low"
-              }
-              onChange={(value) => {
-                if (!value) return;
-                props.radio.setTxReqAccPolarityHigh(value === "high");
-              }}
-            >
-              <SegmentedControlLabel>Accessory TX Req</SegmentedControlLabel>
-              <SegmentedControlGroup>
-                <SegmentedControlIndicator />
-                <SegmentedControlItemsList>
-                  <For each={["low", "high"]}>
-                    {(polarity) => (
-                      <SegmentedControlItem value={polarity}>
-                        <SegmentedControlItemLabel class="capitalize">
-                          Active {polarity}
-                        </SegmentedControlItemLabel>
-                      </SegmentedControlItem>
-                    )}
-                  </For>
-                </SegmentedControlItemsList>
-              </SegmentedControlGroup>
-            </SegmentedControl>
-          </div>
-        </CardContent>
-      </Card>
-      <Card class="bg-transparent">
-        <CardContent class="text-sm select-none">
-          <CardHeader class="px-0">
-            <CardTitle>TX Misc</CardTitle>
-          </CardHeader>
-
-          <div class="flex flex-col gap-4">
-            <SimpleSlider
-              minValue={0}
-              maxValue={100}
-              value={[state.status.radio.maxPowerLevel]}
-              onChange={([value]) => {
-                if (value === state.status.radio.maxPowerLevel) return;
-                props.radio.setMaxPowerLevel(value);
-              }}
-              getValueLabel={(params) => `${params.values[0]}%`}
-              label="Max Power"
-            />
-            <SegmentedControl
-              value={state.status.radio.tuneMode}
-              onChange={(value: "single_tone" | "two_tone") => {
-                if (!value) return;
-                props.radio.setTuneMode(value);
-              }}
-            >
-              <SegmentedControlLabel>Tune Mode</SegmentedControlLabel>
-              <SegmentedControlGroup>
-                <SegmentedControlIndicator />
-                <SegmentedControlItemsList>
-                  <For each={["single_tone", "two_tone"]}>
-                    {(mode) => (
-                      <SegmentedControlItem value={mode}>
-                        <SegmentedControlItemLabel class="capitalize">
-                          {mode.replace("_", " ")}
-                        </SegmentedControlItemLabel>
-                      </SegmentedControlItem>
-                    )}
-                  </For>
-                </SegmentedControlItemsList>
-              </SegmentedControlGroup>
-            </SegmentedControl>
-            <SimpleSwitch
-              checked={state.status.radio.showTxInWaterfall}
-              onChange={(isChecked) => {
-                props.radio.setShowTxInWaterfall(isChecked);
-              }}
-              label="Show TX in Waterfall"
-            />
-          </div>
-        </CardContent>
-      </Card>
-      <Card class="bg-transparent">
-        <CardContent class="text-sm select-none">
-          <CardHeader class="px-0">
-            <CardTitle>Microphone</CardTitle>
-          </CardHeader>
-
-          <div class="flex flex-col gap-4">
-            <SimpleSwitch
-              checked={state.status.radio.micBias}
-              onChange={(isChecked) => {
-                props.radio.setMicBias(isChecked);
-              }}
-              label="Enable Mic Bias Voltage"
-            />
-            <SimpleSwitch
-              checked={state.status.radio.micBoost}
-              onChange={(isChecked) => {
-                props.radio.setMicBoost(isChecked);
-              }}
-              label="Enable +20dB Mic Preamp Boost"
-            />
-            <SimpleSwitch
-              checked={state.status.radio.meterInRx}
-              onChange={(isChecked) => {
-                props.radio.setMeterInRxEnabled(isChecked);
-              }}
-              label="Enable Level Meter During Receive"
-            />
-          </div>
-        </CardContent>
-      </Card>
-      <Card class="bg-transparent">
-        <CardContent class="text-sm select-none">
-          <CardHeader class="px-0">
-            <CardTitle>CW</CardTitle>
-          </CardHeader>
-
-          <div class="flex flex-col gap-4">
-            <SimpleSwitch
-              checked={state.status.radio.cwIambic}
-              onChange={(isChecked) => {
-                props.radio.setCwIambic(isChecked);
-              }}
-              label="Iambic"
-            />
-
-            <SegmentedControl
-              value={state.status.radio.cwIambicMode}
-              onChange={(value: "a" | "b") => {
-                if (!value) return;
-                props.radio.setCwIambicMode(value);
-              }}
-            >
-              <SegmentedControlLabel>Iambic Mode</SegmentedControlLabel>
-              <SegmentedControlGroup>
-                <SegmentedControlIndicator />
-                <SegmentedControlItemsList>
-                  <For each={["a", "b"]}>
-                    {(mode) => (
-                      <SegmentedControlItem value={mode}>
-                        <SegmentedControlItemLabel class="capitalize">
-                          Mode {mode.replace("_", " ")}
-                        </SegmentedControlItemLabel>
-                      </SegmentedControlItem>
-                    )}
-                  </For>
-                </SegmentedControlItemsList>
-              </SegmentedControlGroup>
-            </SegmentedControl>
-            <SegmentedControl
-              value={state.status.radio.cwLeftEnabled ? "cwl" : "cwu"}
-              onChange={(value) => {
-                if (!value) return;
-                props.radio.setCwLeftEnabled(value === "cwl");
-              }}
-            >
-              <SegmentedControlLabel>Sideband</SegmentedControlLabel>
-              <SegmentedControlGroup>
-                <SegmentedControlIndicator />
-                <SegmentedControlItemsList>
-                  <For each={["cwu", "cwl"]}>
-                    {(sideband) => (
-                      <SegmentedControlItem value={sideband}>
-                        <SegmentedControlItemLabel class="uppercase">
-                          {sideband}
-                        </SegmentedControlItemLabel>
-                      </SegmentedControlItem>
-                    )}
-                  </For>
-                </SegmentedControlItemsList>
-              </SegmentedControlGroup>
-            </SegmentedControl>
-            <SimpleSwitch
-              checked={state.status.radio.cwSwapPaddles}
-              onChange={(isChecked) => {
-                props.radio.setCwSwapPaddles(isChecked);
-              }}
-              label="Swap Dot/Dash"
-            />
-            <SimpleSwitch
-              checked={state.status.radio.syncCwx}
-              onChange={(isChecked) => {
-                props.radio.setSyncCwx(isChecked);
-              }}
-              label="CWX Sync"
-            />
-          </div>
-        </CardContent>
-      </Card>
-      <Card class="bg-transparent">
-        <CardContent class="text-sm select-none">
-          <CardHeader class="px-0">
-            <CardTitle>Digital</CardTitle>
-          </CardHeader>
-
-          <div class="flex flex-col gap-4">
+        <CardHeader>
+          <CardTitle>TX Timings</CardTitle>
+        </CardHeader>
+        <CardContent class="flex flex-col gap-4">
+          <Select
+            class="flex flex-col gap-2 select-none"
+            value={state.status.radio.profileTxSelection}
+            onChange={(value: string) => {
+              if (!value) return;
+              props.radio.loadTxProfile(value);
+            }}
+            options={txProfiles}
+            itemComponent={(props) => {
+              return (
+                <SelectItem item={props.item}>{props.item.rawValue}</SelectItem>
+              );
+            }}
+          >
+            <SelectLabel>TX Profile</SelectLabel>
+            <SelectTrigger>
+              <SelectValue<string>>
+                {(state) => state.selectedOption()}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent />
+          </Select>
+          <div class="grid grid-cols-2 gap-4">
             <NumberField
               class="flex flex-col gap-2 select-none"
-              rawValue={state.status.radio.rttyMarkDefaultHz}
+              rawValue={state.status.radio.interlockAccTxDelayMs}
               format={false}
               minValue={0}
-              maxValue={4000}
+              maxValue={2000}
               onRawValueChange={(value) => {
-                if (value === state.status.radio.rttyMarkDefaultHz) return;
-                props.radio.setRttyMarkDefaultHz(value);
+                if (value === state.status.radio.interlockAccTxDelayMs) return;
+                props.radio.setAccTxDelayMs(value);
+              }}
+            >
+              <NumberFieldLabel class="select-none">ACC TX</NumberFieldLabel>
+              <NumberFieldGroup class="select-none">
+                <NumberFieldInput />
+                <NumberFieldIncrementTrigger class="select-none" />
+                <NumberFieldDecrementTrigger class="select-none" />
+              </NumberFieldGroup>
+            </NumberField>
+            <NumberField
+              class="flex flex-col gap-2 select-none"
+              rawValue={state.status.radio.interlockTx1DelayMs}
+              format={false}
+              minValue={0}
+              maxValue={2000}
+              onRawValueChange={(value) => {
+                if (value === state.status.radio.interlockTx1DelayMs) return;
+                props.radio.setTx1DelayMs(value);
+              }}
+            >
+              <NumberFieldLabel class="select-none">RCA TX1</NumberFieldLabel>
+              <NumberFieldGroup class="select-none">
+                <NumberFieldInput />
+                <NumberFieldIncrementTrigger class="select-none" />
+                <NumberFieldDecrementTrigger class="select-none" />
+              </NumberFieldGroup>
+            </NumberField>
+            <NumberField
+              class="flex flex-col gap-2 select-none"
+              rawValue={state.status.radio.interlockTx2DelayMs}
+              format={false}
+              minValue={0}
+              maxValue={2000}
+              onRawValueChange={(value) => {
+                if (value === state.status.radio.interlockTx2DelayMs) return;
+                props.radio.setTx2DelayMs(value);
+              }}
+            >
+              <NumberFieldLabel class="select-none">RCA TX2</NumberFieldLabel>
+              <NumberFieldGroup class="select-none">
+                <NumberFieldInput />
+                <NumberFieldIncrementTrigger class="select-none" />
+                <NumberFieldDecrementTrigger class="select-none" />
+              </NumberFieldGroup>
+            </NumberField>
+            <NumberField
+              class="flex flex-col gap-2 select-none"
+              rawValue={state.status.radio.interlockTx3DelayMs}
+              format={false}
+              minValue={0}
+              maxValue={2000}
+              onRawValueChange={(value) => {
+                if (value === state.status.radio.interlockTx3DelayMs) return;
+                props.radio.setTx3DelayMs(value);
+              }}
+            >
+              <NumberFieldLabel class="select-none">RCA TX3</NumberFieldLabel>
+              <NumberFieldGroup class="select-none">
+                <NumberFieldInput />
+                <NumberFieldIncrementTrigger class="select-none" />
+                <NumberFieldDecrementTrigger class="select-none" />
+              </NumberFieldGroup>
+            </NumberField>
+            <NumberField
+              class="flex flex-col gap-2 select-none"
+              rawValue={state.status.radio.interlockTxDelayMs}
+              format={false}
+              minValue={0}
+              maxValue={2000}
+              onRawValueChange={(value) => {
+                if (value === state.status.radio.interlockTxDelayMs) return;
+                props.radio.setTxDelayMs(value);
+              }}
+            >
+              <NumberFieldLabel class="select-none">TX Delay</NumberFieldLabel>
+              <NumberFieldGroup class="select-none">
+                <NumberFieldInput />
+                <NumberFieldIncrementTrigger class="select-none" />
+                <NumberFieldDecrementTrigger class="select-none" />
+              </NumberFieldGroup>
+            </NumberField>
+            <NumberField
+              class="flex flex-col gap-2 select-none"
+              rawValue={state.status.radio.interlockTimeoutMs / 60_000}
+              format={false}
+              minValue={0}
+              maxValue={2000}
+              onRawValueChange={(valueMin) => {
+                const valueMs = valueMin * 60_000;
+                if (valueMs === state.status.radio.interlockTimeoutMs) return;
+                props.radio.setInterlockTimeoutMs(valueMs);
               }}
             >
               <NumberFieldLabel class="select-none">
-                RTTY Mark Default Hz
+                Timeout (minutes)
               </NumberFieldLabel>
               <NumberFieldGroup class="select-none">
                 <NumberFieldInput />
@@ -788,217 +502,625 @@ function RadioSettingsInner(props: { radio: Radio }) {
             </NumberField>
           </div>
         </CardContent>
+        <CardFooter>
+          <TxBandSettings radio={props.radio} />
+        </CardFooter>
       </Card>
       <Card class="bg-transparent">
-        <CardContent class="text-sm select-none">
-          <CardHeader class="px-0">
-            <CardTitle>Frequency Offset</CardTitle>
-          </CardHeader>
-
-          <Show
-            when={state.status.radio.oscillatorState !== "gpsdo"}
-            fallback="Disabled when using GPSDO"
+        <CardHeader>
+          <CardTitle>Interlocks</CardTitle>
+        </CardHeader>
+        <CardContent class="flex flex-col gap-4">
+          <SegmentedControl
+            value={
+              state.status.radio.interlockRcaTxReqPolarityHigh ? "high" : "low"
+            }
+            onChange={(value) => {
+              if (!value) return;
+              props.radio.setTxReqRcaPolarityHigh(value === "high");
+            }}
           >
-            <div class="flex flex-col gap-4">
-              <NumberField
-                class="flex flex-col gap-2 select-none"
-                disabled={!state.status.radio.pllDone}
-                rawValue={state.status.radio.calibrationFrequencyMhz}
-                format={false}
-                minValue={0}
-                maxValue={55}
-                onRawValueChange={(value) => {
-                  if (value === state.status.radio.calibrationFrequencyMhz)
-                    return;
-                  props.radio.setCalibrationFrequencyMhz(value);
-                }}
-              >
-                <NumberFieldLabel class="select-none">
-                  Calibration Frequency MHz
-                </NumberFieldLabel>
-                <NumberFieldGroup class="select-none">
-                  <NumberFieldInput />
-                  <NumberFieldIncrementTrigger class="select-none" />
-                  <NumberFieldDecrementTrigger class="select-none" />
-                </NumberFieldGroup>
-              </NumberField>
-              <NumberField
-                class="flex flex-col gap-2 select-none"
-                disabled={!state.status.radio.pllDone}
-                rawValue={state.status.radio.frequencyErrorPpb}
-                format={false}
-                onRawValueChange={(value) => {
-                  if (value === state.status.radio.frequencyErrorPpb) return;
-                  props.radio.setFrequencyErrorPpb(value);
-                }}
-              >
-                <NumberFieldLabel class="select-none">
-                  Offset PPB
-                </NumberFieldLabel>
-                <NumberFieldGroup class="select-none">
-                  <NumberFieldInput />
-                  <NumberFieldIncrementTrigger class="select-none" />
-                  <NumberFieldDecrementTrigger class="select-none" />
-                </NumberFieldGroup>
-              </NumberField>
-              <Button
-                onClick={() => props.radio.startOffsetCalibration()}
-                disabled={!state.status.radio.pllDone}
-              >
-                <Show
-                  when={!state.status.radio.pllDone}
-                  fallback="Start Calibration"
-                >
-                  <MaterialSymbolsProgressActivity class="animate-spin" />
-                  Calibrating
-                </Show>
-              </Button>
-            </div>
-          </Show>
+            <SegmentedControlLabel>RCA TX Req</SegmentedControlLabel>
+            <SegmentedControlGroup>
+              <SegmentedControlIndicator />
+              <SegmentedControlItemsList>
+                <For each={["low", "high"]}>
+                  {(polarity) => (
+                    <SegmentedControlItem value={polarity}>
+                      <SegmentedControlItemLabel class="capitalize">
+                        Active {polarity}
+                      </SegmentedControlItemLabel>
+                    </SegmentedControlItem>
+                  )}
+                </For>
+              </SegmentedControlItemsList>
+            </SegmentedControlGroup>
+          </SegmentedControl>
+          <SegmentedControl
+            value={
+              state.status.radio.interlockAccTxReqPolarityHigh ? "high" : "low"
+            }
+            onChange={(value) => {
+              if (!value) return;
+              props.radio.setTxReqAccPolarityHigh(value === "high");
+            }}
+          >
+            <SegmentedControlLabel>Accessory TX Req</SegmentedControlLabel>
+            <SegmentedControlGroup>
+              <SegmentedControlIndicator />
+              <SegmentedControlItemsList>
+                <For each={["low", "high"]}>
+                  {(polarity) => (
+                    <SegmentedControlItem value={polarity}>
+                      <SegmentedControlItemLabel class="capitalize">
+                        Active {polarity}
+                      </SegmentedControlItemLabel>
+                    </SegmentedControlItem>
+                  )}
+                </For>
+              </SegmentedControlItemsList>
+            </SegmentedControlGroup>
+          </SegmentedControl>
         </CardContent>
       </Card>
       <Card class="bg-transparent">
-        <CardContent class="text-sm select-none">
-          <CardHeader class="px-0">
-            <CardTitle>10 MHz Reference</CardTitle>
-          </CardHeader>
-          <div class="flex flex-col gap-4">
-            <SegmentedControl
-              value={state.status.radio.oscillatorSetting}
-              onChange={(value: RadioOscillatorSetting) => {
-                if (!value) return;
-                props.radio.setOscillatorSetting(value);
+        <CardHeader>
+          <CardTitle>TX Misc</CardTitle>
+        </CardHeader>
+        <CardContent class="flex flex-col gap-4">
+          <SimpleSlider
+            minValue={0}
+            maxValue={100}
+            value={[state.status.radio.maxPowerLevel]}
+            onChange={([value]) => {
+              if (value === state.status.radio.maxPowerLevel) return;
+              props.radio.setMaxPowerLevel(value);
+            }}
+            getValueLabel={(params) => `${params.values[0]}%`}
+            label="Max Power"
+          />
+          <SegmentedControl
+            value={state.status.radio.tuneMode}
+            onChange={(value: "single_tone" | "two_tone") => {
+              if (!value) return;
+              props.radio.setTuneMode(value);
+            }}
+          >
+            <SegmentedControlLabel>Tune Mode</SegmentedControlLabel>
+            <SegmentedControlGroup>
+              <SegmentedControlIndicator />
+              <SegmentedControlItemsList>
+                <For each={["single_tone", "two_tone"]}>
+                  {(mode) => (
+                    <SegmentedControlItem value={mode}>
+                      <SegmentedControlItemLabel class="capitalize">
+                        {mode.replace("_", " ")}
+                      </SegmentedControlItemLabel>
+                    </SegmentedControlItem>
+                  )}
+                </For>
+              </SegmentedControlItemsList>
+            </SegmentedControlGroup>
+          </SegmentedControl>
+          <SimpleSwitch
+            checked={state.status.radio.showTxInWaterfall}
+            onChange={(isChecked) => {
+              props.radio.setShowTxInWaterfall(isChecked);
+            }}
+            label="Show TX in Waterfall"
+          />
+        </CardContent>
+      </Card>
+      <Card class="bg-transparent">
+        <CardHeader>
+          <CardTitle>Microphone</CardTitle>
+        </CardHeader>
+        <CardContent class="flex flex-col gap-4">
+          <SimpleSwitch
+            checked={state.status.radio.micBias}
+            onChange={(isChecked) => {
+              props.radio.setMicBias(isChecked);
+            }}
+            label="Enable Mic Bias Voltage"
+          />
+          <SimpleSwitch
+            checked={state.status.radio.micBoost}
+            onChange={(isChecked) => {
+              props.radio.setMicBoost(isChecked);
+            }}
+            label="Enable +20dB Mic Preamp Boost"
+          />
+          <SimpleSwitch
+            checked={state.status.radio.meterInRx}
+            onChange={(isChecked) => {
+              props.radio.setMeterInRxEnabled(isChecked);
+            }}
+            label="Enable Level Meter During Receive"
+          />
+        </CardContent>
+      </Card>
+      <Card class="bg-transparent">
+        <CardHeader>
+          <CardTitle>CW</CardTitle>
+        </CardHeader>
+        <CardContent class="flex flex-col gap-4">
+          <SimpleSwitch
+            checked={state.status.radio.cwIambic}
+            onChange={(isChecked) => {
+              props.radio.setCwIambic(isChecked);
+            }}
+            label="Iambic"
+          />
+
+          <SegmentedControl
+            value={state.status.radio.cwIambicMode}
+            onChange={(value: "a" | "b") => {
+              if (!value) return;
+              props.radio.setCwIambicMode(value);
+            }}
+          >
+            <SegmentedControlLabel>Iambic Mode</SegmentedControlLabel>
+            <SegmentedControlGroup>
+              <SegmentedControlIndicator />
+              <SegmentedControlItemsList>
+                <For each={["a", "b"]}>
+                  {(mode) => (
+                    <SegmentedControlItem value={mode}>
+                      <SegmentedControlItemLabel class="capitalize">
+                        Mode {mode.replace("_", " ")}
+                      </SegmentedControlItemLabel>
+                    </SegmentedControlItem>
+                  )}
+                </For>
+              </SegmentedControlItemsList>
+            </SegmentedControlGroup>
+          </SegmentedControl>
+          <SegmentedControl
+            value={state.status.radio.cwLeftEnabled ? "cwl" : "cwu"}
+            onChange={(value) => {
+              if (!value) return;
+              props.radio.setCwLeftEnabled(value === "cwl");
+            }}
+          >
+            <SegmentedControlLabel>Sideband</SegmentedControlLabel>
+            <SegmentedControlGroup>
+              <SegmentedControlIndicator />
+              <SegmentedControlItemsList>
+                <For each={["cwu", "cwl"]}>
+                  {(sideband) => (
+                    <SegmentedControlItem value={sideband}>
+                      <SegmentedControlItemLabel class="uppercase">
+                        {sideband}
+                      </SegmentedControlItemLabel>
+                    </SegmentedControlItem>
+                  )}
+                </For>
+              </SegmentedControlItemsList>
+            </SegmentedControlGroup>
+          </SegmentedControl>
+          <SimpleSwitch
+            checked={state.status.radio.cwSwapPaddles}
+            onChange={(isChecked) => {
+              props.radio.setCwSwapPaddles(isChecked);
+            }}
+            label="Swap Dot/Dash"
+          />
+          <SimpleSwitch
+            checked={state.status.radio.syncCwx}
+            onChange={(isChecked) => {
+              props.radio.setSyncCwx(isChecked);
+            }}
+            label="CWX Sync"
+          />
+        </CardContent>
+      </Card>
+      <Card class="bg-transparent">
+        <CardHeader>
+          <CardTitle>Digital</CardTitle>
+        </CardHeader>
+        <CardContent class="flex flex-col gap-4">
+          <NumberField
+            class="flex flex-col gap-2 select-none"
+            rawValue={state.status.radio.rttyMarkDefaultHz}
+            format={false}
+            minValue={0}
+            maxValue={4000}
+            onRawValueChange={(value) => {
+              if (value === state.status.radio.rttyMarkDefaultHz) return;
+              props.radio.setRttyMarkDefaultHz(value);
+            }}
+          >
+            <NumberFieldLabel class="select-none">
+              RTTY Mark Default Hz
+            </NumberFieldLabel>
+            <NumberFieldGroup class="select-none">
+              <NumberFieldInput />
+              <NumberFieldIncrementTrigger class="select-none" />
+              <NumberFieldDecrementTrigger class="select-none" />
+            </NumberFieldGroup>
+          </NumberField>
+        </CardContent>
+      </Card>
+      <Card class="bg-transparent">
+        <CardHeader>
+          <CardTitle>Frequency Offset</CardTitle>
+        </CardHeader>
+        <Show
+          when={state.status.radio.oscillatorState !== "gpsdo"}
+          fallback={<CardContent>Disabled when using GPSDO</CardContent>}
+        >
+          <CardContent class="flex flex-col gap-4">
+            <NumberField
+              class="flex flex-col gap-2 select-none"
+              disabled={!state.status.radio.pllDone}
+              rawValue={state.status.radio.calibrationFrequencyMhz}
+              format={false}
+              minValue={0}
+              maxValue={55}
+              onRawValueChange={(value) => {
+                if (value === state.status.radio.calibrationFrequencyMhz)
+                  return;
+                props.radio.setCalibrationFrequencyMhz(value);
               }}
             >
-              <SegmentedControlLabel>Source</SegmentedControlLabel>
-              <SegmentedControlGroup>
-                <SegmentedControlIndicator />
-                <SegmentedControlItemsList>
-                  <For each={["Auto", "External", "GPSDO", "TCXO"]}>
-                    {(source) => (
-                      <SegmentedControlItem value={source.toLowerCase()}>
-                        <SegmentedControlItemLabel>
-                          {source}
-                        </SegmentedControlItemLabel>
-                      </SegmentedControlItem>
-                    )}
-                  </For>
-                </SegmentedControlItemsList>
-              </SegmentedControlGroup>
-            </SegmentedControl>
+              <NumberFieldLabel class="select-none">
+                Calibration Frequency MHz
+              </NumberFieldLabel>
+              <NumberFieldGroup class="select-none">
+                <NumberFieldInput />
+                <NumberFieldIncrementTrigger class="select-none" />
+                <NumberFieldDecrementTrigger class="select-none" />
+              </NumberFieldGroup>
+            </NumberField>
+            <NumberField
+              class="flex flex-col gap-2 select-none"
+              disabled={!state.status.radio.pllDone}
+              rawValue={state.status.radio.frequencyErrorPpb}
+              format={false}
+              onRawValueChange={(value) => {
+                if (value === state.status.radio.frequencyErrorPpb) return;
+                props.radio.setFrequencyErrorPpb(value);
+              }}
+            >
+              <NumberFieldLabel class="select-none">
+                Offset PPB
+              </NumberFieldLabel>
+              <NumberFieldGroup class="select-none">
+                <NumberFieldInput />
+                <NumberFieldIncrementTrigger class="select-none" />
+                <NumberFieldDecrementTrigger class="select-none" />
+              </NumberFieldGroup>
+            </NumberField>
+          </CardContent>
+          <CardFooter>
+            <Button
+              onClick={() => props.radio.startOffsetCalibration()}
+              disabled={!state.status.radio.pllDone}
+            >
+              <Show
+                when={!state.status.radio.pllDone}
+                fallback="Start Calibration"
+              >
+                <MaterialSymbolsProgressActivity class="animate-spin" />
+                Calibrating
+              </Show>
+            </Button>
+          </CardFooter>
+        </Show>
+      </Card>
+      <Card class="bg-transparent">
+        <CardHeader>
+          <CardTitle>10 MHz Reference</CardTitle>
+        </CardHeader>
+        <CardContent class="flex flex-col gap-4">
+          <SegmentedControl
+            value={state.status.radio.oscillatorSetting}
+            onChange={(value: RadioOscillatorSetting) => {
+              if (!value) return;
+              props.radio.setOscillatorSetting(value);
+            }}
+          >
+            <SegmentedControlLabel>Source</SegmentedControlLabel>
+            <SegmentedControlGroup>
+              <SegmentedControlIndicator />
+              <SegmentedControlItemsList>
+                <For each={["Auto", "External", "GPSDO", "TCXO"]}>
+                  {(source) => (
+                    <SegmentedControlItem value={source.toLowerCase()}>
+                      <SegmentedControlItemLabel>
+                        {source}
+                      </SegmentedControlItemLabel>
+                    </SegmentedControlItem>
+                  )}
+                </For>
+              </SegmentedControlItemsList>
+            </SegmentedControlGroup>
+          </SegmentedControl>
+          <div class="grid grid-cols-2 gap-4">
+            <InfoItem
+              label="Active Source"
+              value={
+                { external: "External", gpsdo: "GPSDO", tcxo: "TCXO" }[
+                  state.status.radio.oscillatorState
+                ]
+              }
+            />
             <InfoItem
               label="State"
-              value={`${{ external: "External", gpsdo: "GPSDO", tcxo: "TCXO" }[state.status.radio.oscillatorState]} ${state.status.radio.oscillatorLocked ? "Locked" : "Searching..."}`}
+              value={
+                <Badge
+                  variant={
+                    state.status.radio.oscillatorLocked ? "success" : "outline"
+                  }
+                >
+                  {state.status.radio.oscillatorLocked ? "Locked" : "Searching"}
+                </Badge>
+              }
             />
           </div>
         </CardContent>
       </Card>
       <Card class="bg-transparent">
-        <CardContent class="text-sm select-none">
-          <CardHeader class="px-0">
-            <CardTitle>RX Misc</CardTitle>
-          </CardHeader>
-
-          <div class="flex flex-col gap-4">
-            <SimpleSwitch
-              checked={state.status.radio.muteLocalAudioWhenRemote}
-              onChange={(isChecked) => {
-                props.radio.setMuteLocalAudioWhenRemote(isChecked);
-              }}
-              label="Mute Local Audio When Remote"
-            />
-            <SimpleSwitch
-              checked={state.status.radio.binauralRx}
-              onChange={(isChecked) => {
-                props.radio.setBinauralRx(isChecked);
-              }}
-              label="Binaural Audio"
-            />
-          </div>
+        <CardHeader>
+          <CardTitle>RX Misc</CardTitle>
+        </CardHeader>
+        <CardContent class="select-none flex flex-col gap-4">
+          <SimpleSwitch
+            checked={state.status.radio.muteLocalAudioWhenRemote}
+            onChange={(isChecked) => {
+              props.radio.setMuteLocalAudioWhenRemote(isChecked);
+            }}
+            label="Mute Local Audio When Remote"
+          />
+          <SimpleSwitch
+            checked={state.status.radio.binauralRx}
+            onChange={(isChecked) => {
+              props.radio.setBinauralRx(isChecked);
+            }}
+            label="Binaural Audio"
+          />
         </CardContent>
       </Card>
       <Card class="bg-transparent">
-        <CardContent class="text-sm select-none">
-          <CardHeader class="px-0">
-            <CardTitle>Filter Options</CardTitle>
-          </CardHeader>
-
-          <div class="flex flex-col gap-4">
-            <SliderToggle
-              label="Voice Sharpness"
-              switchChecked={state.status.radio.filterSharpnessVoiceAuto}
-              disabled={state.status.radio.filterSharpnessVoiceAuto}
-              onSwitchChange={(isChecked) => {
-                props.radio.setFilterSharpnessAutoLevel("voice", isChecked);
-              }}
-              minValue={0}
-              maxValue={3}
-              value={[state.status.radio.filterSharpnessVoice]}
-              onChange={([value]) => {
-                if (value === state.status.radio.filterSharpnessVoice) return;
-                props.radio.setFilterSharpnessLevel("voice", value);
-              }}
-              getValueLabel={(params) =>
-                state.status.radio.filterSharpnessVoiceAuto
-                  ? "Auto"
-                  : ["Lowest Latency", "Lower Latency", "Sharper", "Sharpest"][
-                      params.values[0]
-                    ]
-              }
-            />
-            <SliderToggle
-              label="CW Sharpness"
-              switchChecked={state.status.radio.filterSharpnessCwAuto}
-              disabled={state.status.radio.filterSharpnessCwAuto}
-              onSwitchChange={(isChecked) => {
-                props.radio.setFilterSharpnessAutoLevel("cw", isChecked);
-              }}
-              minValue={0}
-              maxValue={3}
-              value={[state.status.radio.filterSharpnessCw]}
-              onChange={([value]) => {
-                if (value === state.status.radio.filterSharpnessCw) return;
-                props.radio.setFilterSharpnessLevel("cw", value);
-              }}
-              getValueLabel={(params) =>
-                state.status.radio.filterSharpnessCwAuto
-                  ? "Auto"
-                  : ["Lowest Latency", "Lower Latency", "Sharper", "Sharpest"][
-                      params.values[0]
-                    ]
-              }
-            />
-            <SliderToggle
-              label="Digital Sharpness"
-              switchChecked={state.status.radio.filterSharpnessDigitalAuto}
-              disabled={state.status.radio.filterSharpnessDigitalAuto}
-              onSwitchChange={(isChecked) => {
-                props.radio.setFilterSharpnessAutoLevel("digital", isChecked);
-              }}
-              minValue={0}
-              maxValue={3}
-              value={[state.status.radio.filterSharpnessDigital]}
-              onChange={([value]) => {
-                if (value === state.status.radio.filterSharpnessDigital) return;
-                props.radio.setFilterSharpnessLevel("digital", value);
-              }}
-              getValueLabel={(params) =>
-                state.status.radio.filterSharpnessDigitalAuto
-                  ? "Auto"
-                  : ["Lowest Latency", "Lower Latency", "Sharper", "Sharpest"][
-                      params.values[0]
-                    ]
-              }
-            />
-            <SimpleSwitch
-              checked={state.status.radio.lowLatencyDigitalModes}
-              onChange={(isChecked) => {
-                props.radio.setLowLatencyDigitalModes(isChecked);
-              }}
-              label="Use Low-Latency Filters for Digital Modes"
-            />
-          </div>
+        <CardHeader>
+          <CardTitle>Filter Options</CardTitle>
+        </CardHeader>
+        <CardContent class="select-none flex flex-col gap-4">
+          <SliderToggle
+            label="Voice Sharpness"
+            switchChecked={state.status.radio.filterSharpnessVoiceAuto}
+            disabled={state.status.radio.filterSharpnessVoiceAuto}
+            onSwitchChange={(isChecked) => {
+              props.radio.setFilterSharpnessAutoLevel("voice", isChecked);
+            }}
+            minValue={0}
+            maxValue={3}
+            value={[state.status.radio.filterSharpnessVoice]}
+            onChange={([value]) => {
+              if (value === state.status.radio.filterSharpnessVoice) return;
+              props.radio.setFilterSharpnessLevel("voice", value);
+            }}
+            getValueLabel={(params) =>
+              state.status.radio.filterSharpnessVoiceAuto
+                ? "Auto"
+                : ["Lowest Latency", "Lower Latency", "Sharper", "Sharpest"][
+                    params.values[0]
+                  ]
+            }
+          />
+          <SliderToggle
+            label="CW Sharpness"
+            switchChecked={state.status.radio.filterSharpnessCwAuto}
+            disabled={state.status.radio.filterSharpnessCwAuto}
+            onSwitchChange={(isChecked) => {
+              props.radio.setFilterSharpnessAutoLevel("cw", isChecked);
+            }}
+            minValue={0}
+            maxValue={3}
+            value={[state.status.radio.filterSharpnessCw]}
+            onChange={([value]) => {
+              if (value === state.status.radio.filterSharpnessCw) return;
+              props.radio.setFilterSharpnessLevel("cw", value);
+            }}
+            getValueLabel={(params) =>
+              state.status.radio.filterSharpnessCwAuto
+                ? "Auto"
+                : ["Lowest Latency", "Lower Latency", "Sharper", "Sharpest"][
+                    params.values[0]
+                  ]
+            }
+          />
+          <SliderToggle
+            label="Digital Sharpness"
+            switchChecked={state.status.radio.filterSharpnessDigitalAuto}
+            disabled={state.status.radio.filterSharpnessDigitalAuto}
+            onSwitchChange={(isChecked) => {
+              props.radio.setFilterSharpnessAutoLevel("digital", isChecked);
+            }}
+            minValue={0}
+            maxValue={3}
+            value={[state.status.radio.filterSharpnessDigital]}
+            onChange={([value]) => {
+              if (value === state.status.radio.filterSharpnessDigital) return;
+              props.radio.setFilterSharpnessLevel("digital", value);
+            }}
+            getValueLabel={(params) =>
+              state.status.radio.filterSharpnessDigitalAuto
+                ? "Auto"
+                : ["Lowest Latency", "Lower Latency", "Sharper", "Sharpest"][
+                    params.values[0]
+                  ]
+            }
+          />
+          <SimpleSwitch
+            checked={state.status.radio.lowLatencyDigitalModes}
+            onChange={(isChecked) => {
+              props.radio.setLowLatencyDigitalModes(isChecked);
+            }}
+            label="Use Low-Latency Filters for Digital Modes"
+          />
         </CardContent>
+      </Card>
+      <Card class="bg-transparent">
+        <CardHeader>
+          <CardTitle>XVTR</CardTitle>
+        </CardHeader>
+        <CardContent class="flex flex-col gap-4">
+          <For each={Object.values(state.status.xvtr)}>
+            {(xvtr) => {
+              const ctrl = props.radio.xvtr(xvtr.id);
+              return (
+                <Card class="bg-transparent">
+                  <CardHeader class="flex flex-row">
+                    <CardTitle class="grow">{xvtr.name || "????"}</CardTitle>
+                    <Badge variant={xvtr.valid ? "success" : "warning"}>
+                      {xvtr.valid ? "Valid" : "Invalid"}
+                    </Badge>
+                  </CardHeader>
+                  <CardContent class="select-none flex flex-col gap-4">
+                    <TextField
+                      class="flex flex-col gap-2"
+                      value={xvtr.name}
+                      onChange={(value) => ctrl.setName(value)}
+                    >
+                      <TextFieldLabel>Name</TextFieldLabel>
+                      <TextFieldInput placeholder="Name" />
+                    </TextField>
+                    <div class="grid grid-cols-2 gap-4">
+                      <NumberField
+                        class="flex flex-col gap-2 select-none"
+                        rawValue={xvtr.rfFreqMHz}
+                        format={false}
+                        minValue={0}
+                        onRawValueChange={(value) => {
+                          if (value === xvtr.rfFreqMHz) return;
+                          ctrl.setRfFreqMHz(value);
+                        }}
+                      >
+                        <NumberFieldLabel class="select-none">
+                          RF Freq MHz
+                        </NumberFieldLabel>
+                        <NumberFieldGroup class="select-none">
+                          <NumberFieldInput />
+                        </NumberFieldGroup>
+                      </NumberField>
+                      <NumberField
+                        class="flex flex-col gap-2 select-none"
+                        rawValue={xvtr.ifFreqMHz}
+                        format={false}
+                        minValue={0}
+                        onRawValueChange={(value) => {
+                          if (value === xvtr.ifFreqMHz) return;
+                          ctrl.setIfFreqMHz(value);
+                        }}
+                      >
+                        <NumberFieldLabel class="select-none">
+                          IF Freq MHz
+                        </NumberFieldLabel>
+                        <NumberFieldGroup class="select-none">
+                          <NumberFieldInput />
+                        </NumberFieldGroup>
+                      </NumberField>
+                      <NumberField
+                        class="flex flex-col gap-2 select-none"
+                        rawValue={xvtr.rfFreqMHz - xvtr.ifFreqMHz}
+                        minValue={0}
+                        format={false}
+                        disabled
+                      >
+                        <NumberFieldLabel class="select-none">
+                          LO Freq MHz
+                        </NumberFieldLabel>
+                        <NumberFieldGroup class="select-none">
+                          <NumberFieldInput />
+                        </NumberFieldGroup>
+                      </NumberField>
+                      <NumberField
+                        class="flex flex-col gap-2 select-none"
+                        rawValue={xvtr.loErrorMHz}
+                        format={false}
+                        minValue={0}
+                        onRawValueChange={(value) => {
+                          if (value === xvtr.loErrorMHz) return;
+                          ctrl.setLoErrorMHz(value);
+                        }}
+                      >
+                        <NumberFieldLabel class="select-none">
+                          LO Error MHz
+                        </NumberFieldLabel>
+                        <NumberFieldGroup class="select-none">
+                          <NumberFieldInput />
+                        </NumberFieldGroup>
+                      </NumberField>
+                    </div>
+                    <SimpleSwitch
+                      checked={xvtr.rxOnly}
+                      onChange={(isChecked) => {
+                        ctrl.setRxOnly(isChecked);
+                      }}
+                      label="RX Only"
+                    />
+                    <NumberField
+                      class="flex flex-col gap-2 select-none"
+                      rawValue={xvtr.maxPowerDbm}
+                      format={false}
+                      minValue={0}
+                      onRawValueChange={(value) => {
+                        if (value === xvtr.maxPowerDbm) return;
+                        ctrl.setMaxPowerDbm(value);
+                      }}
+                    >
+                      <NumberFieldLabel class="select-none">
+                        Max Power dBm
+                      </NumberFieldLabel>
+                      <NumberFieldGroup class="select-none">
+                        <NumberFieldInput />
+                      </NumberFieldGroup>
+                    </NumberField>
+                    <NumberField
+                      class="flex flex-col gap-2 select-none"
+                      rawValue={xvtr.rxGainDb}
+                      format={false}
+                      minValue={0}
+                      onRawValueChange={(value) => {
+                        if (value === xvtr.rxGainDb) return;
+                        ctrl.setRxGainDb(value);
+                      }}
+                    >
+                      <NumberFieldLabel class="select-none">
+                        RX Gain dB
+                      </NumberFieldLabel>
+                      <NumberFieldGroup class="select-none">
+                        <NumberFieldInput />
+                      </NumberFieldGroup>
+                    </NumberField>
+                  </CardContent>
+                  <CardFooter class="justify-end">
+                    <Button
+                      variant="destructive"
+                      onClick={() => {
+                        if (
+                          confirm(
+                            `Are you sure you want to remove XVTR ${xvtr.name}?`,
+                          )
+                        ) {
+                          ctrl.remove();
+                        }
+                      }}
+                    >
+                      Remove {xvtr.name}
+                    </Button>
+                  </CardFooter>
+                </Card>
+              );
+            }}
+          </For>
+        </CardContent>
+        <CardFooter>
+          <Button onClick={() => props.radio.createXvtr()}>
+            Add Transverter Band
+          </Button>
+        </CardFooter>
       </Card>
     </div>
   );
@@ -1011,11 +1133,9 @@ export function RadioSettings() {
       when={state.clientHandle}
       fallback={
         <Card class="bg-transparent">
-          <CardContent>
-            <CardHeader>
-              <CardTitle>Not Connected</CardTitle>
-            </CardHeader>
-          </CardContent>
+          <CardHeader>
+            <CardTitle>Not Connected</CardTitle>
+          </CardHeader>
         </Card>
       }
     >

@@ -554,7 +554,7 @@ function CwSection() {
         onSwitchChange={(isChecked) => {
           radio()?.setCwBreakIn(isChecked);
         }}
-        minValue={0}
+        minValue={41}
         maxValue={2000}
         value={[state.status.radio.cwBreakInDelayMs]}
         onChange={([value]) => {
@@ -655,7 +655,10 @@ function PcwSection() {
   const { state } = useFlexRadio();
 
   const activeSlice = createMemo(() =>
-    Object.values(state.status.slice).find((s) => s.isActive && s.isInUse),
+    Object.values(state.status.slice).find(
+      (s) =>
+        s.isActive && s.isInUse && s.clientHandle === state.clientHandleInt,
+    ),
   );
 
   return (

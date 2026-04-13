@@ -562,7 +562,6 @@ export function PanafallSettings(props: {
 }
 
 export function PanafallSettingsSidebar() {
-  const { preferences } = usePreferences();
   const { waterfall, panadapter, waterfallController, panadapterController } =
     usePanafall();
   return (

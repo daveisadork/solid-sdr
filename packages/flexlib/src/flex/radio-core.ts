@@ -1683,7 +1683,12 @@ export class Radio {
   }
 
   async setMicBoost(enabled: boolean): Promise<void> {
-    await this.setTransmitBoolean("mic_boost", enabled);
+    const normalized = formatBooleanFlag(enabled);
+    await this.commandAndPatch(
+      `mic boost ${normalized}`,
+      { mic_boost: normalized },
+      { source: "transmit" },
+    );
   }
 
   async setHwAlcEnabled(enabled: boolean): Promise<void> {
@@ -1695,7 +1700,12 @@ export class Radio {
   }
 
   async setMicBias(enabled: boolean): Promise<void> {
-    await this.setTransmitBoolean("mic_bias", enabled);
+    const normalized = formatBooleanFlag(enabled);
+    await this.commandAndPatch(
+      `mic bias ${normalized}`,
+      { mic_bias: normalized },
+      { source: "transmit" },
+    );
   }
 
   async setMicAccessoryEnabled(enabled: boolean): Promise<void> {
@@ -1841,6 +1851,13 @@ export class Radio {
     const formatted = normalized.toFixed(6);
     await this.commandAndPatch(`radio set cal_freq=${formatted}`, {
       cal_freq: formatted,
+    });
+  }
+
+  async startOffsetCalibration(): Promise<void> {
+    if (!this.pllDone) return;
+    await this.commandAndPatch("radio pll_start", {
+      pll_done: "0",
     });
   }
 

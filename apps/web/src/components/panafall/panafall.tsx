@@ -5,13 +5,10 @@ import {
   createEffect,
   createSignal,
   Show,
-  onCleanup,
   JSX,
   ComponentProps,
   splitProps,
   ValidComponent,
-  Switch,
-  Match,
 } from "solid-js";
 import { Panadapter } from "./panadapter";
 import { Waterfall } from "./waterfall";
@@ -22,20 +19,10 @@ import { debounce } from "@solid-primitives/scheduled";
 import { createStore } from "solid-js/store";
 import ArrowCollapseHorizontal from "~icons/mdi/arrow-collapse-horizontal";
 import ArrowExpandHorizontal from "~icons/mdi/arrow-expand-horizontal";
-import Fullscreen from "~icons/mdi/fullscreen";
-import FullscreenExit from "~icons/mdi/fullscreen-exit";
-import ThemeLightDark from "~icons/mdi/theme-light-dark";
-import LightMode from "~icons/material-symbols/light-mode-outline";
-import DarkMode from "~icons/material-symbols/dark-mode-outline";
 import MaterialSymbolsAddCommentOutlineRounded from "~icons/material-symbols/add-comment-outline-rounded";
 import { Button } from "../ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
-import {
-  createLocalStorageManager,
-  useColorMode,
-} from "@kobalte/core/color-mode";
 import { cn, frequencyToLabel, roundToDecimals } from "~/lib/utils";
-import { createFullscreen } from "@solid-primitives/fullscreen";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -331,7 +318,7 @@ export function Panafall(props: { index: number }) {
       >
         <Show when={panadapter()}>
           {(pan) => (
-            <Show when={waterfall()}>
+            <>
               <div class="relative size-full overflow-visible select-none">
                 <Resizable
                   class="size-full overflow-visible select-none"
@@ -352,16 +339,15 @@ export function Panafall(props: { index: number }) {
                   </ResizablePanel>
                   <Scale pan={pan()} />
                   <ResizablePanel class="overflow-visible select-none">
-                    <Waterfall
-                      pan={pan()}
-                      waterfall={waterfall()}
-                      controller={waterfallController()}
-                    />
+                    <Show when={waterfall()}>
+                      <Waterfall
+                        pan={pan()}
+                        waterfall={waterfall()}
+                        controller={waterfallController()}
+                      />
+                    </Show>
                   </ResizablePanel>
                 </Resizable>
-                {/* <Show when={state.selectedPanadapter} keyed> */}
-                {/*   {(streamId) => <TabToSignal streamId={streamId} />} */}
-                {/* </Show> */}
                 <ContextMenu>
                   <ContextMenuTrigger
                     classList={{
@@ -490,7 +476,7 @@ export function Panafall(props: { index: number }) {
                   </div>
                 </div>
               </Show>
-            </Show>
+            </>
           )}
         </Show>
       </div>

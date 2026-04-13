@@ -41,7 +41,7 @@ export const SliderToggle: Component<SliderToggleProps> = (props) => {
   return (
     <Slider
       class={cn("space-y-0", local.class)}
-      disabled={!local.switchChecked}
+      disabled={local.disabled ?? !local.switchChecked}
       {...sliderProps}
     >
       <Tooltip placement="top">

@@ -236,7 +236,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         setState("status", change.entity, change.diff);
         break;
       case "unknown":
-        // console.warn("Unknown state change", change);
+        console.warn("Unknown state change", change);
         break;
       default:
         if (change.removed) {

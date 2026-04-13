@@ -22,7 +22,7 @@ import { Button } from "@kobalte/core/button";
 
 export function Settings() {
   return (
-    <Dialog modal={false}>
+    <Dialog modal={false} defaultOpen>
       <DialogTrigger
         as={Button<"button">}
         class="size-8 not-pointer-coarse:size-5 aspect-square"
@@ -43,7 +43,12 @@ export function Settings() {
             <TabsTrigger value="memory">Memory</TabsTrigger>
             <TabsTrigger value="spots">Spots</TabsTrigger>
           </TabsList>
-          <div class="overflow-y-auto shrink pb-2">
+          <div
+            class="relative overflow-y-auto shrink pb-2"
+            style={{
+              "scrollbar-width": "thin",
+            }}
+          >
             <TabsContent value="app">
               <AppSettings />
             </TabsContent>

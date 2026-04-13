@@ -21,7 +21,7 @@ const SegmentedControl = <T extends ValidComponent = "div">(
   return (
     <SegmentedControlPrimitive.Root
       class={cn(
-        "group/segmented-control relative flex w-full touch-none select-none flex-col justify-between space-y-2",
+        "group/segmented-control relative flex w-full select-none flex-col justify-between space-y-2",
         local.class,
       )}
       {...others}

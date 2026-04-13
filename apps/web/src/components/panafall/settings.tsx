@@ -51,7 +51,7 @@ import { usePreferences } from "~/context/preferences";
 import { Sidebar, SidebarContent } from "../ui/sidebar";
 import { usePanafall } from "~/context/panafall";
 
-const BANDS: { id: string; label: string }[] = [
+export const BANDS: { id: string; label: string }[] = [
   { id: "160", label: "160m" },
   { id: "80", label: "80m" },
   { id: "60", label: "60m" },
@@ -357,6 +357,7 @@ export function PanafallSettings(props: {
       </Select>
       <NumberField
         class="flex flex-col gap-2 select-none"
+        changeOnWheel={false}
         rawValue={props.panadapter.centerFrequencyMHz}
         step={props.panadapter.bandwidthMHz / 10}
         largeStep={props.panadapter.bandwidthMHz}
@@ -376,6 +377,7 @@ export function PanafallSettings(props: {
         </NumberFieldGroup>
       </NumberField>
       <NumberField
+        changeOnWheel={false}
         class="flex flex-col gap-2 select-none"
         rawValue={props.panadapter.bandwidthMHz}
         step={props.panadapter.bandwidthMHz / 2}
@@ -399,6 +401,7 @@ export function PanafallSettings(props: {
       </NumberField>
       <NumberField
         class="flex flex-col gap-2 select-none"
+        changeOnWheel={false}
         rawValue={props.panadapter.highDbm}
         onFocusOut={() => {
           const high = rawHighDbm();
@@ -417,6 +420,7 @@ export function PanafallSettings(props: {
       </NumberField>
       <NumberField
         class="flex flex-col gap-2 select-none"
+        changeOnWheel={false}
         rawValue={props.panadapter.lowDbm}
         onFocusOut={() => {
           const low = rawLowDbm();

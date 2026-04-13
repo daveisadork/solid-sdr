@@ -19,7 +19,7 @@ const Slider = <T extends ValidComponent = "div">(
   return (
     <SliderPrimitive.Root
       class={cn(
-        "relative flex data-[orientation=horizontal]:w-full data-[orientation=vertical]:h-full touch-none select-none flex-col items-center",
+        "relative flex data-[orientation=horizontal]:w-full data-[orientation=vertical]:h-full select-none flex-col items-center",
         local.class,
       )}
       {...others}

@@ -1,105 +1,222 @@
 import type {
-  FlexCommandOptions,
-  FlexCommandResponse,
-  FlexControlChannel,
-  FlexControlFactory,
-  FlexWireTransport,
-  FlexWireTransportFactory,
-  FlexWireTransportHandlers,
-} from "../src/flex/adapters.js";
-import type {
-  FlexStatusMessage,
-  FlexWireMessage,
-} from "../src/flex/protocol.js";
+  FlexConnection,
+  FlexConnectionEvents,
+  FlexTransport,
+  FlexTransportEvents,
+  RadioEndpoint,
+} from "../src/flex/transport.js";
+import type { Subscription } from "../src/util/events.js";
+import { TypedEventEmitter } from "../src/util/events.js";
+import type { FlexStatusMessage } from "../src/flex/protocol.js";
 import { parseFlexMessage } from "../src/flex/protocol.js";
+import { Radio } from "../src/flex/radio-core.js";
 
-export class MockControlChannel implements FlexControlChannel {
-  readonly commands: Array<{ command: string; options?: FlexCommandOptions }> =
-    [];
-  private readonly listeners = new Set<(message: FlexWireMessage) => void>();
-  private readonly rawListeners = new Set<(line: string) => void>();
-  private sequence = 1;
-  private nextResponse?: Partial<FlexCommandResponse>;
-  closed = false;
+// ---------------------------------------------------------------------------
+// Mock FlexConnection
+// ---------------------------------------------------------------------------
 
-  send(
-    command: string,
-    options?: FlexCommandOptions,
-  ): Promise<FlexCommandResponse> {
-    this.commands.push({ command, options });
-    const response = this.nextResponse ?? {};
-    this.nextResponse = undefined;
-    const accepted = response.accepted ?? true;
-    const payload: FlexCommandResponse = {
-      sequence: response.sequence ?? this.sequence++,
-      accepted,
-      code: response.code,
+/**
+ * Mock connection for testing. Auto-responds to commands with success
+ * and emits a handle line on connectTcp.
+ */
+export class MockFlexConnection
+  extends TypedEventEmitter<FlexConnectionEvents>
+  implements FlexConnection
+{
+  readonly sentTcp: string[] = [];
+  readonly sentUdp: Uint8Array[] = [];
+  private _closed = false;
+  private customResponses = new Map<
+    string,
+    { accepted: boolean; message?: string; code?: number }
+  >();
+
+  /** Handle value emitted on connectTcp. Set to empty to skip. */
+  handle = "0x12345678";
+
+  /** Default handshake responses so connect() succeeds. */
+  private static readonly HANDSHAKE_RESPONSES = new Map<string, string>([
+    [
+      "info",
+      "screensaver=model,serial=0000-0000,name=Test,callsign=TEST,software_ver=3.10.10",
+    ],
+    ["version", "SmartSDR-MB=3.10.10#FPGA-MB=1.2.3#"],
+    ["ant list", "ANT1,ANT2"],
+    ["mic list", "MIC"],
+    ["client gui", "test-client-id"],
+  ]);
+
+  on<K extends keyof FlexConnectionEvents>(
+    event: K,
+    handler: (payload: FlexConnectionEvents[K]) => void,
+  ): Subscription {
+    return super.on(event, handler);
+  }
+
+  async connectTcp(_endpoint: RadioEndpoint): Promise<void> {
+    // Emit handle line immediately (before promise resolves) to simulate
+    // the radio sending the handle as soon as TCP connects.
+    if (this.handle) {
+      queueMicrotask(() => {
+        this.emit("tcpData", `H${this.handle}\n`);
+      });
+    }
+  }
+
+  async connectUdp(_endpoint: RadioEndpoint): Promise<void> {}
+
+  async sendTcp(data: string): Promise<void> {
+    this.sentTcp.push(data);
+    // Auto-respond to commands with success
+    const match = data.match(/^C(\d+)\|(.+?)[\n\r]*$/);
+    if (match) {
+      const seq = match[1];
+      const cmd = match[2];
+      const custom = this.findCustomResponse(cmd);
+      const code = custom?.code ?? 0;
+      const msg = custom?.message ?? "";
+      const hexCode = code.toString(16).padStart(8, "0");
+      const replyLine = `R${seq}|${hexCode}|${msg}\n`;
+      queueMicrotask(() => {
+        if (!this._closed) this.emit("tcpData", replyLine);
+      });
+    }
+  }
+
+  async sendUdp(data: Uint8Array): Promise<void> {
+    this.sentUdp.push(data);
+  }
+
+  async close(): Promise<void> {
+    this._closed = true;
+  }
+
+  // --- Test helpers ---
+
+  /** Emit a raw TCP line (appends newline if missing). */
+  emitTcpLine(line: string): void {
+    const data = line.endsWith("\n") ? line : line + "\n";
+    this.emit("tcpData", data);
+  }
+
+  /** Emit a status message as raw TCP text. */
+  emitStatus(raw: string): void {
+    this.emitTcpLine(raw);
+  }
+
+  /** Get the last command sent (without the C{seq}| prefix and trailing newline). */
+  lastCommand(): string | undefined {
+    const last = this.sentTcp.at(-1);
+    if (!last) return undefined;
+    const match = last.match(/^C\d+\|(.+?)[\n\r]*$/);
+    return match?.[1];
+  }
+
+  /** Get all commands sent (stripped of sequence prefix). */
+  get commands(): string[] {
+    return this.sentTcp
+      .map((s) => s.match(/^C\d+\|(.+?)[\n\r]*$/)?.[1])
+      .filter((s): s is string => s !== undefined);
+  }
+
+  /** Prepare a custom response for the next command matching a prefix. */
+  prepareResponse(
+    cmdPrefix: string,
+    response: { accepted?: boolean; message?: string; code?: number },
+  ): void {
+    this.customResponses.set(cmdPrefix, {
+      accepted: response.accepted ?? true,
       message: response.message,
-      raw: response.raw ?? (accepted ? "R|0|OK" : "R|1|ERR"),
-    };
-    return new Promise((resolve) => {
-      queueMicrotask(() => resolve(payload));
+      code: response.code ?? 0,
     });
   }
 
-  onMessage(listener: (message: FlexWireMessage) => void) {
-    this.listeners.add(listener);
-    return {
-      unsubscribe: () => this.listeners.delete(listener),
-    };
-  }
-
-  onRawLine(listener: (line: string) => void) {
-    this.rawListeners.add(listener);
-    return {
-      unsubscribe: () => this.rawListeners.delete(listener),
-    };
-  }
-
-  emit(message: FlexWireMessage) {
-    for (const listener of this.listeners) {
-      listener(message);
+  private findCustomResponse(cmd: string) {
+    for (const [prefix, response] of this.customResponses) {
+      if (cmd.startsWith(prefix)) {
+        this.customResponses.delete(prefix);
+        return response;
+      }
     }
-  }
-
-  emitRaw(line: string) {
-    for (const listener of this.rawListeners) {
-      listener(line);
+    // Check handshake defaults so connect() succeeds
+    for (const [prefix, message] of MockFlexConnection.HANDSHAKE_RESPONSES) {
+      if (cmd.startsWith(prefix)) {
+        return { accepted: true, message, code: 0 };
+      }
     }
-  }
-
-  prepareResponse(response: Partial<FlexCommandResponse>) {
-    this.nextResponse = response;
-  }
-
-  close(): Promise<void> {
-    this.closed = true;
-    this.listeners.clear();
-    this.rawListeners.clear();
-    return Promise.resolve();
+    return undefined;
   }
 }
 
-export class MockControlFactory implements FlexControlFactory {
-  channel?: MockControlChannel;
+// ---------------------------------------------------------------------------
+// Mock FlexTransport
+// ---------------------------------------------------------------------------
 
-  connect(): Promise<FlexControlChannel> {
-    this.channel = new MockControlChannel();
-    return Promise.resolve(this.channel);
+export class MockFlexTransport
+  extends TypedEventEmitter<FlexTransportEvents>
+  implements FlexTransport
+{
+  connection?: MockFlexConnection;
+
+  on<K extends keyof FlexTransportEvents>(
+    event: K,
+    handler: (payload: FlexTransportEvents[K]) => void,
+  ): Subscription {
+    return super.on(event, handler);
   }
+
+  async startDiscovery(): Promise<void> {}
+  async stopDiscovery(): Promise<void> {}
+
+  createConnection(): FlexConnection {
+    this.connection = new MockFlexConnection();
+    return this.connection;
+  }
+
+  async close(): Promise<void> {}
 }
 
-export function createMockControl() {
-  const factory = new MockControlFactory();
-  const getChannel = () => {
-    if (!factory.channel) {
-      throw new Error("control channel not created");
-    }
-    return factory.channel;
-  };
-  return { factory, getChannel };
+// ---------------------------------------------------------------------------
+// Test helpers
+// ---------------------------------------------------------------------------
+
+export const DEFAULT_DESCRIPTOR = {
+  serial: "1234-0001",
+  host: "192.168.1.100",
+  port: 4992,
+};
+
+/**
+ * Create a Radio and connect it with a mock transport.
+ * The mock auto-responds to handshake commands with success.
+ * Returns the radio and mock connection for emitting status lines.
+ */
+export async function createConnectedRadio(
+  options?: {
+    serial?: string;
+    host?: string;
+    port?: number;
+  },
+): Promise<{ radio: Radio; connection: MockFlexConnection }> {
+  const transport = new MockFlexTransport();
+  const radio = new Radio(
+    options?.serial ?? DEFAULT_DESCRIPTOR.serial,
+    transport,
+    {
+      host: options?.host ?? DEFAULT_DESCRIPTOR.host,
+      port: options?.port ?? DEFAULT_DESCRIPTOR.port,
+    },
+  );
+
+  await radio.connect({
+    pingIntervalMs: null, // disable heartbeat in tests
+  });
+
+  const connection = transport.connection!;
+  return { radio, connection };
 }
 
+/** Parse a raw status string into a FlexStatusMessage. Throws if invalid. */
 export function makeStatus(raw: string): FlexStatusMessage {
   const parsed = parseFlexMessage(raw, Date.now());
   if (!parsed || parsed.kind !== "status")
@@ -107,9 +224,7 @@ export function makeStatus(raw: string): FlexStatusMessage {
   return parsed;
 }
 
-/**
- * Convert a hex string (with or without spaces/newlines) to Uint8Array
- */
+/** Convert a hex string (with or without spaces/newlines) to Uint8Array. */
 export function hexToBytes(hex: string): Uint8Array {
   const clean = hex.replace(/[^0-9a-fA-F]/g, "");
   if (clean.length % 2 !== 0) {
@@ -120,58 +235,4 @@ export function hexToBytes(hex: string): Uint8Array {
     out[i / 2] = parseInt(clean.slice(i, i + 2), 16);
   }
   return out;
-}
-
-export class MockWireTransport implements FlexWireTransport {
-  readonly sent: string[] = [];
-  closed = false;
-
-  constructor(readonly handlers: FlexWireTransportHandlers) {}
-
-  async send(payload: string | Uint8Array): Promise<void> {
-    const data =
-      typeof payload === "string"
-        ? payload
-        : new TextDecoder().decode(payload);
-    this.sent.push(data);
-  }
-
-  close(): Promise<void> {
-    if (this.closed) return Promise.resolve();
-    this.closed = true;
-    this.handlers.onClose?.();
-    return Promise.resolve();
-  }
-
-  emit(text: string): void {
-    this.handlers.onData?.(text);
-  }
-
-  emitBinary(text: string): void {
-    const bytes = new TextEncoder().encode(text);
-    this.handlers.onData?.(bytes);
-  }
-
-  emitClose(cause?: unknown): void {
-    if (this.closed) return;
-    this.closed = true;
-    this.handlers.onClose?.(cause);
-  }
-
-  emitError(error: unknown): void {
-    this.handlers.onError?.(error);
-  }
-}
-
-export class MockWireTransportFactory implements FlexWireTransportFactory {
-  transports: MockWireTransport[] = [];
-
-  async connect(
-    _radio: unknown,
-    handlers: FlexWireTransportHandlers,
-  ): Promise<FlexWireTransport> {
-    const transport = new MockWireTransport(handlers);
-    this.transports.push(transport);
-    return transport;
-  }
 }

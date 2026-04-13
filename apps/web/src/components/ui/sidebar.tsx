@@ -209,7 +209,7 @@ const Sidebar: Component<SidebarProps> = (rawProps) => {
       <Match when={local.collapsible === "none"}>
         <div
           class={cn(
-            "test w-(--sidebar-width) flex h-full flex-col bg-sidebar text-sidebar-foreground",
+            "w-(--sidebar-width) flex h-full flex-col bg-sidebar text-sidebar-foreground",
             local.class,
           )}
           {...others}
@@ -269,7 +269,7 @@ const Sidebar: Component<SidebarProps> = (rawProps) => {
           >
             <div
               data-sidebar="sidebar"
-              class="flex size-full flex-col fancy-bg-background group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:border-sidebar-border group-data-[variant=floating]:shadow"
+              class="relative flex size-full flex-col fancy-bg-background group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:border-sidebar-border group-data-[variant=floating]:shadow"
             >
               {local.children}
             </div>

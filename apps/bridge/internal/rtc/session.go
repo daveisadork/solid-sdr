@@ -3,6 +3,7 @@ package rtc
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -34,7 +35,7 @@ type errorPayload struct {
 func encode(msgType string, payload any) (message, error) {
 	data, err := json.Marshal(payload)
 	if err != nil {
-		return message{}, err
+		return message{}, fmt.Errorf("error encoding %v message: %w", msgType, err)
 	}
 
 	return message{Type: msgType, Payload: data}, nil
@@ -128,7 +129,9 @@ func (cs *clientSession) dispatch(ctx context.Context, msg message) {
 
 func (cs *clientSession) handleOffer(ctx context.Context, raw json.RawMessage) {
 	var offer webrtc.SessionDescription
-	if err := json.Unmarshal(raw, &offer); err != nil {
+
+	err := json.Unmarshal(raw, &offer)
+	if err != nil {
 		cs.trySend(mustEncode(typeError, errorPayload{Code: "BAD_PAYLOAD", Message: err.Error()}))
 
 		return
@@ -151,7 +154,8 @@ func (cs *clientSession) handleOffer(ctx context.Context, raw json.RawMessage) {
 		cs.mu.Unlock()
 	}
 
-	if err := cs.pc.SetRemoteDescription(offer); err != nil {
+	err = cs.pc.SetRemoteDescription(offer)
+	if err != nil {
 		cs.trySend(mustEncode(typeError, errorPayload{Code: "SET_REMOTE_FAILED", Message: err.Error()}))
 
 		return
@@ -164,7 +168,8 @@ func (cs *clientSession) handleOffer(ctx context.Context, raw json.RawMessage) {
 		return
 	}
 
-	if err := cs.pc.SetLocalDescription(answer); err != nil {
+	err = cs.pc.SetLocalDescription(answer)
+	if err != nil {
 		cs.trySend(mustEncode(typeError, errorPayload{Code: "SET_LOCAL_FAILED", Message: err.Error()}))
 
 		return
@@ -301,6 +306,8 @@ func (cs *clientSession) openTCP(dc *webrtc.DataChannel) {
 
 		if _, err := tcp.Write(msg.Data); err != nil {
 			log.Printf("[rtc] tcp write: %v", err)
+
+			_ = dc.Close()
 		}
 	})
 	dc.OnClose(func() {
@@ -347,6 +354,8 @@ func (cs *clientSession) openUDP(dc *webrtc.DataChannel) {
 
 		if _, err := u.Write(msg.Data); err != nil {
 			log.Printf("[rtc] udp write: %v", err)
+
+			_ = dc.Close()
 		}
 	})
 	startUDPDemux(rc, cs.audioTrack)

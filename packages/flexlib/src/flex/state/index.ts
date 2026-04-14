@@ -42,6 +42,8 @@ import {
   type TxBandSettingSnapshot,
 } from "./tx-band-settings.js";
 import { createXvtrSnapshot, type XvtrSnapshot } from "./xvtr.js";
+import { createCwxSnapshot, type CwxSnapshot } from "./cwx.js";
+import { createDvkSnapshot, type DvkSnapshot } from "./dvk.js";
 
 export type { SnapshotDiff } from "./common.js";
 export type { SliceSnapshot } from "./slice.js";
@@ -54,6 +56,8 @@ export type { EqualizerSnapshot, EqualizerId } from "./equalizer.js";
 export type { KnownMeterUnits, MeterSnapshot, MeterUnits } from "./meter.js";
 export type { TxBandSettingSnapshot } from "./tx-band-settings.js";
 export type { XvtrSnapshot } from "./xvtr.js";
+export type { CwxSnapshot } from "./cwx.js";
+export type { DvkSnapshot, DvkRecording, DvkStatus } from "./dvk.js";
 export type {
   RadioAtuTuneStatus,
   RadioFilterSharpnessMode,
@@ -98,6 +102,8 @@ export type RadioStateChange =
   | ({ entity: "radio" } & ChangeMetadata<RadioSnapshot>)
   | ({ entity: "featureLicense" } & ChangeMetadata<FeatureLicenseSnapshot>)
   | ({ entity: "apd" } & ChangeMetadata<ApdSnapshot>)
+  | ({ entity: "cwx" } & ChangeMetadata<CwxSnapshot>)
+  | ({ entity: "dvk" } & ChangeMetadata<DvkSnapshot>)
   | {
       entity: "unknown";
       source: string;
@@ -133,6 +139,8 @@ export type TxBandSettingStateChange = Extract<
   { entity: "txBandSetting" }
 >;
 export type XvtrStateChange = Extract<RadioStateChange, { entity: "xvtr" }>;
+export type CwxStateChange = Extract<RadioStateChange, { entity: "cwx" }>;
+export type DvkStateChange = Extract<RadioStateChange, { entity: "dvk" }>;
 
 export interface RadioStateSnapshot {
   readonly slices: readonly SliceSnapshot[];
@@ -147,6 +155,8 @@ export interface RadioStateSnapshot {
   readonly radio: RadioSnapshot;
   readonly featureLicense?: FeatureLicenseSnapshot;
   readonly apd?: ApdSnapshot;
+  readonly cwx?: CwxSnapshot;
+  readonly dvk?: DvkSnapshot;
 }
 
 export interface RadioStateStore {
@@ -168,6 +178,8 @@ export interface RadioStateStore {
   getXvtr(id: string): XvtrSnapshot | undefined;
   getXvtrs(): readonly XvtrSnapshot[];
   getApd(): ApdSnapshot | undefined;
+  getCwx(): CwxSnapshot | undefined;
+  getDvk(): DvkSnapshot | undefined;
   getRadio(): RadioSnapshot | undefined;
   getFeatureLicense(): FeatureLicenseSnapshot | undefined;
   patchRadio(
@@ -207,6 +219,8 @@ export interface RadioStateStore {
     attributes: Record<string, string>,
   ): XvtrStateChange | undefined;
   removeXvtr(id: string): XvtrStateChange | undefined;
+  patchCwx(attributes: Record<string, string>): CwxStateChange | undefined;
+  patchDvk(attributes: Record<string, string>): DvkStateChange | undefined;
   patchApd(attributes: Record<string, string>): ApdStateChange | undefined;
   applyPanadapterRfGainInfo(
     id: string,
@@ -242,6 +256,8 @@ export function createRadioStateStore(
   let radio: RadioSnapshot;
   let featureLicense: FeatureLicenseSnapshot | undefined;
   let apd: ApdSnapshot | undefined;
+  let cwx: CwxSnapshot | undefined;
+  let dvk: DvkSnapshot | undefined;
   let localClientHandle: number | undefined;
 
   function reset(): void {
@@ -258,6 +274,8 @@ export function createRadioStateStore(
     radio = undefined as unknown as RadioSnapshot;
     featureLicense = undefined;
     apd = undefined;
+    cwx = undefined;
+    dvk = undefined;
     localClientHandle = undefined;
   }
 
@@ -294,6 +312,18 @@ export function createRadioStateStore(
         }
         case "xvtr":
           return [handleXvtr(message)];
+        case "cwx": {
+          const change = handleCwx(message);
+          if (change) return [change];
+          return [];
+        }
+        case "dvk": {
+          const change = handleDvk(message);
+          if (change) return [change];
+          return [];
+        }
+        case "waveform":
+          return [handleRadio(message)];
         case "apd": {
           const change = handleApd(message);
           if (change) return [change];
@@ -351,6 +381,8 @@ export function createRadioStateStore(
         radio,
         featureLicense,
         apd,
+        cwx,
+        dvk,
       };
     },
     getSlice(id) {
@@ -394,6 +426,12 @@ export function createRadioStateStore(
     },
     getApd() {
       return apd;
+    },
+    getCwx() {
+      return cwx;
+    },
+    getDvk() {
+      return dvk;
     },
     getRadio() {
       return radio;
@@ -439,6 +477,12 @@ export function createRadioStateStore(
     },
     removeXvtr(id) {
       return removeXvtr(id);
+    },
+    patchCwx(attributes) {
+      return patchCwx(attributes);
+    },
+    patchDvk(attributes) {
+      return patchDvk(attributes);
     },
     patchApd(attributes) {
       return patchApd(attributes);
@@ -1346,6 +1390,73 @@ export function createRadioStateStore(
       entity: "xvtr",
       id,
       removed: true,
+    };
+  }
+
+  function handleCwx(
+    message: FlexStatusMessage,
+  ): RadioStateChange | undefined {
+    const { snapshot, diff } = createCwxSnapshot(message.attributes, cwx);
+    const diffKeys = Object.keys(diff as Record<string, unknown>);
+    cwx = snapshot;
+    if (diffKeys.length === 0) return undefined;
+    return {
+      entity: "cwx",
+      removed: false,
+      diff,
+    };
+  }
+
+  function patchCwx(
+    attributes: Record<string, string>,
+  ): CwxStateChange | undefined {
+    if (Object.keys(attributes).length === 0) return undefined;
+    const { snapshot, diff } = createCwxSnapshot(attributes, cwx);
+    const diffKeys = Object.keys(diff as Record<string, unknown>);
+    cwx = snapshot;
+    if (diffKeys.length === 0) return undefined;
+    return {
+      entity: "cwx",
+      removed: false,
+      diff,
+    };
+  }
+
+  function handleDvk(
+    message: FlexStatusMessage,
+  ): RadioStateChange | undefined {
+    // Recording lifecycle events use positional tokens ("added"/"deleted")
+    // that the protocol parser places in identifier/positional, not attributes.
+    const attributes: Record<string, string> = { ...message.attributes };
+    const allTokens = [
+      message.identifier,
+      ...message.positional,
+    ].map((t) => t?.toLowerCase());
+    if (allTokens.includes("added")) attributes["added"] = "";
+    if (allTokens.includes("deleted")) attributes["deleted"] = "";
+    const { snapshot, diff } = createDvkSnapshot(attributes, dvk);
+    const diffKeys = Object.keys(diff as Record<string, unknown>);
+    dvk = snapshot;
+    if (diffKeys.length === 0) return undefined;
+    return {
+      entity: "dvk",
+      removed: false,
+      diff,
+    };
+  }
+
+  function patchDvk(
+    attributes: Record<string, string>,
+  ): DvkStateChange | undefined {
+    if (Object.keys(attributes).length === 0) return undefined;
+    const { snapshot, diff } = createDvkSnapshot(attributes, dvk);
+    const diffKeys = Object.keys(diff as Record<string, unknown>);
+    dvk = snapshot;
+    if (diffKeys.length === 0) return undefined;
+    return {
+      entity: "dvk",
+      removed: false,
+      diff,
     };
   }
 

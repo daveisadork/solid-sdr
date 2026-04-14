@@ -246,6 +246,7 @@ export interface RadioSnapshot {
   readonly cwBreakInDelayMs?: number;
   readonly logLevels: readonly string[];
   readonly logModules: readonly RadioLogModule[];
+  readonly installedWaveforms: readonly string[];
   readonly txFreqMhz: number;
   readonly txMode: string;
   readonly txAntenna: string;
@@ -292,6 +293,9 @@ export function createRadioSnapshot(
       break;
     case "atu":
       applyAtuStatusAttributes(attributes, partial);
+      break;
+    case "waveform":
+      applyWaveformAttributes(attributes, partial, previous);
       break;
     default:
       applyRadioSourceAttributes(attributes, partial, previous);
@@ -585,6 +589,31 @@ function applyAtuStatusAttributes(
         break;
       default:
         logUnknownAttribute("atu", key, value);
+        break;
+    }
+  }
+}
+
+function applyWaveformAttributes(
+  attributes: Record<string, string>,
+  partial: Mutable<Partial<RadioSnapshot>>,
+  previous?: RadioSnapshot,
+): void {
+  for (const [key, value] of Object.entries(attributes)) {
+    switch (key) {
+      case "installed_list": {
+        // Comma-separated list; ASCII 0x7F is used as space placeholder
+        const items = value
+          .split(",")
+          .map((s) => s.replace(/\x7f/g, " "))
+          .filter((s) => s !== "");
+        if (!arraysShallowEqual(previous?.installedWaveforms, items)) {
+          partial.installedWaveforms = Object.freeze(items);
+        }
+        break;
+      }
+      default:
+        logUnknownAttribute("waveform", key, value);
         break;
     }
   }
@@ -1337,7 +1366,8 @@ type RadioContextKind =
   | "oscillator"
   | "profile"
   | "log"
-  | "atu";
+  | "atu"
+  | "waveform";
 
 function resolveRadioContext(context?: RadioStatusContext): RadioContextKind {
   const identifier = context?.identifier?.toLowerCase();
@@ -1353,6 +1383,7 @@ function resolveRadioContext(context?: RadioStatusContext): RadioContextKind {
   if (source === "profile") return "profile";
   if (source === "log") return "log";
   if (source === "atu") return "atu";
+  if (source === "waveform") return "waveform";
 
   return "radio";
 }

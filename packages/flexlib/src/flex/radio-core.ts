@@ -88,6 +88,8 @@ import {
 } from "./tx-band-settings.js";
 import { type ApdController, ApdControllerImpl } from "./apd.js";
 import { type XvtrController, XvtrControllerImpl } from "./xvtr.js";
+import { type CwxController, CwxControllerImpl } from "./cwx.js";
+import { type DvkController, DvkControllerImpl } from "./dvk.js";
 import {
   type FeatureLicenseController,
   FeatureLicenseControllerImpl,
@@ -98,6 +100,8 @@ import type {
   TxBandSettingStateChange,
   ApdStateChange,
   XvtrStateChange,
+  CwxStateChange,
+  DvkStateChange,
 } from "./state/index.js";
 import { parseVitaPacket, type VitaParsedPacket } from "../vita/parser.js";
 
@@ -465,6 +469,8 @@ export class Radio {
   >();
   private readonly xvtrControllers = new Map<string, XvtrControllerImpl>();
   private readonly _apdController: ApdControllerImpl;
+  private readonly _cwxController: CwxControllerImpl;
+  private readonly _dvkController: DvkControllerImpl;
   private readonly _featureLicenseController: FeatureLicenseControllerImpl;
 
   private _clientHandle: string | null = null;
@@ -490,6 +496,8 @@ export class Radio {
     this.logger = options?.logger;
     this.store = createRadioStateStore({ logger: this.logger });
     this._apdController = new ApdControllerImpl(this);
+    this._cwxController = new CwxControllerImpl(this);
+    this._dvkController = new DvkControllerImpl(this);
     this._featureLicenseController = new FeatureLicenseControllerImpl(this);
 
     // Return a Proxy so that RadioSnapshot properties (nickname, sliceCount,
@@ -690,6 +698,14 @@ export class Radio {
    */
   async createXvtr(): Promise<void> {
     await this.command("xvtr create");
+  }
+
+  cwx(): CwxController {
+    return this._cwxController;
+  }
+
+  dvk(): DvkController {
+    return this._dvkController;
   }
 
   apd(): ApdController {
@@ -1109,6 +1125,12 @@ export class Radio {
             return new XvtrControllerImpl(this, change.id);
           },
         );
+        break;
+      case "cwx":
+        this._cwxController.onStateChange(change as CwxStateChange);
+        break;
+      case "dvk":
+        this._dvkController.onStateChange(change as DvkStateChange);
         break;
       case "apd":
         this._apdController.onStateChange(change as ApdStateChange);

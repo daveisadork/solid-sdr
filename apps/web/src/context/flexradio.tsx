@@ -43,6 +43,8 @@ import {
 import { createFlexClient } from "@repo/flexlib/bridge";
 import { useRtc } from "./rtc";
 import { usePreferences } from "./preferences";
+import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
+import MaterialSymbolsProgressActivity from "~icons/material-symbols/progress-activity";
 
 export enum ConnectionState {
   disconnected,
@@ -512,7 +514,19 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         client: flexClient,
       }}
     >
-      <Show when={flexClient()} fallback={<div>Initializing</div>}>
+      <Show
+        when={flexClient()}
+        fallback={
+          <Card class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+            <CardHeader>
+              <div class="flex items-center gap-2">
+                <MaterialSymbolsProgressActivity class="animate-spin" />
+                <CardTitle>Initializing</CardTitle>
+              </div>
+            </CardHeader>
+          </Card>
+        }
+      >
         {props.children}
       </Show>
     </FlexRadioContext.Provider>

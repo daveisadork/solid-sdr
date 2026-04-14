@@ -92,6 +92,9 @@ export function startRTC(
     if (onTrack) pc.removeEventListener("track", onTrack);
     pc.removeEventListener("connectionstatechange", onConnectionStateChange);
     pc.removeEventListener("negotiationneeded", renegotiate);
+    if (pc.connectionState !== "closed" && pc.connectionState !== "failed") {
+      pc.close();
+    }
   };
 
   pc.addEventListener("icecandidate", onIceCandidate);
@@ -99,6 +102,8 @@ export function startRTC(
   // during setRemoteDescription processing) is never missed.
   if (onTrack) pc.addEventListener("track", onTrack);
   signalingWs.addEventListener("message", handleSignalingMsg);
+  signalingWs.addEventListener("close", cleanup, { once: true });
+  signalingWs.addEventListener("error", cleanup, { once: true });
   pc.addEventListener("connectionstatechange", onConnectionStateChange);
   pc.addEventListener("negotiationneeded", renegotiate);
 
@@ -107,7 +112,7 @@ export function startRTC(
     pc,
     audio,
     setTransmitTrack: audio.sender.replaceTrack.bind(audio.sender),
-    close: () => pc.close(),
+    close: cleanup,
   };
 }
 

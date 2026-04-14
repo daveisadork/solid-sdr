@@ -5,6 +5,7 @@ import {
   createSignal,
   onCleanup,
   createEffect,
+  onMount,
 } from "solid-js";
 import type { Accessor } from "solid-js";
 import { startRTC, type RtcSession } from "../lib/rtc";
@@ -48,6 +49,21 @@ export const RtcProvider: ParentComponent = (props) => {
     );
   };
 
+  const onOpen = () => setSession(startRTC(signalingWs, onTrack));
+  const onClose = () => setSession(null);
+
+  onMount(() => {
+    signalingWs.addEventListener("open", onOpen);
+    signalingWs.addEventListener("close", onClose);
+    signalingWs.addEventListener("error", onClose);
+
+    onCleanup(() => {
+      signalingWs.removeEventListener("open", onOpen);
+      signalingWs.removeEventListener("close", onClose);
+      signalingWs.removeEventListener("error", onClose);
+    });
+  });
+
   createEffect(() => {
     const pc = session()?.pc;
     if (!pc) return;
@@ -65,8 +81,8 @@ export const RtcProvider: ParentComponent = (props) => {
   });
 
   createEffect(() => {
-    if (session()) return;
-    setSession(startRTC(signalingWs, onTrack));
+    const currentSession = session();
+    onCleanup(() => currentSession?.close());
   });
 
   return (

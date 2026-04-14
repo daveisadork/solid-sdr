@@ -42,9 +42,9 @@ function App() {
               <StatusBar />
             </div>
             <RtcAudio /> {/* keeps audio elements mounted */}
-            <Toaster />
           </FlexRadioProvider>
         </RtcProvider>
+        <Toaster />
       </ColorModeProvider>
     </PreferencesProvider>
   );

@@ -2,7 +2,7 @@ import useFlexRadio, {
   PanadapterState,
   WaterfallState,
 } from "~/context/flexradio";
-import { createEffect, createMemo, createSignal, For } from "solid-js";
+import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import {
   NumberField,
   NumberFieldDecrementTrigger,
@@ -50,7 +50,12 @@ import { ColorSwatch } from "@kobalte/core/color-swatch";
 import { parseColor } from "@kobalte/core/colors";
 import { PanadapterController, WaterfallController } from "@repo/flexlib";
 import { SimpleMeter } from "../ui/simple-meter";
-import { usePreferences } from "~/context/preferences";
+import {
+  FillStyle,
+  GradientStyle,
+  PeakStyle,
+  usePreferences,
+} from "~/context/preferences";
 import { Sidebar, SidebarContent } from "../ui/sidebar";
 import { usePanafall } from "~/context/panafall";
 
@@ -208,9 +213,9 @@ export function PanafallSettings(props: {
       </Dialog>
       <SegmentedControl
         value={preferences.peakStyle}
-        onChange={(value) => {
+        onChange={(value: PeakStyle) => {
           if (!value) return;
-          setPreferences("peakStyle", value as "none" | "points" | "line");
+          setPreferences("peakStyle", value);
         }}
       >
         <SegmentedControlLabel>Peak Style</SegmentedControlLabel>
@@ -220,7 +225,9 @@ export function PanafallSettings(props: {
             <For each={["none", "points", "line"]}>
               {(style) => (
                 <SegmentedControlItem value={style}>
-                  <SegmentedControlItemLabel>{style}</SegmentedControlItemLabel>
+                  <SegmentedControlItemLabel class="capitalize">
+                    {style}
+                  </SegmentedControlItemLabel>
                 </SegmentedControlItem>
               )}
             </For>
@@ -229,9 +236,9 @@ export function PanafallSettings(props: {
       </SegmentedControl>
       <SegmentedControl
         value={preferences.fillStyle}
-        onChange={(value) => {
+        onChange={(value: FillStyle) => {
           if (!value) return;
-          setPreferences("fillStyle", value as "none" | "solid" | "gradient");
+          setPreferences("fillStyle", value);
         }}
       >
         <SegmentedControlLabel>Fill Style</SegmentedControlLabel>
@@ -241,7 +248,9 @@ export function PanafallSettings(props: {
             <For each={["none", "solid", "gradient"]}>
               {(style) => (
                 <SegmentedControlItem value={style}>
-                  <SegmentedControlItemLabel>{style}</SegmentedControlItemLabel>
+                  <SegmentedControlItemLabel class="capitalize">
+                    {style}
+                  </SegmentedControlItemLabel>
                 </SegmentedControlItem>
               )}
             </For>
@@ -250,9 +259,9 @@ export function PanafallSettings(props: {
       </SegmentedControl>
       <SegmentedControl
         value={preferences.gradientStyle}
-        onChange={(value) => {
+        onChange={(value: GradientStyle) => {
           if (!value) return;
-          setPreferences("gradientStyle", value as "color" | "classic");
+          setPreferences("gradientStyle", value);
         }}
       >
         <SegmentedControlLabel>Gradient Style</SegmentedControlLabel>
@@ -262,7 +271,9 @@ export function PanafallSettings(props: {
             <For each={["color", "classic"]}>
               {(style) => (
                 <SegmentedControlItem value={style}>
-                  <SegmentedControlItemLabel>{style}</SegmentedControlItemLabel>
+                  <SegmentedControlItemLabel class="capitalize">
+                    {style}
+                  </SegmentedControlItemLabel>
                 </SegmentedControlItem>
               )}
             </For>
@@ -299,9 +310,26 @@ export function PanafallSettings(props: {
         <SelectLabel>Waterfall Gradient</SelectLabel>
         <SelectTrigger>
           <SelectValue<number>>
-            {(state) =>
-              preferences.palette.gradients.at(state.selectedOption())?.name
-            }
+            {(state) => (
+              <Show
+                when={preferences.palette.gradients.at(state.selectedOption())}
+                fallback="Unknown"
+              >
+                {(gradient) => (
+                  <div class="flex items-center gap-2">
+                    <div
+                      class="h-6 w-6 rounded-sm"
+                      style={{
+                        "background-image": createGradientStyle(
+                          gradient().stops,
+                        ),
+                      }}
+                    />
+                    <div>{gradient().name}</div>
+                  </div>
+                )}
+              </Show>
+            )}
           </SelectValue>
         </SelectTrigger>
         <SelectContent />
@@ -574,12 +602,20 @@ export function PanafallSettings(props: {
           />
         </div>
       </ColorField>
-      <pre class="block w-full overflow-x-auto overflow-y-visible shrink-0">
-        {JSON.stringify(state.status.panadapter, null, 2)}
-      </pre>
-      <pre class="block w-full overflow-x-auto overflow-y-visible shrink-0">
-        {JSON.stringify(state.status.waterfall, null, 2)}
-      </pre>
+      <Button
+        variant="destructive"
+        onClick={() => {
+          if (
+            confirm(
+              `Are you sure you want to remove Panadapter ${props.panadapter.id}?`,
+            )
+          ) {
+            props.panadapterController.close();
+          }
+        }}
+      >
+        Remove Panadapter
+      </Button>
     </div>
   );
 }

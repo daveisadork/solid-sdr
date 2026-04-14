@@ -8,6 +8,10 @@ import {
 } from "solid-js";
 import { createStore, SetStoreFunction } from "solid-js/store";
 
+export type PeakStyle = "none" | "points" | "line";
+export type FillStyle = "none" | "solid" | "gradient";
+export type GradientStyle = "color" | "classic";
+
 export interface Gradient {
   name: string;
   stops: { color: string; offset: number }[];
@@ -26,9 +30,9 @@ export interface Preferences {
   smoothScroll: boolean;
   enableBlurEffects: boolean;
   enableTransparencyEffects: boolean;
-  peakStyle: "none" | "points" | "line";
-  fillStyle: "none" | "solid" | "gradient";
-  gradientStyle: "color" | "classic";
+  peakStyle: PeakStyle;
+  fillStyle: FillStyle;
+  gradientStyle: GradientStyle;
   meterStyle: "instant" | "smooth" | "ballistic";
   theme: ConfigColorMode;
   panBackgroundColor: string;

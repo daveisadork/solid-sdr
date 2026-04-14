@@ -631,7 +631,11 @@ function AudioSink(props: {
     );
   });
 
-  createEffect(() => ref()?.setSinkId(props.output).catch(console.error));
+  createEffect(() =>
+    ref()
+      ?.setSinkId(props.output)
+      .catch(() => {}),
+  );
 
   return <audio ref={setRef} />;
 }

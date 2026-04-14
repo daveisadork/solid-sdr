@@ -20,6 +20,30 @@ import useFlexRadio, { ConnectionState } from "~/context/flexradio";
 import { ProgressCircle } from "./ui/progress-circle";
 import { createStore } from "solid-js/store";
 import { FlexRadioDescriptor } from "@repo/flexlib";
+import { Badge } from "./ui/badge";
+
+const RADIO_IMAGES = {
+  "FLEX-6300": "6300-small.png",
+  "FLEX-6400": "6400.png",
+  "FLEX-6400M": "6400.png",
+  "FLEX-6500": "6300-small.png",
+  "FLEX-6600": "6600.png",
+  "FLEX-6600M": "6600M.png",
+  "FLEX-6700": "6000-Cutout.png",
+  "FLEX-6700R": "6000-Cutout.png",
+  "FLEX-8400": "6600.png",
+  "FLEX-8400M": "6600M.png",
+  "FLEX-8600": "6600.png",
+  "FLEX-8600M": "6600M.png",
+  "ML-9600": "6600.png",
+  "ML-9600M": "6600M.png",
+  "CL-9300": "6600.png",
+  "CLS-9301": "6600.png",
+  "AU-510": "A520.png",
+  "AU-510M": "A520M.png",
+  "AU-520": "A520.png",
+  "AU-520M": "A520M.png",
+};
 
 export default function Connect() {
   const { client, connect, disconnect, state } = useFlexRadio();
@@ -121,12 +145,12 @@ export default function Connect() {
           {state.clientHandle ? "Disconnect" : "Connect"}
         </span>
       </DialogTrigger>
-      <DialogContent class="sm:max-w-md data-closed:slide-out-to-left data-closed:slide-out-to-bottom data-expanded:slide-in-from-left data-expanded:slide-in-from-bottom">
+      <DialogContent class="flex flex-col sm:max-w-md data-closed:slide-out-to-left data-closed:slide-out-to-bottom data-expanded:slide-in-from-left data-expanded:slide-in-from-bottom overflow-hidden">
         <DialogHeader>
           <DialogTitle>Connect</DialogTitle>
         </DialogHeader>
-        <Card>
-          <ul class="grid w-full gap-0">
+        <Card class="overflow-y-auto shrink">
+          <ul class="grid relative shrink gap-0">
             <For
               each={Object.values(radios)}
               fallback={
@@ -144,10 +168,43 @@ export default function Connect() {
               }
             >
               {(radio) => (
-                <li class="flex p-2 items-center">
-                  <div class="text-sm flex-col grow">
-                    <div class="font-semibold">{radio.nickname}</div>
-                    <div class="text-muted-foreground">{radio.host}</div>
+                <li class="flex p-2 items-center gap-2 overflow-hidden">
+                  <div class="flex flex-col items-center shrink basis-0 not-sm:hidden">
+                    <img
+                      src={`public/images/radios/${RADIO_IMAGES[radio.model] ?? "6600.png"}`}
+                      class="shrink"
+                    />
+                    {/* <div */}
+                    {/*   class="grow w-full bg-contain bg-no-repeat bg-center" */}
+                    {/*   style={{ */}
+                    {/*     "background-image": `url('public/images/radios/')`, */}
+                    {/*   }} */}
+                    {/* /> */}
+                    <div>
+                      <Badge
+                        variant={
+                          radio.status === "Available" ? "success" : "error"
+                        }
+                      >
+                        {radio.status.replace("_", "\xa0")}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div class="flex text-sm flex-col grow justify-center overflow-hidden text-ellipsis">
+                    <span class="font-semibold">{radio.model}</span>
+                    <div class="inline-flex gap-1">
+                      <Show when={radio.nickname}>
+                        <span class="text-ellipsis overflow-hidden">
+                          {radio.nickname.replace("_", " ")}
+                        </span>
+                      </Show>
+                      <Show when={radio.callsign}>
+                        <span class="font-mono text-ellipsis overflow-hidden">
+                          {radio.callsign}
+                        </span>
+                      </Show>
+                    </div>
+                    <span class="text-muted-foreground">{radio.host}</span>
                   </div>
                   <div>
                     <Show
@@ -158,6 +215,13 @@ export default function Connect() {
                       }
                       fallback={
                         <Button
+                          classList={{
+                            "bg-success text-success-foreground":
+                              radio.availableClients > 0,
+                            "bg-warning text-warning-foreground":
+                              !radio.availableClients,
+                          }}
+                          class="bg-success text-success-foreground"
                           disabled={
                             state.connectModal.status ===
                             ConnectionState.connecting

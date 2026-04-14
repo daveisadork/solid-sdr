@@ -171,7 +171,7 @@ export default function Connect() {
                 <li class="flex p-2 items-center gap-2 overflow-hidden">
                   <div class="flex flex-col items-center shrink basis-0 not-sm:hidden">
                     <img
-                      src={`public/images/radios/${RADIO_IMAGES[radio.model] ?? "6600.png"}`}
+                      src={`images/radios/${RADIO_IMAGES[radio.model] ?? "6600.png"}`}
                       class="shrink"
                     />
                     {/* <div */}

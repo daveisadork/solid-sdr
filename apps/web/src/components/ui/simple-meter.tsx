@@ -9,12 +9,12 @@ import {
 } from "solid-js";
 import * as MeterPrimitive from "@kobalte/core/meter";
 
-import useFlexRadio, { type Meter } from "~/context/flexradio";
+import useFlexRadio, { type MeterState } from "~/context/flexradio";
 import { cn, range } from "~/lib/utils";
 
 type MeterProps = MeterPrimitive.MeterRootOptions & {
   class?: string | undefined;
-  meter: Meter;
+  meter: MeterState;
   style?: JSX.CSSProperties;
   label?: JSX.Element;
   stops?: Array<string | number>;

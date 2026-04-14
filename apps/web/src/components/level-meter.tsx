@@ -1,4 +1,4 @@
-import useFlexRadio, { Meter } from "~/context/flexradio";
+import useFlexRadio, { MeterState } from "~/context/flexradio";
 import {
   createEffect,
   createMemo,
@@ -53,7 +53,7 @@ type LevelMeterProps<T extends ValidComponent = "div"> =
     compressionThreshold?: number | undefined;
     compressionFactor?: number | undefined;
     labelStyle?: "peak" | "instant" | "none";
-    meter: Meter;
+    meter: MeterState;
   };
 
 export const LevelMeter = <T extends ValidComponent = "div">(

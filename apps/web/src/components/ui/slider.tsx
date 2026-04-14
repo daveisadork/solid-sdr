@@ -122,10 +122,10 @@ const SliderThumb = <T extends ValidComponent = "span">(
         local.class,
       )}
       ref={ref}
-      // style={{
-      //   transform: transform(),
-      //   ...(local.style ?? {}),
-      // }}
+      style={{
+        transform: transform(),
+        ...(local.style ?? {}),
+      }}
       {...others}
     >
       <SliderPrimitive.Input />

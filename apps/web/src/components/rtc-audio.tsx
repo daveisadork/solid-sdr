@@ -35,7 +35,7 @@ import {
 import { DaxAudioSink } from "~/lib/dax-audio-sink";
 import { DaxAudioTx } from "~/lib/dax-audio-tx";
 import { SimpleMeter } from "~/components/ui/simple-meter";
-import type { Meter } from "~/context/flexradio";
+import type { MeterState } from "~/context/flexradio";
 import { SimpleSwitch } from "./ui/simple-switch";
 import { showToast } from "./ui/toast";
 
@@ -75,7 +75,7 @@ function DaxAudioChannel(props: {
   return <div class="sr-only" aria-hidden="true" />;
 }
 
-const DAX_LEVEL_METER: Meter = {
+const DAX_LEVEL_METER: MeterState = {
   id: "",
   low: -60,
   high: 0,

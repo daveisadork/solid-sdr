@@ -25,6 +25,10 @@ export interface CwxSnapshot {
   readonly speed: number;
   /** Whether QSK (full break-in) is enabled. */
   readonly qskEnabled: boolean;
+  /** Whether DAX sidetone is enabled for CW. */
+  readonly daxSidetoneEnabled: boolean;
+  /** Whether MF sidetone is enabled for CW. */
+  readonly mfSidetoneEnabled: boolean;
   /** 12 macro slots (indices 0–11). */
   readonly macros: readonly string[];
   /** Raw attribute map from the last status update. */
@@ -77,6 +81,12 @@ export function createCwxSnapshot(
       }
       case "qsk_enabled":
         partial.qskEnabled = isTruthy(value);
+        break;
+      case "dax_sidetone_enabled":
+        partial.daxSidetoneEnabled = isTruthy(value);
+        break;
+      case "mf_sidetone_enabled":
+        partial.mfSidetoneEnabled = isTruthy(value);
         break;
       case "sent":
       case "erase":

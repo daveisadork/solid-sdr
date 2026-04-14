@@ -781,10 +781,10 @@ function PhoneSection() {
               <SliderThumb />
             </SliderTrack>
           </Slider>
-          <div class="flex justify-between">
+          <div class="grid grid-cols-2 gap-2">
             <div>
               <NumberField
-                class="flex w-24 flex-col gap-2 select-none"
+                class="flex flex-col gap-2 select-none"
                 rawValue={rawFilterLow()}
                 format={false}
                 minValue={0}
@@ -803,7 +803,7 @@ function PhoneSection() {
             </div>
             <div>
               <NumberField
-                class="flex w-24 flex-col gap-2 select-none"
+                class="flex flex-col gap-2 select-none"
                 rawValue={rawFilterHigh()}
                 minValue={state.status.radio.txFilterLowHz}
                 format={false}

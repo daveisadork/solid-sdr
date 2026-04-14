@@ -14,8 +14,8 @@ describe("Equalizer controller", () => {
     // then the equalizer controller reflects the parsed state
     const controller = radio.equalizer("tx");
     expect(controller.enabled).toBe(true);
-    expect(controller.levels["125Hz"]).toBe(-4);
-    expect(controller.levels["4000Hz"]).toBe(5);
+    expect(controller.bands["125Hz"]).toBe(-4);
+    expect(controller.bands["4000Hz"]).toBe(5);
 
     // when setEnabled(false) is called
     await controller.setEnabled(false);
@@ -25,15 +25,15 @@ describe("Equalizer controller", () => {
     // when setLevel is called
     await controller.setLevel("125Hz", 7.2);
     expect(connection.lastCommand()).toBe("eq txsc 125Hz=7");
-    expect(controller.levels["125Hz"]).toBe(7);
+    expect(controller.bands["125Hz"]).toBe(7);
 
     // when setLevels is called with multiple bands (values clamped to [-10, 10])
     await controller.setLevels({ "250Hz": -12, "4000Hz": 15 });
     expect(connection.lastCommand()).toBe(
       "eq txsc 250Hz=-10 4000Hz=10",
     );
-    expect(controller.levels["250Hz"]).toBe(-10);
-    expect(controller.levels["4000Hz"]).toBe(10);
+    expect(controller.bands["250Hz"]).toBe(-10);
+    expect(controller.bands["4000Hz"]).toBe(10);
 
     // when refresh is called
     await controller.refresh();

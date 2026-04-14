@@ -8,8 +8,8 @@ import {
   Show,
 } from "solid-js";
 import useFlexRadio, {
-  type Panadapter,
-  type Waterfall as WaterfallState,
+  type PanadapterState,
+  type WaterfallState,
 } from "~/context/flexradio";
 import { LinearScale } from "../linear-scale";
 import type { VitaParsedPacket, WaterfallController } from "@repo/flexlib";
@@ -19,7 +19,7 @@ import { PanafallControl } from "./controls";
 
 export function Waterfall(props: {
   waterfall: WaterfallState;
-  pan: Panadapter;
+  pan: PanadapterState;
   controller: WaterfallController;
 }) {
   const { state, setState } = useFlexRadio();

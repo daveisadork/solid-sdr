@@ -9,9 +9,9 @@ import {
   createEffect,
 } from "solid-js";
 import useFlexRadio, {
-  type Panadapter,
-  type Slice,
-  type Waterfall,
+  type PanadapterState,
+  type SliceState,
+  type WaterfallState,
 } from "./flexradio";
 import {
   type PanadapterController,
@@ -33,7 +33,7 @@ import { usePreferences } from "./preferences";
  */
 const PanafallContext = createContext<{
   /** The currently active (transmit/receive focus) slice, if any. */
-  activeSlice: Accessor<Slice | undefined>;
+  activeSlice: Accessor<SliceState | undefined>;
   /**
    * Converts an absolute frequency (MHz) to an x pixel position on the canvas.
    * Accounts for the transparency-effects offset when that preference is disabled.
@@ -44,7 +44,7 @@ const PanafallContext = createContext<{
   /** Converts a frequency width in MHz to a pixel width. */
   mhzToPx: (mhz: number) => number;
   /** The current panadapter state object from the radio. */
-  panadapter: Accessor<Panadapter>;
+  panadapter: Accessor<PanadapterState>;
   /** Controller for sending commands to the panadapter (pan, zoom, etc.). */
   panadapterController: Accessor<PanadapterController>;
   /** Reactive bounding rect of the panadapter/waterfall element. */
@@ -62,9 +62,9 @@ const PanafallContext = createContext<{
   waterfallControlsRef: Accessor<HTMLElement | undefined>;
   setWaterfallControlsRef: (el: HTMLElement) => void;
   /** All slices that are in-use and belong to this panadapter. */
-  slices: Accessor<Slice[]>;
+  slices: Accessor<SliceState[]>;
   /** The current waterfall state object from the radio. */
-  waterfall: Accessor<Waterfall>;
+  waterfall: Accessor<WaterfallState>;
   /** Controller for sending commands to the waterfall (speed, colors, etc.). */
   waterfallController: Accessor<WaterfallController>;
   /**

@@ -19,7 +19,15 @@ import {
 import { showToast } from "~/components/ui/toast";
 import {
   FlexCommandRejectedError,
+  FlexClient,
+  Radio,
+  type ApdSnapshot,
   type AudioStreamSnapshot,
+  type ConnectionProgressDetail,
+  type CwxSnapshot,
+  type DvkSnapshot,
+  type EqualizerSnapshot,
+  type FeatureLicenseSnapshot,
   type FlexWireMessage,
   type GuiClientSnapshot,
   type MeterSnapshot,
@@ -28,19 +36,13 @@ import {
   type RadioStateChange,
   type SliceSnapshot,
   type Subscription,
+  type TxBandSettingSnapshot,
   type WaterfallSnapshot,
-  type FeatureLicenseSnapshot,
-  EqualizerSnapshot,
-  ApdSnapshot,
-  TxBandSettingSnapshot,
-  FlexClient,
-  Radio,
-  ConnectionProgressDetail,
+  type XvtrSnapshot,
 } from "@repo/flexlib";
 import { createFlexClient } from "@repo/flexlib/bridge";
 import { useRtc } from "./rtc";
 import { usePreferences } from "./preferences";
-import { XvtrSnapshot } from "@repo/flexlib";
 
 export enum ConnectionState {
   disconnected,
@@ -71,17 +73,26 @@ type MutableProps<T> = {
   -readonly [P in keyof T]: T[P];
 };
 
-export type Slice = Omit<MutableProps<SliceSnapshot>, "raw">;
-export type Panadapter = Omit<MutableProps<PanadapterSnapshot>, "raw">;
-export type Waterfall = Omit<MutableProps<WaterfallSnapshot>, "raw">;
-export type AudioStream = Omit<MutableProps<AudioStreamSnapshot>, "raw">;
-export type FeatureLicense = Omit<MutableProps<FeatureLicenseSnapshot>, "raw">;
-export type GuiClient = Omit<MutableProps<GuiClientSnapshot>, "raw">;
-export type Equalizer = Omit<MutableProps<EqualizerSnapshot>, "raw">;
-export type APD = Omit<MutableProps<ApdSnapshot>, "raw">;
-export type TxBandSetting = Omit<MutableProps<TxBandSettingSnapshot>, "raw">;
-export type Meter = Omit<MutableProps<MeterSnapshot>, "raw">;
-export type Xvtr = Omit<MutableProps<XvtrSnapshot>, "raw">;
+export type RadioState = Omit<MutableProps<RadioSnapshot>, "raw">;
+export type SliceState = Omit<MutableProps<SliceSnapshot>, "raw">;
+export type PanadapterState = Omit<MutableProps<PanadapterSnapshot>, "raw">;
+export type WaterfallState = Omit<MutableProps<WaterfallSnapshot>, "raw">;
+export type AudioStreamState = Omit<MutableProps<AudioStreamSnapshot>, "raw">;
+export type FeatureLicenseState = Omit<
+  MutableProps<FeatureLicenseSnapshot>,
+  "raw"
+>;
+export type GuiClientState = Omit<MutableProps<GuiClientSnapshot>, "raw">;
+export type EqualizerState = Omit<MutableProps<EqualizerSnapshot>, "raw">;
+export type APDState = Omit<MutableProps<ApdSnapshot>, "raw">;
+export type TxBandSettingState = Omit<
+  MutableProps<TxBandSettingSnapshot>,
+  "raw"
+>;
+export type MeterState = Omit<MutableProps<MeterSnapshot>, "raw">;
+export type XvtrState = Omit<MutableProps<XvtrSnapshot>, "raw">;
+export type CwxState = Omit<MutableProps<CwxSnapshot>, "raw">;
+export type DvkState = Omit<MutableProps<DvkSnapshot>, "raw">;
 
 export interface ConnectModalState {
   status: ConnectionState;
@@ -90,18 +101,20 @@ export interface ConnectModalState {
 }
 
 export interface StatusState {
-  apd: APD;
-  meter: Record<string, Meter>;
-  equalizer: Record<string, Equalizer>;
-  slice: Record<string, Slice>;
-  panadapter: Record<string, Panadapter>;
-  waterfall: Record<string, Waterfall>;
-  radio: Omit<MutableProps<RadioSnapshot>, "raw">;
-  featureLicense: FeatureLicense;
-  audioStream: Record<string, AudioStream>;
-  guiClient: Record<string, GuiClient>;
-  txBandSetting: Record<string, TxBandSetting>;
-  xvtr: Record<string, Xvtr>;
+  apd: APDState;
+  meter: Record<string, MeterState>;
+  equalizer: Record<string, EqualizerState>;
+  slice: Record<string, SliceState>;
+  panadapter: Record<string, PanadapterState>;
+  waterfall: Record<string, WaterfallState>;
+  radio: Radio;
+  featureLicense: FeatureLicenseState;
+  audioStream: Record<string, AudioStreamState>;
+  guiClient: Record<string, GuiClientState>;
+  txBandSetting: Record<string, TxBandSettingState>;
+  xvtr: Record<string, XvtrState>;
+  cwx: CwxState;
+  dvk: DvkState;
 }
 
 export interface AppState {
@@ -149,6 +162,8 @@ export const initialState = () =>
       audioStream: {},
       txBandSetting: {},
       xvtr: {},
+      cwx: {},
+      dvk: {},
     },
   }) as AppState;
 
@@ -235,6 +250,8 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         handlePanadapterChange(change);
         break;
       case "apd":
+      case "cwx":
+      case "dvk":
       case "radio":
       case "featureLicense":
         setState("status", change.entity, change.diff);

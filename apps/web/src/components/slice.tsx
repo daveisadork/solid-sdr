@@ -1,8 +1,8 @@
 import { createStore } from "solid-js/store";
 import useFlexRadio, {
-  Meter,
-  Panadapter,
-  Slice as SliceState,
+  MeterState,
+  PanadapterState,
+  SliceState,
 } from "~/context/flexradio";
 import { createWindowSize } from "@solid-primitives/resize-observer";
 import {
@@ -232,7 +232,10 @@ const Triangle: Component<ComponentProps<"div">> = (props) => {
   );
 };
 
-export function DetachedSlice(props: { slice: SliceState; pan: Panadapter }) {
+export function DetachedSlice(props: {
+  slice: SliceState;
+  pan: PanadapterState;
+}) {
   const { radio } = useFlexRadio();
   const { panadapterController } = usePanafall();
   const sliceController = createMemo(() => radio()?.slice(props.slice.id));
@@ -267,7 +270,7 @@ export function DetachedSlice(props: { slice: SliceState; pan: Panadapter }) {
 }
 
 export function DetachedSlices(props: {
-  pan: Panadapter;
+  pan: PanadapterState;
   slices: SliceState[];
 }) {
   return (
@@ -462,7 +465,7 @@ const SliceFilter = (props: {
   );
 };
 
-export function Slice(props: { slice: SliceState; pan: Panadapter }) {
+export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
   const { radio, state, setState } = useFlexRadio();
   const { panafallBounds } = usePanafall();
   const sliceController = createMemo(() => radio()?.slice(props.slice.id));
@@ -486,7 +489,7 @@ export function Slice(props: { slice: SliceState; pan: Panadapter }) {
   const levelMeter = createMemo(() => {
     const sliceIndex = Number(props.slice.id);
     for (const meterId in state.status.meter) {
-      const meter: Meter = state.status.meter[meterId];
+      const meter: MeterState = state.status.meter[meterId];
       if (
         meter &&
         meter.source === "SLC" &&

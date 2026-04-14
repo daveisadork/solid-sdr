@@ -7,8 +7,8 @@ import {
   Show,
 } from "solid-js";
 import useFlexRadio, {
-  Panadapter as PanadapterState,
-  Waterfall,
+  PanadapterState,
+  WaterfallState,
 } from "~/context/flexradio";
 import { DetachedSlices, Slice } from "../slice";
 import { debounce } from "@solid-primitives/scheduled";
@@ -26,7 +26,7 @@ import { PanafallControl } from "./controls";
 
 export function Panadapter(props: {
   pan: PanadapterState;
-  waterfall: Waterfall;
+  waterfall: WaterfallState;
   controller: PanadapterController;
 }) {
   const { state } = useFlexRadio();

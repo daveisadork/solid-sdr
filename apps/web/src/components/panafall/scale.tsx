@@ -10,7 +10,7 @@ import {
   splitProps,
   ValidComponent,
 } from "solid-js";
-import { type Panadapter } from "~/context/flexradio";
+import { type PanadapterState } from "~/context/flexradio";
 import { usePreferences } from "~/context/preferences";
 import { cn } from "~/lib/utils";
 
@@ -99,7 +99,7 @@ export function buildFrequencyGrid(params: {
 type ResizableHandleProps<T extends ValidComponent = "button"> =
   HandleProps<T> & {
     class?: string;
-    pan: Panadapter;
+    pan: PanadapterState;
     onGridChange?: (ticks: FrequencyGridTick[]) => void;
   };
 

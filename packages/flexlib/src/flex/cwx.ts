@@ -79,6 +79,14 @@ export class CwxControllerImpl implements CwxController {
     return this.current().qskEnabled;
   }
 
+  get daxSidetoneEnabled(): boolean {
+    return this.current().daxSidetoneEnabled;
+  }
+
+  get mfSidetoneEnabled(): boolean {
+    return this.current().mfSidetoneEnabled;
+  }
+
   get macros(): readonly string[] {
     return this.current().macros;
   }

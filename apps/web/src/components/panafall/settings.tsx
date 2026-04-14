@@ -1,4 +1,7 @@
-import useFlexRadio, { Panadapter, Waterfall } from "~/context/flexradio";
+import useFlexRadio, {
+  PanadapterState,
+  WaterfallState,
+} from "~/context/flexradio";
 import { createEffect, createMemo, createSignal, For } from "solid-js";
 import {
   NumberField,
@@ -79,8 +82,8 @@ function createGradientStyle(
 }
 
 export function PanafallSettings(props: {
-  panadapter: Panadapter;
-  waterfall: Waterfall;
+  panadapter: PanadapterState;
+  waterfall: WaterfallState;
   panadapterController: PanadapterController;
   waterfallController: WaterfallController;
 }) {

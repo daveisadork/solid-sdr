@@ -745,9 +745,11 @@ function applyTransmitAttributes(
         partial.tunePower = parseBoundedInteger(value, 0, 100, "transmit", key);
         break;
       case "lo":
+      case "filter_low":
         partial.txFilterLowHz = parseIntegerAttribute(value, "transmit", key);
         break;
       case "hi":
+      case "filter_high":
         partial.txFilterHighHz = parseIntegerAttribute(value, "transmit", key);
         break;
       case "tx_filter_changes_allowed":

@@ -681,15 +681,10 @@ export class Radio {
   }
 
   xvtr(id: string): XvtrController | undefined {
-    return this.getOrCreateController(
-      "xvtr",
-      id,
-      this.xvtrControllers,
-      () => {
-        if (!this.store.getXvtr(id)) return undefined;
-        return new XvtrControllerImpl(this, id);
-      },
-    );
+    return this.getOrCreateController("xvtr", id, this.xvtrControllers, () => {
+      if (!this.store.getXvtr(id)) return undefined;
+      return new XvtrControllerImpl(this, id);
+    });
   }
 
   /**
@@ -1117,8 +1112,7 @@ export class Radio {
         break;
       case "xvtr":
         this.updateController(
-          change as Extract<RadioStateChange, { id: string }> &
-            XvtrStateChange,
+          change as Extract<RadioStateChange, { id: string }> & XvtrStateChange,
           this.xvtrControllers,
           () => {
             if (!this.store.getXvtr(change.id)) return undefined;

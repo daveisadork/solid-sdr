@@ -39,7 +39,7 @@ const SliderTrack = <T extends ValidComponent = "div">(
   return (
     <SliderPrimitive.Track
       class={cn(
-        "relative data-[orientation=horizontal]:h-2 data-[orientation=horizontal]:w-full data-[orientation=vertical]:w-2 data-[orientation=vertical]:h-full grow rounded-full bg-input data-disabled:opacity-50",
+        "relative data-[orientation=horizontal]:h-2 data-[orientation=horizontal]:w-full data-[orientation=vertical]:w-2 data-[orientation=vertical]:h-full grow rounded-full bg-input data-disabled:opacity-50 pointer-coarse:pointer-events-none",
         local.class,
       )}
       {...others}
@@ -118,7 +118,7 @@ const SliderThumb = <T extends ValidComponent = "span">(
   return (
     <SliderPrimitive.Thumb
       class={cn(
-        "data-[orientation=horizontal]:-top-1.5 data-[orientation=vertical]:-left-1.5 block size-5 rounded-full border-2 border-primary bg-background ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 data-disabled:pointer-events-none",
+        "data-[orientation=horizontal]:-top-1.5 data-[orientation=vertical]:-left-1.5 block size-5 rounded-full border-2 border-primary bg-background ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 pointer-events-auto data-disabled:pointer-events-none",
         local.class,
       )}
       ref={ref}

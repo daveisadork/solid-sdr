@@ -51,6 +51,24 @@ export function decodeDiscoveryPayload(
   if (!host) throw new Error("Discovery payload missing ip");
   if (port === undefined) throw new Error("Discovery payload missing port");
 
+  const inUseIps = parseCsvList(fields.get("inuse_ip"));
+  const inUseHosts = parseCsvList(fields.get("inuse_host"));
+  const guiClientIps = parseCsvList(fields.get("gui_client_ips"));
+  const guiClientHosts = parseCsvList(fields.get("gui_client_hosts"));
+  const guiClientPrograms = parseCsvList(fields.get("gui_client_programs"));
+  const guiClientStations = parseCsvList(
+    normalizeStations(fields.get("gui_client_stations")),
+  );
+  const guiClientHandles = parseCsvList(fields.get("gui_client_handles"));
+
+  const guiClients = parseDiscoveredGuiClients({
+    programs: guiClientPrograms,
+    stations: guiClientStations,
+    handles: guiClientHandles,
+  });
+
+  const fpcMacRaw = valueOrUndefined(fields.get("fpc_mac"));
+
   const descriptor: FlexRadioDescriptor = {
     serial,
     model,
@@ -62,145 +80,55 @@ export function decodeDiscoveryPayload(
     host,
     port,
     protocol: resolveProtocol(fields, defaultProtocol),
+    lastSeen: timestamp,
+
+    status: valueOrUndefined(fields.get("status")),
+    discoveryProtocolVersion: valueOrUndefined(
+      fields.get("discovery_protocol_version"),
+    ),
+    maxLicensedVersion: valueOrUndefined(
+      fields.get("max_licensed_version"),
+    ),
+    radioLicenseId: valueOrUndefined(fields.get("radio_license_id")),
+    minSoftwareVersion: valueOrUndefined(
+      fields.get("min_software_version"),
+    ),
+    hasUnknownRadioLicense:
+      parseBooleanFlag(fields.get("license_is_unknown")) ?? undefined,
+    requiresAdditionalLicense:
+      parseBooleanFlag(fields.get("requires_additional_license")) ?? undefined,
+    wanConnected:
+      parseBooleanFlag(fields.get("wan_connected")) ?? undefined,
+    externalPortLink:
+      parseBooleanFlag(fields.get("external_port_link")) ?? undefined,
+    licensedClients: parseInteger(
+      fields.get("licensed_clients"),
+      "licensed_clients",
+    ),
+    availableClients: parseInteger(
+      fields.get("available_clients"),
+      "available_clients",
+    ),
+    maxSlices: parseInteger(fields.get("max_slices"), "max_slices"),
+    maxPanadapters: parseInteger(
+      fields.get("max_panadapters"),
+      "max_panadapters",
+    ),
+    fpcMac: fpcMacRaw ? fpcMacRaw.replace(/-/g, ":") : undefined,
+    inUseIps: inUseIps.length > 0 ? inUseIps : undefined,
+    inUseHosts: inUseHosts.length > 0 ? inUseHosts : undefined,
+    guiClientIps: guiClientIps.length > 0 ? guiClientIps : undefined,
+    guiClientHosts: guiClientHosts.length > 0 ? guiClientHosts : undefined,
+    guiClientPrograms:
+      guiClientPrograms.length > 0 ? guiClientPrograms : undefined,
+    guiClientStations:
+      guiClientStations.length > 0 ? guiClientStations : undefined,
+    guiClientHandles:
+      guiClientHandles.length > 0 ? guiClientHandles : undefined,
+    guiClients: guiClients.length > 0 ? guiClients : undefined,
   };
 
-  const meta: Record<string, string | number | boolean> = {};
-  assignIf(meta, "status", valueOrUndefined(fields.get("status")));
-  assignIf(
-    meta,
-    "discoveryProtocolVersion",
-    valueOrUndefined(fields.get("discovery_protocol_version")),
-  );
-  assignIf(
-    meta,
-    "maxLicensedVersion",
-    valueOrUndefined(fields.get("max_licensed_version")),
-  );
-  assignIf(
-    meta,
-    "radioLicenseId",
-    valueOrUndefined(fields.get("radio_license_id")),
-  );
-  assignIf(
-    meta,
-    "minSoftwareVersion",
-    valueOrUndefined(fields.get("min_software_version")),
-  );
-
-  // v4.1+ uses license_is_unknown; older firmware uses requires_additional_license
-  const hasUnknownRadioLicense = parseBooleanFlag(
-    fields.get("license_is_unknown"),
-  );
-  if (hasUnknownRadioLicense !== undefined) {
-    meta.hasUnknownRadioLicense = hasUnknownRadioLicense;
-  }
-
-  // Deprecated in v4.1, but keep for backward compatibility with older firmware
-  const requiresAdditionalLicense = parseBooleanFlag(
-    fields.get("requires_additional_license"),
-  );
-  if (requiresAdditionalLicense !== undefined) {
-    meta.requiresAdditionalLicense = requiresAdditionalLicense;
-  }
-
-  const wanConnected = parseBooleanFlag(fields.get("wan_connected"));
-  if (wanConnected !== undefined) {
-    meta.wanConnected = wanConnected;
-  }
-
-  const externalPortLink = parseBooleanFlag(fields.get("external_port_link"));
-  if (externalPortLink !== undefined) {
-    meta.externalPortLink = externalPortLink;
-  }
-
-  const licensedClients = parseInteger(
-    fields.get("licensed_clients"),
-    "licensed_clients",
-  );
-  if (licensedClients !== undefined) {
-    meta.licensedClients = licensedClients;
-  }
-
-  const availableClients = parseInteger(
-    fields.get("available_clients"),
-    "available_clients",
-  );
-  if (availableClients !== undefined) {
-    meta.availableClients = availableClients;
-  }
-
-  const maxSlices = parseInteger(fields.get("max_slices"), "max_slices");
-  if (maxSlices !== undefined) {
-    meta.maxSlices = maxSlices;
-  }
-
-  const maxPanadapters = parseInteger(
-    fields.get("max_panadapters"),
-    "max_panadapters",
-  );
-  if (maxPanadapters !== undefined) {
-    meta.maxPanadapters = maxPanadapters;
-  }
-
-  const fpcMac = valueOrUndefined(fields.get("fpc_mac"));
-  if (fpcMac) meta.fpcMac = fpcMac.replace(/-/g, ":");
-
-  const inUseIps = parseCsvList(fields.get("inuse_ip"));
-  if (inUseIps.length > 0) {
-    meta.inUseIps = inUseIps.join(",");
-  }
-
-  const inUseHosts = parseCsvList(fields.get("inuse_host"));
-  if (inUseHosts.length > 0) {
-    meta.inUseHosts = inUseHosts.join(",");
-  }
-
-  const guiClientIps = parseCsvList(fields.get("gui_client_ips"));
-  if (guiClientIps.length > 0) {
-    meta.guiClientIps = guiClientIps.join(",");
-  }
-
-  const guiClientHosts = parseCsvList(fields.get("gui_client_hosts"));
-  if (guiClientHosts.length > 0) {
-    meta.guiClientHosts = guiClientHosts.join(",");
-  }
-
-  const guiClientPrograms = parseCsvList(fields.get("gui_client_programs"));
-  if (guiClientPrograms.length > 0) {
-    meta.guiClientPrograms = guiClientPrograms.join(",");
-  }
-
-  const guiClientStations = parseCsvList(
-    normalizeStations(fields.get("gui_client_stations")),
-  );
-  if (guiClientStations.length > 0) {
-    meta.guiClientStations = guiClientStations.join(",");
-  }
-
-  const guiClientHandles = parseCsvList(fields.get("gui_client_handles"));
-  if (guiClientHandles.length > 0) {
-    meta.guiClientHandles = guiClientHandles.join(",");
-  }
-
-  const discoveredGuiClients = parseDiscoveredGuiClients({
-    programs: guiClientPrograms,
-    stations: guiClientStations,
-    handles: guiClientHandles,
-  });
-
-  meta.lastSeen = timestamp;
-
-  let enrichedDescriptor = descriptor;
-  if (Object.keys(meta).length > 0) {
-    enrichedDescriptor = { ...enrichedDescriptor, discoveryMeta: meta };
-  }
-  if (discoveredGuiClients.length > 0) {
-    enrichedDescriptor = {
-      ...enrichedDescriptor,
-      guiClients: discoveredGuiClients,
-    };
-  }
-  return enrichedDescriptor;
+  return descriptor;
 }
 
 function resolveProtocol(
@@ -231,11 +159,3 @@ function normalizeStations(value: string | undefined): string | undefined {
   return value.replace(/\u007f/g, " ");
 }
 
-function assignIf(
-  target: Record<string, string | number | boolean>,
-  key: string,
-  value: string | number | boolean | undefined,
-) {
-  if (value === undefined || value === "") return;
-  target[key] = value;
-}

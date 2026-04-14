@@ -56,11 +56,7 @@ export function parseIntegerList(
 
 export function parseCsv(value: string | undefined): string[] | undefined {
   if (!value) return undefined;
-  const parsed = value
-    .split(",")
-    .map((token) => token.trim())
-    .filter(Boolean);
-  return parsed.length > 0 ? parsed : undefined;
+  return value.split(",").map((token) => token.trim());
 }
 
 export function parseCsvList(value: string | undefined): string[] {

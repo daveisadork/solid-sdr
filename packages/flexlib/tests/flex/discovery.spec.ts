@@ -34,7 +34,7 @@ describe("decodeDiscoveryPayload", () => {
     // when we parse it into a descriptor
     const descriptor = parseDescriptorFromPacket(SAMPLE_PACKET);
 
-    // the descriptor should contain the radio's identity and network info
+    // then the descriptor contains the radio's identity and network info
     expect(descriptor.serial).toBe("1225-1213-8600-7918");
     expect(descriptor.model).toBe("FLEX-8600");
     expect(descriptor.availableSlices).toBe(4);
@@ -44,12 +44,12 @@ describe("decodeDiscoveryPayload", () => {
     expect(descriptor.port).toBe(4992);
     expect(descriptor.protocol).toBe("tcp");
 
-    // and it should contain discovery metadata
-    expect(descriptor.discoveryMeta?.wanConnected).toBe(true);
-    expect(typeof descriptor.discoveryMeta?.lastSeen).toBe("number");
-    expect(descriptor.discoveryMeta?.externalPortLink).toBe(true);
-    expect(descriptor.discoveryMeta?.availableClients).toBe(2);
-    expect(descriptor.discoveryMeta?.inUseHosts).toBeUndefined();
+    // and discovery-specific fields are typed directly on the descriptor
+    expect(descriptor.wanConnected).toBe(true);
+    expect(typeof descriptor.lastSeen).toBe("number");
+    expect(descriptor.externalPortLink).toBe(true);
+    expect(descriptor.availableClients).toBe(2);
+    expect(descriptor.inUseHosts).toBeUndefined();
     expect(descriptor.guiClients).toBeUndefined();
   });
 
@@ -73,23 +73,35 @@ describe("decodeDiscoveryPayload", () => {
   it("normalises metadata for radios with multiple GUI clients", () => {
     // given a discovery packet from a radio with multiple connected clients
     const descriptor = parseDescriptorFromPacket(SAMPLE_PACKET_IN_USE);
-    const meta = descriptor.discoveryMeta;
 
-    // the metadata should track all connected clients
-    expect(meta).toBeDefined();
-    expect(meta?.availableClients).toBe(0);
-    expect(meta?.inUseHosts).toBe(
-      "MacBook-Pro.localdomain,LAPTOP-9V8U8FDA.localdomain",
-    );
-    expect(meta?.inUseIps).toBe("10.16.83.154,10.16.83.60");
-    expect(meta?.guiClientPrograms).toBe("SmartSDR-Mac,SmartSDR-Win");
-    expect(meta?.guiClientHosts).toBe(
-      "MacBook-Pro.localdomain,LAPTOP-9V8U8FDA.localdomain",
-    );
-    expect(meta?.guiClientStations).toBe("MacBook Pro,LAPTOP-9V8U8FDA");
-    expect(meta?.guiClientHandles).toBe("0x29DD2CDC,0x7D2D0108");
+    // then all connected client info is available as typed fields
+    expect(descriptor.availableClients).toBe(0);
+    expect(descriptor.inUseHosts).toEqual([
+      "MacBook-Pro.localdomain",
+      "LAPTOP-9V8U8FDA.localdomain",
+    ]);
+    expect(descriptor.inUseIps).toEqual([
+      "10.16.83.154",
+      "10.16.83.60",
+    ]);
+    expect(descriptor.guiClientPrograms).toEqual([
+      "SmartSDR-Mac",
+      "SmartSDR-Win",
+    ]);
+    expect(descriptor.guiClientHosts).toEqual([
+      "MacBook-Pro.localdomain",
+      "LAPTOP-9V8U8FDA.localdomain",
+    ]);
+    expect(descriptor.guiClientStations).toEqual([
+      "MacBook Pro",
+      "LAPTOP-9V8U8FDA",
+    ]);
+    expect(descriptor.guiClientHandles).toEqual([
+      "0x29DD2CDC",
+      "0x7D2D0108",
+    ]);
 
-    // and should list individual GUI client objects
+    // and parsed GUI client objects are available
     expect(descriptor.guiClients).toEqual([
       expect.objectContaining({
         clientHandle: 0x29dd2cdc,

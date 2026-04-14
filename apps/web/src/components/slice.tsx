@@ -72,6 +72,7 @@ import {
   NumberFieldGroup,
   NumberFieldIncrementTrigger,
   NumberFieldInput,
+  NumberFieldLabel,
 } from "./ui/number-field";
 import { LevelMeter } from "./level-meter";
 import { SliceController } from "@repo/flexlib";
@@ -369,47 +370,41 @@ export function FilterControls(props: {
           </ToggleGroup>
         )}
       </Show>
-      <div class="flex justify-between">
-        <div>
-          <NumberField
-            class="flex w-24 flex-col gap-2 select-none font-mono"
-            rawValue={rawFilterLow()}
-            format={false}
-            minValue={filterMinHz()}
-            maxValue={props.slice.filterHighHz}
-            onRawValueChange={setRawFilterLow}
-            onFocusOut={applyFilterLow}
-          >
-            <NumberFieldDescription class="select-none">
-              Low Hz
-            </NumberFieldDescription>
-            <NumberFieldGroup class="select-none">
-              <NumberFieldInput />
-              <NumberFieldIncrementTrigger class="select-none" />
-              <NumberFieldDecrementTrigger class="select-none" />
-            </NumberFieldGroup>
-          </NumberField>
-        </div>
-        <div>
-          <NumberField
-            class="flex w-24 flex-col gap-2 select-none font-mono"
-            rawValue={rawFilterHigh()}
-            minValue={props.slice.filterLowHz}
-            format={false}
-            maxValue={filterMaxHz()}
-            onRawValueChange={setRawFilterHigh}
-            onFocusOut={applyFilterHigh}
-          >
-            <NumberFieldDescription class="select-none text-right">
-              High Hz
-            </NumberFieldDescription>
-            <NumberFieldGroup class="select-none">
-              <NumberFieldInput size={6} />
-              <NumberFieldIncrementTrigger class="select-none" />
-              <NumberFieldDecrementTrigger class="select-none" />
-            </NumberFieldGroup>
-          </NumberField>
-        </div>
+      <div class="grid grid-cols-2 gap-2">
+        <NumberField
+          class="flex flex-col gap-2 select-none font-mono"
+          rawValue={rawFilterLow()}
+          format={false}
+          minValue={filterMinHz()}
+          maxValue={props.slice.filterHighHz}
+          onRawValueChange={setRawFilterLow}
+          onFocusOut={applyFilterLow}
+        >
+          <NumberFieldLabel class="select-none">Low Hz</NumberFieldLabel>
+          <NumberFieldGroup class="select-none">
+            <NumberFieldInput />
+            <NumberFieldIncrementTrigger class="select-none" />
+            <NumberFieldDecrementTrigger class="select-none" />
+          </NumberFieldGroup>
+        </NumberField>
+        <NumberField
+          class="flex flex-col gap-2 select-none font-mono"
+          rawValue={rawFilterHigh()}
+          minValue={props.slice.filterLowHz}
+          format={false}
+          maxValue={filterMaxHz()}
+          onRawValueChange={setRawFilterHigh}
+          onFocusOut={applyFilterHigh}
+        >
+          <NumberFieldLabel class="select-none text-right">
+            High Hz
+          </NumberFieldLabel>
+          <NumberFieldGroup class="select-none">
+            <NumberFieldInput size={6} />
+            <NumberFieldIncrementTrigger class="select-none" />
+            <NumberFieldDecrementTrigger class="select-none" />
+          </NumberFieldGroup>
+        </NumberField>
       </div>
       <Slider
         minValue={filterMinHz()}

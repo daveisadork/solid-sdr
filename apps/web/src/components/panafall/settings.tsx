@@ -388,7 +388,6 @@ export function PanafallSettings(props: {
       </Select>
       <NumberField
         class="flex flex-col gap-2 select-none"
-        changeOnWheel={false}
         rawValue={props.panadapter.centerFrequencyMHz}
         step={props.panadapter.bandwidthMHz / 10}
         largeStep={props.panadapter.bandwidthMHz}
@@ -408,7 +407,6 @@ export function PanafallSettings(props: {
         </NumberFieldGroup>
       </NumberField>
       <NumberField
-        changeOnWheel={false}
         class="flex flex-col gap-2 select-none"
         rawValue={props.panadapter.bandwidthMHz}
         step={props.panadapter.bandwidthMHz / 2}
@@ -432,7 +430,6 @@ export function PanafallSettings(props: {
       </NumberField>
       <NumberField
         class="flex flex-col gap-2 select-none"
-        changeOnWheel={false}
         rawValue={props.panadapter.highDbm}
         onFocusOut={() => {
           const high = rawHighDbm();
@@ -451,7 +448,6 @@ export function PanafallSettings(props: {
       </NumberField>
       <NumberField
         class="flex flex-col gap-2 select-none"
-        changeOnWheel={false}
         rawValue={props.panadapter.lowDbm}
         onFocusOut={() => {
           const low = rawLowDbm();

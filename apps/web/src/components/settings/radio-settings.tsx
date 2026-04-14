@@ -149,14 +149,8 @@ function TxBandSettings(props: { radio: Radio }) {
                           onRawValueChange={(value) => ctrl.setRfPower(value)}
                           minValue={0}
                           maxValue={100}
-                          changeOnWheel={false}
                         >
-                          <NumberFieldPrimitive.Input
-                            size={4}
-                            style={{
-                              "touch-action": "manipulation",
-                            }}
-                          />
+                          <NumberFieldPrimitive.Input size={4} />
                         </NumberFieldPrimitive.Root>
                       </TableCell>
                       <TableCell>
@@ -165,14 +159,8 @@ function TxBandSettings(props: { radio: Radio }) {
                           onRawValueChange={(value) => ctrl.setTunePower(value)}
                           minValue={0}
                           maxValue={100}
-                          changeOnWheel={false}
                         >
-                          <NumberFieldPrimitive.Input
-                            size={4}
-                            style={{
-                              "touch-action": "manipulation",
-                            }}
-                          />
+                          <NumberFieldPrimitive.Input size={4} />
                         </NumberFieldPrimitive.Root>
                       </TableCell>
                       <TableCell>
@@ -999,11 +987,13 @@ function RadioSettingsInner(props: { radio: Radio }) {
               const ctrl = props.radio.xvtr(xvtr.id);
               return (
                 <Card class="bg-transparent">
-                  <CardHeader class="flex flex-row">
-                    <CardTitle class="grow">{xvtr.name || "????"}</CardTitle>
-                    <Badge variant={xvtr.valid ? "success" : "warning"}>
-                      {xvtr.valid ? "Valid" : "Invalid"}
-                    </Badge>
+                  <CardHeader>
+                    <div class="flex items-center">
+                      <CardTitle class="grow">{xvtr.name || "????"}</CardTitle>
+                      <Badge variant={xvtr.valid ? "success" : "warning"}>
+                        {xvtr.valid ? "Valid" : "Invalid"}
+                      </Badge>
+                    </div>
                   </CardHeader>
                   <CardContent class="select-none flex flex-col gap-4">
                     <TextField
@@ -1054,7 +1044,7 @@ function RadioSettingsInner(props: { radio: Radio }) {
                         rawValue={xvtr.rfFreqMHz - xvtr.ifFreqMHz}
                         minValue={0}
                         format={false}
-                        disabled
+                        readOnly
                       >
                         <NumberFieldLabel class="select-none">
                           LO Freq MHz

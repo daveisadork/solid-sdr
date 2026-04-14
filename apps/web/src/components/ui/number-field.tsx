@@ -6,7 +6,24 @@ import type { PolymorphicProps } from "@kobalte/core/polymorphic";
 
 import { cn } from "~/lib/utils";
 
-const NumberField = NumberFieldPrimitive.Root;
+type NumberFieldProps<T extends ValidComponent = "div"> =
+  NumberFieldPrimitive.NumberFieldRootProps<T> & {
+    changeOnWheel?: boolean;
+  };
+
+const NumberField = <T extends ValidComponent = "div">(
+  props: PolymorphicProps<T, NumberFieldProps<T>>,
+) => {
+  const [local, others] = splitProps(props as NumberFieldProps, [
+    "changeOnWheel",
+  ]);
+  return (
+    <NumberFieldPrimitive.Root
+      changeOnWheel={local.changeOnWheel ?? false}
+      {...others}
+    />
+  );
+};
 
 const NumberFieldGroup: Component<ComponentProps<"div">> = (props) => {
   const [local, others] = splitProps(props, ["class"]);
@@ -53,7 +70,7 @@ const NumberFieldInput = <T extends ValidComponent = "input">(
   return (
     <NumberFieldPrimitive.Input
       style={{
-        "touch-action": "manipulation",
+        "touch-action": "auto",
       }}
       class={cn(
         "flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 data-invalid:border-error-foreground data-invalid:text-error-foreground",

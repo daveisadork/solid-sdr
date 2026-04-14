@@ -27,7 +27,14 @@ import {
   SegmentedControlItemsList,
   SegmentedControlLabel,
 } from "../ui/segmented-control";
-import { createEffect, createSignal, For, JSXElement, Show } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  JSXElement,
+  Show,
+} from "solid-js";
 import useFlexRadio from "~/context/flexradio";
 import type { Radio } from "@repo/flexlib";
 import { TextField, TextFieldInput, TextFieldLabel } from "../ui/text-field";
@@ -60,7 +67,6 @@ import {
 } from "../ui/table";
 import { Checkbox } from "../ui/checkbox";
 import * as NumberFieldPrimitive from "@kobalte/core/number-field";
-import { ProgressCircle } from "../ui/progress-circle";
 import MaterialSymbolsProgressActivity from "~icons/material-symbols/progress-activity";
 import { RadioOscillatorSetting } from "@repo/flexlib";
 import { SliderToggle } from "../ui/slider-toggle";
@@ -78,6 +84,7 @@ function InfoItem(props: { label: JSXElement; value: JSXElement }) {
 function TxBandSettings(props: { radio: Radio }) {
   const { state } = useFlexRadio();
   const [txProfiles, setTxProfiles] = createStore<string[]>([]);
+
   createEffect(() => setTxProfiles(state?.status?.radio?.profileTxList ?? []));
 
   return (
@@ -241,6 +248,19 @@ function RadioSettingsInner(props: { radio: Radio }) {
   createEffect(() => setNickname(state.status.radio.nickname));
   createEffect(() => setCallsign(state.status.radio.callsign));
   createEffect(() => setTxProfiles(state?.status?.radio?.profileTxList ?? []));
+
+  const oscillatorSources = createMemo<Record<RadioOscillatorSetting, string>>(
+    () => ({
+      auto: "Auto",
+      external: "External",
+      gpsdo:
+        state.status.radio.oscillatorGnssPresent &&
+        !state.status.radio.oscillatorGpsdoPresent
+          ? "GNSS"
+          : "GPSDO",
+      tcxo: "TCXO",
+    }),
+  );
 
   return (
     <div class="flex flex-col gap-4 text-sm">
@@ -757,7 +777,11 @@ function RadioSettingsInner(props: { radio: Radio }) {
         </CardHeader>
         <Show
           when={state.status.radio.oscillatorState !== "gpsdo"}
-          fallback={<CardContent>Disabled when using GPSDO</CardContent>}
+          fallback={
+            <CardContent>
+              Disabled when using {oscillatorSources().gpsdo}
+            </CardContent>
+          }
         >
           <CardContent class="flex flex-col gap-4">
             <NumberField
@@ -833,12 +857,12 @@ function RadioSettingsInner(props: { radio: Radio }) {
             <SegmentedControlLabel>Source</SegmentedControlLabel>
             <SegmentedControlGroup>
               <SegmentedControlIndicator />
-              <SegmentedControlItemsList>
-                <For each={["Auto", "External", "GPSDO", "TCXO"]}>
-                  {(source) => (
-                    <SegmentedControlItem value={source.toLowerCase()}>
-                      <SegmentedControlItemLabel>
-                        {source}
+              <SegmentedControlItemsList class="grid grid-cols-4">
+                <For each={Object.entries(oscillatorSources())}>
+                  {([id, label]) => (
+                    <SegmentedControlItem value={id}>
+                      <SegmentedControlItemLabel class="px-0">
+                        {label}
                       </SegmentedControlItemLabel>
                     </SegmentedControlItem>
                   )}
@@ -846,28 +870,22 @@ function RadioSettingsInner(props: { radio: Radio }) {
               </SegmentedControlItemsList>
             </SegmentedControlGroup>
           </SegmentedControl>
-          <div class="grid grid-cols-2 gap-4">
-            <InfoItem
-              label="Active Source"
-              value={
-                { external: "External", gpsdo: "GPSDO", tcxo: "TCXO" }[
-                  state.status.radio.oscillatorState
-                ]
-              }
-            />
-            <InfoItem
-              label="State"
-              value={
-                <Badge
-                  variant={
-                    state.status.radio.oscillatorLocked ? "success" : "outline"
-                  }
-                >
-                  {state.status.radio.oscillatorLocked ? "Locked" : "Searching"}
-                </Badge>
-              }
-            />
-          </div>
+          <InfoItem
+            label="Active Source"
+            value={oscillatorSources()[state.status.radio.oscillatorState]}
+          />
+          <InfoItem
+            label="State"
+            value={
+              <Badge
+                variant={
+                  state.status.radio.oscillatorLocked ? "success" : "outline"
+                }
+              >
+                {state.status.radio.oscillatorLocked ? "Locked" : "Searching"}
+              </Badge>
+            }
+          />
         </CardContent>
       </Card>
       <Card class="bg-transparent">

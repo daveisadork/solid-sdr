@@ -197,6 +197,12 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     return createFlexClient(pc);
   });
 
+  createEffect(() => {
+    if (!rtcSession()) {
+      teardownRadioConnection();
+    }
+  });
+
   const cleanupRadioSubscriptions = () => {
     for (const sub of radioSubscriptions) sub.unsubscribe();
     radioSubscriptions = [];

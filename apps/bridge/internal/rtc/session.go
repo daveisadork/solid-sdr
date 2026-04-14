@@ -20,6 +20,8 @@ const (
 	typeAnswer = "answer"
 	typeICE    = "ice"
 	typeError  = "error"
+	typePing   = "ping"
+	typePong   = "pong"
 )
 
 type message struct {
@@ -100,6 +102,7 @@ func (cs *clientSession) serve(ctx context.Context) {
 
 		err := cs.ws.ReadJSON(&env)
 		if err != nil {
+			log.Printf("[rtc] error read message: %v", err)
 			break
 		}
 
@@ -122,6 +125,8 @@ func (cs *clientSession) dispatch(ctx context.Context, msg message) {
 		cs.handleOffer(ctx, msg.Payload)
 	case typeICE:
 		cs.handleICE(msg.Payload)
+	case typePing:
+		cs.trySend(mustEncode(typePong, nil))
 	default:
 		log.Printf("[rtc] unknown message type: %q", msg.Type)
 	}

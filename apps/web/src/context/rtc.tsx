@@ -11,6 +11,7 @@ import type { Accessor } from "solid-js";
 import { startRTC, type RtcSession } from "../lib/rtc";
 import {
   createReconnectingWS,
+  makeHeartbeatWS,
   type ReconnectingWebSocket,
 } from "@solid-primitives/websocket";
 
@@ -30,7 +31,10 @@ const RtcCtx = createContext<RtcContextValue>();
 export const RtcProvider: ParentComponent = (props) => {
   const [session, setSession] = createSignal<RtcSession | null>(null);
   const [tracks, setTracks] = createSignal<RemoteTrack[]>([]);
-  const signalingWs = createReconnectingWS("/ws/signal");
+  const signalingWs = makeHeartbeatWS(createReconnectingWS("/ws/signal"), {
+    message: JSON.stringify({ type: "ping" }),
+    interval: 10_000,
+  });
 
   const onTrack = (ev: RTCTrackEvent) => {
     const stream = ev.streams[0] ?? new MediaStream([ev.track]);
@@ -49,8 +53,14 @@ export const RtcProvider: ParentComponent = (props) => {
     );
   };
 
-  const onOpen = () => setSession(startRTC(signalingWs, onTrack));
-  const onClose = () => setSession(null);
+  const onOpen = () => {
+    console.log("[rtc] signaling WS connected, starting RTC session");
+    setSession(startRTC(signalingWs, onTrack));
+  };
+  const onClose = (event) => {
+    console.log("[rtc] signaling WS closed", event);
+    setSession(null);
+  };
 
   onMount(() => {
     signalingWs.addEventListener("open", onOpen);

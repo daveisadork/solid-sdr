@@ -23,7 +23,8 @@ describe("Spot store integration", () => {
     expect(spot?.rxFreqMHz).toBeCloseTo(14.076);
     expect(spot?.txFreqMHz).toBeCloseTo(0);
     expect(spot?.mode).toBe("FT8");
-    expect(spot?.color).toBe("#FF0091FF");
+    // Should have converted ARGB to RGBA
+    expect(spot?.color).toBe("#0091FFFF");
     expect(spot?.priority).toBe(3);
     expect(spot?.triggerAction).toBe("tune");
     expect(store.getSpots()).toHaveLength(1);
@@ -36,7 +37,7 @@ describe("Spot store integration", () => {
     expect(store.getSpot("42")?.callsign).toBe("W1AW");
 
     // when removal arrives
-    store.apply(makeStatus("S3|spot 42 removed=1"));
+    store.apply(makeStatus("S3|spot 42 removed"));
     expect(store.getSpot("42")).toBeUndefined();
     expect(store.getSpots()).toHaveLength(0);
   });

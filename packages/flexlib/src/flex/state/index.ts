@@ -539,7 +539,7 @@ export function createRadioStateStore(
       ];
     }
 
-    if (isMarkedDeleted(message.attributes)) {
+    if (isMarkedDeleted(message)) {
       const previous = slices.get(id);
       slices.delete(id);
       updatePanadapterSliceMembership(
@@ -693,7 +693,7 @@ export function createRadioStateStore(
       };
     }
 
-    if (isMarkedDeleted(message.attributes)) {
+    if (isMarkedDeleted(message)) {
       panadapters.delete(id);
       detachSlicesFromPanadapter(id);
       return {
@@ -735,7 +735,7 @@ export function createRadioStateStore(
     const removed =
       message.positional.some(
         (token) => token === "removed" || token === "deleted",
-      ) || isMarkedDeleted(message.attributes);
+      ) || isMarkedDeleted(message);
     if (removed) {
       audioStreams.delete(id);
       return {
@@ -942,7 +942,7 @@ export function createRadioStateStore(
     }
 
     if (message.identifier === "waterfall" || message.attributes["pan"]) {
-      if (isMarkedDeleted(message.attributes)) {
+      if (isMarkedDeleted(message)) {
         waterfalls.delete(id);
         return {
           entity: "waterfall",
@@ -990,7 +990,7 @@ export function createRadioStateStore(
       };
     }
 
-    if (isMarkedDeleted(message.attributes)) {
+    if (isMarkedDeleted(message)) {
       meters.delete(id);
       return {
         entity: "meter",
@@ -1370,7 +1370,7 @@ export function createRadioStateStore(
       };
     }
 
-    if (isMarkedDeleted(message.attributes)) {
+    if (isMarkedDeleted(message)) {
       xvtrs.delete(id);
       return {
         entity: "xvtr",
@@ -1432,7 +1432,7 @@ export function createRadioStateStore(
       };
     }
 
-    if (isMarkedDeleted(message.attributes)) {
+    if (isMarkedDeleted(message)) {
       spots.delete(id);
       return {
         entity: "spot",
@@ -1484,9 +1484,7 @@ export function createRadioStateStore(
     };
   }
 
-  function handleCwx(
-    message: FlexStatusMessage,
-  ): RadioStateChange | undefined {
+  function handleCwx(message: FlexStatusMessage): RadioStateChange | undefined {
     const { snapshot, diff } = createCwxSnapshot(message.attributes, cwx);
     const diffKeys = Object.keys(diff as Record<string, unknown>);
     cwx = snapshot;
@@ -1513,16 +1511,13 @@ export function createRadioStateStore(
     };
   }
 
-  function handleDvk(
-    message: FlexStatusMessage,
-  ): RadioStateChange | undefined {
+  function handleDvk(message: FlexStatusMessage): RadioStateChange | undefined {
     // Recording lifecycle events use positional tokens ("added"/"deleted")
     // that the protocol parser places in identifier/positional, not attributes.
     const attributes: Record<string, string> = { ...message.attributes };
-    const allTokens = [
-      message.identifier,
-      ...message.positional,
-    ].map((t) => t?.toLowerCase());
+    const allTokens = [message.identifier, ...message.positional].map((t) =>
+      t?.toLowerCase(),
+    );
     if (allTokens.includes("added")) attributes["added"] = "";
     if (allTokens.includes("deleted")) attributes["deleted"] = "";
     const { snapshot, diff } = createDvkSnapshot(attributes, dvk);
@@ -1654,9 +1649,12 @@ function resolveEqualizerId(
   return undefined;
 }
 
-function isMarkedDeleted(attributes: Record<string, string>): boolean {
-  if ("removed" in attributes) return isTruthy(attributes["removed"]);
-  if ("in_use" in attributes) return !isTruthy(attributes["in_use"]);
-  if ("deleted" in attributes) return isTruthy(attributes["deleted"]);
-  return false;
+function isMarkedDeleted(message: FlexStatusMessage): boolean {
+  return (
+    message.positional.includes("removed") ||
+    message.positional.includes("deleted") ||
+    isTruthy(message.attributes.removed) ||
+    isTruthy(message.attributes.deleted) ||
+    ("in_use" in message.attributes && !isTruthy(message.attributes.in_use))
+  );
 }

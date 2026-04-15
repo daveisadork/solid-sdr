@@ -1,5 +1,4 @@
 import { TypedEventEmitter, type Subscription } from "../util/events.js";
-import { ensureFinite, formatBooleanFlag, formatMegahertz } from "./controller-helpers.js";
 import { FlexStateUnavailableError } from "./errors.js";
 import type { SpotSnapshot, SpotStateChange } from "./state/index.js";
 import type { RadioSession } from "./radio-core.js";
@@ -97,9 +96,7 @@ export class SpotControllerImpl implements SpotController {
   }
 
   async trigger(panadapterStreamId?: string): Promise<void> {
-    const panArg = panadapterStreamId
-      ? ` pan=${panadapterStreamId}`
-      : "";
+    const panArg = panadapterStreamId ? ` pan=${panadapterStreamId}` : "";
     await this.radio.command(`spot trigger ${this.id}${panArg}`);
   }
 

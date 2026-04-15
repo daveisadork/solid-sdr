@@ -5,6 +5,7 @@ export {
   parseInteger,
   parseIntegerHex,
   parseIntegerList,
+  parseArgb,
 } from "../../util/parsers.js";
 
 /**

@@ -42,6 +42,7 @@ import {
   type TxBandSettingSnapshot,
 } from "./tx-band-settings.js";
 import { createXvtrSnapshot, type XvtrSnapshot } from "./xvtr.js";
+import { createSpotSnapshot, type SpotSnapshot } from "./spot.js";
 import { createCwxSnapshot, type CwxSnapshot } from "./cwx.js";
 import { createDvkSnapshot, type DvkSnapshot } from "./dvk.js";
 
@@ -56,6 +57,7 @@ export type { EqualizerSnapshot, EqualizerId } from "./equalizer.js";
 export type { KnownMeterUnits, MeterSnapshot, MeterUnits } from "./meter.js";
 export type { TxBandSettingSnapshot } from "./tx-band-settings.js";
 export type { XvtrSnapshot } from "./xvtr.js";
+export type { SpotSnapshot } from "./spot.js";
 export type { CwxSnapshot } from "./cwx.js";
 export type { DvkSnapshot, DvkRecording, DvkStatus } from "./dvk.js";
 export type {
@@ -99,6 +101,7 @@ export type RadioStateChange =
     } & ChangeMetadata<TxBandSettingSnapshot>)
   | ({ entity: "guiClient"; id: string } & ChangeMetadata<GuiClientSnapshot>)
   | ({ entity: "xvtr"; id: string } & ChangeMetadata<XvtrSnapshot>)
+  | ({ entity: "spot"; id: string } & ChangeMetadata<SpotSnapshot>)
   | ({ entity: "radio" } & ChangeMetadata<RadioSnapshot>)
   | ({ entity: "featureLicense" } & ChangeMetadata<FeatureLicenseSnapshot>)
   | ({ entity: "apd" } & ChangeMetadata<ApdSnapshot>)
@@ -139,6 +142,7 @@ export type TxBandSettingStateChange = Extract<
   { entity: "txBandSetting" }
 >;
 export type XvtrStateChange = Extract<RadioStateChange, { entity: "xvtr" }>;
+export type SpotStateChange = Extract<RadioStateChange, { entity: "spot" }>;
 export type CwxStateChange = Extract<RadioStateChange, { entity: "cwx" }>;
 export type DvkStateChange = Extract<RadioStateChange, { entity: "dvk" }>;
 
@@ -152,6 +156,7 @@ export interface RadioStateSnapshot {
   readonly equalizers: readonly EqualizerSnapshot[];
   readonly txBandSettings: readonly TxBandSettingSnapshot[];
   readonly xvtrs: readonly XvtrSnapshot[];
+  readonly spots: readonly SpotSnapshot[];
   readonly radio: RadioSnapshot;
   readonly featureLicense?: FeatureLicenseSnapshot;
   readonly apd?: ApdSnapshot;
@@ -177,6 +182,8 @@ export interface RadioStateStore {
   getTxBandSettings(): readonly TxBandSettingSnapshot[];
   getXvtr(id: string): XvtrSnapshot | undefined;
   getXvtrs(): readonly XvtrSnapshot[];
+  getSpot(id: string): SpotSnapshot | undefined;
+  getSpots(): readonly SpotSnapshot[];
   getApd(): ApdSnapshot | undefined;
   getCwx(): CwxSnapshot | undefined;
   getDvk(): DvkSnapshot | undefined;
@@ -219,6 +226,11 @@ export interface RadioStateStore {
     attributes: Record<string, string>,
   ): XvtrStateChange | undefined;
   removeXvtr(id: string): XvtrStateChange | undefined;
+  patchSpot(
+    id: string,
+    attributes: Record<string, string>,
+  ): SpotStateChange | undefined;
+  removeSpot(id: string): SpotStateChange | undefined;
   patchCwx(attributes: Record<string, string>): CwxStateChange | undefined;
   patchDvk(attributes: Record<string, string>): DvkStateChange | undefined;
   patchApd(attributes: Record<string, string>): ApdStateChange | undefined;
@@ -253,6 +265,7 @@ export function createRadioStateStore(
   const equalizers = new Map<EqualizerId, EqualizerSnapshot>();
   const txBandSettings = new Map<string, TxBandSettingSnapshot>();
   const xvtrs = new Map<string, XvtrSnapshot>();
+  const spots = new Map<string, SpotSnapshot>();
   let radio: RadioSnapshot;
   let featureLicense: FeatureLicenseSnapshot | undefined;
   let apd: ApdSnapshot | undefined;
@@ -271,6 +284,7 @@ export function createRadioStateStore(
     equalizers.clear();
     txBandSettings.clear();
     xvtrs.clear();
+    spots.clear();
     radio = undefined as unknown as RadioSnapshot;
     featureLicense = undefined;
     apd = undefined;
@@ -312,6 +326,8 @@ export function createRadioStateStore(
         }
         case "xvtr":
           return [handleXvtr(message)];
+        case "spot":
+          return [handleSpot(message)];
         case "cwx": {
           const change = handleCwx(message);
           if (change) return [change];
@@ -378,6 +394,7 @@ export function createRadioStateStore(
         equalizers: Array.from(equalizers.values()),
         txBandSettings: Array.from(txBandSettings.values()),
         xvtrs: Array.from(xvtrs.values()),
+        spots: Array.from(spots.values()),
         radio,
         featureLicense,
         apd,
@@ -423,6 +440,12 @@ export function createRadioStateStore(
     },
     getXvtrs() {
       return Array.from(xvtrs.values());
+    },
+    getSpot(id) {
+      return spots.get(id);
+    },
+    getSpots() {
+      return Array.from(spots.values());
     },
     getApd() {
       return apd;
@@ -477,6 +500,12 @@ export function createRadioStateStore(
     },
     removeXvtr(id) {
       return removeXvtr(id);
+    },
+    patchSpot(id, attributes) {
+      return patchSpot(id, attributes);
+    },
+    removeSpot(id) {
+      return removeSpot(id);
     },
     patchCwx(attributes) {
       return patchCwx(attributes);
@@ -1388,6 +1417,68 @@ export function createRadioStateStore(
     xvtrs.delete(id);
     return {
       entity: "xvtr",
+      id,
+      removed: true,
+    };
+  }
+
+  function handleSpot(message: FlexStatusMessage): RadioStateChange {
+    const id = resolveIdentifier(message, message.identifier);
+    if (!id) {
+      return {
+        entity: "unknown",
+        source: message.source,
+        attributes: message.attributes,
+      };
+    }
+
+    if (isMarkedDeleted(message.attributes)) {
+      spots.delete(id);
+      return {
+        entity: "spot",
+        id,
+        removed: true,
+      };
+    }
+
+    const previous = spots.get(id);
+    const { snapshot, diff } = createSpotSnapshot(
+      id,
+      message.attributes,
+      previous,
+    );
+    spots.set(id, snapshot);
+    return {
+      entity: "spot",
+      id,
+      diff,
+      removed: false,
+    };
+  }
+
+  function patchSpot(
+    id: string,
+    attributes: Record<string, string>,
+  ): SpotStateChange | undefined {
+    if (Object.keys(attributes).length === 0) return undefined;
+    const previous = spots.get(id);
+    const { snapshot, diff } = createSpotSnapshot(id, attributes, previous);
+    const diffKeys = Object.keys(diff as Record<string, unknown>);
+    spots.set(id, snapshot);
+    if (diffKeys.length === 0) return undefined;
+    return {
+      entity: "spot",
+      id,
+      diff,
+      removed: false,
+    };
+  }
+
+  function removeSpot(id: string): SpotStateChange | undefined {
+    if (!spots.has(id)) return undefined;
+    spots.delete(id);
+    return {
+      entity: "spot",
       id,
       removed: true,
     };

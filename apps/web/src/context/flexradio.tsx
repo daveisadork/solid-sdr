@@ -39,6 +39,7 @@ import {
   type TxBandSettingSnapshot,
   type WaterfallSnapshot,
   type XvtrSnapshot,
+  type SpotSnapshot,
 } from "@repo/flexlib";
 import { createFlexClient } from "@repo/flexlib/bridge";
 import { useRtc } from "./rtc";
@@ -95,6 +96,7 @@ export type MeterState = Omit<MutableProps<MeterSnapshot>, "raw">;
 export type XvtrState = Omit<MutableProps<XvtrSnapshot>, "raw">;
 export type CwxState = Omit<MutableProps<CwxSnapshot>, "raw">;
 export type DvkState = Omit<MutableProps<DvkSnapshot>, "raw">;
+export type SpotState = Omit<MutableProps<SpotSnapshot>, "raw">;
 
 export interface ConnectModalState {
   status: ConnectionState;
@@ -112,6 +114,7 @@ export interface StatusState {
   radio: Radio;
   featureLicense: FeatureLicenseState;
   audioStream: Record<string, AudioStreamState>;
+  spot: Record<string, SpotState>;
   guiClient: Record<string, GuiClientState>;
   txBandSetting: Record<string, TxBandSettingState>;
   xvtr: Record<string, XvtrState>;
@@ -160,6 +163,7 @@ export const initialState = () =>
       waterfall: {},
       guiClient: {},
       radio: {},
+      spot: {},
       featureLicense: {},
       audioStream: {},
       txBandSetting: {},

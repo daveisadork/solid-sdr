@@ -88,6 +88,7 @@ import {
 } from "./tx-band-settings.js";
 import { type ApdController, ApdControllerImpl } from "./apd.js";
 import { type XvtrController, XvtrControllerImpl } from "./xvtr.js";
+import { type SpotController, SpotControllerImpl } from "./spot.js";
 import { type CwxController, CwxControllerImpl } from "./cwx.js";
 import { type DvkController, DvkControllerImpl } from "./dvk.js";
 import {
@@ -100,6 +101,7 @@ import type {
   TxBandSettingStateChange,
   ApdStateChange,
   XvtrStateChange,
+  SpotStateChange,
   CwxStateChange,
   DvkStateChange,
 } from "./state/index.js";
@@ -468,6 +470,7 @@ export class Radio {
     TxBandSettingControllerImpl
   >();
   private readonly xvtrControllers = new Map<string, XvtrControllerImpl>();
+  private readonly spotControllers = new Map<string, SpotControllerImpl>();
   private readonly _apdController: ApdControllerImpl;
   private readonly _cwxController: CwxControllerImpl;
   private readonly _dvkController: DvkControllerImpl;
@@ -693,6 +696,22 @@ export class Radio {
    */
   async createXvtr(): Promise<void> {
     await this.command("xvtr create");
+  }
+
+  spots(): SpotController[] {
+    return Array.from(this.spotControllers.values());
+  }
+
+  spot(id: string): SpotController | undefined {
+    return this.getOrCreateController(
+      "spot",
+      id,
+      this.spotControllers,
+      () => {
+        if (!this.store.getSpot(id)) return undefined;
+        return new SpotControllerImpl(this, id);
+      },
+    );
   }
 
   cwx(): CwxController {
@@ -1117,6 +1136,17 @@ export class Radio {
           () => {
             if (!this.store.getXvtr(change.id)) return undefined;
             return new XvtrControllerImpl(this, change.id);
+          },
+        );
+        break;
+      case "spot":
+        this.updateController(
+          change as Extract<RadioStateChange, { id: string }> &
+            SpotStateChange,
+          this.spotControllers,
+          () => {
+            if (!this.store.getSpot(change.id)) return undefined;
+            return new SpotControllerImpl(this, change.id);
           },
         );
         break;
@@ -2491,6 +2521,7 @@ export class Radio {
     this.equalizerControllers.clear();
     this.txBandControllers.clear();
     this.xvtrControllers.clear();
+    this.spotControllers.clear();
   }
 
   private setConnectionState(state: RadioConnectionState): void {

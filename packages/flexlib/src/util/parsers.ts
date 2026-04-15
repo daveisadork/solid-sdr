@@ -1,4 +1,6 @@
-export function valueOrUndefined(value: string | undefined): string | undefined {
+export function valueOrUndefined(
+  value: string | undefined,
+): string | undefined {
   if (value === undefined) return undefined;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : undefined;
@@ -31,9 +33,10 @@ export function parseInteger(value: string | undefined): number | undefined {
 export function parseIntegerHex(value: string | undefined): number | undefined {
   const trimmed = valueOrUndefined(value);
   if (!trimmed) return undefined;
-  const normalized = trimmed.startsWith("0x") || trimmed.startsWith("0X")
-    ? trimmed.slice(2)
-    : trimmed;
+  const normalized =
+    trimmed.startsWith("0x") || trimmed.startsWith("0X")
+      ? trimmed.slice(2)
+      : trimmed;
   const parsed = Number.parseInt(normalized, 16);
   return Number.isFinite(parsed) ? parsed : undefined;
 }
@@ -61,4 +64,8 @@ export function parseCsv(value: string | undefined): string[] | undefined {
 
 export function parseCsvList(value: string | undefined): string[] {
   return parseCsv(value) ?? [];
+}
+
+export function parseArgb(value: string | undefined): string | undefined {
+  return value ? `#${value.slice(3)}${value.slice(1, 3)}` : value;
 }

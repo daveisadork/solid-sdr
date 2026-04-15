@@ -88,7 +88,11 @@ import {
 } from "./tx-band-settings.js";
 import { type ApdController, ApdControllerImpl } from "./apd.js";
 import { type XvtrController, XvtrControllerImpl } from "./xvtr.js";
-import { type SpotController, SpotControllerImpl } from "./spot.js";
+import {
+  type SpotController,
+  type SpotTriggeredEvent,
+  SpotControllerImpl,
+} from "./spot.js";
 import { type CwxController, CwxControllerImpl } from "./cwx.js";
 import { type DvkController, DvkControllerImpl } from "./dvk.js";
 import {
@@ -196,6 +200,7 @@ export interface RadioEvents {
   readonly reply: FlexReplyMessage;
   readonly notice: FlexNoticeMessage;
   readonly message: FlexWireMessage;
+  readonly spotTriggered: SpotTriggeredEvent;
   readonly ready: undefined;
   readonly disconnected: undefined;
   readonly error: unknown;
@@ -703,15 +708,10 @@ export class Radio {
   }
 
   spot(id: string): SpotController | undefined {
-    return this.getOrCreateController(
-      "spot",
-      id,
-      this.spotControllers,
-      () => {
-        if (!this.store.getSpot(id)) return undefined;
-        return new SpotControllerImpl(this, id);
-      },
-    );
+    return this.getOrCreateController("spot", id, this.spotControllers, () => {
+      if (!this.store.getSpot(id)) return undefined;
+      return new SpotControllerImpl(this, id);
+    });
   }
 
   cwx(): CwxController {
@@ -1141,8 +1141,7 @@ export class Radio {
         break;
       case "spot":
         this.updateController(
-          change as Extract<RadioStateChange, { id: string }> &
-            SpotStateChange,
+          change as Extract<RadioStateChange, { id: string }> & SpotStateChange,
           this.spotControllers,
           () => {
             if (!this.store.getSpot(change.id)) return undefined;
@@ -2235,6 +2234,7 @@ export class Radio {
         for (const change of this.store.apply(parsed)) {
           this.handleStateChange(change);
         }
+        this.handleSpotTriggered(parsed);
         break;
       case "reply":
         this.events.emit("reply", parsed);
@@ -2244,6 +2244,22 @@ export class Radio {
         this.events.emit("notice", parsed);
         break;
     }
+  }
+
+  private handleSpotTriggered(message: FlexStatusMessage): void {
+    if (message.source !== "spot" || !message.positional.includes("triggered"))
+      return;
+    const id = message.identifier;
+    if (!id) return;
+
+    const panadapterStreamId = message.attributes["pan"];
+    const event: SpotTriggeredEvent = { spotId: id, panadapterStreamId };
+
+    // Emit on the individual spot controller if it exists
+    this.spotControllers.get(id)?.onTriggered(panadapterStreamId);
+
+    // Emit on the radio for global listeners
+    this.events.emit("spotTriggered", event);
   }
 
   private handleReply(reply: FlexReplyMessage): void {

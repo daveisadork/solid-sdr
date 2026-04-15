@@ -79,7 +79,6 @@ export type { GuiClientSnapshot } from "./gui-client.js";
 type ChangeMetadata<TSnapshot> = {
   readonly diff?: SnapshotDiff<TSnapshot>;
   readonly removed: boolean;
-  readonly kind?: "added" | "updated" | "removed";
 };
 
 export type RadioStateChange =
@@ -326,8 +325,11 @@ export function createRadioStateStore(
         }
         case "xvtr":
           return [handleXvtr(message)];
-        case "spot":
-          return [handleSpot(message)];
+        case "spot": {
+          const spotChange = handleSpot(message);
+          if (spotChange) return [spotChange];
+          return [];
+        }
         case "cwx": {
           const change = handleCwx(message);
           if (change) return [change];
@@ -1422,7 +1424,9 @@ export function createRadioStateStore(
     };
   }
 
-  function handleSpot(message: FlexStatusMessage): RadioStateChange {
+  function handleSpot(
+    message: FlexStatusMessage,
+  ): RadioStateChange | undefined {
     const id = resolveIdentifier(message, message.identifier);
     if (!id) {
       return {
@@ -1430,6 +1434,15 @@ export function createRadioStateStore(
         source: message.source,
         attributes: message.attributes,
       };
+    }
+
+    // "spot 42 triggered pan=0x40000000" — transient event, not a state update.
+    // The Radio class handles this directly and emits a spotTriggered event.
+    if (
+      message.positional.some((t) => t === "triggered") ||
+      message.identifier === "triggered"
+    ) {
+      return undefined;
     }
 
     if (isMarkedDeleted(message)) {

@@ -115,6 +115,9 @@ export function createSpotSnapshot(
       case "trigger_action":
         partial.triggerAction = value;
         break;
+      case "pan":
+        // Transient — included in "triggered" echo, not spot state
+        break;
       default:
         logUnknownAttribute("spot", key, value);
         break;

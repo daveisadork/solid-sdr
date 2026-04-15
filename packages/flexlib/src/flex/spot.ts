@@ -3,9 +3,16 @@ import { FlexStateUnavailableError } from "./errors.js";
 import type { SpotSnapshot, SpotStateChange } from "./state/index.js";
 import type { RadioSession } from "./radio-core.js";
 
+/** Payload for the spot "triggered" event. */
+export interface SpotTriggeredEvent {
+  readonly spotId: string;
+  readonly panadapterStreamId?: string;
+}
+
 /** Events emitted by a {@link SpotController}. */
 export interface SpotControllerEvents {
   readonly change: SpotStateChange;
+  readonly triggered: SpotTriggeredEvent;
 }
 
 /**
@@ -115,6 +122,14 @@ export class SpotControllerImpl implements SpotController {
 
   onStateChange(change: SpotStateChange): void {
     this.events.emit("change", change);
+  }
+
+  /** @internal Called by Radio when a triggered status arrives for this spot. */
+  onTriggered(panadapterStreamId?: string): void {
+    this.events.emit("triggered", {
+      spotId: this.id,
+      panadapterStreamId,
+    });
   }
 
   private current(): SpotSnapshot {

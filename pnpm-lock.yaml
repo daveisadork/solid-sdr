@@ -187,6 +187,9 @@ importers:
       '@solid-primitives/websocket':
         specifier: ^1.3.1
         version: 1.3.1(solid-js@1.9.11)
+      '@solid-primitives/workers':
+        specifier: ^0.4.3
+        version: 0.4.3(solid-js@1.9.11)
       '@solidjs/router':
         specifier: ^0.15.4
         version: 0.15.4(solid-js@1.9.11)
@@ -2175,6 +2178,11 @@ packages:
 
   '@solid-primitives/websocket@1.3.1':
     resolution: {integrity: sha512-F06tA2FKa5VsnS4E4WEc3jHpsJfXRlMTGOtolugTzCqV3JmJTyvk9UVg1oz6PgGHKGi1CQ91OP8iW34myyJgaQ==}
+    peerDependencies:
+      solid-js: ^1.6.12
+
+  '@solid-primitives/workers@0.4.3':
+    resolution: {integrity: sha512-BUZnxVTfwB1+vUnoKRBV4u165Dx01DRQTpayvlltgqf/OREHFja9911ZDq/kX4wZS35iY7HFad8nzBo6j1yhXQ==}
     peerDependencies:
       solid-js: ^1.6.12
 
@@ -8449,6 +8457,10 @@ snapshots:
       solid-js: 1.9.9
 
   '@solid-primitives/websocket@1.3.1(solid-js@1.9.11)':
+    dependencies:
+      solid-js: 1.9.11
+
+  '@solid-primitives/workers@0.4.3(solid-js@1.9.11)':
     dependencies:
       solid-js: 1.9.11
 

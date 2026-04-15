@@ -23,6 +23,59 @@ import type { PanadapterController, VitaParsedPacket } from "@repo/flexlib";
 import { usePanafall } from "~/context/panafall";
 import { usePreferences } from "~/context/preferences";
 import { PanafallControl } from "./controls";
+import {
+  Tooltip,
+  TooltipArrow,
+  TooltipContent,
+  TooltipTrigger,
+} from "../ui/tooltip";
+
+function Spots(props: { pan: PanadapterState }) {
+  const { state, radio } = useFlexRadio();
+  const { freqToX, spotIds } = usePanafall();
+
+  return (
+    <div class="absolute inset-0 translate-x-(--drag-offset) z-20 pointer-events-none">
+      <For each={spotIds()}>
+        {(spotId, index) => (
+          <Show when={state.status.spot[spotId]}>
+            {(getSpot) => {
+              const spot = getSpot();
+              const ctrl = radio()?.spot(spotId);
+              return (
+                <Tooltip gutter={0}>
+                  <TooltipTrigger
+                    class="text-xs font-bold font-mono absolute px-1 bottom-(--spot-y-offset) left-(--spot-x-offset) -translate-x-1/2 border rounded-sm text-(--spot-color) border-(--spot-color) bg-(--spot-background-color)/80 z-(--spot-z-index) cursor-pointer pointer-events-auto shadow-sm shadow-black"
+                    style={{
+                      "--spot-z-index": 0 - spot.priority,
+                      "--spot-x-offset": `${freqToX(spot.rxFreqMHz)}px`,
+                      "--spot-color": spot.color,
+                      "--spot-background-color":
+                        spot.backgroundColor ?? "var(--background)",
+                      "--spot-y-offset": `calc(var(--spacing) * ${5 + (index() % 5) * 5})`,
+                    }}
+                    onClick={() => {
+                      ctrl.trigger(props.pan.streamId);
+                    }}
+                  >
+                    {spot.callsign}
+                  </TooltipTrigger>
+                  <TooltipContent class="overflow-visible">
+                    <TooltipArrow />
+                    <div>
+                      {new Date(spot.timestampSec * 1000).toLocaleString()}
+                    </div>
+                    <div>{spot.comment}</div>
+                  </TooltipContent>
+                </Tooltip>
+              );
+            }}
+          </Show>
+        )}
+      </For>
+    </div>
+  );
+}
 
 export function Panadapter(props: {
   pan: PanadapterState;
@@ -57,7 +110,7 @@ export function Panadapter(props: {
     });
   });
 
-  const { slices, setPanadapterControlsRef } = usePanafall();
+  const { slices, setPanadapterControlsRef, spotIds, freqToX } = usePanafall();
 
   createEffect(() => {
     const canvas = canvasRef();
@@ -397,6 +450,7 @@ export function Panadapter(props: {
         <For each={slices()}>
           {(slice) => <Slice slice={slice} pan={props.pan} />}
         </For>
+        <Spots pan={props.pan} />
       </div>
     </div>
   );

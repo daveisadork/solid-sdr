@@ -244,7 +244,7 @@ export function DetachedSlice(props: {
   return (
     <Button
       variant="outline"
-      class="flex p-2 font-extrabold text-md font-mono z-10 pointer-events-auto text-shadow-md text-shadow-background gap-1 [&_svg]:size-8 hover:bg-muted"
+      class="flex p-2 font-extrabold font-mono items-center z-10 pointer-events-auto text-shadow-md text-shadow-background gap-1 [&_svg]:size-8 hover:bg-muted border-none opacity-50"
       onClick={() => {
         panadapterController()?.setCenterFrequency(props.slice.frequencyMHz);
         sliceController()?.setActive(true);
@@ -255,17 +255,22 @@ export function DetachedSlice(props: {
           <BaselineChevronLeft />
         </div>
       </Show>
-      <div class="flex flex-col">
-        <span class="leading-tight">{props.slice.indexLetter}</span>
+      <div class="flex flex-col items-center gap-0">
+        <div class="flex items-center">
+          <span class="text-xl leading-tight">{props.slice.indexLetter}</span>
+          <Show when={props.slice.isTransmitEnabled}>
+            <span class="text-xs leading-tight">TX</span>
+          </Show>
+        </div>
         <span class="text-[0.5rem] italic font-normal leading-tight">
           {props.slice.frequencyMHz}
         </span>
+        <Show when={props.slice.frequencyMHz > props.pan.centerFrequencyMHz}>
+          <div class="flex w-3.5 max-w-3.5 justify-center">
+            <BaselineChevronRight />
+          </div>
+        </Show>
       </div>
-      <Show when={props.slice.frequencyMHz > props.pan.centerFrequencyMHz}>
-        <div class="flex w-3.5 max-w-3.5 justify-center">
-          <BaselineChevronRight />
-        </div>
-      </Show>
     </Button>
   );
 }

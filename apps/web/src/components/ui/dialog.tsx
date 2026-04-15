@@ -1,5 +1,5 @@
 import type { Component, ComponentProps, JSX, ValidComponent } from "solid-js";
-import { splitProps } from "solid-js";
+import { Show, splitProps } from "solid-js";
 
 import * as DialogPrimitive from "@kobalte/core/dialog";
 import type { PolymorphicProps } from "@kobalte/core/polymorphic";
@@ -40,6 +40,7 @@ const DialogOverlay = <T extends ValidComponent = "div">(
 
 type DialogContentProps<T extends ValidComponent = "div"> =
   DialogPrimitive.DialogContentProps<T> & {
+    hideOverlay?: boolean | undefined;
     class?: string | undefined;
     children?: JSX.Element;
   };
@@ -47,13 +48,16 @@ type DialogContentProps<T extends ValidComponent = "div"> =
 const DialogContent = <T extends ValidComponent = "div">(
   props: PolymorphicProps<T, DialogContentProps<T>>,
 ) => {
-  const [, rest] = splitProps(props as DialogContentProps, [
+  const [local, rest] = splitProps(props as DialogContentProps, [
     "class",
     "children",
+    "hideOverlay",
   ]);
   return (
     <DialogPortal>
-      <DialogOverlay />
+      <Show when={!local.hideOverlay}>
+        <DialogOverlay />
+      </Show>
       <DialogPrimitive.Content
         class={cn(
           "fixed left-1/2 top-1/2 z-50 grid max-h-screen w-full max-w-sm sm:max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto border fancy-bg-background p-6 shadow-lg duration-200 data-expanded:animate-in data-closed:animate-out data-closed:fade-out-0 data-expanded:fade-in-0 data-closed:zoom-out-95 data-expanded:zoom-in-95 rounded-lg",

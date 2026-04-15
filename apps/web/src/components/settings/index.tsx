@@ -19,6 +19,7 @@ import {
 import { AppSettings } from "./app-settings";
 import { RadioSettings } from "./radio-settings";
 import { Button } from "@kobalte/core/button";
+import { SpotsSettings } from "./spots-settings";
 
 export function Settings() {
   return (
@@ -54,6 +55,9 @@ export function Settings() {
             </TabsContent>
             <TabsContent value="radio">
               <RadioSettings />
+            </TabsContent>
+            <TabsContent value="spots">
+              <SpotsSettings />
             </TabsContent>
           </div>
         </Tabs>

@@ -71,15 +71,7 @@ import MaterialSymbolsProgressActivity from "~icons/material-symbols/progress-ac
 import { RadioOscillatorSetting } from "@repo/flexlib";
 import { SliderToggle } from "../ui/slider-toggle";
 import { Badge } from "../ui/badge";
-
-function InfoItem(props: { label: JSXElement; value: JSXElement }) {
-  return (
-    <div class="flex">
-      <div class="grow">{props.label}:</div>
-      <span>{props.value}</span>
-    </div>
-  );
-}
+import { InfoItem } from "./common";
 
 function TxBandSettings(props: { radio: Radio }) {
   const { state } = useFlexRadio();

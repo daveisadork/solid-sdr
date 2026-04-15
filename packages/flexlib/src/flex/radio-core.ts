@@ -714,6 +714,11 @@ export class Radio {
     });
   }
 
+  /** Removes all spots from the radio. */
+  async clearSpots(): Promise<void> {
+    await this.command("spot clear");
+  }
+
   cwx(): CwxController {
     return this._cwxController;
   }

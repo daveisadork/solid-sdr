@@ -142,7 +142,7 @@ export const Scale = <T extends ValidComponent = "button">(
     >
       <ResizablePrimitive.Handle
         class={cn(
-          "fancy-bg-background flex w-full h-4 justify-around select-none font-mono z-10 translate-x-(--drag-offset)",
+          "fancy-bg-background flex items-center w-full h-4 justify-around select-none font-mono z-10 translate-x-(--drag-offset)",
           local.class,
         )}
         classList={{

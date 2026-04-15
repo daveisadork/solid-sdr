@@ -26,10 +26,21 @@ export interface DaxRxConfig {
   outputDeviceId: string;
 }
 
+export interface SpotPreferences {
+  enabled: boolean;
+  levels: number;
+  position: number;
+  verticalSpacing: number;
+  fontSize: number;
+  overrideColor: string | null;
+  overrideBackgroundColor: string | null;
+}
+
 export interface Preferences {
   smoothScroll: boolean;
   enableBlurEffects: boolean;
   enableTransparencyEffects: boolean;
+  spots: SpotPreferences;
   peakStyle: PeakStyle;
   fillStyle: FillStyle;
   gradientStyle: GradientStyle;
@@ -73,6 +84,15 @@ const initialPreferences = () =>
     smoothScroll: true,
     enableBlurEffects: true,
     enableTransparencyEffects: true,
+    spots: {
+      enabled: true,
+      levels: 3,
+      position: 0,
+      fontSize: 1,
+      verticalSpacing: 25,
+      overrideColor: null,
+      overrideBackgroundColor: null,
+    },
     peakStyle: "points",
     fillStyle: "solid",
     gradientStyle: "color",

@@ -11,29 +11,50 @@ import type { Accessor } from "solid-js";
 import { startRTC, type RtcSession } from "../lib/rtc";
 import {
   createReconnectingWS,
+  createWSState,
   makeHeartbeatWS,
   type ReconnectingWebSocket,
 } from "@solid-primitives/websocket";
+import { createStore } from "solid-js/store";
 
 type RemoteTrack = {
   streamId: string;
   stream: MediaStream;
 };
 
+const RtcCtx = createContext<RtcContextValue>();
+
+type RtcState = {
+  connectionState?: RTCPeerConnectionState | undefined;
+  iceConnectionState?: RTCIceConnectionState | undefined;
+  iceGatheringState?: RTCIceGatheringState | undefined;
+  signalingState?: RTCSignalingState | undefined;
+};
+
 type RtcContextValue = {
+  peerConnection: Accessor<RTCPeerConnection | null>;
+  rtcState: RtcState;
+  signalingWsState: Accessor<0 | 1 | 2 | 3>;
   session: Accessor<RtcSession | null>;
   tracks: Accessor<RemoteTrack[]>;
   signalingWs: ReconnectingWebSocket;
 };
 
-const RtcCtx = createContext<RtcContextValue>();
-
 export const RtcProvider: ParentComponent = (props) => {
   const [session, setSession] = createSignal<RtcSession | null>(null);
   const [tracks, setTracks] = createSignal<RemoteTrack[]>([]);
-  const signalingWs = makeHeartbeatWS(createReconnectingWS("/ws/signal"), {
-    message: JSON.stringify({ type: "ping" }),
-    interval: 10_000,
+  const signalingWs = makeHeartbeatWS(
+    createReconnectingWS("/ws/signal", undefined, { delay: 1000 }),
+    {
+      message: JSON.stringify({ type: "ping" }),
+    },
+  );
+  const wsState = createWSState(signalingWs);
+  const [rtcState, setRtcState] = createStore<RtcState>({});
+
+  createEffect(() => {
+    const state = ["connecting", "open", "closing", "closed"][wsState()];
+    console.log("[rtc] signaling WS state change", state);
   });
 
   const onTrack = (ev: RTCTrackEvent) => {
@@ -62,7 +83,9 @@ export const RtcProvider: ParentComponent = (props) => {
     setSession(null);
   };
 
-  onMount(() => {
+  createEffect(() => {
+    console.log("[rtc] setting up signaling WS event listeners");
+
     signalingWs.addEventListener("open", onOpen);
     signalingWs.addEventListener("close", onClose);
     signalingWs.addEventListener("error", onClose);

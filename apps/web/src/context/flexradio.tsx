@@ -45,9 +45,17 @@ import {
 import { createFlexClient } from "@repo/flexlib/bridge";
 import { useRtc } from "./rtc";
 import { usePreferences } from "./preferences";
-import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "~/components/ui/card";
 import MaterialSymbolsProgressActivity from "~icons/material-symbols/progress-activity";
 import { Timeline } from "~/components/ui/timeline";
+import { createWSState } from "@solid-primitives/websocket";
+import { Button } from "~/components/ui/button";
 
 export enum ConnectionState {
   disconnected,
@@ -189,40 +197,33 @@ const FlexRadioContext = createContext<{
   }>;
 }>();
 
+const WS_STATES = ["Connecting...", "Established", "Closing...", "Closed"];
+
 export const FlexRadioProvider: ParentComponent = (props) => {
   const [state, setState] = createStore(initialState());
   const { preferences } = usePreferences();
   const { session: rtcSession, signalingWs } = useRtc();
   const [activeRadio, setActiveRadio] = createSignal<Radio | null>(null);
 
-  const [wsConnected, setWsConnected] = createSignal(false);
-  const [rtcConnected, setRtcConnected] = createSignal(false);
+  const wsState = createWSState(signalingWs);
+  const [rtcState, setRtcState] = createSignal<string | undefined>();
 
-  onMount(() => {
-    const connected = () => setWsConnected(true);
-    const disconnected = () => setWsConnected(false);
-
-    signalingWs.addEventListener("open", connected);
-    signalingWs.addEventListener("close", disconnected);
-
-    setWsConnected(signalingWs.readyState === signalingWs.OPEN);
-
-    onCleanup(() => {
-      signalingWs.removeEventListener("open", connected);
-      signalingWs.removeEventListener("close", disconnected);
-    });
-  });
+  const [ready, setReady] = createSignal(false);
 
   createEffect(() => {
     const pc = rtcSession()?.pc;
-    const onConnectionStateChange = () =>
-      setRtcConnected(pc?.connectionState === "connected");
+
+    const onConnectionStateChange = () => setRtcState(pc?.connectionState);
 
     pc?.addEventListener("connectionstatechange", onConnectionStateChange);
     onConnectionStateChange();
     onCleanup(() =>
       pc?.removeEventListener("connectionstatechange", onConnectionStateChange),
     );
+  });
+
+  createEffect(() => {
+    if (rtcState() !== "connected") setReady(false);
   });
 
   let radioSubscriptions: Subscription[] = [];
@@ -556,36 +557,43 @@ export const FlexRadioProvider: ParentComponent = (props) => {
       }}
     >
       <Show
-        when={flexClient()}
+        when={ready()}
         fallback={
-          <Card class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+          <Card class="w-sm absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
             <CardHeader>
-              <div class="flex items-center gap-2">
-                <MaterialSymbolsProgressActivity class="animate-spin" />
-                <CardTitle>Initializing</CardTitle>
-              </div>
+              <CardTitle>Initializing</CardTitle>
             </CardHeader>
             <CardContent>
               <Timeline
                 items={[
                   {
-                    title: "Establish WebSocket",
-                    // description: "This is the first event of the timeline.",
+                    title: "WebSocket",
+                    description: WS_STATES[wsState()],
                   },
                   {
-                    title: "Establish WebRTC",
-                    // description: "This is the second event of the timeline.",
+                    title: "WebRTC",
+                    description: rtcState(),
                   },
-                  // {
-                  //   title: "Event #3",
-                  //   description: "This is the third event of the timeline.",
-                  // },
+                  {
+                    title: "Client",
+                    description: "This is the third event of the timeline.",
+                  },
                 ]}
-                activeItem={[wsConnected(), Boolean(flexClient())].indexOf(
+                activeItem={[
                   true,
-                )}
+                  wsState() === 1,
+                  rtcState() === "connected",
+                ].lastIndexOf(true)}
               />
             </CardContent>
+            <CardFooter>
+              <Button
+                disabled={rtcState() !== "connected"}
+                onClick={() => setReady(true)}
+              >
+                Continue
+              </Button>
+            </CardFooter>
           </Card>
         }
       >

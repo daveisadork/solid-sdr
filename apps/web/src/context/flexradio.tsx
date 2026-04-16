@@ -6,7 +6,6 @@ import {
   createMemo,
   createSignal,
   onCleanup,
-  onMount,
   ParentComponent,
   Show,
   useContext,
@@ -52,9 +51,7 @@ import {
   CardHeader,
   CardTitle,
 } from "~/components/ui/card";
-import MaterialSymbolsProgressActivity from "~icons/material-symbols/progress-activity";
 import { Timeline } from "~/components/ui/timeline";
-import { createWSState } from "@solid-primitives/websocket";
 import { Button } from "~/components/ui/button";
 import { InfoItem } from "~/components/settings/common";
 
@@ -227,18 +224,12 @@ export const FlexRadioProvider: ParentComponent = (props) => {
   };
 
   const flexClient = createMemo(() => {
-    const pc = peerConnection();
-    if (!pc) return;
-    onCleanup(teardownRadioConnection);
-    return createFlexClient(pc);
+    if (rtcState.connectionState !== "connected") return;
+    return createFlexClient(peerConnection());
   });
 
   createEffect(() => {
-    if (rtcState.connectionState === "connected") {
-      setTimeout(() => setReady(true), 1000);
-    } else {
-      setReady(false);
-    }
+    setReady(rtcState.connectionState === "connected");
   });
 
   const cleanupRadioSubscriptions = () => {
@@ -543,7 +534,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
       }}
     >
       <Show
-        when={ready()}
+        when={flexClient()}
         fallback={
           <Card class="w-sm max-w-[95%] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
             <CardHeader>
@@ -569,14 +560,6 @@ export const FlexRadioProvider: ParentComponent = (props) => {
                           value={rtcState.signalingState}
                         />
                         <InfoItem
-                          label="Trickle ICE"
-                          value={
-                            peerConnection()?.canTrickleIceCandidates
-                              ? "yes"
-                              : "no"
-                          }
-                        />
-                        <InfoItem
                           label="ICE Gathering State"
                           value={rtcState.iceGatheringState}
                         />
@@ -587,10 +570,6 @@ export const FlexRadioProvider: ParentComponent = (props) => {
                       </>
                     ),
                   },
-                  {
-                    title: "Client",
-                    description: "This is the third event of the timeline.",
-                  },
                 ]}
                 activeItem={[
                   true,
@@ -599,14 +578,6 @@ export const FlexRadioProvider: ParentComponent = (props) => {
                 ].lastIndexOf(true)}
               />
             </CardContent>
-            {/* <CardFooter> */}
-            {/*   <Button */}
-            {/*     disabled={rtcState.connectionState !== "connected"} */}
-            {/*     onClick={() => setReady(true)} */}
-            {/*   > */}
-            {/*     Continue */}
-            {/*   </Button> */}
-            {/* </CardFooter> */}
           </Card>
         }
       >

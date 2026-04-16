@@ -40,7 +40,9 @@ type RtcContextValue = {
 type SignalingMessage =
   | { type: "answer"; payload: RTCSessionDescriptionInit }
   | { type: "ice"; payload: RTCIceCandidateInit }
-  | { type: "error"; payload: { code: string; message: string } };
+  | { type: "error"; payload: { code: string; message: string } }
+  | { type: "ping"; payload: null }
+  | { type: "pong"; payload: null };
 
 export const RtcProvider: ParentComponent = (props) => {
   const [rtcState, setRtcState] = createStore<RtcState>({});
@@ -54,9 +56,11 @@ export const RtcProvider: ParentComponent = (props) => {
     createSignal<MediaStreamTrack | null>(null);
 
   const signalingWs = makeHeartbeatWS(
-    createReconnectingWS("/ws/signal", undefined, { delay: 1000 }),
+    createReconnectingWS("/ws/signal", [], { delay: 3000 }),
     {
-      message: JSON.stringify({ type: "ping" }),
+      message: JSON.stringify({ type: "ping", payload: null }),
+      interval: 5000,
+      wait: 3000,
     },
   );
   const signalingWsState = createWSState(signalingWs);
@@ -134,52 +138,58 @@ export const RtcProvider: ParentComponent = (props) => {
   });
 
   createEffect(() => {
-    if (signalingWsState() !== WebSocket.OPEN) {
-      setPeerConnection(null);
-      return;
-    }
-
-    const pc = new RTCPeerConnection({
-      iceServers: [
-        { urls: "stun:stun.cloudflare.com:3478" },
-        { urls: "stun:stun.l.google.com:19302" },
-        { urls: "stun:stun1.l.google.com:19302" },
-        { urls: "stun:stun2.l.google.com:19302" },
-      ],
-    });
-
-    pc.addEventListener("negotiationneeded", onNegotiationNeeded);
-    pc.addEventListener("signalingstatechange", onRtcStateChange);
-    pc.addEventListener("connectionstatechange", onRtcStateChange);
-    pc.addEventListener("icegatheringstatechange", onRtcStateChange);
-    pc.addEventListener("iceconnectionstatechange", onRtcStateChange);
-    pc.addEventListener("icecandidate", onIceCandidate);
-    pc.addEventListener("track", onTrack);
-
     batch(() => {
+      if (signalingWsState() !== WebSocket.OPEN) {
+        setPeerConnection(null);
+        return;
+      }
+
+      const pc = new RTCPeerConnection({
+        iceServers: [
+          { urls: "stun:stun.l.google.com:19302" },
+          { urls: "stun:stun1.l.google.com:19302" },
+          { urls: "stun:stun2.l.google.com:19302" },
+          { urls: "stun:stun.cloudflare.com:3478" },
+        ],
+      });
+
+      onRtcStateChange.apply(pc);
+      pc.addEventListener("negotiationneeded", onNegotiationNeeded);
+      pc.addEventListener("signalingstatechange", onRtcStateChange);
+      pc.addEventListener("connectionstatechange", onRtcStateChange);
+      pc.addEventListener("icegatheringstatechange", onRtcStateChange);
+      pc.addEventListener("iceconnectionstatechange", onRtcStateChange);
+      pc.addEventListener("icecandidate", onIceCandidate);
+      pc.addEventListener("track", onTrack);
+
+      setPeerConnection(pc);
       setAudioTransceiver(
         pc.addTransceiver("audio", { direction: "sendrecv" }),
       );
-      setPeerConnection(pc);
+
+      onCleanup(() => {
+        if (
+          pc.connectionState !== "closed" &&
+          pc.connectionState !== "failed"
+        ) {
+          pc.close();
+        }
+        pc.removeEventListener("negotiationneeded", onNegotiationNeeded);
+        pc.removeEventListener("signalingstatechange", onRtcStateChange);
+        pc.removeEventListener("connectionstatechange", onRtcStateChange);
+        pc.removeEventListener("icegatheringstatechange", onRtcStateChange);
+        pc.removeEventListener("iceconnectionstatechange", onRtcStateChange);
+        pc.removeEventListener("icecandidate", onIceCandidate);
+        pc.removeEventListener("track", onTrack);
+        setAudioTransceiver(null);
+      });
     });
   });
 
   createEffect(() => {
-    const pc = peerConnection();
-    if (!pc) return;
-
-    onCleanup(() => {
-      pc.removeEventListener("negotiationneeded", onNegotiationNeeded);
-      pc.removeEventListener("signalingstatechange", onRtcStateChange);
-      pc.removeEventListener("connectionstatechange", onRtcStateChange);
-      pc.removeEventListener("icegatheringstatechange", onRtcStateChange);
-      pc.removeEventListener("iceconnectionstatechange", onRtcStateChange);
-      pc.removeEventListener("icecandidate", onIceCandidate);
-      pc.removeEventListener("track", onTrack);
-      if (pc.connectionState !== "closed" && pc.connectionState !== "failed") {
-        pc.close();
-      }
-    });
+    if (["failed", "closed"].includes(rtcState.connectionState)) {
+      signalingWs.reconnect();
+    }
   });
 
   createEffect(() =>

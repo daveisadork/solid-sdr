@@ -103,6 +103,7 @@ func (cs *clientSession) serve(ctx context.Context) {
 		err := cs.ws.ReadJSON(&env)
 		if err != nil {
 			log.Printf("[rtc] error read message: %v", err)
+
 			break
 		}
 
@@ -166,7 +167,11 @@ func (cs *clientSession) handleOffer(ctx context.Context, raw json.RawMessage) {
 		return
 	}
 
-	answer, err := cs.pc.CreateAnswer(nil)
+	answer, err := cs.pc.CreateAnswer(&webrtc.AnswerOptions{
+		OfferAnswerOptions: webrtc.OfferAnswerOptions{
+			ICETricklingSupported: true,
+		},
+	})
 	if err != nil {
 		cs.trySend(mustEncode(typeError, errorPayload{Code: "ANSWER_FAILED", Message: err.Error()}))
 
@@ -218,7 +223,8 @@ func (cs *clientSession) setupPeerConnection(ctx context.Context) {
 		return
 	}
 
-	if _, err := cs.pc.AddTrack(track); err != nil {
+	_, err = cs.pc.AddTrack(track)
+	if err != nil {
 		log.Printf("[rtc] failed to add audio track: %v", err)
 
 		return

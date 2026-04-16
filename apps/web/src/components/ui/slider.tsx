@@ -118,7 +118,7 @@ const SliderThumb = <T extends ValidComponent = "span">(
   return (
     <SliderPrimitive.Thumb
       class={cn(
-        "data-[orientation=horizontal]:-top-1.5 data-[orientation=vertical]:-left-1.5 block size-5 rounded-full border-2 border-primary bg-background ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 pointer-events-auto data-disabled:pointer-events-none",
+        "data-[orientation=horizontal]:-top-1.5 data-[orientation=vertical]:-left-1.5 block size-5 rounded-full border-2 border-primary bg-background ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 pointer-events-auto data-disabled:pointer-events-none touch-none",
         local.class,
       )}
       ref={ref}

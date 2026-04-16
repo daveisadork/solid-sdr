@@ -57,7 +57,7 @@ export const RtcProvider: ParentComponent = (props) => {
     console.log("[rtc] signaling WS connected, starting RTC session");
     setSession(startRTC(signalingWs, onTrack));
   };
-  const onClose = (event) => {
+  const onClose = (event: Event) => {
     console.log("[rtc] signaling WS closed", event);
     setSession(null);
   };

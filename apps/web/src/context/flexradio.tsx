@@ -6,6 +6,7 @@ import {
   createMemo,
   createSignal,
   onCleanup,
+  onMount,
   ParentComponent,
   Show,
   useContext,
@@ -46,6 +47,7 @@ import { useRtc } from "./rtc";
 import { usePreferences } from "./preferences";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import MaterialSymbolsProgressActivity from "~icons/material-symbols/progress-activity";
+import { Timeline } from "~/components/ui/timeline";
 
 export enum ConnectionState {
   disconnected,
@@ -190,15 +192,44 @@ const FlexRadioContext = createContext<{
 export const FlexRadioProvider: ParentComponent = (props) => {
   const [state, setState] = createStore(initialState());
   const { preferences } = usePreferences();
-  const { session: rtcSession } = useRtc();
+  const { session: rtcSession, signalingWs } = useRtc();
   const [activeRadio, setActiveRadio] = createSignal<Radio | null>(null);
+
+  const [wsConnected, setWsConnected] = createSignal(false);
+  const [rtcConnected, setRtcConnected] = createSignal(false);
+
+  onMount(() => {
+    const connected = () => setWsConnected(true);
+    const disconnected = () => setWsConnected(false);
+
+    signalingWs.addEventListener("open", connected);
+    signalingWs.addEventListener("close", disconnected);
+
+    setWsConnected(signalingWs.readyState === signalingWs.OPEN);
+
+    onCleanup(() => {
+      signalingWs.removeEventListener("open", connected);
+      signalingWs.removeEventListener("close", disconnected);
+    });
+  });
+
+  createEffect(() => {
+    const pc = rtcSession()?.pc;
+    const onConnectionStateChange = () =>
+      setRtcConnected(pc?.connectionState === "connected");
+
+    pc?.addEventListener("connectionstatechange", onConnectionStateChange);
+    onConnectionStateChange();
+    onCleanup(() =>
+      pc?.removeEventListener("connectionstatechange", onConnectionStateChange),
+    );
+  });
 
   let radioSubscriptions: Subscription[] = [];
 
   const flexClient = createMemo(() => {
     const pc = rtcSession()?.pc;
-    if (!pc) return;
-    return createFlexClient(pc);
+    return pc ? createFlexClient(pc) : undefined;
   });
 
   createEffect(() => {
@@ -534,6 +565,27 @@ export const FlexRadioProvider: ParentComponent = (props) => {
                 <CardTitle>Initializing</CardTitle>
               </div>
             </CardHeader>
+            <CardContent>
+              <Timeline
+                items={[
+                  {
+                    title: "Establish WebSocket",
+                    // description: "This is the first event of the timeline.",
+                  },
+                  {
+                    title: "Establish WebRTC",
+                    // description: "This is the second event of the timeline.",
+                  },
+                  // {
+                  //   title: "Event #3",
+                  //   description: "This is the third event of the timeline.",
+                  // },
+                ]}
+                activeItem={[wsConnected(), Boolean(flexClient())].indexOf(
+                  true,
+                )}
+              />
+            </CardContent>
           </Card>
         }
       >

@@ -56,6 +56,7 @@ import MaterialSymbolsProgressActivity from "~icons/material-symbols/progress-ac
 import { Timeline } from "~/components/ui/timeline";
 import { createWSState } from "@solid-primitives/websocket";
 import { Button } from "~/components/ui/button";
+import { InfoItem } from "~/components/settings/common";
 
 export enum ConnectionState {
   disconnected,
@@ -202,40 +203,41 @@ const WS_STATES = ["Connecting...", "Established", "Closing...", "Closed"];
 export const FlexRadioProvider: ParentComponent = (props) => {
   const [state, setState] = createStore(initialState());
   const { preferences } = usePreferences();
-  const { session: rtcSession, signalingWs } = useRtc();
+  const { peerConnection, rtcState, signalingWsState } = useRtc();
   const [activeRadio, setActiveRadio] = createSignal<Radio | null>(null);
-
-  const wsState = createWSState(signalingWs);
-  const [rtcState, setRtcState] = createSignal<string | undefined>();
 
   const [ready, setReady] = createSignal(false);
 
-  createEffect(() => {
-    const pc = rtcSession()?.pc;
-
-    const onConnectionStateChange = () => setRtcState(pc?.connectionState);
-
-    pc?.addEventListener("connectionstatechange", onConnectionStateChange);
-    onConnectionStateChange();
-    onCleanup(() =>
-      pc?.removeEventListener("connectionstatechange", onConnectionStateChange),
-    );
-  });
-
-  createEffect(() => {
-    if (rtcState() !== "connected") setReady(false);
-  });
-
   let radioSubscriptions: Subscription[] = [];
 
+  const teardownRadioConnection = (options?: { resetState?: boolean }) => {
+    const { resetState = true } = options ?? {};
+    cleanupRadioSubscriptions();
+    const currentRadio = activeRadio();
+    setActiveRadio(null);
+    currentRadio
+      ?.disconnect()
+      .then(() => console.log("disconnected"))
+      .catch((error) =>
+        console.error("Error closing flex radio session", error),
+      );
+    if (resetState) {
+      setState(reconcile(initialState()));
+    }
+  };
+
   const flexClient = createMemo(() => {
-    const pc = rtcSession()?.pc;
-    return pc ? createFlexClient(pc) : undefined;
+    const pc = peerConnection();
+    if (!pc) return;
+    onCleanup(teardownRadioConnection);
+    return createFlexClient(pc);
   });
 
   createEffect(() => {
-    if (!rtcSession()) {
-      teardownRadioConnection();
+    if (rtcState.connectionState === "connected") {
+      setTimeout(() => setReady(true), 1000);
+    } else {
+      setReady(false);
     }
   });
 
@@ -409,22 +411,6 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     }
   };
 
-  const teardownRadioConnection = (options?: { resetState?: boolean }) => {
-    const { resetState = true } = options ?? {};
-    cleanupRadioSubscriptions();
-    const currentRadio = activeRadio();
-    setActiveRadio(null);
-    currentRadio
-      ?.disconnect()
-      .then(() => console.log("disconnected"))
-      .catch((error) =>
-        console.error("Error closing flex radio session", error),
-      );
-    if (resetState) {
-      setState(reconcile(initialState()));
-    }
-  };
-
   const disconnect = () => {
     teardownRadioConnection();
   };
@@ -559,7 +545,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
       <Show
         when={ready()}
         fallback={
-          <Card class="w-sm absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+          <Card class="w-sm max-w-[95%] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
             <CardHeader>
               <CardTitle>Initializing</CardTitle>
             </CardHeader>
@@ -568,11 +554,38 @@ export const FlexRadioProvider: ParentComponent = (props) => {
                 items={[
                   {
                     title: "WebSocket",
-                    description: WS_STATES[wsState()],
+                    description: WS_STATES[signalingWsState()],
                   },
                   {
                     title: "WebRTC",
-                    description: rtcState(),
+                    description: (
+                      <>
+                        <InfoItem
+                          label="Connection State"
+                          value={rtcState.connectionState}
+                        />
+                        <InfoItem
+                          label="Signaling State"
+                          value={rtcState.signalingState}
+                        />
+                        <InfoItem
+                          label="Trickle ICE"
+                          value={
+                            peerConnection()?.canTrickleIceCandidates
+                              ? "yes"
+                              : "no"
+                          }
+                        />
+                        <InfoItem
+                          label="ICE Gathering State"
+                          value={rtcState.iceGatheringState}
+                        />
+                        <InfoItem
+                          label="ICE Conn State"
+                          value={rtcState.iceConnectionState}
+                        />
+                      </>
+                    ),
                   },
                   {
                     title: "Client",
@@ -581,19 +594,19 @@ export const FlexRadioProvider: ParentComponent = (props) => {
                 ]}
                 activeItem={[
                   true,
-                  wsState() === 1,
-                  rtcState() === "connected",
+                  signalingWsState() === 1,
+                  rtcState.connectionState === "connected",
                 ].lastIndexOf(true)}
               />
             </CardContent>
-            <CardFooter>
-              <Button
-                disabled={rtcState() !== "connected"}
-                onClick={() => setReady(true)}
-              >
-                Continue
-              </Button>
-            </CardFooter>
+            {/* <CardFooter> */}
+            {/*   <Button */}
+            {/*     disabled={rtcState.connectionState !== "connected"} */}
+            {/*     onClick={() => setReady(true)} */}
+            {/*   > */}
+            {/*     Continue */}
+            {/*   </Button> */}
+            {/* </CardFooter> */}
           </Card>
         }
       >

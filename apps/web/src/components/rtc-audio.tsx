@@ -88,7 +88,7 @@ const DAX_LEVEL_METER: MeterState = {
 };
 
 function InnerRtcAudio(props: { defaultOpen?: boolean }) {
-  const { session, tracks } = useRtc();
+  const { remoteAudioRxStream, setRemoteAudioTxTrack } = useRtc();
   const { state, radio } = useFlexRadio();
   const { preferences, setPreferences } = usePreferences();
   const [remoteAudioRxStreamId, setRemoteAudioRxStreamId] = createSignal<
@@ -205,8 +205,7 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
   });
 
   createEffect(() => {
-    const rtc = session();
-    if (!remoteAudioTxStreamId() || !rtc) return;
+    if (!remoteAudioTxStreamId()) return;
 
     const promise = navigator.mediaDevices.getUserMedia({
       audio: preferredInputDevice() ?? true,
@@ -214,7 +213,7 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
 
     promise
       .then((stream) =>
-        rtc.setTransmitTrack(stream.getAudioTracks()[0] ?? null),
+        setRemoteAudioTxTrack(stream.getAudioTracks()[0] ?? null),
       )
       .catch((error) => {
         console.error("[rtc audio] failed to get transmit stream", error);
@@ -512,16 +511,14 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
           </div>
         </PopoverContent>
       </Popover>
-      <For each={tracks()}>
-        {(track) => (
-          <div class="sr-only" aria-hidden="true">
-            <AudioSink
-              stream={track.stream}
-              output={preferences.outputDeviceId}
-            />
-          </div>
-        )}
-      </For>
+      <Show when={remoteAudioRxStream()}>
+        <div class="sr-only" aria-hidden="true">
+          <AudioSink
+            stream={remoteAudioRxStream()}
+            output={preferences.outputDeviceId}
+          />
+        </div>
+      </Show>
       <For
         each={Object.values(state.status.audioStream).filter(
           (s) =>

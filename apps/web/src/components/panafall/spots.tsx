@@ -45,10 +45,6 @@ export function Spots(props: { pan: PanadapterState }) {
       "var(--background)",
     ].find(Boolean);
 
-  const offset = (index: number) =>
-    (index % preferences.spots.levels) * 100 +
-    preferences.spots.verticalSpacing;
-
   return (
     <div
       class="absolute font-mono inset-1 translate-x-(--drag-offset) -translate-y-(--spots-position) z-20 pointer-events-none"
@@ -59,6 +55,7 @@ export function Spots(props: { pan: PanadapterState }) {
       style={{
         "--spots-position": `${preferences.spots.position}%`,
         "--spot-spacing": `${preferences.spots.verticalSpacing}%`,
+        "--spot-levels": preferences.spots.levels,
       }}
     >
       <For each={spotIds()}>
@@ -69,13 +66,14 @@ export function Spots(props: { pan: PanadapterState }) {
               return (
                 <Tooltip gutter={0}>
                   <TooltipTrigger
-                    class="absolute px-1 bottom-0 left-0 translate-x-(--spot-x-offset) -translate-y-(--spot-lane) border rounded-sm text-(--spot-color) border-(--spot-color) bg-(--spot-background-color)/80 z-(--spot-z-index) cursor-pointer pointer-events-auto shadow-sm shadow-black"
+                    class="absolute px-1 bottom-0 left-(--spot-x-offset) -translate-x-1/2 -translate-y-(--spot-lane) border rounded-sm text-(--spot-color) border-(--spot-color) bg-(--spot-background-color)/80 z-(--spot-z-index) cursor-pointer pointer-events-auto shadow-sm shadow-black"
                     style={{
                       "--spot-z-index": -spot.priority,
                       "--spot-x-offset": `${freqToX(spot.rxFreqMHz)}px`,
                       "--spot-color": color(spot),
                       "--spot-background-color": bgColor(spot),
-                      "--spot-lane": `calc(var(--spot-spacing) + ${offset(index())}%)`,
+                      "--spot-index": index(),
+                      "--spot-lane": `calc(var(--spot-spacing) + mod(var(--spot-index), var(--spot-levels)) * calc(100% + var(--spot-spacing)))`,
                     }}
                     onClick={() => {
                       radio()?.spot(spotId)?.trigger(props.pan.streamId);

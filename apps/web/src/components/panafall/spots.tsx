@@ -196,7 +196,6 @@ export function Spots(props: { pan: PanadapterState }) {
   let prevLevels = new Map<string, number>();
 
   const calculateLayout = async () => {
-    console.log("calculating layout");
     const maxLevels = preferences.spots.levels;
     const { bandwidthMHz, centerFrequencyMHz } = props.pan;
     const estimateWidth = estimateWidthFunc();

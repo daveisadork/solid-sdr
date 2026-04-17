@@ -79,7 +79,6 @@ const PanafallContext = createContext<{
    * Accounts for the transparency-effects offset when that preference is disabled.
    */
   xToFreq: (x: number) => number;
-  spotIds: Accessor<string[]>;
 }>();
 
 export const PanafallProvider: ParentComponent<{ streamId?: string }> = (
@@ -172,80 +171,6 @@ export const PanafallProvider: ParentComponent<{ streamId?: string }> = (
     }
   });
 
-  const [spotIds, setSpotIds] = createSignal<string[]>([]);
-
-  const allSpots: Map<string, SpotState> = new Map(
-    radio()
-      .getStore()
-      .getSpots()
-      .map((spot) => [spot.id, { ...spot }]),
-  );
-
-  const updateSpots = debounce(async () => {
-    const { bandwidthMHz, centerFrequencyMHz } = panadapter();
-    const halfBandwidth = bandwidthMHz / 2;
-    const minFreq = centerFrequencyMHz - halfBandwidth;
-    const maxFreq = centerFrequencyMHz + halfBandwidth;
-    const dedupe: Map<string, SpotState> = new Map();
-    allSpots.values().forEach((spot) => {
-      if (
-        spot.rxFreqMHz > minFreq &&
-        spot.rxFreqMHz < maxFreq &&
-        spot.timestampSec > (dedupe.get(spot.callsign)?.timestampSec ?? 0)
-      ) {
-        dedupe.set(spot.callsign, spot);
-      }
-    });
-
-    const spotIds = dedupe
-      .values()
-      .map((spot) => spot.id)
-      .toArray();
-
-    spotIds.sort(
-      (a, b) => state.status.spot[a].rxFreqMHz - state.status.spot[b].rxFreqMHz,
-    );
-
-    setSpotIds(spotIds);
-  }, 250);
-
-  createEffect(() => {
-    const store = radio()?.getStore();
-    const sub = radio()?.on("change", (payload) => {
-      switch (payload.entity) {
-        case "panadapter": {
-          if (payload.id === props.streamId) {
-            updateSpots();
-          }
-          break;
-        }
-        case "spot": {
-          if (payload.removed) {
-            allSpots.delete(payload.id);
-          } else if (payload.diff) {
-            const spot =
-              allSpots.get(payload.id) ??
-              allSpots
-                .set(payload.id, { ...store.getSpot(payload.id) })
-                .get(payload.id);
-            Object.assign(spot, payload.diff);
-          }
-          updateSpots();
-        }
-      }
-    });
-    onCleanup(() => sub?.unsubscribe());
-  });
-
-  // createEffect(() => {
-  //   performance.mark("begin-spot-ids");
-  //   updateSpots(
-  //     JSON.stringify({ pan: panadapter(), spots: state.status.spot }),
-  //   );
-  //   performance.mark("end-spot-ids");
-  //   console.log(performance.measure("begin-spot-ids", "end-spot-ids"));
-  // });
-
   return (
     <Show
       when={
@@ -278,7 +203,6 @@ export const PanafallProvider: ParentComponent<{ streamId?: string }> = (
           waterfall,
           waterfallController,
           xToFreq,
-          spotIds,
         }}
       >
         {props.children}

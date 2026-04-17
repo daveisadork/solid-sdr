@@ -40,6 +40,7 @@ import {
   type WaterfallSnapshot,
   type XvtrSnapshot,
   type SpotSnapshot,
+  SpotStateChange,
 } from "@repo/flexlib";
 import { createFlexClient } from "@repo/flexlib/bridge";
 import { useRtc } from "./rtc";
@@ -54,6 +55,7 @@ import {
 import { Timeline } from "~/components/ui/timeline";
 import { Button } from "~/components/ui/button";
 import { InfoItem } from "~/components/settings/common";
+import { ReactiveMap } from "@solid-primitives/map";
 
 export enum ConnectionState {
   disconnected,
@@ -184,6 +186,7 @@ export const initialState = () =>
 const FlexRadioContext = createContext<{
   state: AppState;
   setState: SetStoreFunction<AppState>;
+  spots: ReactiveMap<string, SpotState>;
   radio: () => Radio | null;
   client: Accessor<FlexClient>;
   connect: (addr: { host: string; port: number }) => void;
@@ -202,6 +205,8 @@ export const FlexRadioProvider: ParentComponent = (props) => {
   const { preferences } = usePreferences();
   const { peerConnection, rtcState, signalingWsState } = useRtc();
   const [activeRadio, setActiveRadio] = createSignal<Radio | null>(null);
+
+  const spots = new ReactiveMap<string, SpotState>();
 
   const [ready, setReady] = createSignal(false);
 
@@ -281,10 +286,35 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     }
   };
 
+  const handleSpotChange = (change: SpotStateChange) => {
+    if (change.removed) {
+      const callsign = state.status.spot[change.id].callsign;
+      setState(
+        "status",
+        "spot",
+        produce((items) => {
+          delete items[change.id];
+        }),
+      );
+      if (spots.get(callsign)?.id === change.id) {
+        spots.delete(callsign);
+      }
+    } else {
+      setState("status", change.entity, change.id, change.diff);
+      const callsign = state.status.spot[change.id].callsign;
+      if (spots.get(callsign)?.id !== change.id) {
+        spots.set(callsign, state.status.spot[change.id]);
+      }
+    }
+  };
+
   const handleStateChange = (change: RadioStateChange) => {
     switch (change.entity) {
       case "panadapter":
         handlePanadapterChange(change);
+        break;
+      case "spot":
+        handleSpotChange(change);
         break;
       case "apd":
       case "cwx":
@@ -524,6 +554,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
   return (
     <FlexRadioContext.Provider
       value={{
+        spots,
         state,
         setState,
         sendCommand,

@@ -1,5 +1,6 @@
 import {
   DAX_AUDIO_SAMPLE_RATE as SAMPLE_RATE,
+  type DaxChannelMode,
   type SinkMessage,
 } from "./types";
 
@@ -13,6 +14,7 @@ interface QueueEntry {
 
 class DaxSinkWorker {
   private channels = 0;
+  private channelMode: DaxChannelMode = "both";
   private framesCap = 0;
   private idx: Int32Array | null = null;
   private buffers: Float32Array[] | null = null;
@@ -40,7 +42,12 @@ class DaxSinkWorker {
           this.framesCap,
         );
       }
+      this.channelMode = m.channelMode ?? "both";
       this.setBufferMs(m.bufferMs);
+      return;
+    }
+    if (m.type === "channelMode") {
+      this.channelMode = m.mode;
       return;
     }
     if (m.type === "bufferMs") {
@@ -113,14 +120,43 @@ class DaxSinkWorker {
     return best;
   }
 
+  private getSilence(frames: number): Float32Array {
+    let silence = this.silenceCache.get(frames);
+    if (!silence) {
+      silence = new Float32Array(frames);
+      this.silenceCache.set(frames, silence);
+    }
+    return silence;
+  }
+
   private mapChannels(
     src: Float32Array[],
     outChannels: number,
   ): Float32Array[] {
     const inCh = src.length;
-    if (inCh === outChannels) return src;
     const frames = src[0].length;
     const out = new Array<Float32Array>(outChannels);
+
+    // Mono input to stereo output — apply channel routing
+    if (inCh === 1 && outChannels === 2) {
+      const silence = this.getSilence(frames);
+      switch (this.channelMode) {
+        case "left":
+          out[0] = src[0];
+          out[1] = silence;
+          return out;
+        case "right":
+          out[0] = silence;
+          out[1] = src[0];
+          return out;
+        default:
+          out[0] = src[0];
+          out[1] = src[0];
+          return out;
+      }
+    }
+
+    if (inCh === outChannels) return src;
 
     if (inCh === 1) {
       for (let c = 0; c < outChannels; c += 1) out[c] = src[0];
@@ -138,11 +174,7 @@ class DaxSinkWorker {
       return out;
     }
 
-    let silence = this.silenceCache.get(frames);
-    if (!silence) {
-      silence = new Float32Array(frames);
-      this.silenceCache.set(frames, silence);
-    }
+    const silence = this.getSilence(frames);
     for (let c = 0; c < outChannels; c += 1) {
       out[c] = c < inCh ? src[c] : silence;
     }

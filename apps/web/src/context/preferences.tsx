@@ -7,6 +7,7 @@ import {
   createEffect,
 } from "solid-js";
 import { createStore, SetStoreFunction } from "solid-js/store";
+import { DaxChannelMode } from "~/lib/dax-audio-sink/types";
 
 export type PeakStyle = "none" | "points" | "line";
 export type FillStyle = "none" | "solid" | "gradient";
@@ -24,6 +25,7 @@ export interface PaletteSettings {
 export interface DaxRxConfig {
   enabled: boolean;
   outputDeviceId: string;
+  channelMode: DaxChannelMode;
 }
 
 export interface SpotPreferences {
@@ -63,6 +65,7 @@ export interface Preferences {
     enabled: boolean;
     inputDeviceId: string;
     reducedBandwidth: boolean;
+    channelMode: DaxChannelMode;
   };
 }
 
@@ -74,7 +77,11 @@ const PreferencesContext = createContext<{
 const defaultDaxConfig = () => {
   const config: Record<number, DaxRxConfig> = {};
   for (let i = 1; i <= 16; i++) {
-    config[i] = { enabled: false, outputDeviceId: "default" };
+    config[i] = {
+      enabled: false,
+      outputDeviceId: "default",
+      channelMode: "both",
+    };
   }
   return config;
 };
@@ -114,6 +121,7 @@ const initialPreferences = () =>
       enabled: false,
       inputDeviceId: "default",
       reducedBandwidth: true,
+      channelMode: "both",
     },
     palette: {
       gradients: [

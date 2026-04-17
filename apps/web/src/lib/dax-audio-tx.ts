@@ -1,4 +1,5 @@
 import type { AudioStreamTxController } from "@repo/flexlib";
+import type { DaxChannelMode } from "./dax-audio-sink/types";
 
 const DAX_PACKET_SAMPLES = 128;
 
@@ -7,6 +8,13 @@ const daxAudioTxProcessorURL = URL.createObjectURL(
     [
       `
 class DaxAudioTxProcessor extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this._channelMode = "mono";
+    this.port.onmessage = (e) => {
+      if (e.data.type === "channelMode") this._channelMode = e.data.mode;
+    };
+  }
   process(inputs, outputs) {
     const input = inputs[0];
     const output = outputs[0];
@@ -21,13 +29,21 @@ class DaxAudioTxProcessor extends AudioWorkletProcessor {
       return true;
     }
 
-    const leftIn = input[0];
-    const rightIn = input[1] ?? input[0];
-    const left = new Float32Array(leftIn.length);
-    const right = new Float32Array(rightIn.length);
-    left.set(leftIn);
-    right.set(rightIn);
-    this.port.postMessage({ left, right }, [left.buffer, right.buffer]);
+    // Pick source channel based on mode
+    let src;
+    switch (this._channelMode) {
+      case "right":
+        src = input[1] ?? input[0];
+        break;
+      case "left":
+      default:
+        src = input[0];
+        break;
+    }
+
+    const mono = new Float32Array(src.length);
+    mono.set(src);
+    this.port.postMessage({ mono }, [mono.buffer]);
     return true;
   }
 }
@@ -46,8 +62,7 @@ export class DaxAudioTx {
   });
   private readonly source: MediaStreamAudioSourceNode;
   private readonly mute: GainNode;
-  private readonly leftQueue: number[] = [];
-  private readonly rightQueue: number[] = [];
+  private readonly queue: number[] = [];
   private readonly leftBuf = new Float32Array(DAX_PACKET_SAMPLES);
   private readonly rightBuf = new Float32Array(DAX_PACKET_SAMPLES);
   private readonly int16Buf = new Int16Array(DAX_PACKET_SAMPLES);
@@ -60,15 +75,23 @@ export class DaxAudioTx {
   private static readonly PEAK_HOLD = 120;
   private static readonly PEAK_DECAY = 0.2;
   private started = false;
+  private channelMode: DaxChannelMode;
 
   constructor(
     private readonly controller: AudioStreamTxController,
     private readonly reducedBw = false,
     stream: MediaStream,
+    channelMode: DaxChannelMode = "both",
   ) {
+    this.channelMode = channelMode;
     this.source = this.context.createMediaStreamSource(stream);
     this.mute = this.context.createGain();
     this.mute.gain.value = 0;
+  }
+
+  setChannelMode(mode: DaxChannelMode): void {
+    this.channelMode = mode;
+    this.worklet?.port.postMessage({ type: "channelMode", mode });
   }
 
   async start(): Promise<void> {
@@ -80,34 +103,34 @@ export class DaxAudioTx {
         outputChannelCount: [2],
       });
 
+      worklet.port.postMessage({ type: "channelMode", mode: this.channelMode });
+
       worklet.port.onmessage = (
-        event: MessageEvent<{ left: Float32Array; right: Float32Array }>,
+        event: MessageEvent<{ mono: Float32Array }>,
       ) => {
-        const { left, right } = event.data;
-        for (let i = 0; i < left.length; i += 1) {
-          this.leftQueue.push(left[i]);
-          this.rightQueue.push(right[i]);
+        const { mono } = event.data;
+        for (let i = 0; i < mono.length; i += 1) {
+          this.queue.push(mono[i]);
         }
 
-        while (this.leftQueue.length >= DAX_PACKET_SAMPLES) {
+        while (this.queue.length >= DAX_PACKET_SAMPLES) {
           if (this.reducedBw) {
             const s = this.int16Buf;
             for (let i = 0; i < DAX_PACKET_SAMPLES; i += 1) {
-              s[i] = Math.round(clamp(this.leftQueue[i]) * 32767);
+              s[i] = Math.round(clamp(this.queue[i]) * 32767);
             }
             this.controller.sendReducedBwAudio(s);
           } else {
             const l = this.leftBuf;
             const r = this.rightBuf;
             for (let i = 0; i < DAX_PACKET_SAMPLES; i += 1) {
-              l[i] = clamp(this.leftQueue[i]);
-              r[i] = clamp(this.rightQueue[i]);
+              l[i] = clamp(this.queue[i]);
+              r[i] = clamp(this.queue[i]);
             }
             this.controller.sendAudio(l, r);
           }
 
-          this.leftQueue.splice(0, DAX_PACKET_SAMPLES);
-          this.rightQueue.splice(0, DAX_PACKET_SAMPLES);
+          this.queue.splice(0, DAX_PACKET_SAMPLES);
         }
       };
 

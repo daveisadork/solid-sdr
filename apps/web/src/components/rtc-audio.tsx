@@ -34,21 +34,32 @@ import {
 } from "~/components/ui/popover";
 import { DaxAudioSink } from "~/lib/dax-audio-sink";
 import { DaxAudioTx } from "~/lib/dax-audio-tx";
+import type { DaxChannelMode } from "~/lib/dax-audio-sink/types";
 import { SimpleMeter } from "~/components/ui/simple-meter";
 import type { MeterState } from "~/context/flexradio";
 import { SimpleSwitch } from "./ui/simple-switch";
 import { showToast } from "./ui/toast";
+import {
+  SegmentedControl,
+  SegmentedControlGroup,
+  SegmentedControlIndicator,
+  SegmentedControlItem,
+  SegmentedControlItemLabel,
+  SegmentedControlItemsList,
+  SegmentedControlLabel,
+} from "./ui/segmented-control";
 
 function DaxAudioChannel(props: {
   controller: AudioStreamController;
   output: MediaDeviceInfo["deviceId"];
+  channelMode: DaxChannelMode;
   onMeter?: (level: number, peak: number) => void;
 }) {
-  const sink = new DaxAudioSink();
+  const sink = new DaxAudioSink({ channelMode: props.channelMode });
 
   createEffect(() => {
     sink.init().catch(console.error);
-    const subscription = props.controller.on("data", (event) => {
+    const subscription = props.controller?.on("data", (event) => {
       sink.play(event);
     });
 
@@ -59,6 +70,7 @@ function DaxAudioChannel(props: {
   });
 
   createEffect(() => sink.setOutputDevice(props.output).catch(console.error));
+  createEffect(() => sink.setChannelMode(props.channelMode));
 
   createEffect(() => {
     const onMeter = props.onMeter;
@@ -236,7 +248,12 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
     });
 
     const daxPromise = streamPromise.then(async (stream) => {
-      const tx = new DaxAudioTx(controller, reducedBandwidth, stream);
+      const tx = new DaxAudioTx(
+        controller,
+        reducedBandwidth,
+        stream,
+        preferences.daxTxConfig.channelMode,
+      );
       await tx.start();
       setDaxTxInstance(tx);
       const trackSettings = stream.getAudioTracks()[0].getSettings();
@@ -270,6 +287,12 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
         stream.getTracks().forEach((track) => track.stop()),
       );
     });
+  });
+
+  createEffect(() => {
+    const tx = daxTxInstance();
+    if (!tx) return;
+    tx.setChannelMode(preferences.daxTxConfig.channelMode);
   });
 
   createEffect(() => {
@@ -436,6 +459,28 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
                 </SelectTrigger>
                 <SelectContent />
               </Select>
+              <SegmentedControl
+                value={preferences.daxTxConfig.channelMode}
+                onChange={(mode: DaxChannelMode) =>
+                  setPreferences("daxTxConfig", "channelMode", mode)
+                }
+              >
+                <SegmentedControlLabel>Channel Mode</SegmentedControlLabel>
+                <SegmentedControlGroup>
+                  <SegmentedControlIndicator />
+                  <SegmentedControlItemsList>
+                    <For each={["left", "both", "right"]}>
+                      {(mode) => (
+                        <SegmentedControlItem value={mode}>
+                          <SegmentedControlItemLabel class="capitalize">
+                            {mode}
+                          </SegmentedControlItemLabel>
+                        </SegmentedControlItem>
+                      )}
+                    </For>
+                  </SegmentedControlItemsList>
+                </SegmentedControlGroup>
+              </SegmentedControl>
             </div>
             <For
               each={Array.from(
@@ -505,6 +550,33 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
                     </SelectTrigger>
                     <SelectContent />
                   </Select>
+                  <SegmentedControl
+                    value={preferences.daxRxConfig[channel].channelMode}
+                    onChange={(mode: DaxChannelMode) =>
+                      setPreferences(
+                        "daxRxConfig",
+                        channel,
+                        "channelMode",
+                        mode,
+                      )
+                    }
+                  >
+                    <SegmentedControlLabel>Channel Mode</SegmentedControlLabel>
+                    <SegmentedControlGroup>
+                      <SegmentedControlIndicator />
+                      <SegmentedControlItemsList>
+                        <For each={["left", "both", "right"]}>
+                          {(mode) => (
+                            <SegmentedControlItem value={mode}>
+                              <SegmentedControlItemLabel class="capitalize">
+                                {mode}
+                              </SegmentedControlItemLabel>
+                            </SegmentedControlItem>
+                          )}
+                        </For>
+                      </SegmentedControlItemsList>
+                    </SegmentedControlGroup>
+                  </SegmentedControl>
                 </div>
               )}
             </For>
@@ -532,6 +604,10 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
               output={
                 preferences.daxRxConfig[stream.daxChannel]?.outputDeviceId ??
                 "default"
+              }
+              channelMode={
+                preferences.daxRxConfig[stream.daxChannel]?.channelMode ??
+                "both"
               }
               onMeter={(level, peak) =>
                 setDaxRxMeters(stream.daxChannel, { level, peak })

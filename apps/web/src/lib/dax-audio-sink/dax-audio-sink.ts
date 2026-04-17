@@ -6,6 +6,7 @@ import type {
 import {
   DAX_AUDIO_RING_FRAMES as RING_FRAMES,
   DAX_AUDIO_SAMPLE_RATE as SAMPLE_RATE,
+  type DaxChannelMode,
   type SinkMessage,
 } from "./types";
 import sabWorkletURL from "./dax-audio-sink.worklet.ts?worker&url";
@@ -16,6 +17,7 @@ import sinkWorkerURL from "./dax-audio-sink.worker.ts?worker&url";
 export interface DaxAudioSinkOptions {
   channels?: number;
   bufferMs?: number;
+  channelMode?: DaxChannelMode;
 }
 
 export class DaxAudioSink {
@@ -36,10 +38,16 @@ export class DaxAudioSink {
   private static readonly PEAK_DECAY = 0.2; // dB per frame
 
   private bufferMs: number;
+  private channelMode: DaxChannelMode;
 
-  constructor({ channels = 2, bufferMs = 50 }: DaxAudioSinkOptions = {}) {
+  constructor({
+    channels = 2,
+    bufferMs = 50,
+    channelMode = "both",
+  }: DaxAudioSinkOptions = {}) {
     this.channels = channels;
     this.bufferMs = bufferMs;
+    this.channelMode = channelMode;
 
     this.ctx = new AudioContext({
       sampleRate: SAMPLE_RATE,
@@ -90,6 +98,7 @@ export class DaxAudioSink {
       audioSAB,
       indexSAB,
       bufferMs: this.bufferMs,
+      channelMode: this.channelMode,
     } satisfies SinkMessage);
     this.worker = worker;
 
@@ -132,6 +141,14 @@ export class DaxAudioSink {
   setBufferMs(ms: number): void {
     this.bufferMs = ms;
     this.worker?.postMessage({ type: "bufferMs", ms } satisfies SinkMessage);
+  }
+
+  setChannelMode(mode: DaxChannelMode): void {
+    this.channelMode = mode;
+    this.worker?.postMessage({
+      type: "channelMode",
+      mode,
+    } satisfies SinkMessage);
   }
 
   async setOutputDevice(deviceId: string): Promise<void> {

@@ -31,3 +31,6 @@ tmp/
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# Populated by GoReleaser pre-hook; never commit
+internal/static/web/

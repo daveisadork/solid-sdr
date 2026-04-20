@@ -13,6 +13,7 @@ import (
 	"github.com/daveisadork/flex-bridge/internal/config"
 	"github.com/daveisadork/flex-bridge/internal/discovery"
 	"github.com/daveisadork/flex-bridge/internal/rtc"
+	"github.com/daveisadork/flex-bridge/internal/static"
 )
 
 func main() {
@@ -45,6 +46,8 @@ func main() {
 
 	if cfg.StaticDir != "" {
 		mux.Handle("/", http.FileServer(http.Dir(cfg.StaticDir)))
+	} else if h := static.Handler(); h != nil {
+		mux.Handle("/", h)
 	} else {
 		mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
 			_, _ = w.Write([]byte("flex-bridge up"))

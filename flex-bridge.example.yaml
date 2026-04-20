@@ -1,0 +1,35 @@
+# flex-bridge configuration
+# Copy to flex-bridge.yaml and edit as needed.
+# All options can also be set via environment variables with the FLEX_ prefix.
+# Example: FLEX_HTTP_PORT=8081
+
+# HTTP server port
+http-port: 8080
+
+# Path to serve web UI from (optional; overrides the embedded UI)
+# static-dir: /path/to/web/dist
+
+# Cross-Origin-Isolation headers (required for SharedArrayBuffer in the UI)
+enable-coi: true
+
+# Permissive CORS headers (disable if you want to restrict origins)
+enable-cors: true
+
+# UDP port for FlexRadio discovery broadcasts
+discovery-port: 4992
+
+# WebRTC ICE port range. Set start == end for a single UDP mux port.
+ice-port-start: 50313
+ice-port-end: 50313
+
+# STUN servers used for WebRTC NAT traversal
+stun:
+  - stun:stun.l.google.com:19302
+  - stun:stun.cloudflare.com:3478
+
+# Public IPs for NAT 1:1 mapping (leave empty if not behind NAT)
+# nat-1to1-ips:
+#   - 203.0.113.2
+
+# Path to write raw API message log (default: messages.txt — set empty to disable)
+# api-log-file: messages.txt

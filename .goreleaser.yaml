@@ -1,0 +1,61 @@
+version: 2
+
+project_name: flex-bridge
+
+before:
+  hooks:
+    - rm -rf apps/bridge/internal/static/web
+    - pnpm --filter web build
+    - sh -c "mkdir -p apps/bridge/internal/static/web && cp -r apps/web/dist apps/bridge/internal/static/web/dist"
+
+builds:
+  - id: flex-bridge
+    main: ./cmd/bridge
+    dir: apps/bridge
+    binary: flex-bridge
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -tags=release
+    ldflags:
+      - -s -w
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+      - arm
+      - "386"
+    goarm:
+      - "7"
+    ignore:
+      - goos: darwin
+        goarch: arm
+      - goos: darwin
+        goarch: "386"
+      - goos: linux
+        goarch: "386"
+      - goos: windows
+        goarch: arm
+
+archives:
+  - formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+    files:
+      - flex-bridge.example.yaml
+
+checksum:
+  name_template: checksums.txt
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+# Docker support — future addition
+# dockers: []

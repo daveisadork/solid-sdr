@@ -183,7 +183,7 @@ func (s *Service) readLoop(ctx context.Context, pc net.PacketConn, errCh chan<- 
 		n, _, err := pc.ReadFrom(buf)
 
 		var ne net.Error
-		if errors.As(err, &ne) {
+		if errors.As(err, &ne) && ne.Timeout() {
 			continue
 		}
 

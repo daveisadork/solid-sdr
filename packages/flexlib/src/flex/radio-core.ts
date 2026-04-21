@@ -46,6 +46,7 @@ import {
   clampInteger,
   ensureFinite,
   formatBooleanFlag,
+  formatMegahertz,
   toInteger,
 } from "./controller-helpers.js";
 export interface RadioRequestSliceOptions {
@@ -88,6 +89,7 @@ import {
 } from "./tx-band-settings.js";
 import { type ApdController, ApdControllerImpl } from "./apd.js";
 import { type XvtrController, XvtrControllerImpl } from "./xvtr.js";
+import { type TnfController, TnfControllerImpl } from "./tnf.js";
 import {
   type SpotController,
   type SpotTriggeredEvent,
@@ -106,6 +108,7 @@ import type {
   ApdStateChange,
   XvtrStateChange,
   SpotStateChange,
+  TnfStateChange,
   CwxStateChange,
   DvkStateChange,
 } from "./state/index.js";
@@ -475,6 +478,7 @@ export class Radio {
     TxBandSettingControllerImpl
   >();
   private readonly xvtrControllers = new Map<string, XvtrControllerImpl>();
+  private readonly tnfControllers = new Map<string, TnfControllerImpl>();
   private readonly spotControllers = new Map<string, SpotControllerImpl>();
   private readonly _apdController: ApdControllerImpl;
   private readonly _cwxController: CwxControllerImpl;
@@ -701,6 +705,26 @@ export class Radio {
    */
   async createXvtr(): Promise<void> {
     await this.command("xvtr create");
+  }
+
+  tnfs(): TnfController[] {
+    return Array.from(this.tnfControllers.values());
+  }
+
+  tnf(id: string): TnfController | undefined {
+    return this.getOrCreateController("tnf", id, this.tnfControllers, () => {
+      if (!this.store.getTnf(id)) return undefined;
+      return new TnfControllerImpl(this, id);
+    });
+  }
+
+  /**
+   * Creates a new TNF at the given frequency (in MHz).
+   * The radio will respond with a status message containing the new TNF's ID.
+   */
+  async createTnf(frequencyMHz: number): Promise<void> {
+    const freq = formatMegahertz(ensureFinite(frequencyMHz, "TNF frequency"));
+    await this.command(`tnf create freq=${freq}`);
   }
 
   spots(): SpotController[] {
@@ -1141,6 +1165,16 @@ export class Radio {
           () => {
             if (!this.store.getXvtr(change.id)) return undefined;
             return new XvtrControllerImpl(this, change.id);
+          },
+        );
+        break;
+      case "tnf":
+        this.updateController(
+          change as Extract<RadioStateChange, { id: string }> & TnfStateChange,
+          this.tnfControllers,
+          () => {
+            if (!this.store.getTnf(change.id)) return undefined;
+            return new TnfControllerImpl(this, change.id);
           },
         );
         break;
@@ -2542,6 +2576,7 @@ export class Radio {
     this.equalizerControllers.clear();
     this.txBandControllers.clear();
     this.xvtrControllers.clear();
+    this.tnfControllers.clear();
     this.spotControllers.clear();
   }
 

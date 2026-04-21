@@ -45,6 +45,7 @@ import { createXvtrSnapshot, type XvtrSnapshot } from "./xvtr.js";
 import { createSpotSnapshot, type SpotSnapshot } from "./spot.js";
 import { createCwxSnapshot, type CwxSnapshot } from "./cwx.js";
 import { createDvkSnapshot, type DvkSnapshot } from "./dvk.js";
+import { createTnfSnapshot, type TnfSnapshot } from "./tnf.js";
 
 export type { SnapshotDiff } from "./common.js";
 export type { SliceSnapshot } from "./slice.js";
@@ -60,6 +61,7 @@ export type { XvtrSnapshot } from "./xvtr.js";
 export type { SpotSnapshot } from "./spot.js";
 export type { CwxSnapshot } from "./cwx.js";
 export type { DvkSnapshot, DvkRecording, DvkStatus } from "./dvk.js";
+export type { TnfSnapshot } from "./tnf.js";
 export type {
   RadioAtuTuneStatus,
   RadioFilterSharpnessMode,
@@ -101,6 +103,7 @@ export type RadioStateChange =
   | ({ entity: "guiClient"; id: string } & ChangeMetadata<GuiClientSnapshot>)
   | ({ entity: "xvtr"; id: string } & ChangeMetadata<XvtrSnapshot>)
   | ({ entity: "spot"; id: string } & ChangeMetadata<SpotSnapshot>)
+  | ({ entity: "tnf"; id: string } & ChangeMetadata<TnfSnapshot>)
   | ({ entity: "radio" } & ChangeMetadata<RadioSnapshot>)
   | ({ entity: "featureLicense" } & ChangeMetadata<FeatureLicenseSnapshot>)
   | ({ entity: "apd" } & ChangeMetadata<ApdSnapshot>)
@@ -144,6 +147,7 @@ export type XvtrStateChange = Extract<RadioStateChange, { entity: "xvtr" }>;
 export type SpotStateChange = Extract<RadioStateChange, { entity: "spot" }>;
 export type CwxStateChange = Extract<RadioStateChange, { entity: "cwx" }>;
 export type DvkStateChange = Extract<RadioStateChange, { entity: "dvk" }>;
+export type TnfStateChange = Extract<RadioStateChange, { entity: "tnf" }>;
 
 export interface RadioStateSnapshot {
   readonly slices: readonly SliceSnapshot[];
@@ -156,6 +160,7 @@ export interface RadioStateSnapshot {
   readonly txBandSettings: readonly TxBandSettingSnapshot[];
   readonly xvtrs: readonly XvtrSnapshot[];
   readonly spots: readonly SpotSnapshot[];
+  readonly tnfs: readonly TnfSnapshot[];
   readonly radio: RadioSnapshot;
   readonly featureLicense?: FeatureLicenseSnapshot;
   readonly apd?: ApdSnapshot;
@@ -183,6 +188,8 @@ export interface RadioStateStore {
   getXvtrs(): readonly XvtrSnapshot[];
   getSpot(id: string): SpotSnapshot | undefined;
   getSpots(): readonly SpotSnapshot[];
+  getTnf(id: string): TnfSnapshot | undefined;
+  getTnfs(): readonly TnfSnapshot[];
   getApd(): ApdSnapshot | undefined;
   getCwx(): CwxSnapshot | undefined;
   getDvk(): DvkSnapshot | undefined;
@@ -230,6 +237,11 @@ export interface RadioStateStore {
     attributes: Record<string, string>,
   ): SpotStateChange | undefined;
   removeSpot(id: string): SpotStateChange | undefined;
+  patchTnf(
+    id: string,
+    attributes: Record<string, string>,
+  ): TnfStateChange | undefined;
+  removeTnf(id: string): TnfStateChange | undefined;
   patchCwx(attributes: Record<string, string>): CwxStateChange | undefined;
   patchDvk(attributes: Record<string, string>): DvkStateChange | undefined;
   patchApd(attributes: Record<string, string>): ApdStateChange | undefined;
@@ -265,6 +277,7 @@ export function createRadioStateStore(
   const txBandSettings = new Map<string, TxBandSettingSnapshot>();
   const xvtrs = new Map<string, XvtrSnapshot>();
   const spots = new Map<string, SpotSnapshot>();
+  const tnfs = new Map<string, TnfSnapshot>();
   let radio: RadioSnapshot;
   let featureLicense: FeatureLicenseSnapshot | undefined;
   let apd: ApdSnapshot | undefined;
@@ -284,6 +297,7 @@ export function createRadioStateStore(
     txBandSettings.clear();
     xvtrs.clear();
     spots.clear();
+    tnfs.clear();
     radio = undefined as unknown as RadioSnapshot;
     featureLicense = undefined;
     apd = undefined;
@@ -325,6 +339,8 @@ export function createRadioStateStore(
         }
         case "xvtr":
           return [handleXvtr(message)];
+        case "tnf":
+          return [handleTnf(message)];
         case "spot": {
           const spotChange = handleSpot(message);
           if (spotChange) return [spotChange];
@@ -397,6 +413,7 @@ export function createRadioStateStore(
         txBandSettings: Array.from(txBandSettings.values()),
         xvtrs: Array.from(xvtrs.values()),
         spots: Array.from(spots.values()),
+        tnfs: Array.from(tnfs.values()),
         radio,
         featureLicense,
         apd,
@@ -448,6 +465,12 @@ export function createRadioStateStore(
     },
     getSpots() {
       return Array.from(spots.values());
+    },
+    getTnf(id) {
+      return tnfs.get(id);
+    },
+    getTnfs() {
+      return Array.from(tnfs.values());
     },
     getApd() {
       return apd;
@@ -508,6 +531,12 @@ export function createRadioStateStore(
     },
     removeSpot(id) {
       return removeSpot(id);
+    },
+    patchTnf(id, attributes) {
+      return patchTnf(id, attributes);
+    },
+    removeTnf(id) {
+      return removeTnf(id);
     },
     patchCwx(attributes) {
       return patchCwx(attributes);
@@ -1492,6 +1521,68 @@ export function createRadioStateStore(
     spots.delete(id);
     return {
       entity: "spot",
+      id,
+      removed: true,
+    };
+  }
+
+  function handleTnf(message: FlexStatusMessage): RadioStateChange {
+    const id = resolveIdentifier(message, message.identifier);
+    if (!id) {
+      return {
+        entity: "unknown",
+        source: message.source,
+        attributes: message.attributes,
+      };
+    }
+
+    if (isMarkedDeleted(message)) {
+      tnfs.delete(id);
+      return {
+        entity: "tnf",
+        id,
+        removed: true,
+      };
+    }
+
+    const previous = tnfs.get(id);
+    const { snapshot, diff } = createTnfSnapshot(
+      id,
+      message.attributes,
+      previous,
+    );
+    tnfs.set(id, snapshot);
+    return {
+      entity: "tnf",
+      id,
+      diff,
+      removed: false,
+    };
+  }
+
+  function patchTnf(
+    id: string,
+    attributes: Record<string, string>,
+  ): TnfStateChange | undefined {
+    if (Object.keys(attributes).length === 0) return undefined;
+    const previous = tnfs.get(id);
+    const { snapshot, diff } = createTnfSnapshot(id, attributes, previous);
+    const diffKeys = Object.keys(diff as Record<string, unknown>);
+    tnfs.set(id, snapshot);
+    if (diffKeys.length === 0) return undefined;
+    return {
+      entity: "tnf",
+      id,
+      diff,
+      removed: false,
+    };
+  }
+
+  function removeTnf(id: string): TnfStateChange | undefined {
+    if (!tnfs.has(id)) return undefined;
+    tnfs.delete(id);
+    return {
+      entity: "tnf",
       id,
       removed: true,
     };

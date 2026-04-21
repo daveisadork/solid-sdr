@@ -120,46 +120,46 @@ export const filterPresets: Record<string, FilterPreset[]> = {
     { name: "4.0k", lowCut: -4100, highCut: -100 },
     { name: "6.0k", lowCut: -6100, highCut: -100 },
   ],
-  // DIGU: [
-  //   { name: "100", lowCut: -50, highCut: 50 },
-  //   { name: "300", lowCut: -150, highCut: 150 },
-  //   { name: "600", lowCut: -300, highCut: 300 },
-  //   { name: "1.0k", lowCut: -500, highCut: 500 },
-  //   { name: "1.5k", lowCut: -750, highCut: 750 },
-  //   { name: "2.0k", lowCut: -1000, highCut: 1000 },
-  //   { name: "3.0k", lowCut: -1500, highCut: 1500 },
-  //   { name: "6.0k", lowCut: -3000, highCut: 3000 },
-  // ],
-  // DIGL: [
-  //   { name: "100", lowCut: -50, highCut: 50 },
-  //   { name: "300", lowCut: -150, highCut: 150 },
-  //   { name: "600", lowCut: -300, highCut: 300 },
-  //   { name: "1.0k", lowCut: -500, highCut: 500 },
-  //   { name: "1.5k", lowCut: -750, highCut: 750 },
-  //   { name: "2.0k", lowCut: -1000, highCut: 1000 },
-  //   { name: "3.0k", lowCut: -1500, highCut: 1500 },
-  //   { name: "6.0k", lowCut: -3000, highCut: 3000 },
-  // ],
   DIGU: [
-    { name: "100", lowCut: 1450, highCut: 1550 },
-    { name: "300", lowCut: 1350, highCut: 1650 },
-    { name: "600", lowCut: 1200, highCut: 1800 },
-    { name: "1.0k", lowCut: 1000, highCut: 2000 },
-    { name: "1.5k", lowCut: 750, highCut: 2250 },
-    { name: "2.0k", lowCut: 500, highCut: 2500 },
-    { name: "3.0k", lowCut: 0, highCut: 3000 },
-    { name: "6.0k", lowCut: 0, highCut: 6000 },
+    { name: "100", lowCut: -50, highCut: 50 },
+    { name: "300", lowCut: -150, highCut: 150 },
+    { name: "600", lowCut: -300, highCut: 300 },
+    { name: "1.0k", lowCut: -500, highCut: 500 },
+    { name: "1.5k", lowCut: -750, highCut: 750 },
+    { name: "2.0k", lowCut: -1000, highCut: 1000 },
+    { name: "3.0k", lowCut: -1500, highCut: 1500 },
+    { name: "6.0k", lowCut: -3000, highCut: 3000 },
   ],
   DIGL: [
-    { name: "100", lowCut: -1550, highCut: -1450 },
-    { name: "300", lowCut: -1650, highCut: -1350 },
-    { name: "600", lowCut: -1800, highCut: -1200 },
-    { name: "1.0k", lowCut: -2000, highCut: -1000 },
-    { name: "1.5k", lowCut: -2250, highCut: -750 },
-    { name: "2.0k", lowCut: -2500, highCut: -500 },
-    { name: "3.0k", lowCut: -3000, highCut: 0 },
-    { name: "6.0k", lowCut: -6000, highCut: 0 },
+    { name: "100", lowCut: -50, highCut: 50 },
+    { name: "300", lowCut: -150, highCut: 150 },
+    { name: "600", lowCut: -300, highCut: 300 },
+    { name: "1.0k", lowCut: -500, highCut: 500 },
+    { name: "1.5k", lowCut: -750, highCut: 750 },
+    { name: "2.0k", lowCut: -1000, highCut: 1000 },
+    { name: "3.0k", lowCut: -1500, highCut: 1500 },
+    { name: "6.0k", lowCut: -3000, highCut: 3000 },
   ],
+  // DIGU: [
+  //   { name: "100", lowCut: 1450, highCut: 1550 },
+  //   { name: "300", lowCut: 1350, highCut: 1650 },
+  //   { name: "600", lowCut: 1200, highCut: 1800 },
+  //   { name: "1.0k", lowCut: 1000, highCut: 2000 },
+  //   { name: "1.5k", lowCut: 750, highCut: 2250 },
+  //   { name: "2.0k", lowCut: 500, highCut: 2500 },
+  //   { name: "3.0k", lowCut: 0, highCut: 3000 },
+  //   { name: "6.0k", lowCut: 0, highCut: 6000 },
+  // ],
+  // DIGL: [
+  //   { name: "100", lowCut: -1550, highCut: -1450 },
+  //   { name: "300", lowCut: -1650, highCut: -1350 },
+  //   { name: "600", lowCut: -1800, highCut: -1200 },
+  //   { name: "1.0k", lowCut: -2000, highCut: -1000 },
+  //   { name: "1.5k", lowCut: -2250, highCut: -750 },
+  //   { name: "2.0k", lowCut: -2500, highCut: -500 },
+  //   { name: "3.0k", lowCut: -3000, highCut: 0 },
+  //   { name: "6.0k", lowCut: -6000, highCut: 0 },
+  // ],
   RTTY: [
     { name: "250", lowCut: -125, highCut: 125 },
     { name: "300", lowCut: -150, highCut: 150 },
@@ -312,13 +312,52 @@ export function FilterControls(props: {
   slice: SliceState;
   controller: SliceController;
 }) {
+  const [rawDiglOffset, setRawDiglOffset] = createSignal(
+    props.slice.diglOffsetHz,
+  );
+  const [rawDiguOffset, setRawDiguOffset] = createSignal(
+    props.slice.diguOffsetHz,
+  );
   const [rawFilterLow, setRawFilterLow] = createSignal(props.slice.filterLowHz);
   const [rawFilterHigh, setRawFilterHigh] = createSignal(
     props.slice.filterHighHz,
   );
 
+  createEffect(() => setRawDiglOffset(props.slice.diglOffsetHz));
+  createEffect(() => setRawDiguOffset(props.slice.diguOffsetHz));
   createEffect(() => setRawFilterLow(props.slice.filterLowHz));
   createEffect(() => setRawFilterHigh(props.slice.filterHighHz));
+
+  const recenterFilter = (offset: number, mode: string) => {
+    const halfWidth = Math.floor(
+      (props.slice.filterHighHz - props.slice.filterLowHz) / 2,
+    );
+    if (mode === "DIGU") {
+      const clamp = Math.max(offset, halfWidth) - offset;
+      props.controller.setFilter(
+        -halfWidth + clamp + offset,
+        halfWidth + clamp + offset,
+      );
+    } else if (mode === "DIGL") {
+      const clamp = Math.max(offset, halfWidth) - offset;
+      props.controller.setFilter(
+        -halfWidth - clamp - offset,
+        halfWidth - clamp - offset,
+      );
+    }
+  };
+
+  const applyDiglOffset = async () => {
+    if (rawDiglOffset() === props.slice.diglOffsetHz) return;
+    await props.controller.setDigLOffset(rawDiglOffset());
+    recenterFilter(rawDiglOffset(), "DIGL");
+  };
+
+  const applyDiguOffset = async () => {
+    if (rawDiguOffset() === props.slice.diguOffsetHz) return;
+    await props.controller.setDigUOffset(rawDiguOffset());
+    recenterFilter(rawDiguOffset(), "DIGU");
+  };
 
   const applyFilterLow = () =>
     rawFilterLow() !== props.slice.filterLowHz
@@ -330,12 +369,31 @@ export function FilterControls(props: {
       ? props.controller.setFilterHigh(rawFilterHigh())
       : null;
 
+  const applyPresetOffset = (
+    lowCut: number,
+    highCut: number,
+  ): [number, number] => {
+    const mode = props.slice.mode;
+    if (mode === "DIGU" || mode === "FDV") {
+      const offset = props.slice.diguOffsetHz;
+      const clamp = Math.max(offset, -lowCut) - offset;
+      return [lowCut + clamp + offset, highCut + clamp + offset];
+    }
+    if (mode === "DIGL") {
+      const offset = props.slice.diglOffsetHz;
+      const clamp = Math.max(offset, highCut) - offset;
+      return [lowCut - clamp - offset, highCut - clamp - offset];
+    }
+    return [lowCut, highCut];
+  };
+
   const selectedPreset = createMemo(() =>
-    filterPresets[props.slice.mode]?.find(
-      (preset) =>
-        preset.lowCut === props.slice.filterLowHz &&
-        preset.highCut === props.slice.filterHighHz,
-    ),
+    filterPresets[props.slice.mode]?.find((preset) => {
+      const [low, high] = applyPresetOffset(preset.lowCut, preset.highCut);
+      return (
+        low === props.slice.filterLowHz && high === props.slice.filterHighHz
+      );
+    }),
   );
 
   const filterMinHz = createMemo(
@@ -348,6 +406,44 @@ export function FilterControls(props: {
 
   return (
     <>
+      <Show when={props.slice.mode === "DIGU"}>
+        <NumberField
+          class="flex flex-col gap-2 select-none"
+          rawValue={rawDiguOffset()}
+          format={false}
+          minValue={0}
+          maxValue={10_000}
+          step={10}
+          onRawValueChange={setRawDiguOffset}
+          onFocusOut={applyDiguOffset}
+        >
+          <NumberFieldLabel class="select-none">Offset Hz</NumberFieldLabel>
+          <NumberFieldGroup class="select-none">
+            <NumberFieldInput />
+            <NumberFieldIncrementTrigger class="select-none" />
+            <NumberFieldDecrementTrigger class="select-none" />
+          </NumberFieldGroup>
+        </NumberField>
+      </Show>
+      <Show when={props.slice.mode === "DIGL"}>
+        <NumberField
+          class="flex flex-col gap-2 select-none"
+          rawValue={rawDiguOffset()}
+          format={false}
+          minValue={-10_000}
+          maxValue={0}
+          step={10}
+          onRawValueChange={setRawDiglOffset}
+          onFocusOut={applyDiglOffset}
+        >
+          <NumberFieldLabel class="select-none">Offset Hz</NumberFieldLabel>
+          <NumberFieldGroup class="select-none">
+            <NumberFieldInput />
+            <NumberFieldIncrementTrigger class="select-none" />
+            <NumberFieldDecrementTrigger class="select-none" />
+          </NumberFieldGroup>
+        </NumberField>
+      </Show>
       <Show when={filterPresets[props.slice.mode]}>
         {(presets) => (
           <ToggleGroup
@@ -355,8 +451,11 @@ export function FilterControls(props: {
             onChange={(preset: string) => {
               const presetObj = presets().find((p) => p.name === preset);
               if (!presetObj) return;
-              const { lowCut, highCut } = presetObj;
-              props.controller.setFilter(lowCut, highCut);
+              const [low, high] = applyPresetOffset(
+                presetObj.lowCut,
+                presetObj.highCut,
+              );
+              props.controller.setFilter(low, high);
             }}
             class="grid grid-cols-4"
           >
@@ -377,7 +476,7 @@ export function FilterControls(props: {
       </Show>
       <div class="grid grid-cols-2 gap-2">
         <NumberField
-          class="flex flex-col gap-2 select-none font-mono"
+          class="flex flex-col gap-2 select-none"
           rawValue={rawFilterLow()}
           format={false}
           minValue={filterMinHz()}
@@ -393,7 +492,7 @@ export function FilterControls(props: {
           </NumberFieldGroup>
         </NumberField>
         <NumberField
-          class="flex flex-col gap-2 select-none font-mono"
+          class="flex flex-col gap-2 select-none"
           rawValue={rawFilterHigh()}
           minValue={props.slice.filterLowHz}
           format={false}
@@ -611,19 +710,19 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
     <>
       <Show when={!props.slice.isDetached}>
         <div
-          class="absolute inset-y-0 translate-x-(--slice-offset) cursor-ew-resize z-10"
+          class="absolute inset-y-0 translate-x-(--slice-offset) cursor-ew-resize z-10 pointer-events-auto"
           classList={{
             "translate-z-1": props.slice.isActive,
           }}
           style={{
-            "--slice-offset": `calc(var(--drag-offset) + ${offset()}px)`,
+            "--slice-offset": `${offset()}px`,
           }}
           onClick={makeActive}
         >
           <div
             class="absolute inset-y-0 translate-x-(--filter-offset) w-(--filter-width)"
             classList={{
-              "bg-white/20": !props.slice.diversityChild,
+              "bg-foreground/10": !props.slice.diversityChild,
               "cursor-grab": !dragState.dragging,
               "cursor-grabbing": dragState.dragging,
             }}
@@ -747,7 +846,9 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
                         class="flex items-center text-red-500 font-medium"
                       >
                         <SelectValue<string> class="textbox-trim-both textbox-edge-cap-alphabetic">
-                          {(state) => state.selectedOption().replace("_", " ")}
+                          {(state) =>
+                            state.selectedOption()?.replace("_", " ") ?? "????"
+                          }
                         </SelectValue>
                       </SelectTrigger>
                       <SelectContent />
@@ -1292,7 +1393,7 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
         ref={setSentinel}
         class="absolute translate-x-(--slice-offset) pointer-events-none"
         style={{
-          "--slice-offset": `calc(var(--drag-offset) + ${offset()}px)`,
+          "--slice-offset": `${offset()}px`,
         }}
       />
     </>

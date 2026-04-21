@@ -30,6 +30,7 @@ import {
   TooltipTrigger,
 } from "../ui/tooltip";
 import { Spots } from "./spots";
+import { Tnf } from "./tnf";
 
 export function Panadapter(props: {
   pan: PanadapterState;
@@ -400,9 +401,12 @@ export function Panadapter(props: {
           </div>
         </div>
       </div>
-      <div class="absolute inset-0">
+      <div class="absolute inset-0 translate-x-(--drag-offset) z-10 pointer-events-none">
         <For each={slices()}>
           {(slice) => <Slice slice={slice} pan={props.pan} />}
+        </For>
+        <For each={Object.values(state.status.tnf)}>
+          {(tnf) => <Tnf tnf={tnf} pan={props.pan} />}
         </For>
         <Show when={preferences.spots.enabled}>
           <Spots pan={props.pan} />

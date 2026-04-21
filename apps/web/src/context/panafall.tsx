@@ -113,6 +113,7 @@ export const PanafallProvider: ParentComponent<{ streamId?: string }> = (
       (s) => s.panadapterStreamId === streamId && s.isInUse,
     );
   });
+
   const activeSlice = createMemo(() =>
     slices().find((s) => s.isActive && s.isInUse),
   );

@@ -464,3 +464,14 @@ body,
     @apply backdrop-blur-none;
   }
 }
+
+.tnf-stripes {
+  background: repeating-linear-gradient(
+    315deg,
+    var(--tnf-color),
+    var(--tnf-color) 1px,
+    oklch(from var(--tnf-color) l c h / 0.3) 1px,
+    oklch(from var(--tnf-color) l c h / 0.3) 10px
+  );
+  @apply border-x-(--tnf-color);
+}

@@ -321,7 +321,7 @@ export function Spots(props: { pan: PanadapterState }) {
 
   return (
     <div
-      class="absolute font-mono inset-0 translate-x-(--drag-offset) -translate-y-(--spots-position) z-20 pointer-events-none"
+      class="absolute font-mono inset-0 -translate-y-(--spots-position) z-20 pointer-events-none"
       classList={{
         "bottom-4": preferences.enableTransparencyEffects,
         [FONT_SIZES[preferences.spots.fontSize]]: true,

@@ -20,6 +20,7 @@ import { createStore } from "solid-js/store";
 import ArrowCollapseHorizontal from "~icons/mdi/arrow-collapse-horizontal";
 import ArrowExpandHorizontal from "~icons/mdi/arrow-expand-horizontal";
 import MaterialSymbolsAddCommentOutlineRounded from "~icons/material-symbols/add-comment-outline-rounded";
+import MdiFilterPlus from "~icons/mdi/filter-plus";
 import { Button } from "../ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { cn, frequencyToLabel, roundToDecimals } from "~/lib/utils";
@@ -112,6 +113,7 @@ export function Panafall(props: { index: number }) {
   const {
     panadapter,
     waterfall,
+    activeSlice,
     panadapterController,
     waterfallController,
     pxPerMHz,
@@ -358,8 +360,17 @@ export function Panafall(props: { index: number }) {
                     onDblClick={(e: PointerEvent) => {
                       if (dragState.dragging) return;
                       setDragState("originX", 0);
+                      const slice = activeSlice();
+                      const offset =
+                        slice?.mode === "DIGU"
+                          ? slice.diguOffsetHz
+                          : slice?.mode === "DIGL"
+                            ? slice.diglOffsetHz
+                            : 0;
                       const freq = roundToDecimals(xToFreq(e.clientX), 3);
-                      panadapterController()?.clickTune(freq);
+                      panadapterController()?.clickTune(
+                        freq + offset / 1_000_000,
+                      );
                     }}
                     ref={setClickRef}
                   />
@@ -385,7 +396,20 @@ export function Panafall(props: { index: number }) {
                         <div class="absolute left-2 flex size-3.5 items-center justify-center">
                           <MaterialSymbolsAddCommentOutlineRounded />
                         </div>
-                        Create Slice
+                        Create Slice at{" "}
+                        {`${roundToDecimals(xToFreq(pos.x), 3)}`} MHz
+                      </ContextMenuItem>
+                      <ContextMenuItem
+                        class="pl-8"
+                        onClick={() => {
+                          radio().createTnf(roundToDecimals(xToFreq(pos.x), 6));
+                        }}
+                      >
+                        <div class="absolute left-2 flex size-3.5 items-center justify-center">
+                          <MdiFilterPlus />
+                        </div>
+                        Create TNF at {`${roundToDecimals(xToFreq(pos.x), 6)}`}{" "}
+                        MHz
                       </ContextMenuItem>
                     </ContextMenuContent>
                   </ContextMenuPortal>

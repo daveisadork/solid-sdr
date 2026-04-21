@@ -41,6 +41,7 @@ import {
   type XvtrSnapshot,
   type SpotSnapshot,
   SpotStateChange,
+  TnfSnapshot,
 } from "@repo/flexlib";
 import { createFlexClient } from "@repo/flexlib/bridge";
 import { useRtc } from "./rtc";
@@ -107,6 +108,7 @@ export type XvtrState = Omit<MutableProps<XvtrSnapshot>, "raw">;
 export type CwxState = Omit<MutableProps<CwxSnapshot>, "raw">;
 export type DvkState = Omit<MutableProps<DvkSnapshot>, "raw">;
 export type SpotState = Omit<MutableProps<SpotSnapshot>, "raw">;
+export type TnfState = Omit<MutableProps<TnfSnapshot>, "raw">;
 
 export interface ConnectModalState {
   status: ConnectionState;
@@ -127,6 +129,7 @@ export interface StatusState {
   spot: Record<string, SpotState>;
   guiClient: Record<string, GuiClientState>;
   txBandSetting: Record<string, TxBandSettingState>;
+  tnf: Record<string, TnfState>;
   xvtr: Record<string, XvtrState>;
   cwx: CwxState;
   dvk: DvkState;
@@ -180,6 +183,7 @@ export const initialState = () =>
       xvtr: {},
       cwx: {},
       dvk: {},
+      tnf: {},
     },
   }) as AppState;
 

@@ -1,6 +1,6 @@
-# flex-bridge
+# solid-sdr-server
 
-WebRTC signaling bridge and web UI for FlexRadio SDR receivers.
+WebRTC signaling server and web UI for FlexRadio SDR receivers.
 
 The server and web interface are distributed as a single self-contained binary —
 no installation required beyond downloading and running it.
@@ -11,7 +11,7 @@ Download the binary for your platform from the Releases page, extract,
 and run:
 
 ```sh
-./flex-bridge
+./solid-sdr-server
 ```
 
 Open http://localhost:8080.

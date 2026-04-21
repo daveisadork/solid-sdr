@@ -10,10 +10,10 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/daveisadork/flex-bridge/internal/config"
-	"github.com/daveisadork/flex-bridge/internal/discovery"
-	"github.com/daveisadork/flex-bridge/internal/rtc"
-	"github.com/daveisadork/flex-bridge/internal/static"
+	"github.com/daveisadork/solid-sdr/apps/server/internal/config"
+	"github.com/daveisadork/solid-sdr/apps/server/internal/discovery"
+	"github.com/daveisadork/solid-sdr/apps/server/internal/rtc"
+	"github.com/daveisadork/solid-sdr/apps/server/internal/static"
 )
 
 func main() {
@@ -50,7 +50,7 @@ func main() {
 		mux.Handle("/", h)
 	} else {
 		mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
-			_, _ = w.Write([]byte("flex-bridge up"))
+			_, _ = w.Write([]byte("solid-sdr-server up"))
 		})
 	}
 

@@ -1,4 +1,4 @@
-module github.com/daveisadork/flex-bridge
+module github.com/daveisadork/solid-sdr/apps/server
 
 go 1.25.1
 

@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/daveisadork/flex-bridge/internal/discovery"
+	"github.com/daveisadork/solid-sdr/apps/server/internal/discovery"
 	"github.com/gorilla/websocket"
 	"github.com/pion/ice/v4"
 	"github.com/pion/webrtc/v4"

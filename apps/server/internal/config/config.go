@@ -36,8 +36,8 @@ type Config struct {
 }
 
 func defaultAPILogPath() string {
-	if _, err := os.Stat(filepath.Join("apps", "bridge")); err == nil {
-		return filepath.Join("apps", "bridge", "messages.txt")
+	if _, err := os.Stat(filepath.Join("apps", "server")); err == nil {
+		return filepath.Join("apps", "server", "messages.txt")
 	}
 
 	return "messages.txt"
@@ -69,7 +69,7 @@ func Load() (Config, error) {
 
 	// Usage
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `flex-bridge
+		fmt.Fprintf(os.Stderr, `solid-sdr-server
 
 Usage:
   %s [flags]
@@ -86,7 +86,7 @@ Environment:
 
 Config file:
   Set FLEX_CONFIG=/path/to/file.(yaml|json|toml)
-  Or place flex-bridge.yaml/json/toml in current directory
+  Or place solid-sdr-server.yaml/json/toml in current directory
 `)
 	}
 
@@ -116,7 +116,7 @@ Config file:
 	if cfgFile != "" {
 		v.SetConfigFile(cfgFile)
 	} else {
-		v.SetConfigName("flex-bridge")
+		v.SetConfigName("solid-sdr-server")
 		v.AddConfigPath(".")
 	}
 

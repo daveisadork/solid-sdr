@@ -1,5 +1,5 @@
-# flex-bridge configuration
-# Copy to flex-bridge.yaml and edit as needed.
+# solid-sdr-server configuration
+# Copy to solid-sdr-server.yaml and edit as needed.
 # All options can also be set via environment variables with the FLEX_ prefix.
 # Example: FLEX_HTTP_PORT=8081
 

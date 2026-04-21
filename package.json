@@ -10,8 +10,8 @@
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "check-types": "turbo run check-types",
-    "release:build": "goreleaser build --snapshot --clean && rm -rf apps/bridge/internal/static/web",
-    "release": "goreleaser release --clean && rm -rf apps/bridge/internal/static/web"
+    "release:build": "goreleaser build --snapshot --clean && rm -rf apps/server/internal/static/web",
+    "release": "goreleaser release --clean && rm -rf apps/server/internal/static/web"
   },
   "devDependencies": {
     "prettier": "^3.5.3",

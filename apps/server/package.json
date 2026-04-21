@@ -1,7 +1,7 @@
 {
-  "name": "@repo/bridge",
+  "name": "@repo/server",
   "private": true,
-  "description": "Flex Bridge (Go sidecar) - HTTP/WS server",
+  "description": "solid-sdr-server (Go) - HTTP/WS/WebRTC server",
   "scripts": {
     "dev": "air -c ./.air.toml",
     "dev:web": "pnpm -s run dev",

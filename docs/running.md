@@ -1,4 +1,4 @@
-# Running flex-bridge
+# Running solid-sdr-server
 
 ## Quick start
 
@@ -6,21 +6,21 @@
 2. Extract it.
 3. Run the binary:
    ```sh
-   ./flex-bridge
+   ./solid-sdr-server
    ```
 4. Open http://localhost:8080 in your browser.
 
 ## Configuration
 
-flex-bridge reads configuration from three sources, in order of precedence:
+solid-sdr-server reads configuration from three sources, in order of precedence:
 
 1. **Command-line flags** (highest)
 2. **Environment variables** — prefix `FLEX_`, hyphens become underscores
    (e.g. `FLEX_HTTP_PORT=8081`)
-3. **Config file** — `flex-bridge.yaml` in the current directory, or set
+3. **Config file** — `solid-sdr-server.yaml` in the current directory, or set
    `FLEX_CONFIG=/path/to/file.(yaml|json|toml)`
 
-Copy `flex-bridge.example.yaml` to `flex-bridge.yaml` to get started.
+Copy `solid-sdr-server.example.yaml` to `solid-sdr-server.yaml` to get started.
 
 ## Options
 
@@ -53,17 +53,17 @@ entire UDP range instead.
 
 ## Running as a systemd service (Linux)
 
-Create `/etc/systemd/system/flex-bridge.service`:
+Create `/etc/systemd/system/solid-sdr-server.service`:
 
 ```ini
 [Unit]
-Description=flex-bridge
+Description=solid-sdr-server
 After=network.target
 
 [Service]
-ExecStart=/usr/local/bin/flex-bridge
+ExecStart=/usr/local/bin/solid-sdr-server
 Restart=on-failure
-User=flex-bridge
+User=solid-sdr-server
 
 [Install]
 WantedBy=multi-user.target
@@ -72,5 +72,5 @@ WantedBy=multi-user.target
 Then:
 
 ```sh
-sudo systemctl enable --now flex-bridge
+sudo systemctl enable --now solid-sdr-server
 ```

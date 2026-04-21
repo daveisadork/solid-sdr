@@ -28,10 +28,10 @@ Produces the same artifacts in `dist/` without publishing anything. Useful
 for testing the build pipeline.
 
 > **If a build fails partway through**, the temporary web assets at
-> `apps/bridge/internal/static/web/` may be left behind. Remove them manually
+> `apps/server/internal/static/web/` may be left behind. Remove them manually
 > before retrying:
 > ```sh
-> rm -rf apps/bridge/internal/static/web
+> rm -rf apps/server/internal/static/web
 > ```
 
 ## Adding CI with GitHub Actions

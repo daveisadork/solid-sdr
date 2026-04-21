@@ -1,18 +1,18 @@
 version: 2
 
-project_name: flex-bridge
+project_name: solid-sdr-server
 
 before:
   hooks:
-    - rm -rf apps/bridge/internal/static/web
+    - rm -rf apps/server/internal/static/web
     - pnpm --filter web build
-    - sh -c "mkdir -p apps/bridge/internal/static/web && cp -r apps/web/dist apps/bridge/internal/static/web/dist"
+    - sh -c "mkdir -p apps/server/internal/static/web && cp -r apps/web/dist apps/server/internal/static/web/dist"
 
 builds:
-  - id: flex-bridge
+  - id: solid-sdr-server
     main: ./cmd/bridge
-    dir: apps/bridge
-    binary: flex-bridge
+    dir: apps/server
+    binary: solid-sdr-server
     env:
       - CGO_ENABLED=0
     flags:
@@ -49,7 +49,7 @@ archives:
           - zip
     name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
     files:
-      - flex-bridge.example.yaml
+      - solid-sdr-server.example.yaml
 
 checksum:
   name_template: checksums.txt

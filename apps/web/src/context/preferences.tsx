@@ -61,6 +61,7 @@ export interface Preferences {
   panadapterSettingsOpen: boolean[];
   sidebarPanels: string[];
   daxRxConfig: Record<number, DaxRxConfig>;
+  guiClientId?: string | undefined;
   daxTxConfig: {
     enabled: boolean;
     inputDeviceId: string;
@@ -76,7 +77,7 @@ const PreferencesContext = createContext<{
 
 const defaultDaxConfig = () => {
   const config: Record<number, DaxRxConfig> = {};
-  for (let i = 1; i <= 16; i++) {
+  for (let i = 1; i <= 8; i++) {
     config[i] = {
       enabled: false,
       outputDeviceId: "default",
@@ -96,7 +97,7 @@ const initialPreferences = () =>
       levels: 3,
       position: 0,
       fontSize: 1,
-      verticalSpacing: 25,
+      verticalSpacing: 20,
       overrideColor: null,
       overrideBackgroundColor: null,
     },

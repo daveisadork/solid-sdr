@@ -206,13 +206,11 @@ const WS_STATES = ["Connecting...", "Established", "Closing...", "Closed"];
 
 export const FlexRadioProvider: ParentComponent = (props) => {
   const [state, setState] = createStore(initialState());
-  const { preferences } = usePreferences();
+  const { preferences, setPreferences } = usePreferences();
   const { peerConnection, rtcState, signalingWsState } = useRtc();
   const [activeRadio, setActiveRadio] = createSignal<Radio | null>(null);
 
   const spots = new ReactiveMap<string, SpotState>();
-
-  const [ready, setReady] = createSignal(false);
 
   let radioSubscriptions: Subscription[] = [];
 
@@ -235,10 +233,6 @@ export const FlexRadioProvider: ParentComponent = (props) => {
   const flexClient = createMemo(() => {
     if (rtcState.connectionState !== "connected") return;
     return createFlexClient(peerConnection());
-  });
-
-  createEffect(() => {
-    setReady(rtcState.connectionState === "connected");
   });
 
   const cleanupRadioSubscriptions = () => {
@@ -514,7 +508,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         clientInfo: {
           isGui: true,
           program: "SolidSDR Web",
-          guiClientId: "76806B36-7090-4958-A879-174BAB94DF11",
+          guiClientId: preferences.guiClientId,
         },
       });
     } catch (error) {
@@ -543,6 +537,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         : null,
       clientId: radio.clientId,
     });
+    setPreferences("guiClientId", radio.clientId);
   };
 
   onCleanup(() => {

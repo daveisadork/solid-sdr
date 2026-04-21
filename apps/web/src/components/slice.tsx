@@ -722,7 +722,8 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
           <div
             class="absolute inset-y-0 translate-x-(--filter-offset) w-(--filter-width)"
             classList={{
-              "bg-foreground/10": !props.slice.diversityChild,
+              "bg-radial-[ellipse_at_bottom] from-foreground/5 to-foreground/20":
+                !props.slice.diversityChild,
               "cursor-grab": !dragState.dragging,
               "cursor-grabbing": dragState.dragging,
             }}

@@ -59,8 +59,8 @@ export const RtcProvider: ParentComponent = (props) => {
     createReconnectingWS("/ws/signal", [], { delay: 3000 }),
     {
       message: JSON.stringify({ type: "ping", payload: null }),
-      interval: 5000,
-      wait: 3000,
+      interval: 1000,
+      wait: 5000,
     },
   );
   const signalingWsState = createWSState(signalingWs);

@@ -59,6 +59,7 @@ export interface Preferences {
   outputDeviceId: string;
   panadapterSizes: number[][];
   panadapterSettingsOpen: boolean[];
+  radioPanelOpen: boolean;
   sidebarPanels: string[];
   daxRxConfig: Record<number, DaxRxConfig>;
   guiClientId?: string | undefined;
@@ -115,8 +116,9 @@ const initialPreferences = () =>
     enableRemoteAudio: true,
     inputDeviceId: "default",
     outputDeviceId: "default",
+    radioPanelOpen: true,
     sidebarPanels: ["tx", "p-cw", "phone", "rx", "eq"],
-    panadapterSettingsOpen: [],
+    panadapterSettingsOpen: [false, false, false, false],
     daxRxConfig: defaultDaxConfig(),
     daxTxConfig: {
       enabled: false,

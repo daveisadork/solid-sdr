@@ -439,7 +439,7 @@ body,
     @apply backdrop-blur-none;
   }
 
-  background-color: oklch(
+  --fancy-bg-color-resolved: oklch(
     from var(--fancy-bg-color) l c h /
       min(
         calc(var(--fancy-bg-opacity) * var(--fancy-bg-opacity-multiplier)),
@@ -447,8 +447,10 @@ body,
       )
   );
 
+  @apply bg-(--fancy-bg-color-resolved);
+
   .disable-transparency-effects & {
-    background-color: var(--fancy-bg-color);
+    @apply bg-(--fancy-bg-color);
     @apply backdrop-blur-none;
   }
 }

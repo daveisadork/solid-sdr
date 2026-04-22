@@ -1,9 +1,21 @@
-import { createEffect, createSignal, onCleanup } from "solid-js";
-import { PanafallControl } from "./panafall/controls";
+import { createDraggable } from "@neodrag/solid";
+import { createEffect, createSignal, For, onCleanup } from "solid-js";
+import { Portal } from "solid-js/web";
+import { Card, CardContent } from "~/components/ui/card";
+import { useRuntime } from "~/context/runtime";
+
+const COLORS = [
+  "text-amber-400",
+  "text-emerald-400",
+  "text-sky-400",
+  "text-pink-400",
+  "text-violet-400",
+];
 
 export function FPSCounter() {
   const [running, setRunning] = createSignal(true);
-  const [fps, setFps] = createSignal(0);
+  const { runtime, setRuntime } = useRuntime();
+  const { draggable } = createDraggable();
   let lastTime = performance.now();
   const frameTimes: number[] = [];
 
@@ -14,7 +26,7 @@ export function FPSCounter() {
     if (running()) refreshLoop();
     const avgFrameTime =
       frameTimes.reduce((a, b) => a + b, 0) / frameTimes.length;
-    setFps(Math.round(1000 / avgFrameTime));
+    setRuntime("fps", "B", Math.round(1000 / avgFrameTime));
   };
 
   const refreshLoop = () => window.requestAnimationFrame(handleFrame);
@@ -25,10 +37,24 @@ export function FPSCounter() {
   });
 
   return (
-    <PanafallControl>
-      <div class="absolute top-2 left-2 -z-50 text-lg font-mono whitespace-pre font-bold text-amber-400/50">
-        B: {fps().toString().padStart(4, " ")}
+    <Portal>
+      <div use:draggable={{ handle: ".handle" }} class="absolute z-50">
+        <Card class="fancy-bg-card! handle cursor-move">
+          <CardContent class="py-2 px-4 select-none">
+            <For each={Object.keys(runtime.fps)}>
+              {(key, i) => (
+                <div
+                  class={`text-lg font-mono whitespace-pre font-bold ${
+                    COLORS[i() % COLORS.length]
+                  }`}
+                >
+                  {key}: {runtime.fps[key]?.toString().padStart(4, " ")}
+                </div>
+              )}
+            </For>
+          </CardContent>
+        </Card>
       </div>
-    </PanafallControl>
+    </Portal>
   );
 }

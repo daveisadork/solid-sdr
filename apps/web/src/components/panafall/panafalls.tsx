@@ -22,7 +22,7 @@ export function Panafalls() {
         {(streamId, index) => (
           <PanafallProvider streamId={streamId}>
             <SidebarProvider
-              open={preferences.panadapterSettingsOpen[index()]}
+              open={!!preferences.panadapterSettingsOpen[index()]}
               onOpenChange={(open) =>
                 setPreferences("panadapterSettingsOpen", index(), open)
               }

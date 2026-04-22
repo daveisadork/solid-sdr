@@ -13,8 +13,34 @@ import {
 } from "@kobalte/core/color-mode";
 import { RightSidebar } from "./components/right-sidebar";
 import BaselineViewSidebar from "~icons/ic/baseline-view-sidebar";
-import { PreferencesProvider } from "./context/preferences";
+import { PreferencesProvider, usePreferences } from "./context/preferences";
 import { Panafalls } from "./components/panafall/panafalls";
+import { FPSCounter } from "./components/fps";
+import { RuntimeProvider } from "./context/runtime";
+import { Show } from "solid-js";
+
+function AppInner() {
+  const { preferences, setPreferences } = usePreferences();
+  return (
+    <div class="absolute inset-0 flex flex-col items-stretch">
+      <SidebarProvider
+        class="relative grow h-auto overflow-visible min-h-0 bg-transparent"
+        open={!!preferences.radioPanelOpen}
+        onOpenChange={(open) => setPreferences("radioPanelOpen", open)}
+      >
+        <Panafalls />
+        <RightSidebar />
+        <SidebarTrigger class="z-50 absolute right-4 top-4 select-none aspect-square fancy-bg-background size-10 not-pointer-coarse:size-5 pointer-coarse:border">
+          <BaselineViewSidebar />
+        </SidebarTrigger>
+      </SidebarProvider>
+      <StatusBar />
+      <Show when={preferences.showFps}>
+        <FPSCounter />
+      </Show>
+    </div>
+  );
+}
 
 function App() {
   const storageManager = createLocalStorageManager("vite-ui-theme");
@@ -31,17 +57,10 @@ function App() {
       >
         <RtcProvider>
           <FlexRadioProvider>
-            <div class="absolute inset-0 flex flex-col items-stretch">
-              <SidebarProvider class="relative grow h-auto overflow-visible min-h-0 bg-transparent">
-                <Panafalls />
-                <RightSidebar />
-                <SidebarTrigger class="z-50 absolute right-4 top-4 select-none aspect-square fancy-bg-background size-10 not-pointer-coarse:size-5 pointer-coarse:border">
-                  <BaselineViewSidebar />
-                </SidebarTrigger>
-              </SidebarProvider>
-              <StatusBar />
-            </div>
-            <RtcAudio /> {/* keeps audio elements mounted */}
+            <RuntimeProvider>
+              <AppInner />
+              <RtcAudio /> {/* keeps audio elements mounted */}
+            </RuntimeProvider>
           </FlexRadioProvider>
         </RtcProvider>
         <Toaster />

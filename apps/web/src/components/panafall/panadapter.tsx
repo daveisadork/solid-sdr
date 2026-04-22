@@ -31,6 +31,7 @@ import {
 } from "../ui/tooltip";
 import { Spots } from "./spots";
 import { Tnf } from "./tnf";
+import { useRuntime } from "~/context/runtime";
 
 export function Panadapter(props: {
   pan: PanadapterState;
@@ -51,7 +52,7 @@ export function Panadapter(props: {
   const [levelTicks, setLevelTicks] = createSignal<LinearScaleTick[]>([]);
 
   const frameTimes: number[] = [];
-  const [fps, setFps] = createSignal(0);
+  const { runtime, setRuntime } = useRuntime();
 
   const frequencyTicks = createMemo<FrequencyGridTick[]>(() => {
     const width = wrapperSize.width;
@@ -323,7 +324,7 @@ export function Panadapter(props: {
           if (frameTimes.length > 10) frameTimes.shift();
           const avgFrameTime =
             frameTimes.reduce((a, b) => a + b, 0) / frameTimes.length;
-          setFps(Math.round(1000 / avgFrameTime));
+          setRuntime("fps", "P", Math.round(1000 / avgFrameTime));
         }
       }
     };
@@ -367,13 +368,6 @@ export function Panadapter(props: {
         ref={setCanvasRef}
         class="absolute size-full translate-x-(--drag-offset) select-none"
       />
-      <Show when={preferences.showFps}>
-        <PanafallControl>
-          <div class="absolute top-7 left-2 -z-50 text-lg font-mono whitespace-pre font-bold text-indigo-400/50">
-            P: {fps().toString().padStart(4, " ")}
-          </div>
-        </PanafallControl>
-      </Show>
       <div class="flex absolute top-0 left-(--panafall-left) h-(--panadapter-available-height) w-(--panafall-available-width)">
         <div class="relative size-full" ref={setPanadapterControlsRef}>
           <div class="flex pointer-events-none absolute top-4 right-4 text-fg text-xl font-bold opacity-50 gap-4">

@@ -188,7 +188,7 @@ export const RtcProvider: ParentComponent = (props) => {
 
   createEffect(() => {
     if (["failed", "closed"].includes(rtcState.connectionState)) {
-      signalingWs.reconnect();
+      setPeerConnection(null);
     }
   });
 

@@ -16,15 +16,17 @@ import type { VitaParsedPacket, WaterfallController } from "@repo/flexlib";
 import { usePreferences } from "~/context/preferences";
 import { usePanafall } from "~/context/panafall";
 import { PanafallControl } from "./controls";
+import { roundToDevicePixels } from "~/lib/utils";
+import { useRuntime } from "~/context/runtime";
 
 export function Waterfall(props: {
   waterfall: WaterfallState;
   pan: PanadapterState;
   controller: WaterfallController;
 }) {
-  const { state, setState } = useFlexRadio();
+  const { runtime, setRuntime } = useRuntime();
   const { preferences } = usePreferences();
-  const { setWaterfallControlsRef } = usePanafall();
+  const { mhzToPx } = usePanafall();
 
   const [canvasWidth, setCanvasWidth] = createSignal(1);
   const [canvasHeight, setCanvasHeight] = createSignal(1);
@@ -36,6 +38,8 @@ export function Waterfall(props: {
   const [lastBandwidth, setLastBandwidth] = createSignal(0);
   const [autoBlackLevel, setAutoBlackLevel] = createSignal(0);
   const [black, setBlack] = createSignal("#000000");
+  const [colorMin, setColorMin] = createSignal(0);
+  const [colorMax, setColorMax] = createSignal(1);
 
   // 4096 colors to stay under canvas size limits on iOS
   const paletteCanvas = new OffscreenCanvas(4096, 1);
@@ -53,20 +57,13 @@ export function Waterfall(props: {
   const wrapperSize = createElementSize(wrapper);
 
   const frameTimes: number[] = [];
-  const [fps, setFps] = createSignal(0);
 
   createEffect(() => {
     // translate the configured color gain into a colorMax value
-    const { colorMin } = state.runtime;
     const colorGain = props.waterfall.colorGain;
-    const range = 1 - colorMin;
+    const range = 1 - colorMin();
     const gain = Math.pow(1 - colorGain / 100, 3);
-    const colorMax = colorMin + range * gain;
-    // const low = colorMin * 170 - 150;
-    // const high = colorMax * 256 - 150;
-    // console.log("colorMin:", colorMin, "colorMax:", colorMax, "->", low, high);
-    // radio()?.panadapter(pan().streamId)?.setDbmRange({ low, high });
-    setState("runtime", "colorMax", colorMax);
+    setColorMax(colorMin() + range * gain);
   });
 
   createEffect(() => {
@@ -79,9 +76,7 @@ export function Waterfall(props: {
       );
     }
 
-    setState(
-      "runtime",
-      "colorMin",
+    setColorMin(
       autoBlackLevelEnabled ? autoBlackLevel() / 0xffff : blackLevel / 400,
     );
   });
@@ -92,7 +87,6 @@ export function Waterfall(props: {
     });
     if (!paletteCtx) return;
     const { gradients } = preferences.palette;
-    const { colorMin, colorMax } = state.runtime;
     const { stops } = gradients[props.waterfall.gradientIndex];
     setBlack(stops[0].color);
     const gradient = paletteCtx.createLinearGradient(
@@ -101,9 +95,9 @@ export function Waterfall(props: {
       paletteCanvas.width,
       paletteCanvas.height,
     );
-    const range = colorMax - colorMin;
+    const range = colorMax() - colorMin();
     stops.forEach(({ offset, color }) => {
-      gradient.addColorStop(offset * range + colorMin, color);
+      gradient.addColorStop(offset * range + colorMin(), color);
     });
 
     paletteCtx.fillStyle = gradient;
@@ -332,34 +326,12 @@ export function Waterfall(props: {
           if (frameTimes.length > 10) frameTimes.shift();
           const avgFrameTime =
             frameTimes.reduce((a, b) => a + b, 0) / frameTimes.length;
-          setFps(Math.round(1000 / avgFrameTime));
+          setRuntime("fps", "W", Math.round(1000 / avgFrameTime));
         }
 
         batch(() => {
           setBinBandwidth(binBandwidth);
           setLastCalculatedCenter(calculatedCenter);
-          const panStreamId = props.waterfall.panadapterStreamId;
-          if (
-            panStreamId &&
-            state.status.panadapter[panStreamId] &&
-            preferences.smoothScroll
-          ) {
-            // Data packets reflect the new tuning; mark the panadapter center as settled.
-            const centerMHz = Number((calculatedCenter / 1_000_000).toFixed(6));
-            setState(
-              "status",
-              "panadapter",
-              panStreamId,
-              "centerFrequencyMHz",
-              centerMHz,
-            );
-            setState(
-              "runtime",
-              ["panSettledCenterMHz", "panPendingCenterMHz"],
-              panStreamId,
-              centerMHz,
-            );
-          }
         });
         expFrame = Math.max(frame + 1, expFrame);
       }
@@ -374,27 +346,27 @@ export function Waterfall(props: {
     onCleanup(subscription.unsubscribe);
   });
 
+  const offset = createMemo(() => {
+    const centerMHz = lastCalculatedCenter() / 1_000_000;
+    const offsetMHz = centerMHz - props.pan.centerFrequencyMHz;
+    return roundToDevicePixels(mhzToPx(offsetMHz));
+  });
+
   return (
     <div
       ref={setWrapper}
       class="relative size-full flex justify-center overflow-visible select-none"
     >
       <canvas
-        class="absolute shrink-0 select-none scale-x-(--width-multiplier) translate-x-(--drag-offset)"
+        class="absolute shrink-0 select-none scale-x-(--width-multiplier) translate-x-(--waterfall-offset)"
         ref={setCanvasRef}
         width={canvasWidth()}
         height={canvasHeight()}
         style={{
           "--width-multiplier": widthMultiplier(),
+          "--waterfall-offset": `calc(var(--drag-offset) + ${offset()}px)`,
         }}
       />
-      <Show when={preferences.showFps}>
-        <PanafallControl>
-          <div class="absolute top-12 left-2 -z-50 text-lg font-mono whitespace-pre font-bold text-emerald-400/50">
-            W: {fps().toString().padStart(4, " ")}
-          </div>
-        </PanafallControl>
-      </Show>
       <div class="absolute inset-y-0 left-(--panafall-left) w-(--panafall-available-width) pointer-events-none">
         <Show when={totalSeconds() > 0}>
           <div

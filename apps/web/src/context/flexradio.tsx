@@ -71,13 +71,6 @@ export enum ConnectionStage {
   Done = 3,
 }
 
-const withoutRaw = <T extends { raw?: unknown }>(
-  obj: T,
-): MutableProps<Omit<T, "raw">> => {
-  const { raw: _, ...rest } = obj;
-  return rest;
-};
-
 export interface Gradient {
   name: string;
   stops: { color: string; offset: number }[];
@@ -142,14 +135,6 @@ export interface AppState {
   selectedPanadapter: string | null;
   connectModal: ConnectModalState;
   status: StatusState;
-  runtime: RuntimeState;
-}
-
-interface RuntimeState {
-  colorMin: number;
-  colorMax: number;
-  panSettledCenterMHz: Record<string, number | undefined>;
-  panPendingCenterMHz: Record<string, number | undefined>;
 }
 
 export const initialState = () =>
@@ -160,12 +145,6 @@ export const initialState = () =>
     selectedPanadapter: null,
     connectModal: {
       status: ConnectionState.disconnected,
-    },
-    runtime: {
-      colorMin: 0.0,
-      colorMax: 1.0,
-      panSettledCenterMHz: {},
-      panPendingCenterMHz: {},
     },
     status: {
       apd: {},
@@ -240,50 +219,6 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     radioSubscriptions = [];
   };
 
-  const applyPanadapterDiff = (diff: Partial<PanadapterSnapshot>) => {
-    const key = diff.streamId || diff.id;
-    // Keep the displayed center frequency pinned to the last settled value until
-    // the data streams confirm the new frequency.
-    const pan = withoutRaw(diff);
-    const pendingCenterMHz = pan.centerFrequencyMHz;
-    const centerFrequencyMHz = preferences.smoothScroll
-      ? (state.runtime.panSettledCenterMHz[key] ?? pendingCenterMHz)
-      : pendingCenterMHz;
-
-    if (centerFrequencyMHz) {
-      pan.centerFrequencyMHz = centerFrequencyMHz;
-    }
-
-    batch(() => {
-      if (state.runtime.panSettledCenterMHz[key] === undefined) {
-        setState("runtime", "panSettledCenterMHz", key, pendingCenterMHz);
-      }
-      setState("runtime", "panPendingCenterMHz", key, pendingCenterMHz);
-      setState("status", "panadapter", key, pan);
-    });
-  };
-
-  const handlePanadapterChange = (change: RadioStateChange) => {
-    if (change.entity !== "panadapter") return;
-    if (change.diff) {
-      applyPanadapterDiff(change.diff);
-    } else {
-      const key = change.id;
-      setState(
-        "status",
-        "panadapter",
-        produce((pan) => {
-          delete pan[key];
-        }),
-      );
-      setState("runtime", "panSettledCenterMHz", key, undefined);
-      setState("runtime", "panPendingCenterMHz", key, undefined);
-      if (state.selectedPanadapter === key) {
-        setState("selectedPanadapter", null);
-      }
-    }
-  };
-
   const handleSpotChange = (change: SpotStateChange) => {
     if (change.removed) {
       const callsign = state.status.spot[change.id].callsign;
@@ -308,9 +243,6 @@ export const FlexRadioProvider: ParentComponent = (props) => {
 
   const handleStateChange = (change: RadioStateChange) => {
     switch (change.entity) {
-      case "panadapter":
-        handlePanadapterChange(change);
-        break;
       case "spot":
         handleSpotChange(change);
         break;

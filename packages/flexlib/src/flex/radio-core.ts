@@ -250,6 +250,9 @@ export interface RadioSession {
   /** Access the internal state store (snapshots, patches). */
   getStore(): RadioStateStore;
 
+  /** Look up (or lazily create) a slice controller by ID. */
+  slice(id: string): SliceController | undefined;
+
   /**
    * Propagate a state change from an optimistic update.
    *
@@ -701,10 +704,15 @@ export class Radio {
 
   /**
    * Creates a new transverter definition on the radio.
-   * The radio will respond with a status message containing the new XVTR's index.
+   * Returns the controller for the newly created XVTR.
    */
-  async createXvtr(): Promise<void> {
-    await this.command("xvtr create");
+  async createXvtr(): Promise<XvtrController> {
+    const response = await this.command("xvtr create");
+    const newId = response.message?.trim() ?? "";
+    const controller = this.xvtr(newId);
+    if (!controller)
+      throw new FlexError(`XVTR ${newId} not available after creation`);
+    return controller;
   }
 
   tnfs(): TnfController[] {
@@ -720,11 +728,16 @@ export class Radio {
 
   /**
    * Creates a new TNF at the given frequency (in MHz).
-   * The radio will respond with a status message containing the new TNF's ID.
+   * Returns the controller for the newly created TNF.
    */
-  async createTnf(frequencyMHz: number): Promise<void> {
+  async createTnf(frequencyMHz: number): Promise<TnfController> {
     const freq = formatMegahertz(ensureFinite(frequencyMHz, "TNF frequency"));
-    await this.command(`tnf create freq=${freq}`);
+    const response = await this.command(`tnf create freq=${freq}`);
+    const newId = response.message?.trim() ?? "";
+    const controller = this.tnf(newId);
+    if (!controller)
+      throw new FlexError(`TNF ${newId} not available after creation`);
+    return controller;
   }
 
   spots(): SpotController[] {
@@ -1477,7 +1490,7 @@ export class Radio {
     await this.command(`client bind client_id=${trimmed}`);
   }
 
-  async requestSlice(options: RadioRequestSliceOptions = {}): Promise<void> {
+  async requestSlice(options: RadioRequestSliceOptions = {}): Promise<SliceController> {
     let command = "slice create";
 
     const panadapterStreamId = options.panadapterStreamId?.trim();
@@ -1506,7 +1519,12 @@ export class Radio {
       command += " load_from=PERSISTENCE";
     }
 
-    await this.command(command);
+    const response = await this.command(command);
+    const newId = response.message?.trim() ?? "";
+    const controller = this.slice(newId);
+    if (!controller)
+      throw new FlexError(`Slice ${newId} not available after creation`);
+    return controller;
   }
 
   async setNickname(nickname: string): Promise<void> {

@@ -252,12 +252,21 @@ describe("Radio", () => {
   it("requests new slices", async () => {
     const { radio, connection } = await createConnectedRadio();
 
+    // given the radio will return a new slice index and emit its status
+    connection.emitStatus("S1|slice 0 mode=LSB");
+    connection.prepareResponse("slice create", { message: "0" });
+
     // when we request a slice with no options
-    await radio.requestSlice();
+    const slice1 = await radio.requestSlice();
     expect(connection.lastCommand()).toBe("slice create");
+    expect(slice1.id).toBe("0");
+
+    // given the radio will return the next slice
+    connection.emitStatus("S1|slice 1 mode=DIGU pan=0x40000000");
+    connection.prepareResponse("slice create", { message: "1" });
 
     // when we request a slice with full options
-    await radio.requestSlice({
+    const slice2 = await radio.requestSlice({
       panadapterStreamId: "40000000",
       demodMode: "DIGU",
       frequencyMHz: 14.074,
@@ -267,6 +276,25 @@ describe("Radio", () => {
     expect(connection.lastCommand()).toBe(
       "slice create pan=0x40000000 freq=14.074000 rxant=ANT2 mode=DIGU load_from=PERSISTENCE",
     );
+    expect(slice2.id).toBe("1");
+  });
+
+  it("clones a slice", async () => {
+    const { radio, connection } = await createConnectedRadio();
+    connection.emitStatus("S1|slice 0 mode=LSB pan=0x40000000");
+
+    const source = radio.slice("0")!;
+
+    // given the radio will return the cloned slice index and emit its status
+    connection.emitStatus("S1|slice 1 mode=LSB pan=0x40000000");
+    connection.prepareResponse("slice create clone_slice", { message: "1" });
+
+    const cloned = await source.clone();
+
+    expect(connection.lastCommand()).toBe(
+      "slice create clone_slice=0 pan=0x40000000 load_from=clone",
+    );
+    expect(cloned.id).toBe("1");
   });
 
   it("provides radio snapshots and gps convenience getters", async () => {

@@ -29,6 +29,8 @@ import BaselineChevronRight from "~icons/ic/baseline-chevron-right";
 import BaselineVolumeUp from "~icons/ic/baseline-volume-up";
 import BaselineVolumeOff from "~icons/ic/baseline-volume-off";
 import BaselineDelete from "~icons/ic/baseline-delete";
+import SplitIcon from "~icons/material-symbols/split-scene-left-outline";
+import SwapIcon from "~icons/material-symbols/swap-horiz";
 import { Button } from "./ui/button";
 import { Portal } from "solid-js/web";
 import {
@@ -79,6 +81,7 @@ import { SliceController } from "@repo/flexlib";
 import { usePanafall } from "~/context/panafall";
 import { Separator } from "./ui/separator";
 import { usePreferences } from "~/context/preferences";
+import { useRuntime } from "~/context/runtime";
 
 const FILTER_MAX_HZ = 12_000;
 const FILTER_MIN_HZ = -FILTER_MAX_HZ;
@@ -584,6 +587,16 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
   const sentinelBounds = createElementBounds(sentinel);
   const flagBounds = createElementBounds(flag);
   const { preferences } = usePreferences();
+  const { runtime, setRuntime } = useRuntime();
+
+  const splitParent = createMemo(
+    () => state.status.slice[runtime.split[props.slice.id]?.parent],
+  );
+  const splitChild = createMemo(
+    () => state.status.slice[runtime.split[props.slice.id]?.child],
+  );
+
+  const splitPartner = createMemo(() => splitParent() || splitChild());
 
   const levelMeter = createMemo(() => {
     const sliceIndex = Number(props.slice.id);
@@ -605,6 +618,14 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
       return setFlagSide("left");
     }
     if (props.slice.diversityChild) {
+      return setFlagSide("right");
+    }
+
+    if (splitPartner()?.frequencyMHz > props.slice.frequencyMHz) {
+      return setFlagSide("left");
+    }
+
+    if (splitPartner()?.frequencyMHz < props.slice.frequencyMHz) {
       return setFlagSide("right");
     }
 
@@ -858,12 +879,78 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
                       slice={props.slice}
                       controller={sliceController()}
                     />
+                    <Show when={!splitParent()}>
+                      <ToggleButton
+                        class="flex justify-center items-center h-4.5 px-1 rounded-sm text-muted-foreground data-pressed:bg-red-500 data-pressed:text-foreground"
+                        pressed={Boolean(splitChild())}
+                        onChange={(pressed) => {
+                          if (pressed) {
+                            sliceController()
+                              .clone()
+                              .then((partner) =>
+                                batch(() => {
+                                  setRuntime("split", props.slice.id, {
+                                    child: partner.id,
+                                    parent: null,
+                                  });
+                                  setRuntime("split", partner.id, {
+                                    child: null,
+                                    parent: props.slice.id,
+                                  });
+                                  partner.enableTransmit(true);
+                                  partner.setMute(true);
+                                }),
+                              );
+                          } else {
+                            const partner = splitPartner();
+                            radio()
+                              ?.slice(partner.id)
+                              ?.close()
+                              .then(() => {
+                                setRuntime(
+                                  "split",
+                                  [props.slice.id, partner.id],
+                                  undefined,
+                                );
+                              });
+                            sliceController().enableTransmit(
+                              props.slice.isTransmitEnabled ||
+                                partner.isTransmitEnabled,
+                            );
+                          }
+                        }}
+                      >
+                        <SplitIcon />
+                      </ToggleButton>
+                    </Show>
+                    <Show when={splitParent()}>
+                      <ToggleButton
+                        class="flex justify-center items-center h-4.5 px-1 rounded-sm text-muted-foreground data-pressed:bg-red-500 data-pressed:text-foreground"
+                        pressed={Boolean(splitChild())}
+                        onChange={() => {
+                          const partner = splitPartner();
+                          const ctrl = radio()?.slice(partner.id);
+                          batch(() => {
+                            setRuntime("split", props.slice.id, {
+                              child: partner.id,
+                              parent: null,
+                            });
+                            setRuntime("split", partner.id, {
+                              child: null,
+                              parent: props.slice.id,
+                            });
+                            const partnerMute = partner.isMuted;
+                            ctrl.enableTransmit(props.slice.isTransmitEnabled);
+                            ctrl.setMute(props.slice.isMuted);
+                            sliceController().setMute(partnerMute);
+                          });
+                        }}
+                      >
+                        <SwapIcon />
+                      </ToggleButton>
+                    </Show>
                     <ToggleButton
-                      class="flex justify-center items-center h-4.5 font-extrabold px-1 rounded-sm"
-                      classList={{
-                        "bg-red-500": props.slice.isTransmitEnabled,
-                        "opacity-50": !props.slice.isTransmitEnabled,
-                      }}
+                      class="flex justify-center items-center h-4.5 font-extrabold px-1 rounded-sm text-muted-foreground data-pressed:bg-red-500 data-pressed:text-foreground"
                       pressed={props.slice.isTransmitEnabled}
                       onChange={(pressed) => {
                         sliceController().enableTransmit(pressed);

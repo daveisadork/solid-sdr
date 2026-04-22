@@ -1,13 +1,17 @@
-import { ReactiveMap } from "@solid-primitives/map";
 import { createContext, ParentComponent, useContext } from "solid-js";
 import { createStore, SetStoreFunction } from "solid-js/store";
 
+export interface SliceSplitState {
+  parent: string | null;
+  child: string | null;
+}
+
 export interface RuntimeState {
   fps: Record<string, number>;
+  split: Record<string, SliceSplitState>;
 }
 
 const RuntimeContext = createContext<{
-  fps: ReactiveMap<string, number>;
   runtime: RuntimeState;
   setRuntime: SetStoreFunction<RuntimeState>;
 }>();
@@ -21,11 +25,11 @@ export function useRuntime() {
 export const RuntimeProvider: ParentComponent = (props) => {
   const [runtime, setRuntime] = createStore<RuntimeState>({
     fps: {},
+    split: {},
   });
-  const fps = new ReactiveMap<string, number>();
 
   return (
-    <RuntimeContext.Provider value={{ runtime, setRuntime, fps }}>
+    <RuntimeContext.Provider value={{ runtime, setRuntime }}>
       {props.children}
     </RuntimeContext.Provider>
   );

@@ -1,7 +1,7 @@
 import type { RadioSession } from "./radio-core.js";
 import type { SliceSnapshot, SliceStateChange } from "./state/index.js";
 import { TypedEventEmitter, type Subscription } from "../util/events.js";
-import { FlexStateUnavailableError } from "./errors.js";
+import { FlexError, FlexStateUnavailableError } from "./errors.js";
 import {
   formatBooleanFlag,
   formatInteger,
@@ -324,6 +324,11 @@ export interface SliceController extends Readonly<Omit<SliceSnapshot, "raw">> {
    */
   setDiversityEnabled(enabled: boolean): Promise<void>;
   update(request: SliceUpdateRequest): Promise<void>;
+  /**
+   * Creates a new slice on the same panadapter as this one, copying all
+   * settings from this slice. Equivalent to the SmartSDR "Clone Slice" action.
+   */
+  clone(): Promise<SliceController>;
   close(): Promise<void>;
 }
 
@@ -1063,6 +1068,20 @@ export class SliceControllerImpl implements SliceController {
     if (frequencyMHz !== undefined) {
       await this.setFrequency(frequencyMHz);
     }
+  }
+
+  async clone(): Promise<SliceController> {
+    const panStreamId = this.panadapterStreamId;
+    if (!panStreamId)
+      throw new FlexError(`Slice ${this.id} has no associated panadapter`);
+    const response = await this.radio.command(
+      `slice create clone_slice=${this.id} pan=${panStreamId} load_from=clone`,
+    );
+    const newId = response.message?.trim() ?? "";
+    const controller = this.radio.slice(newId);
+    if (!controller)
+      throw new FlexError(`Slice ${newId} not available after clone`);
+    return controller;
   }
 
   async close(): Promise<void> {

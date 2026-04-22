@@ -263,14 +263,20 @@ describe("TNF controller", () => {
     expect(radio.tnf("1")).toBeUndefined();
   });
 
-  it("sends tnf create command with frequency", async () => {
+  it("creates a tnf and returns the controller", async () => {
     // given a connected radio
     const { radio, connection } = await createConnectedRadio();
 
-    // when we create a new tnf
-    await radio.createTnf(14.2);
+    // given the radio will return the new TNF's ID and emit its status
+    connection.emitStatus("S1|tnf 2 freq=14.200000 depth=2 width=0.000100 permanent=0");
+    connection.prepareResponse("tnf create", { message: "2" });
 
-    // then the create command was sent with the frequency
+    // when we create a new tnf
+    const controller = await radio.createTnf(14.2);
+
+    // then the create command was sent and the controller is available
     expect(connection.lastCommand()).toBe("tnf create freq=14.200000");
+    expect(controller.id).toBe("2");
+    expect(controller.frequencyMHz).toBeCloseTo(14.2, 6);
   });
 });

@@ -294,15 +294,22 @@ describe("XVTR controller", () => {
     expect(radio.xvtr("0")).toBeUndefined();
   });
 
-  it("sends xvtr create command", async () => {
+  it("creates an xvtr and returns the controller", async () => {
     // given a connected radio
     const { radio, connection } = await createConnectedRadio();
 
-    // when we create a new xvtr
-    await radio.createXvtr();
+    // given the radio will return the new XVTR's ID and emit its status
+    connection.emitStatus(
+      "S1|xvtr 1 name= rf_freq=0.000000 if_freq=0.000000 lo_error=0.000000 rx_gain=0.00 rx_only=0 max_power=-10.00 order=0 preferred=0 two_meter_int=0 is_valid=0",
+    );
+    connection.prepareResponse("xvtr create", { message: "1" });
 
-    // then the create command was sent
+    // when we create a new xvtr
+    const controller = await radio.createXvtr();
+
+    // then the create command was sent and the controller is available
     expect(connection.lastCommand()).toBe("xvtr create");
+    expect(controller.id).toBe("1");
   });
 
   it("clamps max power to minimum of -10 dBm", async () => {

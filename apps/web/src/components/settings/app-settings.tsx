@@ -1,4 +1,9 @@
-import { usePreferences } from "../../context/preferences";
+import {
+  FillStyle,
+  PanadapterSettingsStyle,
+  PeakStyle,
+  usePreferences,
+} from "../../context/preferences";
 import { Button } from "../ui/button";
 import {
   Dialog,
@@ -94,9 +99,9 @@ export function AppSettings() {
         />
         <SegmentedControl
           value={preferences.peakStyle}
-          onChange={(value) => {
+          onChange={(value: PeakStyle) => {
             if (!value) return;
-            setPreferences("peakStyle", value as "none" | "points" | "line");
+            setPreferences("peakStyle", value);
           }}
         >
           <SegmentedControlLabel>Peak Style</SegmentedControlLabel>
@@ -117,9 +122,9 @@ export function AppSettings() {
         </SegmentedControl>
         <SegmentedControl
           value={preferences.fillStyle}
-          onChange={(value) => {
+          onChange={(value: FillStyle) => {
             if (!value) return;
-            setPreferences("fillStyle", value as "none" | "solid" | "gradient");
+            setPreferences("fillStyle", value);
           }}
         >
           <SegmentedControlLabel>Fill Style</SegmentedControlLabel>
@@ -150,6 +155,31 @@ export function AppSettings() {
             <SegmentedControlIndicator />
             <SegmentedControlItemsList>
               <For each={["color", "classic"]}>
+                {(style) => (
+                  <SegmentedControlItem value={style}>
+                    <SegmentedControlItemLabel class="capitalize">
+                      {style}
+                    </SegmentedControlItemLabel>
+                  </SegmentedControlItem>
+                )}
+              </For>
+            </SegmentedControlItemsList>
+          </SegmentedControlGroup>
+        </SegmentedControl>
+        <SegmentedControl
+          value={preferences.panadapterSettingsStyle}
+          onChange={(value: PanadapterSettingsStyle) => {
+            if (!value) return;
+            setPreferences("panadapterSettingsStyle", value);
+          }}
+        >
+          <SegmentedControlLabel>
+            Panadapter Settings Style
+          </SegmentedControlLabel>
+          <SegmentedControlGroup>
+            <SegmentedControlIndicator />
+            <SegmentedControlItemsList>
+              <For each={["sidebar", "floating"]}>
                 {(style) => (
                   <SegmentedControlItem value={style}>
                     <SegmentedControlItemLabel class="capitalize">

@@ -2,7 +2,15 @@ import useFlexRadio, {
   PanadapterState,
   WaterfallState,
 } from "~/context/flexradio";
-import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  Match,
+  Show,
+  Switch,
+} from "solid-js";
 import {
   NumberField,
   NumberFieldDecrementTrigger,
@@ -56,8 +64,26 @@ import {
   PeakStyle,
   usePreferences,
 } from "~/context/preferences";
-import { Sidebar, SidebarContent } from "../ui/sidebar";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarHeader,
+  SidebarRail,
+} from "../ui/sidebar";
 import { usePanafall } from "~/context/panafall";
+import BaselineDisplaySettings from "~icons/ic/baseline-display-settings";
+import { Card, CardContent } from "../ui/card";
+import { Separator } from "../ui/separator";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "../ui/accordion";
+import { ToggleGroup, ToggleGroupItem } from "../ui/toggle-group";
+import { ToggleButton } from "@kobalte/core/toggle-button";
+import { showToast } from "../ui/toast";
 
 export const BANDS: { id: string; label: string }[] = [
   { id: "160", label: "160m" },
@@ -137,80 +163,153 @@ export function PanafallSettings(props: {
   ]);
 
   return (
-    <div
-      class="flex flex-col gap-4 text-sm select-none"
-      // style={{ "scrollbar-width": "thin" }}
+    <Accordion
+      multiple
+      collapsible
+      // defaultValue={["display", "band", "antenna"]}
+      // value={preferences.sidebarPanels}
+      // onChange={(value) => setPreferences("sidebarPanels", value)}
+      class="select-none h-full flex flex-col"
     >
-      <Select
-        class="flex flex-col gap-2 select-none pt-4"
-        value={state.selectedPanadapter}
-        onChange={(value: string) => {
-          if (!value || value === state.selectedPanadapter) return;
-          setState("selectedPanadapter", value);
-        }}
-        options={panadapters()}
-        itemComponent={(props) => (
-          <SelectItem item={props.item}>{props.item.rawValue}</SelectItem>
-        )}
-      >
-        <SelectLabel class="flex">
-          <div class="grow">Panadapter</div>
-          <Button
-            size="icon"
-            class="size-4"
-            variant="outline"
-            onClick={() => {
+      <AccordionItem value="display">
+        <AccordionTrigger>Display</AccordionTrigger>
+        <AccordionContent>
+          <DisplaySettings
+            panadapter={props.panadapter}
+            panadapterController={props.panadapterController}
+            waterfall={props.waterfall}
+            waterfallController={props.waterfallController}
+          />
+        </AccordionContent>
+      </AccordionItem>
+      <AccordionItem value="band">
+        <AccordionTrigger>Band</AccordionTrigger>
+        <AccordionContent>
+          <BandSettings
+            panadapter={props.panadapter}
+            panadapterController={props.panadapterController}
+          />
+        </AccordionContent>
+      </AccordionItem>
+      <AccordionItem value="antenna">
+        <AccordionTrigger>Antenna</AccordionTrigger>
+        <AccordionContent>
+          <AntennaSettings
+            panadapter={props.panadapter}
+            panadapterController={props.panadapterController}
+          />
+        </AccordionContent>
+      </AccordionItem>
+      <div class="grow" />
+      <div class="p-4">
+        <Button
+          size="sm"
+          variant="destructive"
+          class="w-full"
+          onClick={() => {
+            if (
+              confirm(
+                `Are you sure you want to remove Panadapter ${props.panadapter.id}?`,
+              )
+            ) {
               props.panadapterController.close();
-            }}
-          >
-            -
-          </Button>
-          <Button
-            size="icon"
-            class="size-4"
-            variant="outline"
-            onClick={() => {
-              radio()
-                ?.createPanadapter({
-                  x: props.panadapterController.width,
-                  y: props.panadapterController.height,
-                })
-                .then((controller) => {
-                  setState("selectedPanadapter", controller.id);
-                });
-            }}
-            disabled={state.status.radio.availablePanadapters < 1}
-          >
-            +
-          </Button>
-        </SelectLabel>
-        <SelectTrigger>
-          <SelectValue<string>>{(state) => state.selectedOption()}</SelectValue>
-        </SelectTrigger>
-        <SelectContent />
-      </Select>
-      <Dialog>
-        <DialogTrigger>Show Meters</DialogTrigger>
-        <DialogContent class="size-full max-h-[90vh] overflow-y-hidden pr-3">
-          <DialogHeader>
-            <DialogTitle>Meters</DialogTitle>
-          </DialogHeader>
-          <div class="flex flex-col gap-4 overflow-y-auto pr-3">
-            <For each={Object.values(state.status.meter)}>
-              {(meter) => (
-                <SimpleMeter
-                  meter={meter}
-                  showDescription
-                  showTicks
-                  showTickLabels
-                  containTickLabels
-                  minStops={6}
-                />
-              )}
-            </For>
-          </div>
-        </DialogContent>
-      </Dialog>
+            }
+          }}
+        >
+          Remove Panadapter
+        </Button>
+      </div>
+    </Accordion>
+  );
+}
+
+export function PanafallSettingsSidebar() {
+  const { waterfall, panadapter, waterfallController, panadapterController } =
+    usePanafall();
+  return (
+    <Sidebar
+      gap={true}
+      side="left"
+      variant="floating"
+      class="absolute h-full z-50 pr-0"
+    >
+      <SidebarRail />
+      <SidebarContent
+        class="gap-0 overflow-y-auto overflow-x-hidden pointer-events-auto"
+        style={{
+          "scrollbar-gutter": "stable both-edges",
+          "scrollbar-width": "thin",
+        }}
+      >
+        <PanafallSettings
+          waterfall={waterfall()}
+          panadapter={panadapter()}
+          waterfallController={waterfallController()}
+          panadapterController={panadapterController()}
+        />
+      </SidebarContent>
+    </Sidebar>
+  );
+}
+
+const GROUP_ITEM_CLASS = [
+  "inline-flex",
+  "items-center",
+  "justify-center",
+  "gap-2",
+  "whitespace-nowrap",
+  "rounded-md",
+  "text-sm",
+  "font-medium",
+  "ring-offset-background",
+  "transition-colors",
+  "focus-visible:outline-none",
+  "focus-visible:ring-2",
+  "focus-visible:ring-ring",
+  "focus-visible:ring-offset-2",
+  "disabled:pointer-events-none",
+  "disabled:opacity-50",
+  "[&_svg]:pointer-events-none",
+  "[&_svg]:size-4",
+  "[&_svg]:shrink-0",
+  "shadow",
+  "border",
+  "border-input",
+  // "fancy-bg-background",
+  // "text-foreground",
+  "data-pressed:text-primary-foreground",
+  "",
+  "data-pressed:bg-primary",
+  "p-2",
+].join(" ");
+
+function DisplaySettings(props: {
+  panadapter: PanadapterState;
+  panadapterController: PanadapterController;
+  waterfall: WaterfallState;
+  waterfallController: WaterfallController;
+}) {
+  const { preferences, setPreferences } = usePreferences();
+  const [rawPanBackgroundColor, setRawPanBackgroundColor] = createSignal(
+    preferences.panBackgroundColor,
+  );
+
+  createEffect(() => setRawPanBackgroundColor(preferences.panBackgroundColor));
+
+  createEffect(() => {
+    const rawColor = rawPanBackgroundColor();
+    if (rawColor === preferences.panBackgroundColor) return;
+    try {
+      const color = parseColor(rawColor);
+      console.log(color.toString("css"));
+      setPreferences("panBackgroundColor", rawColor);
+    } catch (_e) {
+      // Invalid color, ignore
+    }
+  });
+
+  return (
+    <div class="text-sm flex flex-col gap-3">
       <SegmentedControl
         value={preferences.peakStyle}
         onChange={(value: PeakStyle) => {
@@ -334,171 +433,6 @@ export function PanafallSettings(props: {
         </SelectTrigger>
         <SelectContent />
       </Select>
-      <Select
-        class="flex flex-col gap-2 select-none"
-        value={props.panadapter.rxAntenna}
-        onChange={(value: string) => {
-          if (!value) return;
-          if (value !== props.panadapter.rxAntenna) {
-            props.panadapterController.setRxAntenna(value);
-          }
-        }}
-        options={Array.from(state.status.radio.rxAntennaList)}
-        itemComponent={(props) => (
-          <SelectItem item={props.item}>{props.item.rawValue}</SelectItem>
-        )}
-      >
-        <SelectLabel>RX Antenna</SelectLabel>
-        <SelectTrigger>
-          <SelectValue<string>>{(state) => state.selectedOption()}</SelectValue>
-        </SelectTrigger>
-        <SelectContent />
-      </Select>
-      <Select
-        class="flex flex-col gap-2 select-none"
-        value={
-          props.panadapter.xvtr
-            ? `x${
-                Object.values(state.status.xvtr).find(
-                  (xvtr) => xvtr.name === props.panadapter.xvtr,
-                ).id
-              }`
-            : props.panadapter.band
-        }
-        onChange={(value: string) => {
-          if (!value) return;
-          props.panadapterController.setBand(value);
-        }}
-        options={bands().map((b) => b.id)}
-        itemComponent={(props) => (
-          <SelectItem item={props.item}>
-            {bands().find((b) => b.id === props.item.rawValue)?.label}
-          </SelectItem>
-        )}
-      >
-        <SelectLabel>Band</SelectLabel>
-        <SelectTrigger>
-          <SelectValue<string>>
-            {(state) =>
-              bands().find((b) => b.id === state.selectedOption())?.label
-            }
-          </SelectValue>
-        </SelectTrigger>
-        <SelectContent />
-      </Select>
-      <NumberField
-        class="flex flex-col gap-2 select-none"
-        rawValue={props.panadapter.centerFrequencyMHz}
-        step={props.panadapter.bandwidthMHz / 10}
-        largeStep={props.panadapter.bandwidthMHz}
-        onFocusOut={() => {
-          const value = rawFrequency();
-          if (value !== props.panadapter.centerFrequencyMHz) {
-            props.panadapterController.setCenterFrequency(value);
-          }
-        }}
-        onRawValueChange={setRawFrequency}
-      >
-        <NumberFieldLabel class="select-none">Center Freq MHz</NumberFieldLabel>
-        <NumberFieldGroup class="select-none">
-          <NumberFieldInput />
-          <NumberFieldIncrementTrigger class="select-none" />
-          <NumberFieldDecrementTrigger class="select-none" />
-        </NumberFieldGroup>
-      </NumberField>
-      <NumberField
-        class="flex flex-col gap-2 select-none"
-        rawValue={props.panadapter.bandwidthMHz}
-        step={props.panadapter.bandwidthMHz / 2}
-        largeStep={props.panadapter.bandwidthMHz}
-        minValue={props.panadapter.minBandwidthMHz}
-        maxValue={props.panadapter.maxBandwidthMHz}
-        onFocusOut={() => {
-          const value = rawBandwidth();
-          if (value !== props.panadapter.bandwidthMHz) {
-            props.panadapterController.setBandwidth(value);
-          }
-        }}
-        onRawValueChange={setRawBandwidth}
-      >
-        <NumberFieldLabel class="select-none">Bandwidth MHz</NumberFieldLabel>
-        <NumberFieldGroup class="select-none">
-          <NumberFieldInput />
-          <NumberFieldIncrementTrigger class="select-none" />
-          <NumberFieldDecrementTrigger class="select-none" />
-        </NumberFieldGroup>
-      </NumberField>
-      <NumberField
-        class="flex flex-col gap-2 select-none"
-        rawValue={props.panadapter.highDbm}
-        onFocusOut={() => {
-          const high = rawHighDbm();
-          if (high !== props.panadapter.highDbm) {
-            props.panadapterController.setDbmRange({ high, low: rawLowDbm() });
-          }
-        }}
-        onRawValueChange={setRawHighDbm}
-      >
-        <NumberFieldLabel class="select-none">High dBm</NumberFieldLabel>
-        <NumberFieldGroup class="select-none">
-          <NumberFieldInput />
-          <NumberFieldIncrementTrigger class="select-none" />
-          <NumberFieldDecrementTrigger class="select-none" />
-        </NumberFieldGroup>
-      </NumberField>
-      <NumberField
-        class="flex flex-col gap-2 select-none"
-        rawValue={props.panadapter.lowDbm}
-        onFocusOut={() => {
-          const low = rawLowDbm();
-          if (low !== props.panadapter.lowDbm) {
-            props.panadapterController.setDbmRange({ high: rawHighDbm(), low });
-          }
-        }}
-        onRawValueChange={setRawLowDbm}
-      >
-        <NumberFieldLabel class="select-none">Low dBm</NumberFieldLabel>
-        <NumberFieldGroup class="select-none">
-          <NumberFieldInput />
-          <NumberFieldIncrementTrigger class="select-none" />
-          <NumberFieldDecrementTrigger class="select-none" />
-        </NumberFieldGroup>
-      </NumberField>
-      <SimpleSwitch
-        checked={state.status.radio.showTxInWaterfall}
-        onChange={(isChecked) => {
-          radio()?.setShowTxInWaterfall(isChecked);
-        }}
-        label="Show TX in Waterfall"
-      />
-      <SimpleSwitch
-        checked={state.status.radio.meterInRx}
-        onChange={(isChecked) => {
-          radio()?.setMeterInRxEnabled(isChecked);
-        }}
-        label="Meters in RX"
-      />
-      <SimpleSwitch
-        checked={props.panadapter.isBandZoomOn}
-        onChange={(isChecked) => {
-          props.panadapterController.setBandZoom(isChecked);
-        }}
-        label="Band Zoom"
-      />
-      <SimpleSwitch
-        checked={props.panadapter.isSegmentZoomOn}
-        onChange={(isChecked) => {
-          props.panadapterController.setSegmentZoom(isChecked);
-        }}
-        label="Segment Zoom"
-      />
-      <SimpleSwitch
-        checked={props.waterfall.autoBlackLevelEnabled}
-        onChange={(isChecked) => {
-          props.waterfallController.setAutoBlackLevelEnabled(isChecked);
-        }}
-        label="Auto Black Level"
-      />
       <SimpleSwitch
         checked={props.panadapter.weightedAverage}
         onChange={(isChecked) => {
@@ -572,7 +506,11 @@ export function PanafallSettings(props: {
         }}
         label="Color Gain"
       />
-      <SimpleSlider
+      <SliderToggle
+        switchChecked={props.waterfall.autoBlackLevelEnabled}
+        onSwitchChange={(isChecked) => {
+          props.waterfallController.setAutoBlackLevelEnabled(isChecked);
+        }}
         minValue={0}
         maxValue={100}
         disabled={props.waterfall.autoBlackLevelEnabled}
@@ -581,7 +519,11 @@ export function PanafallSettings(props: {
           if (value === props.waterfall.blackLevel) return;
           props.waterfallController.setBlackLevel(Math.floor(value));
         }}
-        getValueLabel={(params) => params.values[0]?.toString()}
+        getValueLabel={(params) =>
+          props.waterfall.autoBlackLevelEnabled
+            ? "Auto"
+            : params.values[0]?.toString()
+        }
         label="Black Level"
       />
       <ColorField
@@ -598,48 +540,335 @@ export function PanafallSettings(props: {
           />
         </div>
       </ColorField>
-      <Button
-        variant="destructive"
-        onClick={() => {
-          if (
-            confirm(
-              `Are you sure you want to remove Panadapter ${props.panadapter.id}?`,
-            )
-          ) {
-            props.panadapterController.close();
-          }
-        }}
-      >
-        Remove Panadapter
-      </Button>
     </div>
   );
 }
 
-export function PanafallSettingsSidebar() {
-  const { waterfall, panadapter, waterfallController, panadapterController } =
-    usePanafall();
+function AntennaSettings(props: {
+  panadapter: PanadapterState;
+  panadapterController: PanadapterController;
+}) {
+  const [rawFrequency, setRawFrequency] = createSignal(0);
+  const [rawBandwidth, setRawBandwidth] = createSignal(0);
+  const [rawHighDbm, setRawHighDbm] = createSignal(0);
+  const [rawLowDbm, setRawLowDbm] = createSignal(0);
+
+  createEffect(() => setRawFrequency(props.panadapter.centerFrequencyMHz));
+  createEffect(() => setRawBandwidth(props.panadapter.bandwidthMHz));
+  createEffect(() => setRawHighDbm(props.panadapter.highDbm));
+  createEffect(() => setRawLowDbm(props.panadapter.lowDbm));
+
   return (
-    <Sidebar
-      gap={true}
-      side="left"
-      variant="floating"
-      class="absolute h-full z-50 pr-0"
-    >
-      <SidebarContent
-        class="absolute inset-y-4 inset-x-0 px-4 overflow-y-scroll"
-        style={{
-          "scrollbar-gutter": "stable both-edges",
-          "scrollbar-width": "thin",
+    <div class="text-sm flex flex-col gap-3">
+      <Select
+        class="flex flex-col gap-2 select-none"
+        value={props.panadapter.rxAntenna}
+        onChange={(value: string) => {
+          if (!value) return;
+          if (value !== props.panadapter.rxAntenna) {
+            props.panadapterController.setRxAntenna(value);
+          }
         }}
+        options={Array.from(props.panadapter.rxAntennas)}
+        itemComponent={(props) => (
+          <SelectItem item={props.item}>
+            {props.item.rawValue.replace("_", " ")}
+          </SelectItem>
+        )}
       >
-        <PanafallSettings
-          waterfall={waterfall()}
-          panadapter={panadapter()}
-          waterfallController={waterfallController()}
-          panadapterController={panadapterController()}
-        />
-      </SidebarContent>
-    </Sidebar>
+        <SelectLabel>RX Antenna</SelectLabel>
+        <SelectTrigger>
+          <SelectValue<string>>{(state) => state.selectedOption()}</SelectValue>
+        </SelectTrigger>
+        <SelectContent />
+      </Select>
+      <SimpleSlider
+        minValue={props.panadapter.rfGainLow}
+        maxValue={props.panadapter.rfGainHigh}
+        step={props.panadapter.rfGainStep}
+        value={[props.panadapter.rfGain]}
+        onChange={([value]) => {
+          if (value === props.panadapter.rfGain) return;
+          props.panadapterController.setRfGain(value);
+        }}
+        getValueLabel={(params) => {
+          const value = params.values[0];
+          return `${value > 0 ? "+" : ""}${value} dB`;
+        }}
+        label="RF Gain"
+      />
+      <SliderToggle
+        disabled={!props.panadapter.wnbEnabled}
+        minValue={0}
+        maxValue={100}
+        value={[props.panadapter.wnbLevel]}
+        onChange={([value]) => {
+          props.panadapterController.setWnbLevel(value);
+        }}
+        getValueLabel={(params) => `${params.values[0]}%`}
+        label="WNB"
+        switchChecked={props.panadapter.wnbEnabled}
+        onSwitchChange={(isChecked) => {
+          props.panadapterController.setWnbEnabled(isChecked);
+        }}
+      />
+
+      <NumberField
+        class="flex flex-col gap-2 select-none"
+        rawValue={props.panadapter.centerFrequencyMHz}
+        step={props.panadapter.bandwidthMHz / 10}
+        largeStep={props.panadapter.bandwidthMHz}
+        onFocusOut={() => {
+          const value = rawFrequency();
+          if (value !== props.panadapter.centerFrequencyMHz) {
+            props.panadapterController.setCenterFrequency(value);
+          }
+        }}
+        onRawValueChange={setRawFrequency}
+        format={false}
+      >
+        <NumberFieldLabel class="select-none">Center Freq MHz</NumberFieldLabel>
+        <NumberFieldGroup class="select-none">
+          <NumberFieldInput />
+          <NumberFieldIncrementTrigger class="select-none" />
+          <NumberFieldDecrementTrigger class="select-none" />
+        </NumberFieldGroup>
+      </NumberField>
+      <NumberField
+        class="flex flex-col gap-2 select-none"
+        rawValue={props.panadapter.bandwidthMHz}
+        step={props.panadapter.bandwidthMHz / 2}
+        largeStep={props.panadapter.bandwidthMHz}
+        minValue={props.panadapter.minBandwidthMHz}
+        maxValue={props.panadapter.maxBandwidthMHz}
+        onFocusOut={() => {
+          const value = rawBandwidth();
+          if (value !== props.panadapter.bandwidthMHz) {
+            props.panadapterController.setBandwidth(value);
+          }
+        }}
+        onRawValueChange={setRawBandwidth}
+        format={false}
+      >
+        <NumberFieldLabel class="select-none">Bandwidth MHz</NumberFieldLabel>
+        <NumberFieldGroup class="select-none">
+          <NumberFieldInput />
+          <NumberFieldIncrementTrigger class="select-none" />
+          <NumberFieldDecrementTrigger class="select-none" />
+        </NumberFieldGroup>
+      </NumberField>
+      <NumberField
+        class="flex flex-col gap-2 select-none"
+        rawValue={props.panadapter.highDbm}
+        onFocusOut={() => {
+          const high = rawHighDbm();
+          if (high !== props.panadapter.highDbm) {
+            props.panadapterController.setDbmRange({
+              high,
+              low: rawLowDbm(),
+            });
+          }
+        }}
+        onRawValueChange={setRawHighDbm}
+      >
+        <NumberFieldLabel class="select-none">High dBm</NumberFieldLabel>
+        <NumberFieldGroup class="select-none">
+          <NumberFieldInput />
+          <NumberFieldIncrementTrigger class="select-none" />
+          <NumberFieldDecrementTrigger class="select-none" />
+        </NumberFieldGroup>
+      </NumberField>
+      <NumberField
+        class="flex flex-col gap-2 select-none"
+        rawValue={props.panadapter.lowDbm}
+        onFocusOut={() => {
+          const low = rawLowDbm();
+          if (low !== props.panadapter.lowDbm) {
+            props.panadapterController.setDbmRange({
+              high: rawHighDbm(),
+              low,
+            });
+          }
+        }}
+        onRawValueChange={setRawLowDbm}
+      >
+        <NumberFieldLabel class="select-none">Low dBm</NumberFieldLabel>
+        <NumberFieldGroup class="select-none">
+          <NumberFieldInput />
+          <NumberFieldIncrementTrigger class="select-none" />
+          <NumberFieldDecrementTrigger class="select-none" />
+        </NumberFieldGroup>
+      </NumberField>
+      <SimpleSwitch
+        checked={props.panadapter.isBandZoomOn}
+        onChange={(isChecked) => {
+          props.panadapterController.setBandZoom(isChecked);
+        }}
+        label="Band Zoom"
+      />
+      <SimpleSwitch
+        checked={props.panadapter.isSegmentZoomOn}
+        onChange={(isChecked) => {
+          props.panadapterController.setSegmentZoom(isChecked);
+        }}
+        label="Segment Zoom"
+      />
+    </div>
+  );
+}
+
+function BandSettings(props: {
+  panadapter: PanadapterState;
+  panadapterController: PanadapterController;
+}) {
+  const { state } = useFlexRadio();
+  return (
+    <ToggleGroup
+      class="grid grid-cols-3 gap-1"
+      value={
+        props.panadapter.xvtr
+          ? `x${
+              Object.values(state.status.xvtr).find(
+                (xvtr) => xvtr.name === props.panadapter.xvtr,
+              ).id
+            }`
+          : props.panadapter.band
+      }
+      onChange={(value: string) => props.panadapterController.setBand(value)}
+    >
+      <For each={BANDS}>
+        {(band) => (
+          <ToggleGroupItem variant="outline" value={band.id}>
+            {band.label}
+          </ToggleGroupItem>
+        )}
+      </For>
+      <Show when={Object.keys(state.status.xvtr)?.length > 0}>
+        <Separator class="col-span-3 my-2" />
+        <For each={Object.values(state.status.xvtr)}>
+          {(xvtr) => (
+            <ToggleGroupItem
+              variant="outline"
+              value={`x${xvtr.id}`}
+              onClick={() => props.panadapterController.setBand("none")}
+            >
+              {xvtr.name}
+            </ToggleGroupItem>
+          )}
+        </For>
+      </Show>
+    </ToggleGroup>
+  );
+}
+
+export function PanSettings() {
+  const [open, setOpen] = createSignal(false);
+  const [openSection, setOpenSection] = createSignal<string | null>();
+  const { panadapter, panadapterController, waterfall, waterfallController } =
+    usePanafall();
+
+  const { radio } = useFlexRadio();
+
+  createEffect(() => {
+    panadapterController()?.refreshRfGainInfo();
+  });
+
+  return (
+    <div class="absolute size-full p-2 flex z-50 pointer-events-none">
+      <div class="h-auto">
+        <ToggleGroup
+          class="grid grid-cols-1 gap-1 pointer-events-auto rounded-lg fancy-bg-card border shadow-black"
+          classList={{
+            "aspect-square": !open(),
+            "p-2": open(),
+            "rounded-r-none border-r-0": Boolean(openSection()) && open(),
+          }}
+          value={openSection()}
+          onChange={setOpenSection}
+        >
+          <ToggleButton
+            as={Button}
+            size="xs"
+            variant="ghost"
+            pressed={open()}
+            onChange={setOpen}
+          >
+            <BaselineDisplaySettings />
+          </ToggleButton>
+          <Show when={open()}>
+            <Button
+              size="xs"
+              variant="ghost"
+              onClick={() =>
+                radio()
+                  .requestSlice({
+                    panadapterStreamId: panadapter().streamId,
+                  })
+                  .catch((e) => {
+                    showToast({
+                      variant: "error",
+                      description: e.codeDescription,
+                    });
+                  })
+              }
+            >
+              +RX
+            </Button>
+            <Button
+              size="xs"
+              variant="ghost"
+              onClick={() => radio().createTnf(panadapter().centerFrequencyMHz)}
+            >
+              +TNF
+            </Button>
+            <ToggleGroupItem value="display" class="h-6 px-2 text-xs">
+              Display
+            </ToggleGroupItem>
+            <ToggleGroupItem value="band" class="h-6 px-2 text-xs">
+              Band
+            </ToggleGroupItem>
+            <ToggleGroupItem value="antenna" class="h-6 px-2 text-xs">
+              Antenna
+            </ToggleGroupItem>
+          </Show>
+        </ToggleGroup>
+      </div>
+      <Show when={open() && openSection()}>
+        <div class="flex flex-col">
+          <Card
+            class="rounded-tl-none w-64 fancy-bg-card! pointer-events-auto overflow-auto shadow-black"
+            style={{
+              "scrollbar-gutter": "stable both-edges",
+              "scrollbar-width": "thin",
+            }}
+          >
+            <CardContent class="p-4">
+              <Switch>
+                <Match when={openSection() === "display"}>
+                  <DisplaySettings
+                    panadapter={panadapter()}
+                    panadapterController={panadapterController()}
+                    waterfall={waterfall()}
+                    waterfallController={waterfallController()}
+                  />
+                </Match>
+                <Match when={openSection() === "band"}>
+                  <BandSettings
+                    panadapter={panadapter()}
+                    panadapterController={panadapterController()}
+                  />
+                </Match>
+                <Match when={openSection() === "antenna"}>
+                  <AntennaSettings
+                    panadapter={panadapter()}
+                    panadapterController={panadapterController()}
+                  />
+                </Match>
+              </Switch>
+            </CardContent>
+          </Card>
+        </div>
+      </Show>
+    </div>
   );
 }

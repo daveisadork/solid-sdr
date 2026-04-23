@@ -12,6 +12,7 @@ import { DaxChannelMode } from "~/lib/dax-audio-sink/types";
 export type PeakStyle = "none" | "points" | "line";
 export type FillStyle = "none" | "solid" | "gradient";
 export type GradientStyle = "color" | "classic";
+export type PanadapterSettingsStyle = "sidebar" | "floating";
 
 export interface Gradient {
   name: string;
@@ -59,6 +60,7 @@ export interface Preferences {
   outputDeviceId: string;
   panadapterSizes: number[][];
   panadapterSettingsOpen: boolean[];
+  panadapterSettingsStyle: PanadapterSettingsStyle;
   radioPanelOpen: boolean;
   sidebarPanels: string[];
   daxRxConfig: Record<number, DaxRxConfig>;
@@ -112,6 +114,7 @@ const initialPreferences = () =>
     sMeterEnabled: true,
     showTuningGuide: false,
     preventScreenSleep: false,
+    panadapterSettingsStyle: "floating",
     panadapterSizes: [],
     enableRemoteAudio: true,
     inputDeviceId: "default",
@@ -195,106 +198,106 @@ const initialPreferences = () =>
             { color: "#ffffff", offset: 1.0 },
           ],
         },
-        {
-          name: "Vintage Warm",
-          stops: [
-            { color: "#000000", offset: 0.0 },
-            { color: "#1d4877", offset: 0.15 },
-            { color: "#1ba4a1", offset: 0.25 },
-            { color: "#1b8a5a", offset: 0.35 },
-            { color: "#fbb021", offset: 0.55 },
-            { color: "#ee3e32", offset: 0.6 },
-            { color: "#ffffff", offset: 1.0 },
-          ],
-        },
-        {
-          name: "Vintage Warm + Pink",
-          stops: [
-            { color: "#000000", offset: 0.0 },
-            { color: "#1d4877", offset: 0.15 },
-            { color: "#1ba4a1", offset: 0.225 },
-            { color: "#1b8a5a", offset: 0.3 },
-            { color: "#fbb021", offset: 0.45 },
-            { color: "#f68838", offset: 0.525 },
-            { color: "#ee3e32", offset: 0.6 },
-            { color: "#f36a82", offset: 0.75 },
-            { color: "#ffffff", offset: 1.0 },
-          ],
-        },
-        {
-          name: "CMYK",
-          stops: [
-            { color: "#000000", offset: 0.0 },
-            { color: "#00ffff", offset: 0.25 },
-            { color: "#ffff00", offset: 0.5 },
-            { color: "#ff00ff", offset: 0.75 },
-            { color: "#ffffff", offset: 1.0 },
-          ],
-        },
-        {
-          name: "RGB",
-          stops: [
-            { color: "#000000", offset: 0.0 },
-            { color: "#0000ff", offset: 0.25 },
-            { color: "#00ff00", offset: 0.5 },
-            { color: "#ff0000", offset: 0.75 },
-            { color: "#ffffff", offset: 1.0 },
-          ],
-        },
-        {
-          name: "Solarized",
-          stops: [
-            { color: "#002b36", offset: 0.0 },
-            { color: "#268bd2", offset: 0.15 },
-            { color: "#2aa198", offset: 0.25 },
-            { color: "#859900", offset: 0.35 },
-            { color: "#b58900", offset: 0.55 },
-            { color: "#dc322f", offset: 0.9 },
-            { color: "#ffffff", offset: 1.0 },
-          ],
-        },
-        {
-          name: "Solarized + Pink",
-          stops: [
-            { color: "#002b36", offset: 0.0 },
-            { color: "#268bd2", offset: 0.15 },
-            { color: "#2aa198", offset: 0.225 },
-            { color: "#859900", offset: 0.3 },
-            { color: "#b58900", offset: 0.45 },
-            { color: "#cb4b16", offset: 0.525 },
-            { color: "#dc322f", offset: 0.6 },
-            { color: "#d33682", offset: 0.75 },
-            { color: "#ffffff", offset: 1.0 },
-          ],
-        },
-        {
-          name: "High Contrast",
-          stops: [
-            { color: "#000000", offset: 0.0 },
-            { color: "#000080", offset: 0.15 },
-            { color: "#00ffff", offset: 0.25 },
-            { color: "#00ff00", offset: 0.3 },
-            { color: "#ffff00", offset: 0.45 },
-            { color: "#ff0000", offset: 0.6 },
-            { color: "#ff00ff", offset: 0.75 },
-            { color: "#ffffff", offset: 1.0 },
-          ],
-        },
-        {
-          name: "Contrasty",
-          stops: [
-            { color: "#000000", offset: 0.1 },
-            // { color: "#400040", offset: 0.2 },
-            { color: "#2a1049", offset: 0.2 },
-            // { color: "#1f6a96", offset: 0.3 },
-            { color: "#0090e2", offset: 0.4 },
-            { color: "#009bb1", offset: 0.5 },
-            { color: "#bedf0d", offset: 0.6 },
-            // { color: "#ff0000", offset: 0.6 },
-            { color: "#ff00ff", offset: 0.7 },
-            { color: "#ffffff", offset: 1.0 },
-          ],
-        },
+        // {
+        //   name: "Vintage Warm",
+        //   stops: [
+        //     { color: "#000000", offset: 0.0 },
+        //     { color: "#1d4877", offset: 0.15 },
+        //     { color: "#1ba4a1", offset: 0.25 },
+        //     { color: "#1b8a5a", offset: 0.35 },
+        //     { color: "#fbb021", offset: 0.55 },
+        //     { color: "#ee3e32", offset: 0.6 },
+        //     { color: "#ffffff", offset: 1.0 },
+        //   ],
+        // },
+        // {
+        //   name: "Vintage Warm + Pink",
+        //   stops: [
+        //     { color: "#000000", offset: 0.0 },
+        //     { color: "#1d4877", offset: 0.15 },
+        //     { color: "#1ba4a1", offset: 0.225 },
+        //     { color: "#1b8a5a", offset: 0.3 },
+        //     { color: "#fbb021", offset: 0.45 },
+        //     { color: "#f68838", offset: 0.525 },
+        //     { color: "#ee3e32", offset: 0.6 },
+        //     { color: "#f36a82", offset: 0.75 },
+        //     { color: "#ffffff", offset: 1.0 },
+        //   ],
+        // },
+        // {
+        //   name: "CMYK",
+        //   stops: [
+        //     { color: "#000000", offset: 0.0 },
+        //     { color: "#00ffff", offset: 0.25 },
+        //     { color: "#ffff00", offset: 0.5 },
+        //     { color: "#ff00ff", offset: 0.75 },
+        //     { color: "#ffffff", offset: 1.0 },
+        //   ],
+        // },
+        // {
+        //   name: "RGB",
+        //   stops: [
+        //     { color: "#000000", offset: 0.0 },
+        //     { color: "#0000ff", offset: 0.25 },
+        //     { color: "#00ff00", offset: 0.5 },
+        //     { color: "#ff0000", offset: 0.75 },
+        //     { color: "#ffffff", offset: 1.0 },
+        //   ],
+        // },
+        // {
+        //   name: "Solarized",
+        //   stops: [
+        //     { color: "#002b36", offset: 0.0 },
+        //     { color: "#268bd2", offset: 0.15 },
+        //     { color: "#2aa198", offset: 0.25 },
+        //     { color: "#859900", offset: 0.35 },
+        //     { color: "#b58900", offset: 0.55 },
+        //     { color: "#dc322f", offset: 0.9 },
+        //     { color: "#ffffff", offset: 1.0 },
+        //   ],
+        // },
+        // {
+        //   name: "Solarized + Pink",
+        //   stops: [
+        //     { color: "#002b36", offset: 0.0 },
+        //     { color: "#268bd2", offset: 0.15 },
+        //     { color: "#2aa198", offset: 0.225 },
+        //     { color: "#859900", offset: 0.3 },
+        //     { color: "#b58900", offset: 0.45 },
+        //     { color: "#cb4b16", offset: 0.525 },
+        //     { color: "#dc322f", offset: 0.6 },
+        //     { color: "#d33682", offset: 0.75 },
+        //     { color: "#ffffff", offset: 1.0 },
+        //   ],
+        // },
+        // {
+        //   name: "High Contrast",
+        //   stops: [
+        //     { color: "#000000", offset: 0.0 },
+        //     { color: "#000080", offset: 0.15 },
+        //     { color: "#00ffff", offset: 0.25 },
+        //     { color: "#00ff00", offset: 0.3 },
+        //     { color: "#ffff00", offset: 0.45 },
+        //     { color: "#ff0000", offset: 0.6 },
+        //     { color: "#ff00ff", offset: 0.75 },
+        //     { color: "#ffffff", offset: 1.0 },
+        //   ],
+        // },
+        // {
+        //   name: "Contrasty",
+        //   stops: [
+        //     { color: "#000000", offset: 0.1 },
+        //     // { color: "#400040", offset: 0.2 },
+        //     { color: "#2a1049", offset: 0.2 },
+        //     // { color: "#1f6a96", offset: 0.3 },
+        //     { color: "#0090e2", offset: 0.4 },
+        //     { color: "#009bb1", offset: 0.5 },
+        //     { color: "#bedf0d", offset: 0.6 },
+        //     // { color: "#ff0000", offset: 0.6 },
+        //     { color: "#ff00ff", offset: 0.7 },
+        //     { color: "#ffffff", offset: 1.0 },
+        //   ],
+        // },
         {
           name: "Spectral",
           stops: [

@@ -22,6 +22,7 @@ import {
 import { createElementBounds } from "@solid-primitives/bounds";
 import { usePreferences } from "./preferences";
 import { debounce } from "@solid-primitives/scheduled";
+import { roundToDecimals } from "~/lib/utils";
 
 export type PanafallSpot = SpotState & {
   x: number;
@@ -139,7 +140,7 @@ export const PanafallProvider: ParentComponent<{ streamId?: string }> = (
   const pxToMHz = (px: number) => {
     const pan = panadapter();
     if (!pan || !pan.bandwidthMHz || !pan.width) return 0;
-    return px * mhzPerPx();
+    return roundToDecimals(px * mhzPerPx(), 6);
   };
 
   const xToFreq = (x: number) => {
@@ -150,7 +151,7 @@ export const PanafallProvider: ParentComponent<{ streamId?: string }> = (
       ? x
       : x - panafallBounds.left;
     const offsetMHz = pxToMHz(offsetPx - pan.width / 2);
-    return centerFreq + offsetMHz;
+    return roundToDecimals(centerFreq + offsetMHz, 6);
   };
 
   const freqToX = (freq: number) => {

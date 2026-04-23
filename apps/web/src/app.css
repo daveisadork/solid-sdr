@@ -468,12 +468,20 @@ body,
 }
 
 .tnf-stripes {
-  background: repeating-linear-gradient(
-    315deg,
+  @apply border-x-(--tnf-color);
+  --tnf-transparency-color: oklch(from var(--tnf-color) l c h / 0.3);
+  background-image: repeating-linear-gradient(
+    135deg,
     var(--tnf-color),
     var(--tnf-color) 1px,
-    oklch(from var(--tnf-color) l c h / 0.3) 1px,
-    oklch(from var(--tnf-color) l c h / 0.3) calc(12px / var(--tnf-depth, 1))
+    var(--tnf-transparency-color) 1px,
+    var(--tnf-transparency-color) calc(12px / var(--tnf-depth, 1))
   );
-  @apply border-x-(--tnf-color);
+  background-image: -webkit-repeating-linear-gradient(
+    135deg,
+    var(--tnf-color),
+    var(--tnf-color) 1px,
+    var(--tnf-transparency-color) 1px,
+    var(--tnf-transparency-color) calc(12px / var(--tnf-depth, 1))
+  );
 }

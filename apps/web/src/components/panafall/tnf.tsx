@@ -172,7 +172,7 @@ export function Tnf(props: { tnf: TnfState; pan: PanadapterState }) {
                 <ContextMenuSeparator />
                 <ContextMenuItem
                   class="pl-8"
-                  onClick={() => tnfCtrl()?.remove()}
+                  onSelect={() => tnfCtrl()?.remove()}
                 >
                   <div class="absolute left-2 flex size-3.5 items-center justify-center">
                     <BaselineDelete />

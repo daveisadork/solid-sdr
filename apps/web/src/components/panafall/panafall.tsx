@@ -386,7 +386,7 @@ export function Panafall(props: { index: number }) {
                       </ContextMenuCheckboxItem>
                       <ContextMenuItem
                         class="pl-8"
-                        onClick={() => {
+                        onSelect={() => {
                           radio().requestSlice({
                             panadapterStreamId: pan().streamId,
                             frequencyMHz: roundToDecimals(xToFreq(pos.x), 3),
@@ -401,7 +401,7 @@ export function Panafall(props: { index: number }) {
                       </ContextMenuItem>
                       <ContextMenuItem
                         class="pl-8"
-                        onClick={() => {
+                        onSelect={() => {
                           radio().createTnf(roundToDecimals(xToFreq(pos.x), 6));
                         }}
                       >

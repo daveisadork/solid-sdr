@@ -268,12 +268,12 @@ export function DetachedSlice(props: {
         <span class="text-[0.5rem] italic font-normal leading-tight">
           {props.slice.frequencyMHz}
         </span>
-        <Show when={props.slice.frequencyMHz > props.pan.centerFrequencyMHz}>
-          <div class="flex w-3.5 max-w-3.5 justify-center">
-            <BaselineChevronRight />
-          </div>
-        </Show>
       </div>
+      <Show when={props.slice.frequencyMHz > props.pan.centerFrequencyMHz}>
+        <div class="flex w-3.5 max-w-3.5 justify-center">
+          <BaselineChevronRight />
+        </div>
+      </Show>
     </Button>
   );
 }

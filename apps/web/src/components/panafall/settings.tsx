@@ -84,6 +84,7 @@ import {
 import { ToggleGroup, ToggleGroupItem } from "../ui/toggle-group";
 import { ToggleButton } from "@kobalte/core/toggle-button";
 import { showToast } from "../ui/toast";
+import { DismissableLayer } from "@kobalte/core/src/dismissable-layer/dismissable-layer.jsx";
 
 export const BANDS: { id: string; label: string }[] = [
   { id: "160", label: "160m" },
@@ -767,6 +768,8 @@ export function PanSettings() {
   const { panadapter, panadapterController, waterfall, waterfallController } =
     usePanafall();
 
+  const [menuRef, setMenuRef] = createSignal<HTMLElement>();
+
   const { radio } = useFlexRadio();
 
   createEffect(() => {
@@ -774,8 +777,8 @@ export function PanSettings() {
   });
 
   return (
-    <div class="absolute size-full p-2 flex z-50 pointer-events-none">
-      <div class="h-auto">
+    <div class="absolute max-h-full p-2 flex z-50 pointer-events-none">
+      <div ref={setMenuRef}>
         <ToggleGroup
           class="grid grid-cols-1 gap-1 pointer-events-auto rounded-lg fancy-bg-card border shadow-black"
           classList={{
@@ -833,42 +836,49 @@ export function PanSettings() {
           </Show>
         </ToggleGroup>
       </div>
-      <Show when={open() && openSection()}>
-        <div class="flex flex-col">
-          <Card
-            class="rounded-tl-none w-64 fancy-bg-card! pointer-events-auto overflow-auto shadow-black"
-            style={{
-              "scrollbar-gutter": "stable both-edges",
-              "scrollbar-width": "thin",
-            }}
+      <div>
+        <Show when={open() && openSection()}>
+          <DismissableLayer
+            class="flex flex-col"
+            onFocusOutside={(e) => e.preventDefault()}
+            onDismiss={() => setOpen(false)}
+            excludedElements={[menuRef]}
           >
-            <CardContent class="p-4">
-              <Switch>
-                <Match when={openSection() === "display"}>
-                  <DisplaySettings
-                    panadapter={panadapter()}
-                    panadapterController={panadapterController()}
-                    waterfall={waterfall()}
-                    waterfallController={waterfallController()}
-                  />
-                </Match>
-                <Match when={openSection() === "band"}>
-                  <BandSettings
-                    panadapter={panadapter()}
-                    panadapterController={panadapterController()}
-                  />
-                </Match>
-                <Match when={openSection() === "antenna"}>
-                  <AntennaSettings
-                    panadapter={panadapter()}
-                    panadapterController={panadapterController()}
-                  />
-                </Match>
-              </Switch>
-            </CardContent>
-          </Card>
-        </div>
-      </Show>
+            <Card
+              class="rounded-tl-none w-64 fancy-bg-card! pointer-events-auto overflow-auto shadow-black"
+              style={{
+                "scrollbar-gutter": "stable both-edges",
+                "scrollbar-width": "thin",
+              }}
+            >
+              <CardContent class="p-4">
+                <Switch>
+                  <Match when={openSection() === "display"}>
+                    <DisplaySettings
+                      panadapter={panadapter()}
+                      panadapterController={panadapterController()}
+                      waterfall={waterfall()}
+                      waterfallController={waterfallController()}
+                    />
+                  </Match>
+                  <Match when={openSection() === "band"}>
+                    <BandSettings
+                      panadapter={panadapter()}
+                      panadapterController={panadapterController()}
+                    />
+                  </Match>
+                  <Match when={openSection() === "antenna"}>
+                    <AntennaSettings
+                      panadapter={panadapter()}
+                      panadapterController={panadapterController()}
+                    />
+                  </Match>
+                </Switch>
+              </CardContent>
+            </Card>
+          </DismissableLayer>
+        </Show>
+      </div>
     </div>
   );
 }

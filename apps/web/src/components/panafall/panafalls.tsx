@@ -6,9 +6,6 @@ import { PanafallSettingsSidebar, PanSettings } from "./settings";
 import { Panafall } from "./panafall";
 import BaselineDisplaySettings from "~icons/ic/baseline-display-settings";
 import { usePreferences } from "~/context/preferences";
-import { ToggleGroup } from "../ui/toggle-group";
-import { ToggleButton } from "@kobalte/core/toggle-button";
-import { Button } from "../ui/button";
 
 export function Panafalls() {
   const { state } = useFlexRadio();
@@ -20,7 +17,7 @@ export function Panafalls() {
       .toSorted(),
   );
   return (
-    <div class="flex flex-col relative size-full">
+    <div class="flex flex-col relative size-full select-none">
       <For each={panafalls()}>
         {(streamId, index) => (
           <PanafallProvider streamId={streamId}>
@@ -32,7 +29,7 @@ export function Panafalls() {
               onOpenChange={(open) =>
                 setPreferences("panadapterSettingsOpen", index(), open)
               }
-              class="relative grow h-auto overflow-visible min-h-0 bg-transparent"
+              class="relative grow h-auto overflow-visible min-h-0 bg-transparent select-none"
             >
               <Switch>
                 <Match when={preferences.panadapterSettingsStyle === "sidebar"}>

@@ -14,161 +14,203 @@ import {
   ContextMenuSubTrigger,
   ContextMenuRadioGroup,
   ContextMenuRadioItem,
+  ContextMenuGroup,
+  ContextMenuGroupLabel,
 } from "../ui/context-menu";
 import BaselineDelete from "~icons/ic/baseline-delete";
 import MaterialSymbolsFitPageWidthOutline from "~icons/material-symbols/fit-page-width-outline";
 import MaterialSymbolsFitPageHeightOutline from "~icons/material-symbols/fit-page-height-outline";
 import { createStore } from "solid-js/store";
 import { createPointerListeners } from "@solid-primitives/pointer";
+import {
+  Tooltip,
+  TooltipArrow,
+  TooltipContent,
+  TooltipTrigger,
+} from "../ui/tooltip";
+import { batch, createEffect, createSignal } from "solid-js";
+import { Separator } from "../ui/separator";
+
+const MHZ = 1_000_000;
+const TNF_MIN = 5 / MHZ;
+const TNF_MAX = 6_000 / MHZ;
+const TNF_STEP = 50;
+
+function quantizeBandwidth(bandwidthMHz: number) {
+  const quantized =
+    (Math.round((bandwidthMHz * MHZ) / TNF_STEP) / MHZ) * TNF_STEP;
+  return Math.min(Math.max(quantized, TNF_MIN), TNF_MAX);
+}
 
 export function Tnf(props: { tnf: TnfState; pan: PanadapterState }) {
   const { radio, state, setState } = useFlexRadio();
-  const { freqToX, mhzToPx, xToFreq } = usePanafall();
+  const { freqToX, mhzToPx, xToFreq, pxToMHz } = usePanafall();
   const [dragState, setDragState] = createStore({
+    down: false,
     dragging: false,
     originX: 0,
     originFreq: 0,
-    offset: 0,
   });
+
+  const [tooltipOpen, setTooltipOpen] = createSignal(false);
+  const [contextMenuOpen, setContextMenuOpen] = createSignal(false);
 
   const tnfCtrl = () => radio()?.tnf(props.tnf.id);
 
   createPointerListeners({
     async onMove(event) {
-      if (!dragState.dragging) return;
-      const newX = Math.max(0, Math.min(event.x, props.pan.width - 1));
-      const freq = xToFreq(newX);
+      if (!dragState.down) return;
+      const freq = dragState.originFreq + pxToMHz(event.x - dragState.originX);
+      const bandwidthChangeMHz =
+        Math.round(-event.movementY * TNF_STEP) / 1_000_000;
+      const bandwidth = quantizeBandwidth(
+        props.tnf.bandwidthMHz + bandwidthChangeMHz,
+      );
 
-      if (freq === props.tnf.frequencyMHz) {
-        return;
-      }
-
-      await tnfCtrl()?.setFrequency(freq);
+      batch(() => {
+        setDragState("dragging", true);
+        if (freq !== props.tnf.frequencyMHz) {
+          tnfCtrl()?.setFrequency(freq);
+        }
+        if (bandwidth !== props.tnf.bandwidthMHz) {
+          tnfCtrl()?.setBandwidth(bandwidth);
+        }
+      });
     },
     onUp() {
-      setDragState("dragging", false);
+      setDragState({
+        down: false,
+        dragging: false,
+      });
     },
     onLeave() {
-      setDragState("dragging", false);
+      setDragState({
+        down: false,
+        dragging: false,
+      });
     },
   });
 
   return (
-    <ContextMenu>
-      <ContextMenuTrigger
-        class="absolute left-(--tnf-offset) -translate-x-1/2 inset-y-0 w-(--tnf-width) border-x tnf-stripes pointer-events-auto"
-        classList={{
-          "cursor-pointer": !dragState.dragging,
-          "cursor-grabbing": dragState.dragging,
+    <div
+      class="absolute left-(--tnf-offset) -translate-x-1/2 inset-y-0 w-(--tnf-width) pointer-events-auto cursor-move"
+      style={{
+        "--tnf-color": props.tnf.permanent
+          ? "var(--color-green-500)"
+          : "var(--color-yellow-500)",
+        "--tnf-offset": `${freqToX(props.tnf.frequencyMHz)}px`,
+        "--tnf-width": `${Math.max(1, Math.round(mhzToPx(props.tnf.bandwidthMHz))) + 2}px`,
+        "--tnf-depth": props.tnf.depth,
+      }}
+      onPointerDown={(event) => {
+        if (event.button !== 0) return;
+        setDragState({
+          down: true,
+          originX: event.clientX,
+          originFreq: props.tnf.frequencyMHz,
+        });
+      }}
+    >
+      <ContextMenu
+        onOpenChange={(open) => {
+          if (open) setDragState("dragging", false);
+          setContextMenuOpen(open);
         }}
-        style={{
-          "--tnf-color": props.tnf.permanent
-            ? "var(--color-green-500)"
-            : "var(--color-yellow-500)",
-          "--tnf-offset": `${freqToX(props.tnf.frequencyMHz)}px`,
-          "--tnf-width": `${Math.max(1, Math.round(mhzToPx(props.tnf.bandwidthMHz))) + 2}px`,
-        }}
-        onPointerDown={(event) => {
-          setDragState({
-            dragging: true,
-            originX: event.clientX,
-            originFreq: props.tnf.frequencyMHz,
-            offset: 0,
-          });
-        }}
-      />
-      <ContextMenuPortal>
-        <ContextMenuContent>
-          <ContextMenuItem class="pl-8" onClick={() => tnfCtrl()?.remove()}>
-            <div class="absolute left-2 flex size-3.5 items-center justify-center">
-              <BaselineDelete />
-            </div>
-            Remove TNF
-          </ContextMenuItem>
-          <ContextMenuSub overlap>
-            <ContextMenuSubTrigger class="pl-8">
-              <div class="absolute left-3 flex size-3.5 items-center justify-center">
-                <MaterialSymbolsFitPageWidthOutline />
-              </div>
-              Width
-            </ContextMenuSubTrigger>
-            <ContextMenuPortal>
-              <ContextMenuSubContent>
-                <ContextMenuRadioGroup
-                  value={(props.tnf.bandwidthMHz * 1_000_000).toString()}
-                  onChange={(value) =>
-                    tnfCtrl()?.setBandwidth(Number(value) / 1_000_000)
-                  }
-                >
-                  <ContextMenuRadioItem value="50">50 Hz</ContextMenuRadioItem>
-                  <ContextMenuRadioItem value="100">
-                    100 Hz
-                  </ContextMenuRadioItem>
-                  <ContextMenuRadioItem value="200">
-                    200 Hz
-                  </ContextMenuRadioItem>
-                  <ContextMenuRadioItem value="500">
-                    500 Hz
-                  </ContextMenuRadioItem>
-                </ContextMenuRadioGroup>
-              </ContextMenuSubContent>
-            </ContextMenuPortal>
-          </ContextMenuSub>
-          <ContextMenuSub overlap>
-            <ContextMenuSubTrigger class="pl-8">
-              <div class="absolute left-3 flex size-3.5 items-center justify-center">
-                <MaterialSymbolsFitPageHeightOutline />
-              </div>
-              Depth
-            </ContextMenuSubTrigger>
-            <ContextMenuPortal>
-              <ContextMenuSubContent>
-                <ContextMenuRadioGroup
-                  value={props.tnf.depth.toString()}
-                  onChange={(value) => tnfCtrl()?.setDepth(Number(value))}
-                >
-                  <ContextMenuRadioItem value="1">Normal</ContextMenuRadioItem>
-                  <ContextMenuRadioItem value="2">Deep</ContextMenuRadioItem>
-                  <ContextMenuRadioItem value="3">
-                    Very Deep
-                  </ContextMenuRadioItem>
-                </ContextMenuRadioGroup>
-              </ContextMenuSubContent>
-            </ContextMenuPortal>
-          </ContextMenuSub>
-          <ContextMenuCheckboxItem
-            checked={props.tnf.permanent}
-            onChange={(checked) => tnfCtrl()?.setPermanent(checked)}
+      >
+        <ContextMenuTrigger
+          class="absolute inset-0"
+          classList={{
+            "pointer-events-none": contextMenuOpen() || dragState.dragging,
+          }}
+        >
+          <Tooltip
+            disabled={contextMenuOpen()}
+            open={(tooltipOpen() && !contextMenuOpen()) || dragState.dragging}
+            onOpenChange={
+              (open) =>
+                setTooltipOpen(
+                  (open && !contextMenuOpen()) || dragState.dragging,
+                )
+              // setTooltipOpen(!contextMenuOpen() && (open || dragState.dragging))
+            }
           >
-            Permanent
-          </ContextMenuCheckboxItem>
-          {/* <ContextMenuItem */}
-          {/*   class="pl-8" */}
-          {/*   onClick={() => { */}
-          {/*     radio().requestSlice({ */}
-          {/*       panadapterStreamId: pan().streamId, */}
-          {/*       frequencyMHz: roundToDecimals(xToFreq(pos.x), 3), */}
-          {/*     }); */}
-          {/*   }} */}
-          {/* > */}
-          {/*   <div class="absolute left-2 flex size-3.5 items-center justify-center"> */}
-          {/*     <MaterialSymbolsAddCommentOutlineRounded /> */}
-          {/*   </div> */}
-          {/*   Create Slice at {`${roundToDecimals(xToFreq(pos.x), 3)}`} MHz */}
-          {/* </ContextMenuItem> */}
-          {/* <ContextMenuItem */}
-          {/*   class="pl-8" */}
-          {/*   onClick={() => { */}
-          {/*     radio().createTnf(roundToDecimals(xToFreq(pos.x), 6)); */}
-          {/*   }} */}
-          {/* > */}
-          {/*   <div class="absolute left-2 flex size-3.5 items-center justify-center"> */}
-          {/*     <MaterialSymbolsAddCommentOutlineRounded /> */}
-          {/*   </div> */}
-          {/*   Create TNF at {`${roundToDecimals(xToFreq(pos.x), 6)}`} MHz */}
-          {/* </ContextMenuItem> */}
-        </ContextMenuContent>
-      </ContextMenuPortal>
-    </ContextMenu>
+            <TooltipTrigger as="div" class="size-full border-x tnf-stripes" />
+            <TooltipContent class="overflow-visible">
+              <TooltipArrow />
+              <div class="flex flex-col gap-1">
+                <span>RF Tracking Notch</span>
+                <Separator />
+                <span>{props.tnf.frequencyMHz.toFixed(6)} MHz</span>
+                <span>
+                  {(props.tnf.bandwidthMHz * 1_000_000).toFixed(0)} Hz Wide
+                </span>
+              </div>
+            </TooltipContent>
+          </Tooltip>
+        </ContextMenuTrigger>
+        <ContextMenuPortal>
+          <ContextMenuContent>
+            <ContextMenuGroup>
+              <ContextMenuGroupLabel>
+                {props.tnf.frequencyMHz.toFixed(6)} MHz
+              </ContextMenuGroupLabel>
+              <ContextMenuSub overlap>
+                <ContextMenuSubTrigger>
+                  Width: {Math.round(props.tnf.bandwidthMHz * MHZ)} Hz
+                </ContextMenuSubTrigger>
+                <ContextMenuPortal>
+                  <ContextMenuSubContent>
+                    <ContextMenuRadioGroup
+                      value={(props.tnf.bandwidthMHz * MHZ).toString()}
+                      onChange={(value) =>
+                        tnfCtrl()?.setBandwidth(Number(value) / MHZ)
+                      }
+                    >
+                      <ContextMenuRadioItem value="50">
+                        50 Hz
+                      </ContextMenuRadioItem>
+                      <ContextMenuRadioItem value="100">
+                        100 Hz
+                      </ContextMenuRadioItem>
+                      <ContextMenuRadioItem value="200">
+                        200 Hz
+                      </ContextMenuRadioItem>
+                      <ContextMenuRadioItem value="500">
+                        500 Hz
+                      </ContextMenuRadioItem>
+                    </ContextMenuRadioGroup>
+                  </ContextMenuSubContent>
+                </ContextMenuPortal>
+              </ContextMenuSub>
+            </ContextMenuGroup>
+            <ContextMenuSeparator />
+            <ContextMenuItem class="pl-8" onClick={() => tnfCtrl()?.remove()}>
+              <div class="absolute left-2 flex size-3.5 items-center justify-center">
+                <BaselineDelete />
+              </div>
+              Delete TNF
+            </ContextMenuItem>
+            <ContextMenuCheckboxItem
+              checked={props.tnf.permanent}
+              onChange={(checked) => tnfCtrl()?.setPermanent(checked)}
+            >
+              Remember
+            </ContextMenuCheckboxItem>
+            <ContextMenuSeparator />
+            <ContextMenuGroup>
+              <ContextMenuGroupLabel>Depth</ContextMenuGroupLabel>
+              <ContextMenuRadioGroup
+                value={props.tnf.depth.toString()}
+                onChange={(value) => tnfCtrl()?.setDepth(Number(value))}
+              >
+                <ContextMenuRadioItem value="1">Normal</ContextMenuRadioItem>
+                <ContextMenuRadioItem value="2">Deep</ContextMenuRadioItem>
+                <ContextMenuRadioItem value="3">Very Deep</ContextMenuRadioItem>
+              </ContextMenuRadioGroup>
+            </ContextMenuGroup>
+          </ContextMenuContent>
+        </ContextMenuPortal>
+      </ContextMenu>
+    </div>
   );
 }

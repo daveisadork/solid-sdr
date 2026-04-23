@@ -473,7 +473,7 @@ body,
     var(--tnf-color),
     var(--tnf-color) 1px,
     oklch(from var(--tnf-color) l c h / 0.3) 1px,
-    oklch(from var(--tnf-color) l c h / 0.3) 10px
+    oklch(from var(--tnf-color) l c h / 0.3) calc(12px / var(--tnf-depth, 1))
   );
   @apply border-x-(--tnf-color);
 }

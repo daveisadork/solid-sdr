@@ -730,14 +730,9 @@ export class Radio {
    * Creates a new TNF at the given frequency (in MHz).
    * Returns the controller for the newly created TNF.
    */
-  async createTnf(frequencyMHz: number): Promise<TnfController> {
+  async createTnf(frequencyMHz: number): Promise<void> {
     const freq = formatMegahertz(ensureFinite(frequencyMHz, "TNF frequency"));
-    const response = await this.command(`tnf create freq=${freq}`);
-    const newId = response.message?.trim() ?? "";
-    const controller = this.tnf(newId);
-    if (!controller)
-      throw new FlexError(`TNF ${newId} not available after creation`);
-    return controller;
+    await this.command(`tnf create freq=${freq}`);
   }
 
   spots(): SpotController[] {
@@ -1490,7 +1485,9 @@ export class Radio {
     await this.command(`client bind client_id=${trimmed}`);
   }
 
-  async requestSlice(options: RadioRequestSliceOptions = {}): Promise<SliceController> {
+  async requestSlice(
+    options: RadioRequestSliceOptions = {},
+  ): Promise<SliceController> {
     let command = "slice create";
 
     const panadapterStreamId = options.panadapterStreamId?.trim();
@@ -1520,6 +1517,7 @@ export class Radio {
     }
 
     const response = await this.command(command);
+    console.log(response);
     const newId = response.message?.trim() ?? "";
     const controller = this.slice(newId);
     if (!controller)

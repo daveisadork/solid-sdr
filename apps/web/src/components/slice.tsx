@@ -380,11 +380,25 @@ export function FilterControls(props: {
     if (mode === "DIGU" || mode === "FDV") {
       const offset = props.slice.diguOffsetHz;
       const clamp = Math.max(offset, -lowCut) - offset;
+      console.log("Applying preset offset for mode", mode, {
+        offset,
+        clamp,
+        lowCut,
+        highCut,
+        resolved: [lowCut + clamp + offset, highCut + clamp + offset],
+      });
       return [lowCut + clamp + offset, highCut + clamp + offset];
     }
     if (mode === "DIGL") {
       const offset = props.slice.diglOffsetHz;
       const clamp = Math.max(offset, highCut) - offset;
+      console.log("Applying preset offset for mode", mode, {
+        offset,
+        clamp,
+        lowCut,
+        highCut,
+        resolved: [lowCut - clamp - offset, highCut - clamp - offset],
+      });
       return [lowCut - clamp - offset, highCut - clamp - offset];
     }
     return [lowCut, highCut];
@@ -431,7 +445,7 @@ export function FilterControls(props: {
       <Show when={props.slice.mode === "DIGL"}>
         <NumberField
           class="flex flex-col gap-2 select-none"
-          rawValue={rawDiguOffset()}
+          rawValue={rawDiglOffset()}
           format={false}
           minValue={-10_000}
           maxValue={0}
@@ -467,7 +481,6 @@ export function FilterControls(props: {
                 <ToggleGroupItem
                   variant="outline"
                   size="sm"
-                  class="border data-pressed:bg-primary data-pressed:text-primary-foreground"
                   value={preset.name}
                 >
                   {preset.name}
@@ -1022,7 +1035,7 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
                                   <ToggleGroupItem
                                     variant="outline"
                                     size="sm"
-                                    class="border-muted-foreground data-pressed:bg-primary data-pressed:text-primary-foreground"
+                                    // class="data-pressed:bg-primary data-pressed:text-primary-foreground"
                                     value={mode}
                                   >
                                     {mode}

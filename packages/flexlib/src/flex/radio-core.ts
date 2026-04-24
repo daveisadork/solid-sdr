@@ -90,6 +90,7 @@ import {
 import { type ApdController, ApdControllerImpl } from "./apd.js";
 import { type XvtrController, XvtrControllerImpl } from "./xvtr.js";
 import { type TnfController, TnfControllerImpl } from "./tnf.js";
+import { type MemoryController, MemoryControllerImpl } from "./memory.js";
 import {
   type SpotController,
   type SpotTriggeredEvent,
@@ -109,6 +110,7 @@ import type {
   XvtrStateChange,
   SpotStateChange,
   TnfStateChange,
+  MemoryStateChange,
   CwxStateChange,
   DvkStateChange,
 } from "./state/index.js";
@@ -482,6 +484,7 @@ export class Radio {
   >();
   private readonly xvtrControllers = new Map<string, XvtrControllerImpl>();
   private readonly tnfControllers = new Map<string, TnfControllerImpl>();
+  private readonly memoryControllers = new Map<string, MemoryControllerImpl>();
   private readonly spotControllers = new Map<string, SpotControllerImpl>();
   private readonly _apdController: ApdControllerImpl;
   private readonly _cwxController: CwxControllerImpl;
@@ -730,9 +733,30 @@ export class Radio {
    * Creates a new TNF at the given frequency (in MHz).
    * Returns the controller for the newly created TNF.
    */
-  async createTnf(frequencyMHz: number): Promise<void> {
+  async createTnf(frequencyMHz: number): Promise<TnfController> {
     const freq = formatMegahertz(ensureFinite(frequencyMHz, "TNF frequency"));
-    await this.command(`tnf create freq=${freq}`);
+    const response = await this.command(`tnf create freq=${freq}`);
+    const newId = response.message?.trim() ?? "";
+    const controller = this.tnf(newId);
+    if (!controller)
+      throw new FlexError(`TNF ${newId} not available after creation`);
+    return controller;
+  }
+
+  memories(): MemoryController[] {
+    return Array.from(this.memoryControllers.values());
+  }
+
+  memory(id: string): MemoryController | undefined {
+    return this.getOrCreateController(
+      "memory",
+      id,
+      this.memoryControllers,
+      () => {
+        if (!this.store.getMemory(id)) return undefined;
+        return new MemoryControllerImpl(this, id);
+      },
+    );
   }
 
   spots(): SpotController[] {
@@ -1183,6 +1207,17 @@ export class Radio {
           () => {
             if (!this.store.getTnf(change.id)) return undefined;
             return new TnfControllerImpl(this, change.id);
+          },
+        );
+        break;
+      case "memory":
+        this.updateController(
+          change as Extract<RadioStateChange, { id: string }> &
+            MemoryStateChange,
+          this.memoryControllers,
+          () => {
+            if (!this.store.getMemory(change.id)) return undefined;
+            return new MemoryControllerImpl(this, change.id);
           },
         );
         break;
@@ -2593,6 +2628,7 @@ export class Radio {
     this.txBandControllers.clear();
     this.xvtrControllers.clear();
     this.tnfControllers.clear();
+    this.memoryControllers.clear();
     this.spotControllers.clear();
   }
 

@@ -125,8 +125,13 @@ export class TnfControllerImpl implements TnfController {
     const parts = Object.entries(entries).map(
       ([key, value]) => `${key}=${value}`,
     );
-    await this.radio.command(`tnf set ${this.id} ${parts.join(" ")}`);
     const change = this.radio.getStore().patchTnf(this.id, entries);
     if (change) this.radio.applyStateChange(change);
+    try {
+      await this.radio.command(`tnf set ${this.id} ${parts.join(" ")}`);
+    } catch (error) {
+      await this.radio.command(`sub tnf ${this.id}`);
+      throw error;
+    }
   }
 }

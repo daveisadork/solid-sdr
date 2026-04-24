@@ -46,6 +46,7 @@ import { createSpotSnapshot, type SpotSnapshot } from "./spot.js";
 import { createCwxSnapshot, type CwxSnapshot } from "./cwx.js";
 import { createDvkSnapshot, type DvkSnapshot } from "./dvk.js";
 import { createTnfSnapshot, type TnfSnapshot } from "./tnf.js";
+import { createMemorySnapshot, type MemorySnapshot } from "./memory.js";
 
 export type { SnapshotDiff } from "./common.js";
 export type { SliceSnapshot } from "./slice.js";
@@ -62,6 +63,7 @@ export type { SpotSnapshot } from "./spot.js";
 export type { CwxSnapshot } from "./cwx.js";
 export type { DvkSnapshot, DvkRecording, DvkStatus } from "./dvk.js";
 export type { TnfSnapshot } from "./tnf.js";
+export type { MemorySnapshot } from "./memory.js";
 export type {
   RadioAtuTuneStatus,
   RadioFilterSharpnessMode,
@@ -104,6 +106,7 @@ export type RadioStateChange =
   | ({ entity: "xvtr"; id: string } & ChangeMetadata<XvtrSnapshot>)
   | ({ entity: "spot"; id: string } & ChangeMetadata<SpotSnapshot>)
   | ({ entity: "tnf"; id: string } & ChangeMetadata<TnfSnapshot>)
+  | ({ entity: "memory"; id: string } & ChangeMetadata<MemorySnapshot>)
   | ({ entity: "radio" } & ChangeMetadata<RadioSnapshot>)
   | ({ entity: "featureLicense" } & ChangeMetadata<FeatureLicenseSnapshot>)
   | ({ entity: "apd" } & ChangeMetadata<ApdSnapshot>)
@@ -148,6 +151,7 @@ export type SpotStateChange = Extract<RadioStateChange, { entity: "spot" }>;
 export type CwxStateChange = Extract<RadioStateChange, { entity: "cwx" }>;
 export type DvkStateChange = Extract<RadioStateChange, { entity: "dvk" }>;
 export type TnfStateChange = Extract<RadioStateChange, { entity: "tnf" }>;
+export type MemoryStateChange = Extract<RadioStateChange, { entity: "memory" }>;
 
 export interface RadioStateSnapshot {
   readonly slices: readonly SliceSnapshot[];
@@ -161,6 +165,7 @@ export interface RadioStateSnapshot {
   readonly xvtrs: readonly XvtrSnapshot[];
   readonly spots: readonly SpotSnapshot[];
   readonly tnfs: readonly TnfSnapshot[];
+  readonly memories: readonly MemorySnapshot[];
   readonly radio: RadioSnapshot;
   readonly featureLicense?: FeatureLicenseSnapshot;
   readonly apd?: ApdSnapshot;
@@ -190,6 +195,10 @@ export interface RadioStateStore {
   getSpots(): readonly SpotSnapshot[];
   getTnf(id: string): TnfSnapshot | undefined;
   getTnfs(): readonly TnfSnapshot[];
+  getMemory(id: string): MemorySnapshot | undefined;
+  getMemories(): readonly MemorySnapshot[];
+  patchMemory(id: string, attributes: Record<string, string>): MemoryStateChange | undefined;
+  removeMemory(id: string): MemoryStateChange | undefined;
   getApd(): ApdSnapshot | undefined;
   getCwx(): CwxSnapshot | undefined;
   getDvk(): DvkSnapshot | undefined;
@@ -278,6 +287,7 @@ export function createRadioStateStore(
   const xvtrs = new Map<string, XvtrSnapshot>();
   const spots = new Map<string, SpotSnapshot>();
   const tnfs = new Map<string, TnfSnapshot>();
+  const memories = new Map<string, MemorySnapshot>();
   let radio: RadioSnapshot;
   let featureLicense: FeatureLicenseSnapshot | undefined;
   let apd: ApdSnapshot | undefined;
@@ -298,6 +308,7 @@ export function createRadioStateStore(
     xvtrs.clear();
     spots.clear();
     tnfs.clear();
+    memories.clear();
     radio = undefined as unknown as RadioSnapshot;
     featureLicense = undefined;
     apd = undefined;
@@ -341,6 +352,8 @@ export function createRadioStateStore(
           return [handleXvtr(message)];
         case "tnf":
           return [handleTnf(message)];
+        case "memory":
+          return [handleMemory(message)];
         case "spot": {
           const spotChange = handleSpot(message);
           if (spotChange) return [spotChange];
@@ -414,6 +427,7 @@ export function createRadioStateStore(
         xvtrs: Array.from(xvtrs.values()),
         spots: Array.from(spots.values()),
         tnfs: Array.from(tnfs.values()),
+        memories: Array.from(memories.values()),
         radio,
         featureLicense,
         apd,
@@ -472,6 +486,10 @@ export function createRadioStateStore(
     getTnfs() {
       return Array.from(tnfs.values());
     },
+    getMemory(id) { return memories.get(id); },
+    getMemories() { return Array.from(memories.values()); },
+    patchMemory(id, attributes) { return patchMemory(id, attributes); },
+    removeMemory(id) { return removeMemory(id); },
     getApd() {
       return apd;
     },
@@ -1586,6 +1604,37 @@ export function createRadioStateStore(
       id,
       removed: true,
     };
+  }
+
+  function handleMemory(message: FlexStatusMessage): RadioStateChange {
+    const id = resolveIdentifier(message, message.identifier);
+    if (!id) {
+      return { entity: "unknown", source: message.source, attributes: message.attributes };
+    }
+    if (isMarkedDeleted(message)) {
+      memories.delete(id);
+      return { entity: "memory", id, removed: true };
+    }
+    const previous = memories.get(id);
+    const { snapshot, diff } = createMemorySnapshot(id, message.attributes, previous);
+    memories.set(id, snapshot);
+    return { entity: "memory", id, diff, removed: false };
+  }
+
+  function patchMemory(id: string, attributes: Record<string, string>): MemoryStateChange | undefined {
+    if (Object.keys(attributes).length === 0) return undefined;
+    const previous = memories.get(id);
+    const { snapshot, diff } = createMemorySnapshot(id, attributes, previous);
+    const diffKeys = Object.keys(diff as Record<string, unknown>);
+    memories.set(id, snapshot);
+    if (diffKeys.length === 0) return undefined;
+    return { entity: "memory", id, diff, removed: false };
+  }
+
+  function removeMemory(id: string): MemoryStateChange | undefined {
+    if (!memories.has(id)) return undefined;
+    memories.delete(id);
+    return { entity: "memory", id, removed: true };
   }
 
   function handleCwx(message: FlexStatusMessage): RadioStateChange | undefined {

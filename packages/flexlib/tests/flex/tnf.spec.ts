@@ -263,6 +263,34 @@ describe("TNF controller", () => {
     expect(radio.tnf("1")).toBeUndefined();
   });
 
+  it("patches store optimistically before command response arrives", async () => {
+    const { radio, connection } = await createConnectedRadio();
+    connection.emitStatus(
+      "S1|tnf 1 freq=14.200000 depth=2 width=0.000100 permanent=0",
+    );
+    const controller = radio.tnf("1")!;
+
+    const promise = controller.setFrequency(7.05);
+
+    // store updated synchronously before command response (via queueMicrotask)
+    expect(controller.frequencyMHz).toBeCloseTo(7.05);
+
+    await promise;
+  });
+
+  it("re-subscribes when a set command fails", async () => {
+    const { radio, connection } = await createConnectedRadio();
+    connection.emitStatus(
+      "S1|tnf 1 freq=14.200000 depth=2 width=0.000100 permanent=0",
+    );
+    const controller = radio.tnf("1")!;
+
+    connection.prepareResponse("tnf set", { code: 0x50000001 });
+    await expect(controller.setFrequency(7.05)).rejects.toThrow();
+
+    expect(connection.commands.some((c) => c === "sub tnf 1")).toBe(true);
+  });
+
   it("creates a tnf and returns the controller", async () => {
     // given a connected radio
     const { radio, connection } = await createConnectedRadio();

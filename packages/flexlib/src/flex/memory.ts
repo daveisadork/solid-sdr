@@ -7,6 +7,10 @@ import {
 import { FlexStateUnavailableError } from "./errors.js";
 import type { MemorySnapshot, MemoryStateChange } from "./state/index.js";
 import type { RadioSession } from "./radio-core.js";
+import type {
+  MemoryRepeaterOffsetDirection,
+  MemoryToneMode,
+} from "./state/memory.js";
 
 /** Events emitted by a {@link MemoryController}. */
 export interface MemoryControllerEvents {
@@ -20,7 +24,8 @@ export interface MemoryControllerEvents {
  * update settings. Each setter sends the appropriate `memory set` command
  * to the radio and optimistically patches the local store.
  */
-export interface MemoryController extends Readonly<Omit<MemorySnapshot, "raw">> {
+export interface MemoryController
+  extends Readonly<Omit<MemorySnapshot, "raw">> {
   /** Returns the current snapshot of this memory's state. */
   snapshot(): MemorySnapshot;
 
@@ -36,10 +41,12 @@ export interface MemoryController extends Readonly<Omit<MemorySnapshot, "raw">> 
   setFrequency(frequencyMHz: number): Promise<void>;
   setMode(mode: string): Promise<void>;
   setStep(stepHz: number): Promise<void>;
-  setRepeaterOffsetDirection(direction: string): Promise<void>;
+  setRepeaterOffsetDirection(
+    direction: MemoryRepeaterOffsetDirection,
+  ): Promise<void>;
   setRepeaterOffset(offsetMHz: number): Promise<void>;
-  setFmToneMode(mode: string): Promise<void>;
-  setFmToneValue(value: string): Promise<void>;
+  setFmToneMode(mode: MemoryToneMode): Promise<void>;
+  setFmToneValue(value: number): Promise<void>;
   setSquelchEnabled(enabled: boolean): Promise<void>;
   setSquelchLevel(level: number): Promise<void>;
   setFilterLow(lowHz: number): Promise<void>;
@@ -68,25 +75,63 @@ export class MemoryControllerImpl implements MemoryController {
     return this.current();
   }
 
-  get owner(): string { return this.current().owner; }
-  get group(): string { return this.current().group; }
-  get name(): string { return this.current().name; }
-  get frequencyMHz(): number { return this.current().frequencyMHz; }
-  get mode(): string { return this.current().mode; }
-  get stepHz(): number { return this.current().stepHz; }
-  get repeaterOffsetDirection(): string { return this.current().repeaterOffsetDirection; }
-  get repeaterOffsetMHz(): number { return this.current().repeaterOffsetMHz; }
-  get fmToneMode(): string { return this.current().fmToneMode; }
-  get fmToneValue(): string { return this.current().fmToneValue; }
-  get squelchEnabled(): boolean { return this.current().squelchEnabled; }
-  get squelchLevel(): number { return this.current().squelchLevel; }
-  get filterLowHz(): number { return this.current().filterLowHz; }
-  get filterHighHz(): number { return this.current().filterHighHz; }
-  get rttyMarkHz(): number { return this.current().rttyMarkHz; }
-  get rttyShiftHz(): number { return this.current().rttyShiftHz; }
-  get diglOffsetHz(): number { return this.current().diglOffsetHz; }
-  get diguOffsetHz(): number { return this.current().diguOffsetHz; }
-  get raw(): Record<string, string> { return this.current().raw; }
+  get owner(): string {
+    return this.current().owner;
+  }
+  get group(): string {
+    return this.current().group;
+  }
+  get name(): string {
+    return this.current().name;
+  }
+  get frequencyMHz(): number {
+    return this.current().frequencyMHz;
+  }
+  get mode(): string {
+    return this.current().mode;
+  }
+  get stepHz(): number {
+    return this.current().stepHz;
+  }
+  get repeaterOffsetDirection(): MemoryRepeaterOffsetDirection {
+    return this.current().repeaterOffsetDirection;
+  }
+  get repeaterOffsetMHz(): number {
+    return this.current().repeaterOffsetMHz;
+  }
+  get fmToneMode(): MemoryToneMode {
+    return this.current().fmToneMode;
+  }
+  get fmToneValue(): number {
+    return this.current().fmToneValue;
+  }
+  get squelchEnabled(): boolean {
+    return this.current().squelchEnabled;
+  }
+  get squelchLevel(): number {
+    return this.current().squelchLevel;
+  }
+  get filterLowHz(): number {
+    return this.current().filterLowHz;
+  }
+  get filterHighHz(): number {
+    return this.current().filterHighHz;
+  }
+  get rttyMarkHz(): number {
+    return this.current().rttyMarkHz;
+  }
+  get rttyShiftHz(): number {
+    return this.current().rttyShiftHz;
+  }
+  get diglOffsetHz(): number {
+    return this.current().diglOffsetHz;
+  }
+  get diguOffsetHz(): number {
+    return this.current().diguOffsetHz;
+  }
+  get raw(): Record<string, string> {
+    return this.current().raw;
+  }
 
   on<TKey extends keyof MemoryControllerEvents>(
     event: TKey,
@@ -123,7 +168,9 @@ export class MemoryControllerImpl implements MemoryController {
     await this.sendSet({ step: formatInteger(stepHz) });
   }
 
-  async setRepeaterOffsetDirection(direction: string): Promise<void> {
+  async setRepeaterOffsetDirection(
+    direction: MemoryRepeaterOffsetDirection,
+  ): Promise<void> {
     await this.sendSet({ repeater: direction });
   }
 
@@ -131,12 +178,12 @@ export class MemoryControllerImpl implements MemoryController {
     await this.sendSet({ repeater_offset: formatMegahertz(offsetMHz) });
   }
 
-  async setFmToneMode(mode: string): Promise<void> {
+  async setFmToneMode(mode: MemoryToneMode): Promise<void> {
     await this.sendSet({ tone_mode: mode });
   }
 
-  async setFmToneValue(value: string): Promise<void> {
-    await this.sendSet({ tone_value: value });
+  async setFmToneValue(value: number): Promise<void> {
+    await this.sendSet({ tone_value: value.toString() });
   }
 
   async setSquelchEnabled(enabled: boolean): Promise<void> {

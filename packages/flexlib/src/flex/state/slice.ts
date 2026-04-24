@@ -13,6 +13,14 @@ import {
   parseMegahertz,
 } from "./common.js";
 
+export type SliceAgcMode = "off" | "slow" | "med" | "fast" | (string & {});
+export type SliceToneMode = "OFF" | "CTCSS_TX" | (string & {});
+export type SliceRepeaterOffsetDirection =
+  | "DOWN"
+  | "SIMPLEX"
+  | "UP"
+  | (string & {});
+
 export interface SliceSnapshot {
   readonly id: string;
   readonly frequencyMHz: number;
@@ -64,7 +72,7 @@ export interface SliceSnapshot {
   readonly escEnabled: boolean;
   readonly escGain: number;
   readonly escPhaseShift: number;
-  readonly agcMode: string;
+  readonly agcMode: SliceAgcMode;
   readonly agcThreshold: number;
   readonly agcOffLevel: number;
   readonly loopAEnabled: boolean;
@@ -82,7 +90,7 @@ export interface SliceSnapshot {
   readonly playbackAvailable: boolean;
   readonly playbackEnabled: boolean;
   readonly recordTimeSeconds: number;
-  readonly fmToneMode: string;
+  readonly fmToneMode: SliceToneMode;
   readonly fmToneValue: string;
   readonly fmDeviation: number;
   readonly fmToneBurstEnabled: boolean;
@@ -94,7 +102,7 @@ export interface SliceSnapshot {
   readonly squelchHangDelayMs: number;
   readonly txOffsetFrequencyMHz: number;
   readonly fmRepeaterOffsetMHz: number;
-  readonly repeaterOffsetDirection: string;
+  readonly repeaterOffsetDirection: SliceRepeaterOffsetDirection;
   readonly diversityEnabled: boolean;
   readonly diversityChild: boolean;
   readonly diversityParent: boolean;

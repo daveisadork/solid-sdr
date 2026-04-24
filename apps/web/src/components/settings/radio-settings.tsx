@@ -72,6 +72,7 @@ import { RadioOscillatorSetting } from "@repo/flexlib";
 import { SliderToggle } from "../ui/slider-toggle";
 import { Badge } from "../ui/badge";
 import { InfoItem } from "./common";
+import { ConfirmButton } from "../ui/confirm-button";
 
 function TxBandSettings(props: { radio: Radio }) {
   const { state } = useFlexRadio();
@@ -1106,20 +1107,13 @@ function RadioSettingsInner(props: { radio: Radio }) {
                     </NumberField>
                   </CardContent>
                   <CardFooter class="justify-end">
-                    <Button
+                    <ConfirmButton
                       variant="destructive"
-                      onClick={() => {
-                        if (
-                          confirm(
-                            `Are you sure you want to remove XVTR ${xvtr.name}?`,
-                          )
-                        ) {
-                          ctrl.remove();
-                        }
-                      }}
+                      message={`Are you sure you want to remove XVTR ${xvtr.name}?`}
+                      onConfirm={() => ctrl.remove()}
                     >
                       Remove {xvtr.name}
-                    </Button>
+                    </ConfirmButton>
                   </CardFooter>
                 </Card>
               );

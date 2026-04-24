@@ -2,15 +2,7 @@ import useFlexRadio, {
   PanadapterState,
   WaterfallState,
 } from "~/context/flexradio";
-import {
-  createEffect,
-  createMemo,
-  createSignal,
-  For,
-  Match,
-  Show,
-  Switch,
-} from "solid-js";
+import { createEffect, createSignal, For, Match, Show, Switch } from "solid-js";
 import {
   NumberField,
   NumberFieldDecrementTrigger,
@@ -27,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
+import * as SelectPrimitive from "@kobalte/core/select";
 import {
   SegmentedControl,
   SegmentedControlGroup,
@@ -40,13 +33,6 @@ import {
 import { SliderToggle } from "../ui/slider-toggle";
 import { SimpleSwitch } from "../ui/simple-switch";
 import { SimpleSlider } from "../ui/simple-slider";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "../ui/dialog";
 import { Button } from "../ui/button";
 
 import {
@@ -57,20 +43,13 @@ import {
 import { ColorSwatch } from "@kobalte/core/color-swatch";
 import { parseColor } from "@kobalte/core/colors";
 import { PanadapterController, WaterfallController } from "@repo/flexlib";
-import { SimpleMeter } from "../ui/simple-meter";
 import {
   FillStyle,
   GradientStyle,
   PeakStyle,
   usePreferences,
 } from "~/context/preferences";
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarHeader,
-  SidebarRail,
-} from "../ui/sidebar";
+import { Sidebar, SidebarContent, SidebarRail } from "../ui/sidebar";
 import { usePanafall } from "~/context/panafall";
 import BaselineDisplaySettings from "~icons/ic/baseline-display-settings";
 import { Card, CardContent } from "../ui/card";
@@ -85,6 +64,7 @@ import { ToggleGroup, ToggleGroupItem } from "../ui/toggle-group";
 import { ToggleButton } from "@kobalte/core/toggle-button";
 import { showToast } from "../ui/toast";
 import { DismissableLayer } from "@kobalte/core/src/dismissable-layer/dismissable-layer.jsx";
+import { ConfirmButton } from "../ui/confirm-button";
 
 export const BANDS: { id: string; label: string }[] = [
   { id: "160", label: "160m" },
@@ -119,55 +99,11 @@ export function PanafallSettings(props: {
   panadapterController: PanadapterController;
   waterfallController: WaterfallController;
 }) {
-  const { radio, state, setState } = useFlexRadio();
-  const { preferences, setPreferences } = usePreferences();
-  const [rawFrequency, setRawFrequency] = createSignal(
-    props.panadapterController.centerFrequencyMHz,
-  );
-  const [rawBandwidth, setRawBandwidth] = createSignal(
-    props.panadapterController.bandwidthMHz,
-  );
-  const [rawHighDbm, setRawHighDbm] = createSignal(
-    props.panadapterController.highDbm,
-  );
-  const [rawLowDbm, setRawLowDbm] = createSignal(
-    props.panadapterController.lowDbm,
-  );
-  const [rawPanBackgroundColor, setRawPanBackgroundColor] = createSignal(
-    preferences.panBackgroundColor,
-  );
-
-  createEffect(() => setRawPanBackgroundColor(preferences.panBackgroundColor));
-
-  createEffect(() => {
-    const rawColor = rawPanBackgroundColor();
-    if (rawColor === preferences.panBackgroundColor) return;
-    try {
-      const color = parseColor(rawColor);
-      console.log(color.toString("css"));
-      setPreferences("panBackgroundColor", rawColor);
-    } catch (_e) {
-      // Invalid color, ignore
-    }
-  });
-
-  const panadapters = createMemo(() =>
-    Object.keys(state.status.panadapter).toSorted(),
-  );
-
-  const bands = createMemo(() => [
-    ...BANDS,
-    ...(Object.values(state.status.xvtr)?.map((xvtr) => ({
-      id: `x${xvtr.id}`,
-      label: xvtr.name,
-    })) ?? []),
-  ]);
-
   return (
     <Accordion
       multiple
       collapsible
-      // defaultValue={["display", "band", "antenna"]}
+      defaultValue={["display", "band", "antenna"]}
       // value={preferences.sidebarPanels}
       // onChange={(value) => setPreferences("sidebarPanels", value)}
       class="select-none h-full flex flex-col"
@@ -252,37 +188,6 @@ export function PanafallSettingsSidebar() {
     </Sidebar>
   );
 }
-
-const GROUP_ITEM_CLASS = [
-  "inline-flex",
-  "items-center",
-  "justify-center",
-  "gap-2",
-  "whitespace-nowrap",
-  "rounded-md",
-  "text-sm",
-  "font-medium",
-  "ring-offset-background",
-  "transition-colors",
-  "focus-visible:outline-none",
-  "focus-visible:ring-2",
-  "focus-visible:ring-ring",
-  "focus-visible:ring-offset-2",
-  "disabled:pointer-events-none",
-  "disabled:opacity-50",
-  "[&_svg]:pointer-events-none",
-  "[&_svg]:size-4",
-  "[&_svg]:shrink-0",
-  "shadow",
-  "border",
-  "border-input",
-  // "fancy-bg-background",
-  // "text-foreground",
-  "data-pressed:text-primary-foreground",
-  "",
-  "data-pressed:bg-primary",
-  "p-2",
-].join(" ");
 
 function DisplaySettings(props: {
   panadapter: PanadapterState;
@@ -770,7 +675,7 @@ export function PanSettings() {
 
   const [menuRef, setMenuRef] = createSignal<HTMLElement>();
 
-  const { radio } = useFlexRadio();
+  const { radio, state } = useFlexRadio();
 
   createEffect(() => {
     panadapterController()?.refreshRfGainInfo();
@@ -780,11 +685,14 @@ export function PanSettings() {
     <div class="absolute max-h-full p-2 flex z-50 pointer-events-none">
       <div ref={setMenuRef}>
         <ToggleGroup
-          class="grid grid-cols-1 gap-1 pointer-events-auto rounded-lg fancy-bg-card border shadow-black"
+          class="grid grid-cols-1 gap-1 pointer-events-auto rounded-lg fancy-bg-card border shadow-black overflow-auto max-h-full"
           classList={{
-            "aspect-square": !open(),
             "p-2": open(),
             "rounded-r-none border-r-0": Boolean(openSection()) && open(),
+          }}
+          style={{
+            "scrollbar-gutter": "stable both-edges",
+            "scrollbar-width": "thin",
           }}
           value={openSection()}
           onChange={setOpenSection}
@@ -793,6 +701,7 @@ export function PanSettings() {
             as={Button}
             size="xs"
             variant="ghost"
+            class="hover:bg-accent not-data-pressed:size-10 not-data-pressed:not-pointer-coarse:size-5 not-data-pressed:aspect-square"
             pressed={open()}
             onChange={setOpen}
           >
@@ -800,8 +709,10 @@ export function PanSettings() {
           </ToggleButton>
           <Show when={open()}>
             <Button
+              disabled={state.status.radio.availableSlices === 0}
               size="xs"
               variant="ghost"
+              class="hover:bg-accent"
               onClick={() =>
                 radio()
                   .requestSlice({
@@ -820,6 +731,7 @@ export function PanSettings() {
             <Button
               size="xs"
               variant="ghost"
+              class="hover:bg-accent"
               onClick={() => radio().createTnf(panadapter().centerFrequencyMHz)}
             >
               +TNF
@@ -833,13 +745,49 @@ export function PanSettings() {
             <ToggleGroupItem value="antenna" class="h-6 px-2 text-xs">
               Antenna
             </ToggleGroupItem>
+            <Select
+              value={panadapter().daxIqChannel}
+              options={Array.from(
+                { length: radio()?.modelInfo.maxDaxIqChannels + 1 },
+                (_, i) => i,
+              )}
+              onChange={(v: number) => {
+                if (v === panadapter().daxIqChannel) return;
+                panadapterController().setDaxIqChannel(v);
+              }}
+              itemComponent={(props) => (
+                <SelectItem item={props.item}>
+                  {props.item.rawValue || "None"}
+                </SelectItem>
+              )}
+            >
+              <SelectPrimitive.Trigger
+                as={Button}
+                size="xs"
+                variant="ghost"
+                class="w-full hover:bg-accent"
+                aria-label="DAX IQ Channel"
+              >
+                DAX IQ
+              </SelectPrimitive.Trigger>
+              <SelectContent />
+            </Select>
+            <ConfirmButton
+              size="xs"
+              variant="ghost"
+              class="hover:bg-destructive hover:text-destructive-foreground"
+              message={`Are you sure you want to remove Panadapter ${panadapter().id}?`}
+              onConfirm={() => panadapterController().close()}
+            >
+              Remove
+            </ConfirmButton>
           </Show>
         </ToggleGroup>
       </div>
       <div>
         <Show when={open() && openSection()}>
           <DismissableLayer
-            class="flex flex-col"
+            class="flex flex-col max-h-full"
             onFocusOutside={(e) => e.preventDefault()}
             onDismiss={() => setOpen(false)}
             excludedElements={[menuRef]}

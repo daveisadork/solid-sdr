@@ -7,6 +7,10 @@ import {
   parseInteger,
   parseMegahertz,
 } from "./common.js";
+import type { SliceToneMode, SliceRepeaterOffsetDirection } from "./slice.js";
+
+export type MemoryToneMode = SliceToneMode;
+export type MemoryRepeaterOffsetDirection = SliceRepeaterOffsetDirection;
 
 export interface MemorySnapshot {
   readonly id: string;
@@ -16,10 +20,10 @@ export interface MemorySnapshot {
   readonly frequencyMHz: number;
   readonly mode: string;
   readonly stepHz: number;
-  readonly repeaterOffsetDirection: string;
+  readonly repeaterOffsetDirection: MemoryRepeaterOffsetDirection;
   readonly repeaterOffsetMHz: number;
-  readonly fmToneMode: string;
-  readonly fmToneValue: string;
+  readonly fmToneMode: MemoryToneMode;
+  readonly fmToneValue: number;
   readonly squelchEnabled: boolean;
   readonly squelchLevel: number;
   readonly filterLowHz: number;
@@ -78,7 +82,7 @@ export function createMemorySnapshot(
         partial.fmToneMode = value;
         break;
       case "tone_value":
-        partial.fmToneValue = value;
+        partial.fmToneValue = Number(value);
         break;
       case "squelch":
         partial.squelchEnabled = isTruthy(value);

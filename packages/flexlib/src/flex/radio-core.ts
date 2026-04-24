@@ -115,6 +115,7 @@ import type {
   DvkStateChange,
 } from "./state/index.js";
 import { parseVitaPacket, type VitaParsedPacket } from "../vita/parser.js";
+import { getModelInfo, type RadioModelInfo } from "./model-info.js";
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -436,12 +437,7 @@ function normalizeSliceCreatePanStreamId(streamId: string): string {
  * Use {@link connect} to establish a connection and {@link disconnect}
  * to tear it down.
  */
-// Merge RadioSnapshot properties onto Radio's type so that
-// radio.nickname, radio.sliceCount, etc. are visible to TypeScript.
-// The actual values are provided by a Proxy in the constructor.
-export interface Radio extends Readonly<RadioSnapshot> {}
-
-export class Radio {
+class RadioImpl {
   private readonly events = new TypedEventEmitter<RadioEvents>();
   private readonly store: RadioStateStore;
   private readonly logger?: Logger;
@@ -559,6 +555,10 @@ export class Radio {
   /** Last discovery descriptor, if this radio was found via discovery. */
   get descriptor(): FlexRadioDescriptor | undefined {
     return this._descriptor;
+  }
+
+  get modelInfo(): RadioModelInfo {
+    return getModelInfo(this.snapshot()?.model);
   }
 
   /** Current radio state snapshot. */
@@ -754,6 +754,10 @@ export class Radio {
     );
   }
 
+  async createMemory(): Promise<void> {
+    await this.command("memory create");
+  }
+
   spots(): SpotController[] {
     return Array.from(this.spotControllers.values());
   }
@@ -790,13 +794,14 @@ export class Radio {
   // Resource creation
   // -----------------------------------------------------------------------
 
-  async createPanadapter(options?: {
+  async createPanadapter({
+    x = 50,
+    y = 20,
+  }: {
     x?: number;
     y?: number;
-  }): Promise<PanadapterController> {
-    let cmd = "display panafall create";
-    if (options?.x !== undefined) cmd += ` x=${toInteger(options.x, "x")}`;
-    if (options?.y !== undefined) cmd += ` y=${toInteger(options.y, "y")}`;
+  } = {}): Promise<PanadapterController> {
+    const cmd = `display panafall create x=${toInteger(x)} y=${toInteger(y)}`;
     const response = await this.command(cmd);
     const panId = normalizeEntityId(
       response.message?.split(",")[0]?.trim() ?? "",
@@ -2023,7 +2028,7 @@ export class Radio {
   }
 
   async startOffsetCalibration(): Promise<void> {
-    if (!this.pllDone) return;
+    if (!this.snapshot()?.pllDone) return;
     await this.commandAndPatch("radio pll_start", {
       pll_done: "0",
     });
@@ -2637,6 +2642,20 @@ export class Radio {
     this.events.emit("connectingProgress", { stage, detail });
   }
 }
+
+export type Radio = RadioImpl & Readonly<RadioSnapshot>;
+
+type RadioConstructor = {
+  new (
+    serial: string,
+    transport: FlexTransport,
+    endpoint: RadioEndpoint,
+    options?: { logger?: Logger },
+  ): Radio;
+  readonly prototype: RadioImpl;
+};
+
+export const Radio: RadioConstructor = RadioImpl as unknown as RadioConstructor;
 
 // ---------------------------------------------------------------------------
 // Helpers

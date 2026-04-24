@@ -11,6 +11,8 @@ import { GpsStatus } from "./gps-status";
 import { usePreferences } from "~/context/preferences";
 import { FullscreenButton } from "./fullscreen-button";
 import { Settings } from "./settings";
+import MaterialSymbolsAddChartOutline from "~icons/material-symbols/add-chart-outline";
+import { Button } from "@kobalte/core/button";
 
 export function StatusBar() {
   const { state, radio } = useFlexRadio();
@@ -53,6 +55,21 @@ export function StatusBar() {
       }}
     >
       <Connect />
+      <Show when={radio()}>
+        {(radio) => {
+          return (
+            <Button
+              disabled={!state.status.radio?.availablePanadapters}
+              onClick={() =>
+                radio().createPanadapter({ x: 200 }).catch(console.log)
+              }
+              class="size-8 not-pointer-coarse:size-5 aspect-square"
+            >
+              <MaterialSymbolsAddChartOutline class="size-full" />
+            </Button>
+          );
+        }}
+      </Show>
       <Show when={voltage() !== undefined}>
         <span class="textbox-trim-both textbox-edge-cap-alphabetic">
           {voltage()?.toFixed(2)}V

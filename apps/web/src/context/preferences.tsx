@@ -40,6 +40,7 @@ export interface SpotPreferences {
 }
 
 export interface Preferences {
+  stationName: string;
   smoothScroll: boolean;
   enableBlurEffects: boolean;
   enableTransparencyEffects: boolean;
@@ -92,6 +93,7 @@ const defaultDaxConfig = () => {
 
 const initialPreferences = () =>
   ({
+    stationName: "",
     smoothScroll: true,
     enableBlurEffects: true,
     enableTransparencyEffects: true,

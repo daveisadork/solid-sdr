@@ -1,11 +1,4 @@
-import {
-  createEffect,
-  createSignal,
-  For,
-  onCleanup,
-  onMount,
-  Show,
-} from "solid-js";
+import { createEffect, createSignal, For, Show } from "solid-js";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import {
@@ -18,43 +11,11 @@ import {
 import { Skeleton } from "./ui/skeleton";
 import useFlexRadio, { ConnectionState } from "~/context/flexradio";
 import { ProgressCircle } from "./ui/progress-circle";
-import { createStore } from "solid-js/store";
-import { FlexRadioDescriptor } from "@repo/flexlib";
+import { getModelInfo } from "@repo/flexlib";
 import { Badge } from "./ui/badge";
 
-const RADIO_IMAGES = {
-  "FLEX-6300": "6300-small.png",
-  "FLEX-6400": "6400.png",
-  "FLEX-6400M": "6400.png",
-  "FLEX-6500": "6300-small.png",
-  "FLEX-6600": "6600.png",
-  "FLEX-6600M": "6600M.png",
-  "FLEX-6700": "6000-Cutout.png",
-  "FLEX-6700R": "6000-Cutout.png",
-  "FLEX-8400": "6600.png",
-  "FLEX-8400M": "6600M.png",
-  "FLEX-8600": "6600.png",
-  "FLEX-8600M": "6600M.png",
-  "ML-9600": "6600.png",
-  "ML-9600M": "6600M.png",
-  "CL-9300": "6600.png",
-  "CLS-9301": "6600.png",
-  "AU-510": "A520.png",
-  "AU-510M": "A520M.png",
-  "AU-520": "A520.png",
-  "AU-520M": "A520M.png",
-};
-
 export default function Connect() {
-  const { client, connect, disconnect, state } = useFlexRadio();
-  const [radios, setRadios] = createStore<Record<string, FlexRadioDescriptor>>(
-    client()
-      .radios()
-      .reduce((acc, radio) => {
-        acc[radio.descriptor.host] = { ...radio.descriptor };
-        return acc;
-      }, {}),
-  );
+  const { connect, disconnect, state } = useFlexRadio();
 
   const [open, setOpen] = createSignal(
     state.connectModal.status === ConnectionState.disconnected,
@@ -82,52 +43,6 @@ export default function Connect() {
     return status;
   }, state.connectModal.status);
 
-  const updateDiscoveryRadio = (descriptor?: FlexRadioDescriptor) => {
-    if (descriptor) {
-      setRadios(descriptor.host, { ...descriptor });
-    }
-  };
-
-  onMount(() => {
-    const flexClient = client();
-    const clientSubscriptions = [
-      flexClient.on("radioDiscovered", (radio) =>
-        updateDiscoveryRadio(radio.descriptor),
-      ),
-      flexClient.on("radioUpdated", (radio) =>
-        updateDiscoveryRadio(radio.descriptor),
-      ),
-      flexClient.on("radioLost", ({ serial, endpoint }) => {
-        setRadios((radios) => {
-          const next = { ...radios };
-          const removalKey =
-            endpoint.host ??
-            Object.keys(next).find(
-              (existingHost) => next[existingHost]?.serial === serial,
-            );
-          if (removalKey) {
-            delete next[removalKey];
-          }
-          return next;
-        });
-      }),
-    ];
-
-    flexClient.startDiscovery().catch((error) => {
-      console.error("Failed to start discovery session", error);
-    });
-
-    onCleanup(() => {
-      console.log("Cleaning up discovery subscriptions and session");
-      for (const sub of clientSubscriptions) sub.unsubscribe();
-      flexClient
-        .stopDiscovery()
-        .catch((error) =>
-          console.error("Failed to stop discovery session", error),
-        );
-    });
-  });
-
   return (
     <Dialog
       open={open()}
@@ -152,7 +67,7 @@ export default function Connect() {
         <Card class="overflow-y-auto shrink">
           <ul class="grid relative shrink gap-0">
             <For
-              each={Object.values(radios)}
+              each={Object.values(state.discoveredRadios)}
               fallback={
                 <li class="flex p-2">
                   <div class="flex text-sm flex-col grow">
@@ -171,15 +86,9 @@ export default function Connect() {
                 <li class="flex p-2 items-center gap-2 overflow-hidden">
                   <div class="flex flex-col items-center shrink basis-0 not-sm:hidden">
                     <img
-                      src={`images/radios/${RADIO_IMAGES[radio.model] ?? "6600.png"}`}
+                      src={`images/radios/${getModelInfo(radio.model).imageName}`}
                       class="shrink"
                     />
-                    {/* <div */}
-                    {/*   class="grow w-full bg-contain bg-no-repeat bg-center" */}
-                    {/*   style={{ */}
-                    {/*     "background-image": `url('public/images/radios/')`, */}
-                    {/*   }} */}
-                    {/* /> */}
                     <div>
                       <Badge
                         variant={

@@ -1,0 +1,653 @@
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  JSX,
+  Show,
+  splitProps,
+  ValidComponent,
+} from "solid-js";
+
+import type {
+  ColumnFiltersState,
+  SortingState,
+  VisibilityState,
+} from "@tanstack/solid-table";
+import {
+  createSolidTable,
+  flexRender,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  type ColumnDef,
+} from "@tanstack/solid-table";
+import IconDots from "~icons/mdi/dots-horizontal";
+import IconChevronDown from "~icons/mdi/chevron-down";
+import IconSelector from "~icons/mdi/chevron-up-down";
+import { Button } from "~/components/ui/button";
+import { Checkbox } from "~/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "~/components/ui/dropdown-menu";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "~/components/ui/table";
+import { TextField, TextFieldInput } from "~/components/ui/text-field";
+import useFlexRadio, { MemoryState, SpotState } from "~/context/flexradio";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "../ui/card";
+import { Radio } from "@repo/flexlib";
+import { SimpleSwitch } from "../ui/simple-switch";
+import { usePreferences } from "~/context/preferences";
+import { InfoItem } from "./common";
+import { SimpleSlider } from "../ui/simple-slider";
+
+import * as TextFieldPrimitive from "@kobalte/core/text-field";
+import * as NumberFieldPrimitive from "@kobalte/core/number-field";
+import * as SelectPrimitive from "@kobalte/core/select";
+import { cn } from "~/lib/utils";
+import { SelectContent, SelectItem } from "../ui/select";
+import { ConfirmButton } from "../ui/confirm-button";
+import { createStore } from "solid-js/store";
+
+const TextFieldCell = (
+  props: TextFieldPrimitive.TextFieldRootProps & {
+    class?: JSX.ElementClass | undefined;
+  },
+) => {
+  const [local, others] = splitProps(props, ["class"]);
+  return (
+    <TextFieldPrimitive.Root class={cn("flex", local.class)} {...others}>
+      <TextFieldPrimitive.Input class="field-sizing-content min-w-full px-1" />
+    </TextFieldPrimitive.Root>
+  );
+};
+
+const NumberFieldCell = (
+  props: NumberFieldPrimitive.NumberFieldRootProps & {
+    class?: JSX.ElementClass | undefined;
+  },
+) => {
+  const [local, others] = splitProps(props, ["class"]);
+  return (
+    <NumberFieldPrimitive.Root
+      class={cn("flex", local.class)}
+      format={false}
+      changeOnWheel={false}
+      {...others}
+    >
+      <NumberFieldPrimitive.Input class="field-sizing-content min-w-full px-1" />
+    </NumberFieldPrimitive.Root>
+  );
+};
+
+function MemorySettingsInner() {
+  const [sorting, setSorting] = createSignal<SortingState>([]);
+  const [columnFilters, setColumnFilters] = createSignal<ColumnFiltersState>(
+    [],
+  );
+  const [columnVisibility, setColumnVisibility] = createSignal<VisibilityState>(
+    {},
+  );
+  const [rowSelection, setRowSelection] = createSignal({});
+  const { state, radio } = useFlexRadio();
+
+  const modeList = createMemo(() => {
+    return Array.from(
+      Object.values(state.status.slice)[0]?.modeList ?? [
+        "LSB",
+        "USB",
+        "AM",
+        "CW",
+        "DIGL",
+        "DIGU",
+        "SAM",
+        "FM",
+        "NFM",
+        "DFM",
+        "RTTY",
+      ],
+    );
+  });
+
+  const columns: ColumnDef<MemoryState>[] = [
+    {
+      id: "select",
+      header: (props) => (
+        <Checkbox
+          checked={props.table.getIsAllPageRowsSelected()}
+          indeterminate={props.table.getIsSomePageRowsSelected()}
+          onChange={(value) => props.table.toggleAllPageRowsSelected(!!value)}
+          aria-label="Select all"
+        />
+      ),
+      cell: (props) => (
+        <Checkbox
+          checked={props.row.getIsSelected()}
+          onChange={(value) => props.row.toggleSelected(!!value)}
+          aria-label="Select row"
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
+    },
+    {
+      accessorKey: "group",
+      header: "Group",
+      cell: (props) => (
+        <TextFieldCell
+          value={props.row.original.group}
+          onChange={(value) =>
+            radio().memory(props.row.original.id)?.setGroup(value)
+          }
+        />
+      ),
+    },
+    {
+      accessorKey: "owner",
+      header: "Owner",
+      cell: (props) => (
+        <TextFieldCell
+          value={props.row.original.owner}
+          onChange={(value) =>
+            radio().memory(props.row.original.id)?.setOwner(value)
+          }
+        />
+      ),
+    },
+    {
+      accessorKey: "frequencyMHz",
+      header: "Frequency",
+      cell: (props) => (
+        <NumberFieldCell
+          rawValue={props.row.original.frequencyMHz}
+          onRawValueChange={(value) =>
+            radio().memory(props.row.original.id)?.setFrequency(value)
+          }
+        />
+      ),
+    },
+    {
+      accessorKey: "name",
+      header: "Name",
+      cell: (props) => (
+        <TextFieldCell
+          value={props.row.original.name}
+          onChange={(value) =>
+            radio().memory(props.row.original.id)?.setName(value)
+          }
+        />
+      ),
+    },
+    {
+      accessorKey: "mode",
+      header: "Mode",
+      cell: (props) => (
+        <SelectPrimitive.Root
+          options={modeList()}
+          value={props.row.original.mode}
+          onChange={(value?: string) => {
+            if (!value || value == props.row.original.mode) return;
+            radio().memory(props.row.original.id)?.setMode(value);
+          }}
+          itemComponent={(props) => {
+            return (
+              <SelectItem item={props.item}>{props.item.rawValue}</SelectItem>
+            );
+          }}
+        >
+          <SelectPrimitive.Trigger>
+            <SelectPrimitive.Value<string>>
+              {(state) => state.selectedOption()}
+            </SelectPrimitive.Value>
+          </SelectPrimitive.Trigger>
+
+          <SelectContent />
+        </SelectPrimitive.Root>
+      ),
+    },
+    {
+      accessorKey: "stepHz",
+      header: "Step",
+      cell: (props) => (
+        <NumberFieldCell
+          rawValue={props.row.original.stepHz}
+          onRawValueChange={(value) =>
+            radio().memory(props.row.original.id)?.setStep(value)
+          }
+        />
+      ),
+    },
+    {
+      accessorKey: "repeaterOffsetDirection",
+      header: "FM TX Offset Direction",
+      cell: (props) => (
+        <SelectPrimitive.Root
+          options={["DOWN", "SIMPLEX", "UP"]}
+          value={props.row.original.repeaterOffsetDirection}
+          onChange={(value?: string) => {
+            if (!value || value == props.row.original.repeaterOffsetDirection)
+              return;
+            radio()
+              .memory(props.row.original.id)
+              ?.setRepeaterOffsetDirection(value);
+          }}
+          itemComponent={(props) => {
+            return (
+              <SelectItem item={props.item}>{props.item.rawValue}</SelectItem>
+            );
+          }}
+        >
+          <SelectPrimitive.Trigger>
+            <SelectPrimitive.Value<string>>
+              {(state) => state.selectedOption()}
+            </SelectPrimitive.Value>
+          </SelectPrimitive.Trigger>
+
+          <SelectContent />
+        </SelectPrimitive.Root>
+      ),
+    },
+    {
+      accessorKey: "repeaterOffsetMHz",
+      header: "Repeater Offset",
+      cell: (props) => (
+        <NumberFieldCell
+          rawValue={props.row.original.repeaterOffsetMHz}
+          onRawValueChange={(value) =>
+            radio().memory(props.row.original.id)?.setRepeaterOffset(value)
+          }
+        />
+      ),
+    },
+    {
+      accessorKey: "fmToneMode",
+      header: "Tone Mode",
+      cell: (props) => (
+        <SelectPrimitive.Root
+          options={["OFF", "CTCSS_TX"]}
+          value={props.row.original.fmToneMode}
+          onChange={(value?: string) => {
+            if (!value || value == props.row.original.fmToneMode) return;
+            radio().memory(props.row.original.id)?.setFmToneMode(value);
+          }}
+          itemComponent={(props) => {
+            return (
+              <SelectItem item={props.item}>{props.item.rawValue}</SelectItem>
+            );
+          }}
+        >
+          <SelectPrimitive.Trigger>
+            <SelectPrimitive.Value<string>>
+              {(state) => state.selectedOption()}
+            </SelectPrimitive.Value>
+          </SelectPrimitive.Trigger>
+
+          <SelectContent />
+        </SelectPrimitive.Root>
+      ),
+    },
+    {
+      accessorKey: "fmToneValue",
+      header: "Tone Value",
+      cell: (props) => (
+        <NumberFieldCell
+          rawValue={props.row.original.fmToneValue}
+          onRawValueChange={(value) =>
+            radio().memory(props.row.original.id)?.setFmToneValue(value)
+          }
+        />
+      ),
+    },
+    {
+      accessorKey: "squelchEnabled",
+      header: "Squelch",
+      cell: (props) => (
+        <Checkbox
+          checked={props.row.original.squelchEnabled}
+          onChange={(enabled) =>
+            radio().memory(props.row.original.id)?.setSquelchEnabled(enabled)
+          }
+          aria-label="Select row"
+        />
+      ),
+    },
+    {
+      accessorKey: "squelchLevel",
+      header: "Squelch Level",
+      cell: (props) => (
+        <NumberFieldCell
+          rawValue={props.row.original.squelchLevel}
+          onRawValueChange={(value) =>
+            radio().memory(props.row.original.id)?.setSquelchLevel(value)
+          }
+        />
+      ),
+    },
+    {
+      accessorKey: "filterLowHz",
+      header: "RX Filter Low",
+      cell: (props) => (
+        <NumberFieldCell
+          rawValue={props.row.original.filterLowHz}
+          onRawValueChange={(value) =>
+            radio().memory(props.row.original.id)?.setFilterLow(value)
+          }
+        />
+      ),
+    },
+    {
+      accessorKey: "filterHighHz",
+      header: "RX Filter High",
+      cell: (props) => (
+        <NumberFieldCell
+          rawValue={props.row.original.filterHighHz}
+          onRawValueChange={(value) =>
+            radio().memory(props.row.original.id)?.setFilterHigh(value)
+          }
+        />
+      ),
+    },
+    {
+      accessorKey: "rttyMarkHz",
+      header: "RTTY Mark",
+      cell: (props) => (
+        <NumberFieldCell
+          rawValue={props.row.original.rttyMarkHz}
+          onRawValueChange={(value) =>
+            radio().memory(props.row.original.id)?.setRttyMark(value)
+          }
+        />
+      ),
+    },
+    {
+      accessorKey: "rttyShiftHz",
+      header: "RTTY Shift",
+      cell: (props) => (
+        <NumberFieldCell
+          rawValue={props.row.original.rttyShiftHz}
+          onRawValueChange={(value) =>
+            radio().memory(props.row.original.id)?.setRttyShift(value)
+          }
+        />
+      ),
+    },
+    {
+      accessorKey: "diglOffsetHz",
+      header: "DIGL Offset",
+      cell: (props) => (
+        <NumberFieldCell
+          rawValue={props.row.original.diglOffsetHz}
+          onRawValueChange={(value) =>
+            radio().memory(props.row.original.id)?.setDiglOffset(value)
+          }
+        />
+      ),
+    },
+    {
+      accessorKey: "diguOffsetHz",
+      header: "DIGU Offset",
+      cell: (props) => (
+        <NumberFieldCell
+          rawValue={props.row.original.diguOffsetHz}
+          onRawValueChange={(value) =>
+            radio().memory(props.row.original.id)?.setDiguOffset(value)
+          }
+        />
+      ),
+    },
+    {
+      id: "actions",
+      enableHiding: false,
+      cell: (props) => {
+        return (
+          <DropdownMenu placement="bottom-end">
+            <DropdownMenuTrigger
+              as={Button<"button">}
+              variant="ghost"
+              class="size-8 p-0"
+            >
+              <span class="sr-only">Open menu</span>
+              <IconDots />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuItem
+                onClick={() =>
+                  navigator.clipboard.writeText(props.row.original.id)
+                }
+              >
+                Copy payment ID
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem>View customer</DropdownMenuItem>
+              <DropdownMenuItem>View payment details</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        );
+      },
+    },
+  ];
+
+  const table = createMemo(() =>
+    createSolidTable({
+      data: Object.values(state.status.memory),
+      columns,
+      getCoreRowModel: getCoreRowModel(),
+      getPaginationRowModel: getPaginationRowModel(),
+      getSortedRowModel: getSortedRowModel(),
+      getFilteredRowModel: getFilteredRowModel(),
+      onSortingChange: setSorting,
+      onColumnFiltersChange: setColumnFilters,
+      onColumnVisibilityChange: setColumnVisibility,
+      onRowSelectionChange: setRowSelection,
+      state: {
+        get sorting() {
+          return sorting();
+        },
+        get columnFilters() {
+          return columnFilters();
+        },
+        get columnVisibility() {
+          return columnVisibility();
+        },
+        get rowSelection() {
+          return rowSelection();
+        },
+      },
+    }),
+  );
+
+  return (
+    <div class="flex flex-col gap-4 text-sm text-x">
+      <Card class="bg-transparent">
+        <CardHeader>
+          <CardTitle>Memory Settings</CardTitle>
+        </CardHeader>
+        <CardContent class="flex flex-col gap-4">
+          <div class="flex items-center">
+            <TextField
+              value={
+                (table().getColumn("email")?.getFilterValue() as string) ?? ""
+              }
+              onChange={(value) =>
+                table().getColumn("email")?.setFilterValue(value)
+              }
+            >
+              <TextFieldInput placeholder="Filter emails..." class="max-w-sm" />
+            </TextField>
+            <DropdownMenu placement="bottom-end">
+              <DropdownMenuTrigger
+                as={Button<"button">}
+                variant="outline"
+                class="ml-auto"
+              >
+                Columns <IconChevronDown />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <For
+                  each={table()
+                    .getAllColumns()
+                    .filter((column) => column.getCanHide())}
+                >
+                  {(column) => {
+                    return (
+                      <DropdownMenuCheckboxItem
+                        class="capitalize"
+                        checked={column.getIsVisible()}
+                        onChange={(value) => column.toggleVisibility(!!value)}
+                      >
+                        {column.columnDef.header.toString() ?? column.id}
+                      </DropdownMenuCheckboxItem>
+                    );
+                  }}
+                </For>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          <div class="rounded-md border">
+            <Table>
+              <TableHeader>
+                <For each={table().getHeaderGroups()}>
+                  {(headerGroup) => (
+                    <TableRow>
+                      <For each={headerGroup.headers}>
+                        {(header) => {
+                          return (
+                            <TableHead>
+                              {header.isPlaceholder
+                                ? null
+                                : flexRender(
+                                    header.column.columnDef.header,
+                                    header.getContext(),
+                                  )}
+                            </TableHead>
+                          );
+                        }}
+                      </For>
+                    </TableRow>
+                  )}
+                </For>
+              </TableHeader>
+              <TableBody>
+                {table().getRowModel().rows?.length ? (
+                  table()
+                    .getRowModel()
+                    .rows.map((row) => (
+                      <TableRow data-state={row.getIsSelected() && "selected"}>
+                        <For each={row.getVisibleCells()}>
+                          {(cell) => (
+                            <TableCell>
+                              {flexRender(
+                                cell.column.columnDef.cell,
+                                cell.getContext(),
+                              )}
+                            </TableCell>
+                          )}
+                        </For>
+                      </TableRow>
+                    ))
+                ) : (
+                  <TableRow>
+                    <TableCell
+                      colSpan={columns.length}
+                      class="h-24 text-center"
+                    >
+                      No results.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+          <div class="flex items-center justify-end space-x-2">
+            <div class="flex-1 text-sm text-muted-foreground">
+              {table().getFilteredSelectedRowModel().rows.length} of{" "}
+              {table().getFilteredRowModel().rows.length} row(s) selected.
+            </div>
+            <div class="space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => table().previousPage()}
+                disabled={!table().getCanPreviousPage()}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => table().nextPage()}
+                disabled={!table().getCanNextPage()}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+        <CardFooter class="flex">
+          <Button
+            onClick={() => {
+              console.log("Creating memory");
+              radio().createMemory().catch(console.error);
+            }}
+          >
+            Add New
+          </Button>
+          <div class="grow" />
+          <ConfirmButton
+            variant="destructive"
+            disabled={table().getSelectedRowModel().rows.length === 0}
+            onConfirm={() => {
+              Promise.all(
+                table()
+                  .getSelectedRowModel()
+                  .flatRows.map((mem) =>
+                    radio().memory(mem.original.id).remove(),
+                  ),
+              ).then(() => table().setRowSelection({}));
+            }}
+          >
+            Delete Selected
+          </ConfirmButton>
+        </CardFooter>
+      </Card>
+    </div>
+  );
+}
+
+export function MemorySettings() {
+  const { state } = useFlexRadio();
+  return (
+    <Show
+      when={state.clientHandle}
+      fallback={
+        <Card class="bg-transparent">
+          <CardHeader>
+            <CardTitle>Not Connected</CardTitle>
+          </CardHeader>
+        </Card>
+      }
+    >
+      <MemorySettingsInner />
+    </Show>
+  );
+}

@@ -1,5 +1,6 @@
 // FlexClient + Radio
 export * from "./flex-client.js";
+export * from "./model-info.js";
 export * from "./radio-core.js";
 
 // Transport abstraction

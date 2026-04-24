@@ -49,7 +49,12 @@ import { createTnfSnapshot, type TnfSnapshot } from "./tnf.js";
 import { createMemorySnapshot, type MemorySnapshot } from "./memory.js";
 
 export type { SnapshotDiff } from "./common.js";
-export type { SliceSnapshot } from "./slice.js";
+export type {
+  SliceSnapshot,
+  SliceAgcMode,
+  SliceToneMode,
+  SliceRepeaterOffsetDirection,
+} from "./slice.js";
 export type { PanadapterSnapshot } from "./panadapter.js";
 export type { WaterfallSnapshot } from "./waterfall.js";
 export type { AudioStreamKind, AudioStreamSnapshot } from "./audio-stream.js";
@@ -74,7 +79,7 @@ export type {
   RadioInterlockReason,
   RadioPttSource,
   RadioCwIambicMode,
-  RadioSnapshot as RadioSnapshot,
+  RadioSnapshot,
   RadioStatusContext,
 } from "./radio.js";
 export { KNOWN_METER_UNITS } from "./meter.js";
@@ -179,6 +184,7 @@ export interface RadioStateStore {
   apply(message: FlexStatusMessage): RadioStateChange[];
   snapshot(): RadioStateSnapshot;
   getSlice(id: string): SliceSnapshot | undefined;
+  getSlices(): SliceSnapshot[];
   getPanadapter(id: string): PanadapterSnapshot | undefined;
   getWaterfall(id: string): WaterfallSnapshot | undefined;
   getMeter(id: string): MeterSnapshot | undefined;
@@ -197,7 +203,10 @@ export interface RadioStateStore {
   getTnfs(): readonly TnfSnapshot[];
   getMemory(id: string): MemorySnapshot | undefined;
   getMemories(): readonly MemorySnapshot[];
-  patchMemory(id: string, attributes: Record<string, string>): MemoryStateChange | undefined;
+  patchMemory(
+    id: string,
+    attributes: Record<string, string>,
+  ): MemoryStateChange | undefined;
   removeMemory(id: string): MemoryStateChange | undefined;
   getApd(): ApdSnapshot | undefined;
   getCwx(): CwxSnapshot | undefined;
@@ -438,6 +447,9 @@ export function createRadioStateStore(
     getSlice(id) {
       return slices.get(id);
     },
+    getSlices() {
+      return Array.from(slices.values());
+    },
     getPanadapter(id) {
       return panadapters.get(id);
     },
@@ -486,10 +498,18 @@ export function createRadioStateStore(
     getTnfs() {
       return Array.from(tnfs.values());
     },
-    getMemory(id) { return memories.get(id); },
-    getMemories() { return Array.from(memories.values()); },
-    patchMemory(id, attributes) { return patchMemory(id, attributes); },
-    removeMemory(id) { return removeMemory(id); },
+    getMemory(id) {
+      return memories.get(id);
+    },
+    getMemories() {
+      return Array.from(memories.values());
+    },
+    patchMemory(id, attributes) {
+      return patchMemory(id, attributes);
+    },
+    removeMemory(id) {
+      return removeMemory(id);
+    },
     getApd() {
       return apd;
     },
@@ -1609,19 +1629,30 @@ export function createRadioStateStore(
   function handleMemory(message: FlexStatusMessage): RadioStateChange {
     const id = resolveIdentifier(message, message.identifier);
     if (!id) {
-      return { entity: "unknown", source: message.source, attributes: message.attributes };
+      return {
+        entity: "unknown",
+        source: message.source,
+        attributes: message.attributes,
+      };
     }
     if (isMarkedDeleted(message)) {
       memories.delete(id);
       return { entity: "memory", id, removed: true };
     }
     const previous = memories.get(id);
-    const { snapshot, diff } = createMemorySnapshot(id, message.attributes, previous);
+    const { snapshot, diff } = createMemorySnapshot(
+      id,
+      message.attributes,
+      previous,
+    );
     memories.set(id, snapshot);
     return { entity: "memory", id, diff, removed: false };
   }
 
-  function patchMemory(id: string, attributes: Record<string, string>): MemoryStateChange | undefined {
+  function patchMemory(
+    id: string,
+    attributes: Record<string, string>,
+  ): MemoryStateChange | undefined {
     if (Object.keys(attributes).length === 0) return undefined;
     const previous = memories.get(id);
     const { snapshot, diff } = createMemorySnapshot(id, attributes, previous);

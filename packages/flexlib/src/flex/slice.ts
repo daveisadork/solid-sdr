@@ -1,5 +1,11 @@
 import type { RadioSession } from "./radio-core.js";
-import type { SliceSnapshot, SliceStateChange } from "./state/index.js";
+import type {
+  SliceSnapshot,
+  SliceStateChange,
+  SliceAgcMode,
+  SliceToneMode,
+  SliceRepeaterOffsetDirection,
+} from "./state/index.js";
 import { TypedEventEmitter, type Subscription } from "../util/events.js";
 import { FlexError, FlexStateUnavailableError } from "./errors.js";
 import {
@@ -7,14 +13,6 @@ import {
   formatInteger,
   formatMegahertz,
 } from "./controller-helpers.js";
-
-export type SliceAgcMode = "off" | "slow" | "med" | "fast" | (string & {});
-export type SliceToneMode = "off" | "ctcss_tx" | (string & {});
-export type SliceRepeaterOffsetDirection =
-  | "down"
-  | "simplex"
-  | "up"
-  | (string & {});
 
 export interface SliceControllerEvents {
   readonly change: SliceStateChange;
@@ -94,7 +92,7 @@ export interface SliceController extends Readonly<Omit<SliceSnapshot, "raw">> {
     event: TKey,
     listener: (payload: SliceControllerEvents[TKey]) => void,
   ): Subscription;
-  setFrequency(frequencyMHz: number): Promise<void>;
+  setFrequency(frequencyMHz: number, autoPan?: boolean): Promise<void>;
   nudge(deltaHz: number): Promise<void>;
   cwAutoTune(options?: { intermittent?: boolean }): Promise<void>;
   /**
@@ -736,14 +734,16 @@ export class SliceControllerImpl implements SliceController {
     return this.events.on(event, listener);
   }
 
-  async setFrequency(frequencyMHz: number): Promise<void> {
+  async setFrequency(frequencyMHz: number, autoPan = true): Promise<void> {
     const formattedFrequency = formatMegahertz(frequencyMHz);
     const change = this.radio.getStore().patchSlice(this.id, {
       freq: formattedFrequency,
     });
     if (change) this.radio.applyStateChange(change);
     try {
-      await this.radio.command(`slice tune ${this.id} ${formattedFrequency}`);
+      await this.radio.command(
+        `slice tune ${this.id} ${formattedFrequency} autopan=${formatBooleanFlag(autoPan)}`,
+      );
     } catch (error) {
       await this.radio.command(`sub slice ${this.id}`);
       throw error;

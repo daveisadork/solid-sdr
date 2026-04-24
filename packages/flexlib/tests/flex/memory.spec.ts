@@ -15,10 +15,10 @@ describe("MemorySnapshot parser", () => {
       freq: "7.250000",
       mode: "USB",
       step: "100",
-      repeater: "simplex",
+      repeater: "SIMPLEX",
       repeater_offset: "0.000000",
       tone_mode: "off",
-      tone_value: "100.0",
+      tone_value: "67.0",
       squelch: "0",
       squelch_level: "22",
       rx_filter_low: "100",
@@ -38,10 +38,10 @@ describe("MemorySnapshot parser", () => {
     expect(snapshot.frequencyMHz).toBeCloseTo(7.25);
     expect(snapshot.mode).toBe("USB");
     expect(snapshot.stepHz).toBe(100);
-    expect(snapshot.repeaterOffsetDirection).toBe("simplex");
+    expect(snapshot.repeaterOffsetDirection).toBe("SIMPLEX");
     expect(snapshot.repeaterOffsetMHz).toBeCloseTo(0);
     expect(snapshot.fmToneMode).toBe("off");
-    expect(snapshot.fmToneValue).toBe("100.0");
+    expect(snapshot.fmToneValue).toBe(67.0);
     expect(snapshot.squelchEnabled).toBe(false);
     expect(snapshot.squelchLevel).toBe(22);
     expect(snapshot.filterLowHz).toBe(100);
@@ -296,7 +296,7 @@ describe("Memory controller", () => {
     await controller.setFmToneMode("ctcss_tx");
     expect(connection.lastCommand()).toBe("memory set 0 tone_mode=ctcss_tx");
 
-    await controller.setFmToneValue("100.0");
+    await controller.setFmToneValue(100.0);
     expect(connection.lastCommand()).toBe("memory set 0 tone_value=100.0");
 
     await controller.setSquelchEnabled(true);

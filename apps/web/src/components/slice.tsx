@@ -11,6 +11,7 @@ import {
   createMemo,
   createSignal,
   For,
+  onCleanup,
   Show,
   splitProps,
 } from "solid-js";
@@ -582,7 +583,8 @@ const SliceFilter = (props: {
 
 export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
   const { radio, state, setState } = useFlexRadio();
-  const { panafallBounds } = usePanafall();
+  const { panafallBounds, pxToMHz, panadapterController, freqToX } =
+    usePanafall();
   const sliceController = createMemo(() => radio()?.slice(props.slice.id));
   const [offset, setOffset] = createSignal(0);
   const [sentinel, setSentinel] = createSignal<HTMLDivElement>();
@@ -595,6 +597,7 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
     originX: 0,
     originFreq: 0,
     offset: 0,
+    contain: 0,
   });
   const windowSize = createWindowSize();
   const sentinelBounds = createElementBounds(sentinel);
@@ -610,6 +613,15 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
   );
 
   const splitPartner = createMemo(() => splitParent() || splitChild());
+
+  const diversityParent = createMemo(() => {
+    if (!props.slice.diversityChild) return;
+    return state.status.slice[props.slice.diversityIndex.toString()];
+  });
+
+  const isActive = createMemo(() => {
+    return diversityParent()?.isActive ?? props.slice.isActive;
+  });
 
   const levelMeter = createMemo(() => {
     const sliceIndex = Number(props.slice.id);
@@ -656,15 +668,13 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
   });
 
   createPointerListeners({
-    async onMove(event) {
+    onMove({ x }) {
       if (!dragState.dragging) return;
-      const newX = Math.max(0, Math.min(event.x, props.pan.width - 1));
-      const newOffset = dragState.originX - newX;
+      const newOffset = dragState.originX - x;
 
-      const mhzPerPx = props.pan.bandwidthMHz / props.pan.width;
       // Round frequency to the nearest step
       const step = props.slice.tuneStepHz / 1e6; // Convert Hz to MHz
-      const freqUnrounded = dragState.originFreq - newOffset * mhzPerPx;
+      const freqUnrounded = dragState.originFreq - pxToMHz(newOffset);
       const freqSteps = Math.round(freqUnrounded / step);
       const freq = freqSteps * step;
 
@@ -672,21 +682,45 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
         return;
       }
 
-      await sliceController()?.setFrequency(freq);
+      const offsetX = x - panafallBounds.left;
+      const xPercent = offsetX / panafallBounds.width;
+      if (xPercent < 0.05 || xPercent > 0.95) {
+        setDragState({
+          contain: freq < props.pan.centerFrequencyMHz ? -1 : 1,
+        });
+        return;
+      }
+
+      setDragState("contain", 0);
+      sliceController().setFrequency(freq, false);
     },
     onUp() {
-      setDragState("dragging", false);
+      setDragState({ dragging: false, contain: 0 });
     },
     onLeave() {
-      setDragState("dragging", false);
+      setDragState({ dragging: false, contain: 0 });
     },
   });
 
-  createEffect((center) => {
-    if (props.pan.centerFrequencyMHz !== center) {
-      setDragState("dragging", false);
-    }
-    return props.pan.centerFrequencyMHz;
+  createEffect(() => {
+    if (!dragState.contain) return;
+    const pan = panadapterController();
+    const slice = sliceController();
+    const stepMHz = (slice.tuneStepHz / 1e6) * dragState.contain;
+    const xOffsetPx = filterWidth() / 2;
+
+    const interval = setInterval(() => {
+      const newSliceFreq = slice.frequencyMHz + stepMHz;
+      batch(() => {
+        pan.setCenterFrequency(pan.centerFrequencyMHz + stepMHz);
+        slice.setFrequency(newSliceFreq, false);
+      });
+      setDragState({
+        originFreq: newSliceFreq,
+        originX: freqToX(newSliceFreq) + xOffsetPx,
+      });
+    }, 20);
+    onCleanup(() => clearInterval(interval));
   });
 
   createEffect(() => {
@@ -695,7 +729,8 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
       : panafallBounds.left + panafallBounds.width;
     if (!width) return;
     const leftFreq = props.pan.centerFrequencyMHz - props.pan.bandwidthMHz / 2;
-    const offsetMhz = props.slice.frequencyMHz - leftFreq;
+    const offsetMhz =
+      (diversityParent() ?? props.slice).frequencyMHz - leftFreq;
     const offsetPixels = (offsetMhz / props.pan.bandwidthMHz) * width;
     const filterWidthMhz =
       (props.slice.filterHighHz - props.slice.filterLowHz) / 1e6; // Convert Hz to MHz
@@ -728,7 +763,7 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
   };
 
   const makeActive = async () => {
-    if (props.slice.isActive) return;
+    if (isActive()) return;
     sliceController()?.setActive(true);
   };
 
@@ -744,9 +779,10 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
     <>
       <Show when={!props.slice.isDetached}>
         <div
-          class="absolute inset-y-0 translate-x-(--slice-offset) cursor-ew-resize z-10 pointer-events-auto"
+          class="absolute inset-y-0 translate-x-(--slice-offset) cursor-ew-resize z-10"
           classList={{
-            "translate-z-1": props.slice.isActive,
+            "translate-z-1": isActive(),
+            "pointer-events-auto": !props.slice.diversityChild,
           }}
           style={{
             "--slice-offset": `${offset()}px`,
@@ -807,8 +843,8 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
             <div
               class="absolute top-0 left-0 w-0 max-w-0 translate-y-(--panafall-top) translate-x-(--flag-offset) overflow-visible"
               classList={{
-                "z-20": props.slice.isActive,
-                "z-10": !props.slice.isActive,
+                "z-20": isActive(),
+                "z-10": !isActive(),
               }}
               style={{
                 "--panafall-top": `${panafallBounds.top}px`,
@@ -827,14 +863,14 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
                 <div
                   class="border rounded-md overflow-hidden flex flex-col p-1.5 gap-1 pointer-events-auto text-sm font-mono drop-shadow-black fancy-bg-background"
                   classList={{
-                    "drop-shadow-lg": props.slice.isActive,
-                    "drop-shadow-md": !props.slice.isActive,
+                    "drop-shadow-lg": isActive(),
+                    "drop-shadow-md": !isActive(),
                   }}
                 >
                   <div
                     class="absolute top-0 left-0 right-0 bottom-0 pointer-events-none rounded-md"
                     classList={{
-                      "bg-background/25": !props.slice.isActive,
+                      "bg-background/25": !isActive(),
                     }}
                   />
                   <div class="flex justify-between items-center gap-1">
@@ -894,6 +930,7 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
                     />
                     <Show when={!splitParent()}>
                       <ToggleButton
+                        disabled={state.status.radio.availableSlices === 0}
                         class="flex justify-center items-center h-4.5 px-1 rounded-sm text-muted-foreground data-pressed:bg-red-500 data-pressed:text-foreground"
                         pressed={Boolean(splitChild())}
                         onChange={(pressed) => {

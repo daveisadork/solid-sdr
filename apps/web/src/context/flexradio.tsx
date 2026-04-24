@@ -1,6 +1,5 @@
 import {
   Accessor,
-  batch,
   createContext,
   createEffect,
   createMemo,
@@ -30,33 +29,28 @@ import {
   type FeatureLicenseSnapshot,
   type FlexWireMessage,
   type GuiClientSnapshot,
+  type MemorySnapshot,
   type MeterSnapshot,
   type PanadapterSnapshot,
   type RadioSnapshot,
   type RadioStateChange,
   type SliceSnapshot,
+  type SpotSnapshot,
+  type SpotStateChange,
   type Subscription,
+  type TnfSnapshot,
   type TxBandSettingSnapshot,
   type WaterfallSnapshot,
   type XvtrSnapshot,
-  type SpotSnapshot,
-  SpotStateChange,
-  TnfSnapshot,
 } from "@repo/flexlib";
 import { createFlexClient } from "@repo/flexlib/bridge";
 import { useRtc } from "./rtc";
 import { usePreferences } from "./preferences";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "~/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Timeline } from "~/components/ui/timeline";
-import { Button } from "~/components/ui/button";
 import { InfoItem } from "~/components/settings/common";
 import { ReactiveMap } from "@solid-primitives/map";
+import { FlexRadioDescriptor } from "@repo/flexlib";
 
 export enum ConnectionState {
   disconnected,
@@ -102,6 +96,7 @@ export type CwxState = Omit<MutableProps<CwxSnapshot>, "raw">;
 export type DvkState = Omit<MutableProps<DvkSnapshot>, "raw">;
 export type SpotState = Omit<MutableProps<SpotSnapshot>, "raw">;
 export type TnfState = Omit<MutableProps<TnfSnapshot>, "raw">;
+export type MemoryState = Omit<MutableProps<MemorySnapshot>, "raw">;
 
 export interface ConnectModalState {
   status: ConnectionState;
@@ -116,13 +111,14 @@ export interface StatusState {
   slice: Record<string, SliceState>;
   panadapter: Record<string, PanadapterState>;
   waterfall: Record<string, WaterfallState>;
-  radio: Radio;
+  radio: RadioState;
   featureLicense: FeatureLicenseState;
   audioStream: Record<string, AudioStreamState>;
   spot: Record<string, SpotState>;
   guiClient: Record<string, GuiClientState>;
   txBandSetting: Record<string, TxBandSettingState>;
   tnf: Record<string, TnfState>;
+  memory: Record<string, MemoryState>;
   xvtr: Record<string, XvtrState>;
   cwx: CwxState;
   dvk: DvkState;
@@ -133,6 +129,7 @@ export interface AppState {
   clientHandleInt: number | null;
   clientId: string | null;
   selectedPanadapter: string | null;
+  discoveredRadios: Record<string, FlexRadioDescriptor>;
   connectModal: ConnectModalState;
   status: StatusState;
 }
@@ -146,6 +143,7 @@ export const initialState = () =>
     connectModal: {
       status: ConnectionState.disconnected,
     },
+    discoveredRadios: {},
     status: {
       apd: {},
       meter: {},
@@ -163,6 +161,7 @@ export const initialState = () =>
       cwx: {},
       dvk: {},
       tnf: {},
+      memory: {},
     },
   }) as AppState;
 
@@ -212,6 +211,48 @@ export const FlexRadioProvider: ParentComponent = (props) => {
   const flexClient = createMemo(() => {
     if (rtcState.connectionState !== "connected") return;
     return createFlexClient(peerConnection());
+  });
+
+  const updateDiscoveryRadio = (descriptor?: FlexRadioDescriptor) => {
+    if (descriptor) {
+      setState("discoveredRadios", descriptor.host, { ...descriptor });
+    }
+  };
+
+  createEffect(() => {
+    const client = flexClient();
+    if (!client) return;
+
+    const clientSubscriptions = [
+      client.on("radioDiscovered", (radio) =>
+        updateDiscoveryRadio(radio.descriptor),
+      ),
+      client.on("radioUpdated", (radio) =>
+        updateDiscoveryRadio(radio.descriptor),
+      ),
+      client.on("radioLost", (radio) =>
+        setState(
+          "discoveredRadios",
+          produce((radios) => {
+            delete radios[radio.endpoint?.host];
+          }),
+        ),
+      ),
+    ];
+
+    onCleanup(() => {
+      console.log("Cleaning up discovery subscriptions and session");
+      for (const sub of clientSubscriptions) sub.unsubscribe();
+      client
+        .stopDiscovery()
+        .catch((error) =>
+          console.error("Failed to stop discovery session", error),
+        );
+    });
+
+    client.startDiscovery().catch((error) => {
+      console.error("Failed to start discovery session", error);
+    });
   });
 
   const cleanupRadioSubscriptions = () => {
@@ -441,6 +482,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
           isGui: true,
           program: "SolidSDR Web",
           guiClientId: preferences.guiClientId,
+          station: preferences.stationName,
         },
       });
     } catch (error) {
@@ -481,6 +523,12 @@ export const FlexRadioProvider: ParentComponent = (props) => {
   });
   globalThis.state = state;
   globalThis.sendCommand = sendCommand; // Expose for debugging
+  createEffect(() => {
+    for (const panId in state.status.panadapter) {
+      const { width, height } = state.status.panadapter[panId];
+      console.log({ width, height });
+    }
+  });
 
   return (
     <FlexRadioContext.Provider

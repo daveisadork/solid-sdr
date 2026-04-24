@@ -28,8 +28,6 @@ export interface MemorySnapshot {
   readonly rttyShiftHz: number;
   readonly diglOffsetHz: number;
   readonly diguOffsetHz: number;
-  readonly highlight: boolean;
-  readonly highlightColor: string;
   readonly raw: Readonly<Record<string, string>>;
 }
 
@@ -127,16 +125,13 @@ export function createMemorySnapshot(
         else logParseError("memory", key, value);
         break;
       }
-      case "highlight": {
-        const parsed = isTruthy(value);
-        if (parsed !== undefined) partial.highlight = parsed;
-        else logParseError("memory", key, value);
+      case "power":
+        // radio sends this, but the official lib says it isn't used
         break;
-      }
-      case "highlight_color": {
-        partial.highlightColor = value;
+      case "highlight":
+      case "highlight_color":
+        // radio sends these, but the official lib ignores them
         break;
-      }
       default:
         logUnknownAttribute("memory", key, value);
         break;

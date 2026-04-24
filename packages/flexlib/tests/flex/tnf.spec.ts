@@ -107,9 +107,7 @@ describe("TNF store integration", () => {
   it("patchTnf applies attributes optimistically", () => {
     // given a store with an existing tnf
     const store = createRadioStateStore();
-    store.apply(
-      makeStatus("S1|tnf 1 freq=14.200000 depth=2 width=0.000100"),
-    );
+    store.apply(makeStatus("S1|tnf 1 freq=14.200000 depth=2 width=0.000100"));
 
     // when we optimistically patch
     const change = store.patchTnf("1", { depth: "3" });
@@ -123,9 +121,7 @@ describe("TNF store integration", () => {
   it("removeTnf removes an existing tnf", () => {
     // given a store with an existing tnf
     const store = createRadioStateStore();
-    store.apply(
-      makeStatus("S1|tnf 1 freq=14.200000 depth=2 width=0.000100"),
-    );
+    store.apply(makeStatus("S1|tnf 1 freq=14.200000 depth=2 width=0.000100"));
 
     // when we remove it
     const change = store.removeTnf("1");
@@ -149,12 +145,8 @@ describe("TNF store integration", () => {
   it("snapshot includes tnfs array", () => {
     // given a store with tnfs
     const store = createRadioStateStore();
-    store.apply(
-      makeStatus("S1|tnf 1 freq=14.200000 depth=1 width=0.000100"),
-    );
-    store.apply(
-      makeStatus("S2|tnf 2 freq=7.050000 depth=2 width=0.000200"),
-    );
+    store.apply(makeStatus("S1|tnf 1 freq=14.200000 depth=1 width=0.000100"));
+    store.apply(makeStatus("S2|tnf 2 freq=7.050000 depth=2 width=0.000200"));
 
     // when we take a snapshot
     const snap = store.snapshot();
@@ -232,9 +224,7 @@ describe("TNF controller", () => {
   it("clamps depth to 1-3 range", async () => {
     // given a connected radio with a tnf
     const { radio, connection } = await createConnectedRadio();
-    connection.emitStatus(
-      "S1|tnf 1 freq=14.200000 depth=2 width=0.000100",
-    );
+    connection.emitStatus("S1|tnf 1 freq=14.200000 depth=2 width=0.000100");
     const controller = radio.tnf("1")!;
 
     // when we set depth below minimum
@@ -249,9 +239,7 @@ describe("TNF controller", () => {
   it("sends tnf remove command", async () => {
     // given a connected radio with a tnf
     const { radio, connection } = await createConnectedRadio();
-    connection.emitStatus(
-      "S1|tnf 1 freq=14.200000 depth=2 width=0.000100",
-    );
+    connection.emitStatus("S1|tnf 1 freq=14.200000 depth=2 width=0.000100");
     const controller = radio.tnf("1")!;
 
     // when we remove the tnf
@@ -291,20 +279,21 @@ describe("TNF controller", () => {
     expect(connection.commands.some((c) => c === "sub tnf 1")).toBe(true);
   });
 
-  it("creates a tnf and returns the controller", async () => {
+  it("creates a tnf", async () => {
     // given a connected radio
     const { radio, connection } = await createConnectedRadio();
 
-    // given the radio will return the new TNF's ID and emit its status
-    connection.emitStatus("S1|tnf 2 freq=14.200000 depth=2 width=0.000100 permanent=0");
-    connection.prepareResponse("tnf create", { message: "2" });
+    // given the radio will not return the new TNF's ID
+    connection.emitStatus(
+      "S1|tnf 2 freq=14.200000 depth=2 width=0.000100 permanent=0",
+    );
+    connection.prepareResponse("tnf create", { code: 0, message: undefined });
 
     // when we create a new tnf
-    const controller = await radio.createTnf(14.2);
+    const response = await radio.createTnf(14.2);
 
     // then the create command was sent and the controller is available
     expect(connection.lastCommand()).toBe("tnf create freq=14.200000");
-    expect(controller.id).toBe("2");
-    expect(controller.frequencyMHz).toBeCloseTo(14.2, 6);
+    expect(response).toBeUndefined();
   });
 });

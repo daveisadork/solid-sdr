@@ -733,14 +733,9 @@ export class Radio {
    * Creates a new TNF at the given frequency (in MHz).
    * Returns the controller for the newly created TNF.
    */
-  async createTnf(frequencyMHz: number): Promise<TnfController> {
+  async createTnf(frequencyMHz: number): Promise<void> {
     const freq = formatMegahertz(ensureFinite(frequencyMHz, "TNF frequency"));
-    const response = await this.command(`tnf create freq=${freq}`);
-    const newId = response.message?.trim() ?? "";
-    const controller = this.tnf(newId);
-    if (!controller)
-      throw new FlexError(`TNF ${newId} not available after creation`);
-    return controller;
+    await this.command(`tnf create freq=${freq}`);
   }
 
   memories(): MemoryController[] {

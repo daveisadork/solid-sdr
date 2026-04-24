@@ -90,7 +90,7 @@ describe("MemorySnapshot parser", () => {
 
   it("logs unknown attributes", () => {
     const warnSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
-    createMemorySnapshot("0", { power: "100", highlight: "1" });
+    createMemorySnapshot("0", { foo: "100", bar: "1" });
     expect(warnSpy).toHaveBeenCalledTimes(2);
     warnSpy.mockRestore();
   });
@@ -121,19 +121,31 @@ describe("Memory store integration", () => {
     expect(store.getMemory("0")?.mode).toBe("USB");
     expect(store.getMemories()).toHaveLength(1);
     expect(createChanges).toHaveLength(1);
-    expect(createChanges[0]).toMatchObject({ entity: "memory", id: "0", removed: false });
+    expect(createChanges[0]).toMatchObject({
+      entity: "memory",
+      id: "0",
+      removed: false,
+    });
 
     const updateChanges = store.apply(
       makeStatus("S2|memory 0 freq=14.200000 mode=LSB"),
     );
     expect(store.getMemory("0")?.frequencyMHz).toBeCloseTo(14.2);
     expect(store.getMemory("0")?.mode).toBe("LSB");
-    expect(updateChanges[0]).toMatchObject({ entity: "memory", id: "0", removed: false });
+    expect(updateChanges[0]).toMatchObject({
+      entity: "memory",
+      id: "0",
+      removed: false,
+    });
 
     const removeChanges = store.apply(makeStatus("S3|memory 0 removed"));
     expect(store.getMemory("0")).toBeUndefined();
     expect(store.getMemories()).toHaveLength(0);
-    expect(removeChanges[0]).toMatchObject({ entity: "memory", id: "0", removed: true });
+    expect(removeChanges[0]).toMatchObject({
+      entity: "memory",
+      id: "0",
+      removed: true,
+    });
   });
 
   it("patchMemory applies attributes optimistically", () => {
@@ -277,7 +289,9 @@ describe("Memory controller", () => {
     expect(connection.lastCommand()).toBe("memory set 0 repeater=up");
 
     await controller.setRepeaterOffset(0.6);
-    expect(connection.lastCommand()).toBe("memory set 0 repeater_offset=0.600000");
+    expect(connection.lastCommand()).toBe(
+      "memory set 0 repeater_offset=0.600000",
+    );
 
     await controller.setFmToneMode("ctcss_tx");
     expect(connection.lastCommand()).toBe("memory set 0 tone_mode=ctcss_tx");

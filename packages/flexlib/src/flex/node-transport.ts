@@ -84,7 +84,7 @@ export class NodeConnection
     });
   }
 
-  async connectUdp(endpoint: RadioEndpoint): Promise<void> {
+  async connectUdp(_endpoint: RadioEndpoint): Promise<void> {
     if (this.closed) throw new Error("Connection is closed");
     if (this.udpSocket) throw new Error("UDP already connected");
 

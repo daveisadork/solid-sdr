@@ -67,6 +67,8 @@ import { cn } from "~/lib/utils";
 import { SelectContent, SelectItem } from "../ui/select";
 import { ConfirmButton } from "../ui/confirm-button";
 import { createStore } from "solid-js/store";
+import IcBaselinePlayCircleOutline from "~icons/ic/baseline-play-circle-outline";
+import { toneValues } from "../slice";
 
 const TextFieldCell = (
   props: TextFieldPrimitive.TextFieldRootProps & {
@@ -148,6 +150,20 @@ function MemorySettingsInner() {
       ),
       enableSorting: false,
       enableHiding: false,
+    },
+    {
+      id: "activate",
+      enableHiding: false,
+      cell: (props) => {
+        return (
+          <Button
+            class="size-6 p-0"
+            onClick={() => radio().memory(props.row.original.id)?.apply()}
+          >
+            <IcBaselinePlayCircleOutline />
+          </Button>
+        );
+      },
     },
     {
       accessorKey: "group",
@@ -309,12 +325,28 @@ function MemorySettingsInner() {
       accessorKey: "fmToneValue",
       header: "Tone Value",
       cell: (props) => (
-        <NumberFieldCell
-          rawValue={props.row.original.fmToneValue}
-          onRawValueChange={(value) =>
-            radio().memory(props.row.original.id)?.setFmToneValue(value)
-          }
-        />
+        <SelectPrimitive.Root
+          options={toneValues.map((v) => v.hz)}
+          value={props.row.original.fmToneValue}
+          onChange={(value?: string) => {
+            if (!value || value == props.row.original.fmToneValue) return;
+            radio().memory(props.row.original.id)?.setFmToneMode(value);
+          }}
+          itemComponent={(props) => (
+            <SelectItem item={props.item} class="font-mono">
+              {toneValues
+                .find((v) => v.hz === props.item.rawValue)
+                ?.name.replace(" ", "\xA0") || "None"}
+            </SelectItem>
+          )}
+        >
+          <SelectPrimitive.Trigger aria-label="FM Tone Value">
+            <SelectPrimitive.Value<string>>
+              {(state) => state.selectedOption()}
+            </SelectPrimitive.Value>
+          </SelectPrimitive.Trigger>
+          <SelectContent />
+        </SelectPrimitive.Root>
       ),
     },
     {
@@ -414,37 +446,6 @@ function MemorySettingsInner() {
         />
       ),
     },
-    {
-      id: "actions",
-      enableHiding: false,
-      cell: (props) => {
-        return (
-          <DropdownMenu placement="bottom-end">
-            <DropdownMenuTrigger
-              as={Button<"button">}
-              variant="ghost"
-              class="size-8 p-0"
-            >
-              <span class="sr-only">Open menu</span>
-              <IconDots />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuItem
-                onClick={() =>
-                  navigator.clipboard.writeText(props.row.original.id)
-                }
-              >
-                Copy payment ID
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>View customer</DropdownMenuItem>
-              <DropdownMenuItem>View payment details</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        );
-      },
-    },
   ];
 
   const table = createMemo(() =>
@@ -484,16 +485,6 @@ function MemorySettingsInner() {
         </CardHeader>
         <CardContent class="flex flex-col gap-4">
           <div class="flex items-center">
-            <TextField
-              value={
-                (table().getColumn("email")?.getFilterValue() as string) ?? ""
-              }
-              onChange={(value) =>
-                table().getColumn("email")?.setFilterValue(value)
-              }
-            >
-              <TextFieldInput placeholder="Filter emails..." class="max-w-sm" />
-            </TextField>
             <DropdownMenu placement="bottom-end">
               <DropdownMenuTrigger
                 as={Button<"button">}

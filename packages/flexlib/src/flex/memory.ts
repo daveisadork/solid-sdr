@@ -46,7 +46,7 @@ export interface MemoryController
   ): Promise<void>;
   setRepeaterOffset(offsetMHz: number): Promise<void>;
   setFmToneMode(mode: MemoryToneMode): Promise<void>;
-  setFmToneValue(value: number): Promise<void>;
+  setFmToneValue(value: string): Promise<void>;
   setSquelchEnabled(enabled: boolean): Promise<void>;
   setSquelchLevel(level: number): Promise<void>;
   setFilterLow(lowHz: number): Promise<void>;
@@ -102,7 +102,7 @@ export class MemoryControllerImpl implements MemoryController {
   get fmToneMode(): MemoryToneMode {
     return this.current().fmToneMode;
   }
-  get fmToneValue(): number {
+  get fmToneValue(): string {
     return this.current().fmToneValue;
   }
   get squelchEnabled(): boolean {
@@ -182,8 +182,8 @@ export class MemoryControllerImpl implements MemoryController {
     await this.sendSet({ tone_mode: mode });
   }
 
-  async setFmToneValue(value: number): Promise<void> {
-    await this.sendSet({ tone_value: value.toString() });
+  async setFmToneValue(value: string): Promise<void> {
+    await this.sendSet({ tone_value: Number(value).toFixed(1) });
   }
 
   async setSquelchEnabled(enabled: boolean): Promise<void> {

@@ -23,7 +23,7 @@ export interface MemorySnapshot {
   readonly repeaterOffsetDirection: MemoryRepeaterOffsetDirection;
   readonly repeaterOffsetMHz: number;
   readonly fmToneMode: MemoryToneMode;
-  readonly fmToneValue: number;
+  readonly fmToneValue: string;
   readonly squelchEnabled: boolean;
   readonly squelchLevel: number;
   readonly filterLowHz: number;
@@ -82,7 +82,7 @@ export function createMemorySnapshot(
         partial.fmToneMode = value;
         break;
       case "tone_value":
-        partial.fmToneValue = Number(value);
+        partial.fmToneValue = value;
         break;
       case "squelch":
         partial.squelchEnabled = isTruthy(value);

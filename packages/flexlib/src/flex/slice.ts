@@ -74,7 +74,7 @@ export interface SliceUpdateRequest {
   recordingEnabled?: boolean;
   playbackEnabled?: boolean;
   fmToneMode?: SliceToneMode;
-  fmToneValue?: number;
+  fmToneValue?: string;
   fmDeviation?: number;
   fmToneBurstEnabled?: boolean;
   fmPreDeEmphasisEnabled?: boolean;
@@ -1004,8 +1004,8 @@ export class SliceControllerImpl implements SliceController {
     await this.sendSet({ fm_tone_mode: mode });
   }
 
-  async setFmToneValue(value: number): Promise<void> {
-    await this.sendSet({ fm_tone_value: formatMegahertz(value) });
+  async setFmToneValue(value: string): Promise<void> {
+    await this.sendSet({ fm_tone_value: Number(value).toFixed(1) });
   }
 
   async setFmDeviation(deviation: number): Promise<void> {
@@ -1240,7 +1240,7 @@ export class SliceControllerImpl implements SliceController {
     if (request.fmToneMode !== undefined)
       entries.fm_tone_mode = request.fmToneMode;
     if (request.fmToneValue !== undefined)
-      entries.fm_tone_value = formatMegahertz(request.fmToneValue);
+      entries.fm_tone_value = request.fmToneValue;
     if (request.fmDeviation !== undefined)
       entries.fm_deviation = formatInteger(request.fmDeviation);
     if (request.fmToneBurstEnabled !== undefined)

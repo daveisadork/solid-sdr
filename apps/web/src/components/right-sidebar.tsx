@@ -249,13 +249,28 @@ function TxSection() {
             label="Tune"
             // tooltip="Transmit a carrier for tuning"
           />
-          {/* <SimpleSwitch */}
-          {/*   checked={state.status.radio.tuneMode === "two_tone"} */}
-          {/*   onChange={(isChecked) => { */}
-          {/*     radio()?.setTuneMode(isChecked ? "two_tone" : "single_tone"); */}
+          {/* <SegmentedControl */}
+          {/*   value={state.status.radio.tuneMode} */}
+          {/*   onChange={(value: "single_tone" | "two_tone") => { */}
+          {/*     if (!value) return; */}
+          {/*     radio().setTuneMode(value); */}
           {/*   }} */}
-          {/*   label="Two-Tone Tune" */}
-          {/* /> */}
+          {/* > */}
+          {/*   <SegmentedControlGroup> */}
+          {/*     <SegmentedControlIndicator /> */}
+          {/*     <SegmentedControlItemsList> */}
+          {/*       <For each={["single_tone", "two_tone"]}> */}
+          {/*         {(mode) => ( */}
+          {/*           <SegmentedControlItem value={mode}> */}
+          {/*             <SegmentedControlItemLabel class="capitalize"> */}
+          {/*               {mode.replace("_", " ")} */}
+          {/*             </SegmentedControlItemLabel> */}
+          {/*           </SegmentedControlItem> */}
+          {/*         )} */}
+          {/*       </For> */}
+          {/*     </SegmentedControlItemsList> */}
+          {/*   </SegmentedControlGroup> */}
+          {/* </SegmentedControl> */}
           <div class="flex flex-col">
             <SimpleSwitch
               checked={

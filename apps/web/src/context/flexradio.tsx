@@ -523,12 +523,6 @@ export const FlexRadioProvider: ParentComponent = (props) => {
   });
   globalThis.state = state;
   globalThis.sendCommand = sendCommand; // Expose for debugging
-  createEffect(() => {
-    for (const panId in state.status.panadapter) {
-      const { width, height } = state.status.panadapter[panId];
-      console.log({ width, height });
-    }
-  });
 
   return (
     <FlexRadioContext.Provider

@@ -31,6 +31,8 @@ import {
   ContextMenuTrigger,
   ContextMenuPortal,
   ContextMenuCheckboxItem,
+  ContextMenuGroup,
+  ContextMenuSeparator,
 } from "../ui/context-menu";
 import { usePanafall } from "~/context/panafall";
 import { createWindowSize } from "@solid-primitives/resize-observer";
@@ -376,41 +378,55 @@ export function Panafall(props: { index: number }) {
                   />
                   <ContextMenuPortal>
                     <ContextMenuContent>
-                      <ContextMenuCheckboxItem
-                        checked={preferences.showTuningGuide}
-                        onChange={(checked) => {
-                          setPreferences("showTuningGuide", checked);
-                        }}
-                      >
-                        Show Tuning Guide
-                      </ContextMenuCheckboxItem>
-                      <ContextMenuItem
-                        class="pl-8"
-                        onSelect={() => {
-                          radio().requestSlice({
-                            panadapterStreamId: pan().streamId,
-                            frequencyMHz: roundToDecimals(xToFreq(pos.x), 3),
-                          });
-                        }}
-                      >
-                        <div class="absolute left-2 flex size-3.5 items-center justify-center">
-                          <MaterialSymbolsAddCommentOutlineRounded />
-                        </div>
-                        Create Slice at{" "}
-                        {`${roundToDecimals(xToFreq(pos.x), 3)}`} MHz
-                      </ContextMenuItem>
-                      <ContextMenuItem
-                        class="pl-8"
-                        onSelect={() => {
-                          radio().createTnf(roundToDecimals(xToFreq(pos.x), 6));
-                        }}
-                      >
-                        <div class="absolute left-2 flex size-3.5 items-center justify-center">
-                          <MdiFilterPlus />
-                        </div>
-                        Create TNF at {`${roundToDecimals(xToFreq(pos.x), 6)}`}{" "}
-                        MHz
-                      </ContextMenuItem>
+                      <ContextMenuGroup>
+                        <ContextMenuItem
+                          class="pl-8"
+                          onSelect={() => {
+                            radio().requestSlice({
+                              panadapterStreamId: pan().streamId,
+                              frequencyMHz: roundToDecimals(xToFreq(pos.x), 3),
+                            });
+                          }}
+                        >
+                          <div class="absolute left-2 flex size-3.5 items-center justify-center">
+                            <MaterialSymbolsAddCommentOutlineRounded />
+                          </div>
+                          Create Slice at{" "}
+                          {`${roundToDecimals(xToFreq(pos.x), 3)}`} MHz
+                        </ContextMenuItem>
+                        <ContextMenuItem
+                          class="pl-8"
+                          onSelect={() => {
+                            radio().createTnf(
+                              roundToDecimals(xToFreq(pos.x), 6),
+                            );
+                          }}
+                        >
+                          <div class="absolute left-2 flex size-3.5 items-center justify-center">
+                            <MdiFilterPlus />
+                          </div>
+                          {`Create TNF at ${Math.round(xToFreq(pos.x) * 1_000_000).toLocaleString("de-DE")} Hz`}
+                        </ContextMenuItem>
+                      </ContextMenuGroup>
+                      <ContextMenuSeparator />
+                      <ContextMenuGroup>
+                        <ContextMenuCheckboxItem
+                          checked={preferences.showTuningGuide}
+                          onChange={(checked) => {
+                            setPreferences("showTuningGuide", checked);
+                          }}
+                        >
+                          Show Tuning Guide
+                        </ContextMenuCheckboxItem>
+                        <ContextMenuCheckboxItem
+                          checked={preferences.spots.enabled}
+                          onChange={(checked) => {
+                            setPreferences("spots", "enabled", checked);
+                          }}
+                        >
+                          Show Spots
+                        </ContextMenuCheckboxItem>
+                      </ContextMenuGroup>
                     </ContextMenuContent>
                   </ContextMenuPortal>
                 </ContextMenu>
@@ -483,7 +499,7 @@ export function Panafall(props: { index: number }) {
                 }
               >
                 <div
-                  class="absolute inset-y-0 w-px translate-x-(--cursor-x) pointer-events-none will-change-transform pointer-coarse:hidden"
+                  class="absolute inset-y-0 w-px translate-x-(--cursor-x) pointer-events-none will-change-transform pointer-coarse:hidden z-50"
                   classList={{
                     "backdrop-invert-100":
                       preferences.enableTransparencyEffects,
@@ -495,8 +511,8 @@ export function Panafall(props: { index: number }) {
                     "--cursor-y": `${pos.y}px`,
                   }}
                 >
-                  <div class="absolute border rounded-md fancy-bg-popover py-1 px-2 text-xs top-4 translate-y-(--cursor-y) pointer-events-none -translate-x-1/2 whitespace-nowrap font-mono z-50">
-                    {xToFreq(pos.x).toFixed(3)} MHz
+                  <div class="absolute border rounded-md fancy-bg-popover py-1 px-2 text-xs top-4 translate-y-(--cursor-y) pointer-events-none -translate-x-1/2 whitespace-nowrap font-mono z-50 shadow shadow-black">
+                    {`${Math.round(xToFreq(pos.x) * 1_000_000).toLocaleString("de-DE")} Hz`}
                   </div>
                 </div>
               </Show>

@@ -115,4 +115,23 @@ describe("decodeDiscoveryPayload", () => {
       }),
     ]);
   });
+
+  it("parses system-model and turf metadata when present", () => {
+    const payload =
+      "serial=1234-5678 model=FLEX-8600 nickname=Test callsign=N0CALL version=4.2.18 ip=192.0.2.10 port=4992 available_slices=4 available_panadapters=4 is_system_model=1 turf_region=USA";
+
+    const descriptor = decodeDiscoveryPayload(payload, Date.now());
+
+    expect(descriptor.isSystemModel).toBe(true);
+    expect(descriptor.turfRegion).toBe("USA");
+  });
+
+  it("strips trailing NUL padding from discovery values", () => {
+    const payload =
+      "serial=1234-5678 model=FLEX-8600 nickname=Test callsign=N0CALL version=4.2.18 ip=192.0.2.10 port=4992 available_slices=4 available_panadapters=4 turf_region=USA\0\0\0";
+
+    const descriptor = decodeDiscoveryPayload(payload, Date.now());
+
+    expect(descriptor.turfRegion).toBe("USA");
+  });
 });

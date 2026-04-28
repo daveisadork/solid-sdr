@@ -22,6 +22,10 @@ export type FlexRadioDescriptor = Pick<RadioSnapshot, DescriptorKeys> & {
   readonly port: number;
   readonly protocol: "tcp" | "tls";
 
+  /** Whether discovery reports this as a system model radio. */
+  readonly isSystemModel?: boolean;
+  /** Turf/region string reported in discovery metadata. */
+  readonly turfRegion?: string;
   /** Radio status from discovery, e.g. "Available", "In Use". */
   readonly status?: string;
   /** Discovery protocol version string. */

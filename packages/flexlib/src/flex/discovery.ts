@@ -9,14 +9,14 @@ import {
 
 export function parseDiscoveryPayload(payload: string): Map<string, string> {
   const map = new Map<string, string>();
-  const text = payload.trim();
+  const text = payload.replace(/\0+$/g, "").trim();
   if (!text) return map;
   const entries = text.split(/\s+/);
   for (const pair of entries) {
     const eq = pair.indexOf("=");
     if (eq <= 0) continue;
     const key = pair.slice(0, eq).trim().toLowerCase();
-    const value = pair.slice(eq + 1).trim();
+    const value = pair.slice(eq + 1).replace(/\0+$/g, "").trim();
     if (!key) continue;
     map.set(key, value);
   }
@@ -82,6 +82,8 @@ export function decodeDiscoveryPayload(
     protocol: resolveProtocol(fields, defaultProtocol),
     lastSeen: timestamp,
 
+    isSystemModel: parseBooleanFlag(fields.get("is_system_model")) ?? undefined,
+    turfRegion: valueOrUndefined(fields.get("turf_region")),
     status: valueOrUndefined(fields.get("status")),
     discoveryProtocolVersion: valueOrUndefined(
       fields.get("discovery_protocol_version"),
@@ -158,4 +160,3 @@ function normalizeStations(value: string | undefined): string | undefined {
   if (!value) return value;
   return value.replace(/\u007f/g, " ");
 }
-

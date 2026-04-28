@@ -43,6 +43,7 @@ import type {
   XvtrSnapshot,
   DisplayMarkerSnapshot,
   DisplayMarkerStateChange,
+  FilterPresetSnapshot,
 } from "@repo/flexlib";
 import { createFlexClient } from "@repo/flexlib/bridge";
 import { useRtc } from "./rtc";
@@ -102,6 +103,7 @@ export type DisplayMarkerState = Omit<
   MutableProps<DisplayMarkerSnapshot>,
   "raw"
 >;
+export type FilterPresetState = Omit<MutableProps<FilterPresetSnapshot>, "raw">;
 
 export interface ConnectModalState {
   status: ConnectionState;
@@ -128,6 +130,7 @@ export interface StatusState {
   cwx: CwxState;
   dvk: DvkState;
   displayMarker: Record<string, Record<string, DisplayMarkerState>>;
+  filterPreset: FilterPresetState;
 }
 
 export interface AppState {
@@ -169,6 +172,7 @@ export const initialState = () =>
       tnf: {},
       memory: {},
       displayMarker: {},
+      filterPreset: {},
     },
   }) as AppState;
 
@@ -320,6 +324,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
       case "dvk":
       case "radio":
       case "featureLicense":
+      case "filterPreset":
         setState("status", change.entity, change.diff);
         break;
       case "unknown":

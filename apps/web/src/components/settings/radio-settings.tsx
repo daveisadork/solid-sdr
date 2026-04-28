@@ -6,6 +6,7 @@ import {
   DialogHeader,
   DialogContent,
   DialogTrigger,
+  DialogFooter,
 } from "../ui/dialog";
 import MdiSettings from "~icons/mdi/settings";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
@@ -35,8 +36,8 @@ import {
   JSXElement,
   Show,
 } from "solid-js";
-import useFlexRadio from "~/context/flexradio";
-import type { Radio } from "@repo/flexlib";
+import useFlexRadio, { FilterPresetState } from "~/context/flexradio";
+import type { FilterPresetEntry, Radio } from "@repo/flexlib";
 import { TextField, TextFieldInput, TextFieldLabel } from "../ui/text-field";
 import { SimpleSlider } from "../ui/simple-slider";
 import {
@@ -67,12 +68,14 @@ import {
 } from "../ui/table";
 import { Checkbox } from "../ui/checkbox";
 import * as NumberFieldPrimitive from "@kobalte/core/number-field";
+import * as TextFieldPrimitive from "@kobalte/core/text-field";
 import MaterialSymbolsProgressActivity from "~icons/material-symbols/progress-activity";
 import { RadioOscillatorSetting } from "@repo/flexlib";
 import { SliderToggle } from "../ui/slider-toggle";
 import { Badge } from "../ui/badge";
 import { InfoItem } from "./common";
 import { ConfirmButton } from "../ui/confirm-button";
+import { Mutable } from "@repo/flexlib/flex/state/common";
 
 function TxBandSettings(props: { radio: Radio }) {
   const { state } = useFlexRadio();
@@ -225,6 +228,17 @@ function RadioSettingsInner(props: { radio: Radio }) {
   const [nickname, setNickname] = createSignal(state.status.radio.nickname);
   const [callsign, setCallsign] = createSignal(state.status.radio.callsign);
   const [txProfiles, setTxProfiles] = createStore<string[]>([]);
+  const [filterModeGroup, setFilterModeGroup] =
+    createSignal<keyof FilterPresetState>("ssb");
+  const [filterPresets, setFilterPresets] = createStore<
+    Mutable<FilterPresetEntry>[]
+  >([]);
+
+  createEffect(() => {
+    setFilterPresets(
+      state.status.filterPreset[filterModeGroup()].map((p) => ({ ...p })),
+    );
+  });
 
   createEffect(() => setNickname(state.status.radio.nickname));
   createEffect(() => setCallsign(state.status.radio.callsign));
@@ -966,9 +980,134 @@ function RadioSettingsInner(props: { radio: Radio }) {
             onChange={(isChecked) => {
               props.radio.setLowLatencyDigitalModes(isChecked);
             }}
-            label="Use Low-Latency Filters for Digital Modes"
+            label="Use Low-Latency Filters for PACTOR"
           />
         </CardContent>
+      </Card>
+
+      <Card class="bg-transparent">
+        <CardHeader>
+          <CardTitle>Filter Presets</CardTitle>
+        </CardHeader>
+        <CardContent class="flex flex-col gap-4">
+          <div class="flex flex-col gap-4 overflow-hidden shrink">
+            <Select
+              class="flex flex-col gap-2 select-none"
+              value={filterModeGroup()}
+              onChange={setFilterModeGroup}
+              options={Object.keys(state.status.filterPreset)}
+              itemComponent={(props) => {
+                return (
+                  <SelectItem item={props.item} class="uppercase">
+                    {props.item.rawValue.toString()}
+                  </SelectItem>
+                );
+              }}
+            >
+              <SelectLabel>Mode Group</SelectLabel>
+              <SelectTrigger class="uppercase">
+                <SelectValue<string>>
+                  {(state) => state.selectedOption()}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent />
+            </Select>
+            <Table class="overflow-auto shrink">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Low Hz</TableHead>
+                  <TableHead>High Hz</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <For each={filterPresets}>
+                  {(preset) => {
+                    return (
+                      <TableRow>
+                        <TableCell>
+                          <TextFieldPrimitive.Root
+                            value={preset.name}
+                            onChange={(name) => {
+                              if (name.length > 4) return;
+                              setFilterPresets(preset.index, "name", name);
+                            }}
+                          >
+                            <TextFieldPrimitive.Input size={4} class="px-1" />
+                          </TextFieldPrimitive.Root>
+                        </TableCell>
+                        <TableCell>
+                          <NumberFieldPrimitive.Root
+                            rawValue={preset.filterLowHz}
+                            onRawValueChange={(filterLowHz) =>
+                              setFilterPresets(
+                                preset.index,
+                                "filterLowHz",
+                                filterLowHz,
+                              )
+                            }
+                            minValue={0}
+                            maxValue={preset.filterHighHz}
+                            format={false}
+                          >
+                            <NumberFieldPrimitive.Input size={5} class="px-1" />
+                          </NumberFieldPrimitive.Root>
+                        </TableCell>
+                        <TableCell>
+                          <NumberFieldPrimitive.Root
+                            rawValue={preset.filterHighHz}
+                            onRawValueChange={(filterHighHz) =>
+                              setFilterPresets(
+                                preset.index,
+                                "filterHighHz",
+                                filterHighHz,
+                              )
+                            }
+                            minValue={preset.filterLowHz}
+                            maxValue={12_000}
+                            format={false}
+                          >
+                            <NumberFieldPrimitive.Input size={5} class="px-1" />
+                          </NumberFieldPrimitive.Root>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  }}
+                </For>
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+        <CardFooter class="flex gap-2 justify-between">
+          <Button
+            onClick={() =>
+              props.radio
+                .filterPresets()
+                .reset(filterModeGroup())
+                .then(() =>
+                  setFilterPresets(
+                    state.status.filterPreset[filterModeGroup()].map((p) => ({
+                      ...p,
+                    })),
+                  ),
+                )
+            }
+          >
+            Reset
+          </Button>
+          <Button
+            onClick={() => {
+              const ctrl = props.radio.filterPresets();
+              filterPresets
+                .map((p) => ({ ...p }))
+                .forEach((preset) =>
+                  ctrl.save(filterModeGroup(), preset.index, preset),
+                );
+            }}
+          >
+            Save
+          </Button>
+        </CardFooter>
       </Card>
       <Card class="bg-transparent">
         <CardHeader>

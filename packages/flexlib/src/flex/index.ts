@@ -23,6 +23,7 @@ export * from "./tx-band-settings.js";
 export * from "./xvtr.js";
 export * from "./tnf.js";
 export * from "./spot.js";
+export * from "./display-marker.js";
 export * from "./meter.js";
 export * from "./cwx.js";
 export * from "./dvk.js";

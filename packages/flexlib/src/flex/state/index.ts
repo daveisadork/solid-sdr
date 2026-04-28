@@ -1,7 +1,12 @@
 import type { FlexStatusMessage } from "../protocol.js";
 import type { RfGainInfo } from "../rf-gain.js";
 import type { Logger } from "../adapters.js";
-import { isTruthy, parseIntegerHex, setRadioStateLogger } from "./common.js";
+import {
+  isTruthy,
+  parseInteger,
+  parseIntegerHex,
+  setRadioStateLogger,
+} from "./common.js";
 import type { SnapshotDiff } from "./common.js";
 import {
   AUDIO_STREAM_TYPES,
@@ -47,6 +52,10 @@ import { createCwxSnapshot, type CwxSnapshot } from "./cwx.js";
 import { createDvkSnapshot, type DvkSnapshot } from "./dvk.js";
 import { createTnfSnapshot, type TnfSnapshot } from "./tnf.js";
 import { createMemorySnapshot, type MemorySnapshot } from "./memory.js";
+import {
+  createDisplayMarkerSnapshot,
+  type DisplayMarkerSnapshot,
+} from "./display-marker.js";
 
 export type { SnapshotDiff } from "./common.js";
 export type {
@@ -69,6 +78,7 @@ export type { CwxSnapshot } from "./cwx.js";
 export type { DvkSnapshot, DvkRecording, DvkStatus } from "./dvk.js";
 export type { TnfSnapshot } from "./tnf.js";
 export type { MemorySnapshot } from "./memory.js";
+export type { DisplayMarkerSnapshot } from "./display-marker.js";
 export type {
   RadioAtuTuneStatus,
   RadioFilterSharpnessMode,
@@ -90,6 +100,12 @@ type ChangeMetadata<TSnapshot> = {
   readonly removed: boolean;
 };
 
+export type DisplayMarkerStateChange = {
+  readonly entity: "displayMarker";
+  readonly group: string;
+  readonly id: string;
+} & ChangeMetadata<DisplayMarkerSnapshot>;
+
 export type RadioStateChange =
   | ({ entity: "slice"; id: string } & ChangeMetadata<SliceSnapshot>)
   | ({ entity: "panadapter"; id: string } & ChangeMetadata<PanadapterSnapshot>)
@@ -110,6 +126,7 @@ export type RadioStateChange =
   | ({ entity: "guiClient"; id: string } & ChangeMetadata<GuiClientSnapshot>)
   | ({ entity: "xvtr"; id: string } & ChangeMetadata<XvtrSnapshot>)
   | ({ entity: "spot"; id: string } & ChangeMetadata<SpotSnapshot>)
+  | DisplayMarkerStateChange
   | ({ entity: "tnf"; id: string } & ChangeMetadata<TnfSnapshot>)
   | ({ entity: "memory"; id: string } & ChangeMetadata<MemorySnapshot>)
   | ({ entity: "radio" } & ChangeMetadata<RadioSnapshot>)
@@ -169,6 +186,7 @@ export interface RadioStateSnapshot {
   readonly txBandSettings: readonly TxBandSettingSnapshot[];
   readonly xvtrs: readonly XvtrSnapshot[];
   readonly spots: readonly SpotSnapshot[];
+  readonly displayMarkers: readonly DisplayMarkerSnapshot[];
   readonly tnfs: readonly TnfSnapshot[];
   readonly memories: readonly MemorySnapshot[];
   readonly radio: RadioSnapshot;
@@ -199,6 +217,11 @@ export interface RadioStateStore {
   getXvtrs(): readonly XvtrSnapshot[];
   getSpot(id: string): SpotSnapshot | undefined;
   getSpots(): readonly SpotSnapshot[];
+  getDisplayMarker(
+    group: string,
+    id: string,
+  ): DisplayMarkerSnapshot | undefined;
+  getDisplayMarkers(): readonly DisplayMarkerSnapshot[];
   getTnf(id: string): TnfSnapshot | undefined;
   getTnfs(): readonly TnfSnapshot[];
   getMemory(id: string): MemorySnapshot | undefined;
@@ -255,6 +278,15 @@ export interface RadioStateStore {
     attributes: Record<string, string>,
   ): SpotStateChange | undefined;
   removeSpot(id: string): SpotStateChange | undefined;
+  patchDisplayMarker(
+    group: string,
+    id: string,
+    attributes: Record<string, string>,
+  ): DisplayMarkerStateChange | undefined;
+  removeDisplayMarker(
+    group: string,
+    id: string,
+  ): DisplayMarkerStateChange | undefined;
   patchTnf(
     id: string,
     attributes: Record<string, string>,
@@ -295,6 +327,7 @@ export function createRadioStateStore(
   const txBandSettings = new Map<string, TxBandSettingSnapshot>();
   const xvtrs = new Map<string, XvtrSnapshot>();
   const spots = new Map<string, SpotSnapshot>();
+  const displayMarkers = new Map<string, Map<string, DisplayMarkerSnapshot>>();
   const tnfs = new Map<string, TnfSnapshot>();
   const memories = new Map<string, MemorySnapshot>();
   let radio: RadioSnapshot;
@@ -303,6 +336,24 @@ export function createRadioStateStore(
   let cwx: CwxSnapshot | undefined;
   let dvk: DvkSnapshot | undefined;
   let localClientHandle: number | undefined;
+
+  function getDisplayMarkerGroup(
+    group: string,
+    create = false,
+  ): Map<string, DisplayMarkerSnapshot> | undefined {
+    let markers = displayMarkers.get(group);
+    if (!markers && create) {
+      markers = new Map<string, DisplayMarkerSnapshot>();
+      displayMarkers.set(group, markers);
+    }
+    return markers;
+  }
+
+  function flattenDisplayMarkers(): DisplayMarkerSnapshot[] {
+    return Array.from(displayMarkers.values()).flatMap((markers) =>
+      Array.from(markers.values()),
+    );
+  }
 
   function reset(): void {
     slices.clear();
@@ -316,6 +367,7 @@ export function createRadioStateStore(
     txBandSettings.clear();
     xvtrs.clear();
     spots.clear();
+    displayMarkers.clear();
     tnfs.clear();
     memories.clear();
     radio = undefined as unknown as RadioSnapshot;
@@ -368,6 +420,8 @@ export function createRadioStateStore(
           if (spotChange) return [spotChange];
           return [];
         }
+        case "display_marker":
+          return [handleDisplayMarker(message)];
         case "cwx": {
           const change = handleCwx(message);
           if (change) return [change];
@@ -435,6 +489,7 @@ export function createRadioStateStore(
         txBandSettings: Array.from(txBandSettings.values()),
         xvtrs: Array.from(xvtrs.values()),
         spots: Array.from(spots.values()),
+        displayMarkers: flattenDisplayMarkers(),
         tnfs: Array.from(tnfs.values()),
         memories: Array.from(memories.values()),
         radio,
@@ -491,6 +546,12 @@ export function createRadioStateStore(
     },
     getSpots() {
       return Array.from(spots.values());
+    },
+    getDisplayMarker(group, id) {
+      return getDisplayMarkerGroup(group)?.get(id);
+    },
+    getDisplayMarkers() {
+      return flattenDisplayMarkers();
     },
     getTnf(id) {
       return tnfs.get(id);
@@ -569,6 +630,12 @@ export function createRadioStateStore(
     },
     removeSpot(id) {
       return removeSpot(id);
+    },
+    patchDisplayMarker(group, id, attributes) {
+      return patchDisplayMarker(group, id, attributes);
+    },
+    removeDisplayMarker(group, id) {
+      return removeDisplayMarker(group, id);
     },
     patchTnf(id, attributes) {
       return patchTnf(id, attributes);
@@ -1564,6 +1631,94 @@ export function createRadioStateStore(
     };
   }
 
+  function handleDisplayMarker(message: FlexStatusMessage): RadioStateChange {
+    const identity = resolveDisplayMarkerIdentity(
+      message.attributes.group,
+      message.attributes.id,
+    );
+    if (!identity) {
+      return {
+        entity: "unknown",
+        source: message.source,
+        attributes: message.attributes,
+      };
+    }
+    const { group, id } = identity;
+    const markers = getDisplayMarkerGroup(group);
+
+    if (isMarkedDeleted(message)) {
+      markers?.delete(id);
+      if (markers?.size === 0) {
+        displayMarkers.delete(group);
+      }
+      return {
+        entity: "displayMarker",
+        group,
+        id,
+        removed: true,
+      };
+    }
+
+    const previous = markers?.get(id);
+    const { snapshot, diff } = createDisplayMarkerSnapshot(
+      group,
+      id,
+      message.attributes,
+      previous,
+    );
+    getDisplayMarkerGroup(group, true)!.set(id, snapshot);
+    return {
+      entity: "displayMarker",
+      group,
+      id,
+      diff,
+      removed: false,
+    };
+  }
+
+  function patchDisplayMarker(
+    group: string,
+    id: string,
+    attributes: Record<string, string>,
+  ): DisplayMarkerStateChange | undefined {
+    if (Object.keys(attributes).length === 0) return undefined;
+    const previous = getDisplayMarkerGroup(group)?.get(id);
+    const { snapshot, diff } = createDisplayMarkerSnapshot(
+      group,
+      id,
+      attributes,
+      previous,
+    );
+    const diffKeys = Object.keys(diff as Record<string, unknown>);
+    getDisplayMarkerGroup(group, true)!.set(id, snapshot);
+    if (diffKeys.length === 0) return undefined;
+    return {
+      entity: "displayMarker",
+      group,
+      id,
+      diff,
+      removed: false,
+    };
+  }
+
+  function removeDisplayMarker(
+    group: string,
+    id: string,
+  ): DisplayMarkerStateChange | undefined {
+    const markers = getDisplayMarkerGroup(group);
+    if (!markers?.has(id)) return undefined;
+    markers.delete(id);
+    if (markers.size === 0) {
+      displayMarkers.delete(group);
+    }
+    return {
+      entity: "displayMarker",
+      group,
+      id,
+      removed: true,
+    };
+  }
+
   function handleTnf(message: FlexStatusMessage): RadioStateChange {
     const id = resolveIdentifier(message, message.identifier);
     if (!id) {
@@ -1831,6 +1986,19 @@ function resolveEqualizerId(
   if (normalized === "rxsc") return "rx";
   if (normalized === "txsc") return "tx";
   return undefined;
+}
+
+function resolveDisplayMarkerIdentity(
+  group: string | undefined,
+  markerId: string | undefined,
+): { group: string; id: string } | undefined {
+  const normalizedGroup = group?.trim();
+  const parsedId = parseInteger(markerId);
+  if (!normalizedGroup || parsedId === undefined) return undefined;
+  return {
+    group: normalizedGroup,
+    id: parsedId.toString(10),
+  };
 }
 
 function isMarkedDeleted(message: FlexStatusMessage): boolean {

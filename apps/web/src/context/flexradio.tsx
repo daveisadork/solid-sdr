@@ -1,5 +1,6 @@
 import {
   Accessor,
+  batch,
   createContext,
   createEffect,
   createMemo,
@@ -16,32 +17,32 @@ import {
   SetStoreFunction,
 } from "solid-js/store";
 import { showToast } from "~/components/ui/toast";
-import {
-  FlexCommandRejectedError,
-  FlexClient,
-  Radio,
-  type ApdSnapshot,
-  type AudioStreamSnapshot,
-  type ConnectionProgressDetail,
-  type CwxSnapshot,
-  type DvkSnapshot,
-  type EqualizerSnapshot,
-  type FeatureLicenseSnapshot,
-  type FlexWireMessage,
-  type GuiClientSnapshot,
-  type MemorySnapshot,
-  type MeterSnapshot,
-  type PanadapterSnapshot,
-  type RadioSnapshot,
-  type RadioStateChange,
-  type SliceSnapshot,
-  type SpotSnapshot,
-  type SpotStateChange,
-  type Subscription,
-  type TnfSnapshot,
-  type TxBandSettingSnapshot,
-  type WaterfallSnapshot,
-  type XvtrSnapshot,
+import { FlexCommandRejectedError, FlexClient, Radio } from "@repo/flexlib";
+import type {
+  ApdSnapshot,
+  AudioStreamSnapshot,
+  ConnectionProgressDetail,
+  CwxSnapshot,
+  DvkSnapshot,
+  EqualizerSnapshot,
+  FeatureLicenseSnapshot,
+  FlexWireMessage,
+  GuiClientSnapshot,
+  MemorySnapshot,
+  MeterSnapshot,
+  PanadapterSnapshot,
+  RadioSnapshot,
+  RadioStateChange,
+  SliceSnapshot,
+  SpotSnapshot,
+  SpotStateChange,
+  Subscription,
+  TnfSnapshot,
+  TxBandSettingSnapshot,
+  WaterfallSnapshot,
+  XvtrSnapshot,
+  DisplayMarkerSnapshot,
+  DisplayMarkerStateChange,
 } from "@repo/flexlib";
 import { createFlexClient } from "@repo/flexlib/bridge";
 import { useRtc } from "./rtc";
@@ -97,6 +98,10 @@ export type DvkState = Omit<MutableProps<DvkSnapshot>, "raw">;
 export type SpotState = Omit<MutableProps<SpotSnapshot>, "raw">;
 export type TnfState = Omit<MutableProps<TnfSnapshot>, "raw">;
 export type MemoryState = Omit<MutableProps<MemorySnapshot>, "raw">;
+export type DisplayMarkerState = Omit<
+  MutableProps<DisplayMarkerSnapshot>,
+  "raw"
+>;
 
 export interface ConnectModalState {
   status: ConnectionState;
@@ -122,6 +127,7 @@ export interface StatusState {
   xvtr: Record<string, XvtrState>;
   cwx: CwxState;
   dvk: DvkState;
+  displayMarker: Record<string, Record<string, DisplayMarkerState>>;
 }
 
 export interface AppState {
@@ -162,6 +168,7 @@ export const initialState = () =>
       dvk: {},
       tnf: {},
       memory: {},
+      displayMarker: {},
     },
   }) as AppState;
 
@@ -282,10 +289,31 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     }
   };
 
+  const handleDisplayMarkerChange = (change: DisplayMarkerStateChange) => {
+    if (change.removed) {
+      setState(
+        "status",
+        change.entity,
+        change.group,
+        produce((items) => {
+          delete items[change.id];
+        }),
+      );
+    } else {
+      batch(() => {
+        setState("status", change.entity, change.group, {});
+        setState("status", change.entity, change.group, change.id, change.diff);
+      });
+    }
+  };
+
   const handleStateChange = (change: RadioStateChange) => {
     switch (change.entity) {
       case "spot":
         handleSpotChange(change);
+        break;
+      case "displayMarker":
+        handleDisplayMarkerChange(change);
         break;
       case "apd":
       case "cwx":

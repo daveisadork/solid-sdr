@@ -94,6 +94,10 @@ import { type XvtrController, XvtrControllerImpl } from "./xvtr.js";
 import { type TnfController, TnfControllerImpl } from "./tnf.js";
 import { type MemoryController, MemoryControllerImpl } from "./memory.js";
 import {
+  type DisplayMarkerController,
+  DisplayMarkerControllerImpl,
+} from "./display-marker.js";
+import {
   type SpotController,
   type SpotTriggeredEvent,
   SpotControllerImpl,
@@ -110,6 +114,7 @@ import type {
   TxBandSettingStateChange,
   ApdStateChange,
   XvtrStateChange,
+  DisplayMarkerStateChange,
   SpotStateChange,
   TnfStateChange,
   MemoryStateChange,
@@ -321,6 +326,7 @@ const DEFAULT_HANDSHAKE_COMMANDS: readonly string[] = [
   "sub usb_cable all",
   "sub tnf all",
   "sub spot all",
+  "sub display_marker all",
   "sub rapidm all",
   "sub ale all",
   "sub log_manager",
@@ -481,6 +487,10 @@ class RadioImpl {
     TxBandSettingControllerImpl
   >();
   private readonly xvtrControllers = new Map<string, XvtrControllerImpl>();
+  private readonly displayMarkerControllers = new Map<
+    string,
+    Map<string, DisplayMarkerControllerImpl>
+  >();
   private readonly tnfControllers = new Map<string, TnfControllerImpl>();
   private readonly memoryControllers = new Map<string, MemoryControllerImpl>();
   private readonly spotControllers = new Map<string, SpotControllerImpl>();
@@ -715,6 +725,28 @@ class RadioImpl {
     });
   }
 
+  /** Returns all known display marker controllers. */
+  displayMarkers(): DisplayMarkerController[] {
+    return Array.from(this.displayMarkerControllers.values()).flatMap(
+      (markers) => Array.from(markers.values()),
+    );
+  }
+
+  /** Returns a display marker controller by group and marker ID. */
+  displayMarker(group: string, id: string | number): DisplayMarkerController | undefined {
+    const normalizedId =
+      typeof id === "number" ? id.toString(10) : id.trim();
+    if (!group || !normalizedId) return undefined;
+
+    const existing = this.displayMarkerControllers.get(group)?.get(normalizedId);
+    if (existing) return existing;
+
+    if (!this.store.getDisplayMarker(group, normalizedId)) return undefined;
+    const controller = new DisplayMarkerControllerImpl(this, group, normalizedId);
+    this.getOrCreateDisplayMarkerControllerGroup(group).set(normalizedId, controller);
+    return controller;
+  }
+
   /**
    * Creates a new transverter definition on the radio.
    * Returns the controller for the newly created XVTR.
@@ -896,6 +928,46 @@ class RadioImpl {
     controller = create();
     if (controller) cache.set(id, controller);
     return controller;
+  }
+
+  private getOrCreateDisplayMarkerControllerGroup(
+    group: string,
+  ): Map<string, DisplayMarkerControllerImpl> {
+    let markers = this.displayMarkerControllers.get(group);
+    if (!markers) {
+      markers = new Map<string, DisplayMarkerControllerImpl>();
+      this.displayMarkerControllers.set(group, markers);
+    }
+    return markers;
+  }
+
+  private updateDisplayMarkerController(change: DisplayMarkerStateChange): void {
+    const groupControllers = this.displayMarkerControllers.get(change.group);
+    const existing = groupControllers?.get(change.id);
+    if (existing) {
+      existing.onStateChange(change);
+      if (change.removed) {
+        groupControllers?.delete(change.id);
+        if (groupControllers && groupControllers.size === 0) {
+          this.displayMarkerControllers.delete(change.group);
+        }
+      }
+      return;
+    }
+
+    if (change.removed) return;
+    if (!this.store.getDisplayMarker(change.group, change.id)) return;
+
+    const controller = new DisplayMarkerControllerImpl(
+      this,
+      change.group,
+      change.id,
+    );
+    this.getOrCreateDisplayMarkerControllerGroup(change.group).set(
+      change.id,
+      controller,
+    );
+    controller.onStateChange(change);
   }
 
   // -----------------------------------------------------------------------
@@ -1209,6 +1281,9 @@ class RadioImpl {
             return new XvtrControllerImpl(this, change.id);
           },
         );
+        break;
+      case "displayMarker":
+        this.updateDisplayMarkerController(change as DisplayMarkerStateChange);
         break;
       case "tnf":
         this.updateController(

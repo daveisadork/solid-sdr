@@ -56,8 +56,16 @@ import {
   createDisplayMarkerSnapshot,
   type DisplayMarkerSnapshot,
 } from "./display-marker.js";
+import {
+  createFilterPresetSnapshot,
+  FILTER_PRESET_COUNT,
+  parseFilterPresetModeGroup,
+  type FilterPresetModeGroup,
+  type FilterPresetSnapshot,
+} from "./filter-preset.js";
 
 export type { SnapshotDiff } from "./common.js";
+export { FILTER_PRESET_COUNT } from "./filter-preset.js";
 export type {
   SliceSnapshot,
   SliceAgcMode,
@@ -79,6 +87,11 @@ export type { DvkSnapshot, DvkRecording, DvkStatus } from "./dvk.js";
 export type { TnfSnapshot } from "./tnf.js";
 export type { MemorySnapshot } from "./memory.js";
 export type { DisplayMarkerSnapshot } from "./display-marker.js";
+export type {
+  FilterPresetEntry,
+  FilterPresetModeGroup,
+  FilterPresetSnapshot,
+} from "./filter-preset.js";
 export type {
   RadioAtuTuneStatus,
   RadioFilterSharpnessMode,
@@ -131,6 +144,7 @@ export type RadioStateChange =
   | ({ entity: "memory"; id: string } & ChangeMetadata<MemorySnapshot>)
   | ({ entity: "radio" } & ChangeMetadata<RadioSnapshot>)
   | ({ entity: "featureLicense" } & ChangeMetadata<FeatureLicenseSnapshot>)
+  | ({ entity: "filterPreset" } & ChangeMetadata<FilterPresetSnapshot>)
   | ({ entity: "apd" } & ChangeMetadata<ApdSnapshot>)
   | ({ entity: "cwx" } & ChangeMetadata<CwxSnapshot>)
   | ({ entity: "dvk" } & ChangeMetadata<DvkSnapshot>)
@@ -152,6 +166,10 @@ export type WaterfallStateChange = Extract<
 >;
 export type MeterStateChange = Extract<RadioStateChange, { entity: "meter" }>;
 export type ApdStateChange = Extract<RadioStateChange, { entity: "apd" }>;
+export type FilterPresetStateChange = Extract<
+  RadioStateChange,
+  { entity: "filterPreset" }
+>;
 export type EqualizerStateChange = Extract<
   RadioStateChange,
   { entity: "equalizer" }
@@ -191,6 +209,7 @@ export interface RadioStateSnapshot {
   readonly memories: readonly MemorySnapshot[];
   readonly radio: RadioSnapshot;
   readonly featureLicense?: FeatureLicenseSnapshot;
+  readonly filterPresets?: FilterPresetSnapshot;
   readonly apd?: ApdSnapshot;
   readonly cwx?: CwxSnapshot;
   readonly dvk?: DvkSnapshot;
@@ -232,6 +251,7 @@ export interface RadioStateStore {
   ): MemoryStateChange | undefined;
   removeMemory(id: string): MemoryStateChange | undefined;
   getApd(): ApdSnapshot | undefined;
+  getFilterPresets(): FilterPresetSnapshot | undefined;
   getCwx(): CwxSnapshot | undefined;
   getDvk(): DvkSnapshot | undefined;
   getRadio(): RadioSnapshot | undefined;
@@ -295,6 +315,11 @@ export interface RadioStateStore {
   patchCwx(attributes: Record<string, string>): CwxStateChange | undefined;
   patchDvk(attributes: Record<string, string>): DvkStateChange | undefined;
   patchApd(attributes: Record<string, string>): ApdStateChange | undefined;
+  patchFilterPreset(
+    modeGroup: FilterPresetModeGroup,
+    index: number,
+    attributes: Record<string, string>,
+  ): FilterPresetStateChange | undefined;
   applyPanadapterRfGainInfo(
     id: string,
     info: RfGainInfo,
@@ -332,6 +357,7 @@ export function createRadioStateStore(
   const memories = new Map<string, MemorySnapshot>();
   let radio: RadioSnapshot;
   let featureLicense: FeatureLicenseSnapshot | undefined;
+  let filterPresets: FilterPresetSnapshot | undefined;
   let apd: ApdSnapshot | undefined;
   let cwx: CwxSnapshot | undefined;
   let dvk: DvkSnapshot | undefined;
@@ -372,6 +398,7 @@ export function createRadioStateStore(
     memories.clear();
     radio = undefined as unknown as RadioSnapshot;
     featureLicense = undefined;
+    filterPresets = undefined;
     apd = undefined;
     cwx = undefined;
     dvk = undefined;
@@ -422,6 +449,11 @@ export function createRadioStateStore(
         }
         case "display_marker":
           return [handleDisplayMarker(message)];
+        case "filt_preset": {
+          const change = handleFilterPreset(message);
+          if (change) return [change];
+          return [];
+        }
         case "cwx": {
           const change = handleCwx(message);
           if (change) return [change];
@@ -494,6 +526,7 @@ export function createRadioStateStore(
         memories: Array.from(memories.values()),
         radio,
         featureLicense,
+        filterPresets,
         apd,
         cwx,
         dvk,
@@ -574,6 +607,9 @@ export function createRadioStateStore(
     getApd() {
       return apd;
     },
+    getFilterPresets() {
+      return filterPresets;
+    },
     getCwx() {
       return cwx;
     },
@@ -651,6 +687,9 @@ export function createRadioStateStore(
     },
     patchApd(attributes) {
       return patchApd(attributes);
+    },
+    patchFilterPreset(modeGroup, index, attributes) {
+      return patchFilterPreset(modeGroup, index, attributes);
     },
     applyPanadapterRfGainInfo(id, info) {
       return applyPanadapterRfGainInfo(id, info);
@@ -1895,6 +1934,57 @@ export function createRadioStateStore(
     if (diffKeys.length === 0) return undefined;
     return {
       entity: "apd",
+      removed: false,
+      diff,
+    };
+  }
+
+  function handleFilterPreset(
+    message: FlexStatusMessage,
+  ): FilterPresetStateChange | undefined {
+    const modeGroup = parseFilterPresetModeGroup(message.identifier);
+    const index = parseInteger(message.positional[0]);
+    if (
+      !modeGroup ||
+      index === undefined ||
+      index < 0 ||
+      index >= FILTER_PRESET_COUNT
+    ) {
+      return undefined;
+    }
+    const { snapshot, diff } = createFilterPresetSnapshot(
+      modeGroup,
+      index,
+      message.attributes,
+      filterPresets,
+    );
+    const diffKeys = Object.keys(diff as Record<string, unknown>);
+    filterPresets = snapshot;
+    if (diffKeys.length === 0) return undefined;
+    return {
+      entity: "filterPreset",
+      removed: false,
+      diff,
+    };
+  }
+
+  function patchFilterPreset(
+    modeGroup: FilterPresetModeGroup,
+    index: number,
+    attributes: Record<string, string>,
+  ): FilterPresetStateChange | undefined {
+    if (Object.keys(attributes).length === 0) return undefined;
+    const { snapshot, diff } = createFilterPresetSnapshot(
+      modeGroup,
+      index,
+      attributes,
+      filterPresets,
+    );
+    const diffKeys = Object.keys(diff as Record<string, unknown>);
+    filterPresets = snapshot;
+    if (diffKeys.length === 0) return undefined;
+    return {
+      entity: "filterPreset",
       removed: false,
       diff,
     };

@@ -105,6 +105,10 @@ import {
 import { type CwxController, CwxControllerImpl } from "./cwx.js";
 import { type DvkController, DvkControllerImpl } from "./dvk.js";
 import {
+  type FilterPresetController,
+  FilterPresetControllerImpl,
+} from "./filter-preset.js";
+import {
   type FeatureLicenseController,
   FeatureLicenseControllerImpl,
 } from "./feature-license.js";
@@ -120,6 +124,7 @@ import type {
   MemoryStateChange,
   CwxStateChange,
   DvkStateChange,
+  FilterPresetStateChange,
 } from "./state/index.js";
 import { parseVitaPacket, type VitaParsedPacket } from "../vita/parser.js";
 import { getModelInfo, type RadioModelInfo } from "./model-info.js";
@@ -327,6 +332,7 @@ const DEFAULT_HANDSHAKE_COMMANDS: readonly string[] = [
   "sub tnf all",
   "sub spot all",
   "sub display_marker all",
+  "sub filt_preset all",
   "sub rapidm all",
   "sub ale all",
   "sub log_manager",
@@ -497,6 +503,7 @@ class RadioImpl {
   private readonly _apdController: ApdControllerImpl;
   private readonly _cwxController: CwxControllerImpl;
   private readonly _dvkController: DvkControllerImpl;
+  private readonly _filterPresetController: FilterPresetControllerImpl;
   private readonly _featureLicenseController: FeatureLicenseControllerImpl;
 
   private _clientHandle: string | null = null;
@@ -524,6 +531,7 @@ class RadioImpl {
     this._apdController = new ApdControllerImpl(this);
     this._cwxController = new CwxControllerImpl(this);
     this._dvkController = new DvkControllerImpl(this);
+    this._filterPresetController = new FilterPresetControllerImpl(this);
     this._featureLicenseController = new FeatureLicenseControllerImpl(this);
 
     // Return a Proxy so that RadioSnapshot properties (nickname, sliceCount,
@@ -733,17 +741,28 @@ class RadioImpl {
   }
 
   /** Returns a display marker controller by group and marker ID. */
-  displayMarker(group: string, id: string | number): DisplayMarkerController | undefined {
-    const normalizedId =
-      typeof id === "number" ? id.toString(10) : id.trim();
+  displayMarker(
+    group: string,
+    id: string | number,
+  ): DisplayMarkerController | undefined {
+    const normalizedId = typeof id === "number" ? id.toString(10) : id.trim();
     if (!group || !normalizedId) return undefined;
 
-    const existing = this.displayMarkerControllers.get(group)?.get(normalizedId);
+    const existing = this.displayMarkerControllers
+      .get(group)
+      ?.get(normalizedId);
     if (existing) return existing;
 
     if (!this.store.getDisplayMarker(group, normalizedId)) return undefined;
-    const controller = new DisplayMarkerControllerImpl(this, group, normalizedId);
-    this.getOrCreateDisplayMarkerControllerGroup(group).set(normalizedId, controller);
+    const controller = new DisplayMarkerControllerImpl(
+      this,
+      group,
+      normalizedId,
+    );
+    this.getOrCreateDisplayMarkerControllerGroup(group).set(
+      normalizedId,
+      controller,
+    );
     return controller;
   }
 
@@ -826,6 +845,10 @@ class RadioImpl {
 
   apd(): ApdController {
     return this._apdController;
+  }
+
+  filterPresets(): FilterPresetController {
+    return this._filterPresetController;
   }
 
   featureLicense(): FeatureLicenseController {
@@ -941,7 +964,9 @@ class RadioImpl {
     return markers;
   }
 
-  private updateDisplayMarkerController(change: DisplayMarkerStateChange): void {
+  private updateDisplayMarkerController(
+    change: DisplayMarkerStateChange,
+  ): void {
     const groupControllers = this.displayMarkerControllers.get(change.group);
     const existing = groupControllers?.get(change.id);
     if (existing) {
@@ -1321,6 +1346,11 @@ class RadioImpl {
         break;
       case "dvk":
         this._dvkController.onStateChange(change as DvkStateChange);
+        break;
+      case "filterPreset":
+        this._filterPresetController.onStateChange(
+          change as FilterPresetStateChange,
+        );
         break;
       case "apd":
         this._apdController.onStateChange(change as ApdStateChange);

@@ -27,6 +27,7 @@ export * from "./display-marker.js";
 export * from "./meter.js";
 export * from "./cwx.js";
 export * from "./dvk.js";
+export * from "./filter-preset.js";
 export * from "./waterfall-line-speed.js";
 
 // State/snapshot types

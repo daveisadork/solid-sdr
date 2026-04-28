@@ -32,6 +32,7 @@ import {
 import { Spots } from "./spots";
 import { Tnf } from "./tnf";
 import { useRuntime } from "~/context/runtime";
+import { DisplayMarkers } from "./display-markers";
 
 export function Panadapter(props: {
   pan: PanadapterState;
@@ -368,6 +369,7 @@ export function Panadapter(props: {
         ref={setCanvasRef}
         class="absolute size-full translate-x-(--drag-offset) select-none"
       />
+      <DisplayMarkers />
       <div class="flex absolute top-0 left-(--panafall-left) h-(--panadapter-available-height) w-(--panafall-available-width)">
         <div class="relative size-full" ref={setPanadapterControlsRef}>
           <div class="flex pointer-events-none absolute top-4 right-4 text-fg text-xl font-bold opacity-50 gap-4">

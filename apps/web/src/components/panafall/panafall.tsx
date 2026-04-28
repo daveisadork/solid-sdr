@@ -98,7 +98,7 @@ export function PanafallToggleButton(props: PanafallToggleButtonProps) {
 
 export function Panafall(props: { index: number }) {
   const { preferences, setPreferences } = usePreferences();
-  const { radio } = useFlexRadio();
+  const { radio, state } = useFlexRadio();
   const [clickRef, setClickRef] = createSignal<HTMLElement>();
 
   const [dragState, setDragState] = createStore({
@@ -426,6 +426,21 @@ export function Panafall(props: { index: number }) {
                         >
                           Show Spots
                         </ContextMenuCheckboxItem>
+                        <Show
+                          when={
+                            state.status.featureLicense.features
+                              .PANADAPTER_VISUALS?.enabled
+                          }
+                        >
+                          <ContextMenuCheckboxItem
+                            checked={preferences.showDisplayMarkers}
+                            onChange={(checked) => {
+                              setPreferences("showDisplayMarkers", checked);
+                            }}
+                          >
+                            Show Band Plan
+                          </ContextMenuCheckboxItem>
+                        </Show>
                       </ContextMenuGroup>
                     </ContextMenuContent>
                   </ContextMenuPortal>

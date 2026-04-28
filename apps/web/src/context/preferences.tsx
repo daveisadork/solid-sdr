@@ -45,6 +45,7 @@ export interface Preferences {
   enableBlurEffects: boolean;
   enableTransparencyEffects: boolean;
   spots: SpotPreferences;
+  showDisplayMarkers: boolean;
   peakStyle: PeakStyle;
   fillStyle: FillStyle;
   gradientStyle: GradientStyle;
@@ -97,6 +98,7 @@ const initialPreferences = () =>
     smoothScroll: true,
     enableBlurEffects: true,
     enableTransparencyEffects: true,
+    showDisplayMarkers: true,
     spots: {
       enabled: true,
       levels: 3,

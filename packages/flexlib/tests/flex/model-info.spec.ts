@@ -11,6 +11,7 @@ describe("getModelInfo", () => {
 
     expect(info.modelName).toBe("FLEX-6700");
     expect(info.maxDaxIqChannels).toBe(4);
+    expect(info.daxIqSampleRates).toEqual([24000, 48000, 96000, 192000]);
     expect(info.maxSliceCount).toBe(8);
     expect(info.sliceNames).toEqual(["A", "B", "C", "D", "E", "F", "G", "H"]);
     expect(info.imageName).toBe("6000-Cutout.png");
@@ -23,7 +24,23 @@ describe("getModelInfo", () => {
     expect(info.isMModel).toBe(true);
     expect(info.isDiversityAllowed).toBe(true);
     expect(info.maxDaxIqChannels).toBe(4);
+    expect(info.daxIqSampleRates).toEqual([24000, 48000, 96000, 192000]);
     expect(info.imageName).toBe("A520M.png");
+  });
+
+  it("exposes per-model DAX IQ sample-rate support", () => {
+    expect(getModelInfo("FLEX-6400").daxIqSampleRates).toEqual([
+      24000,
+      48000,
+      96000,
+    ]);
+    expect(getModelInfo("RT-2122").daxIqSampleRates).toEqual([
+      24000,
+      48000,
+      96000,
+      192000,
+    ]);
+    expect(DEFAULT_RADIO_MODEL_INFO.daxIqSampleRates).toEqual([]);
   });
 
   it("falls back to the DEFAULT model info for unknown radios", () => {

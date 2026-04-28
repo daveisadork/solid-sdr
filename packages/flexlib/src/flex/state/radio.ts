@@ -90,6 +90,7 @@ export interface RadioSnapshot {
   readonly networkMtu: number;
   readonly location: string;
   readonly region: string;
+  readonly iaruRegion?: 1 | 2 | 3;
   readonly screensaverMode: RadioScreensaverMode;
   readonly radioOptions: string;
   readonly tx1750ToneBurst: boolean;
@@ -366,6 +367,15 @@ function applyRadioSourceAttributes(
       case "region":
         partial.region = value;
         break;
+      case "iaru_region": {
+        const parsed = parseInteger(value);
+        if (parsed === 1 || parsed === 2 || parsed === 3) {
+          partial.iaruRegion = parsed;
+        } else {
+          logParseError("radio", key, value);
+        }
+        break;
+      }
       case "screensaver":
         partial.screensaverMode = parseScreensaverMode(value);
         break;

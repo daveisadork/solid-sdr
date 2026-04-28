@@ -524,6 +524,10 @@ describe("createRadioStateStore", () => {
     expect(radio?.gpsInstalled).toBe(true);
     expect(radio?.gpsLock).toBe(true);
 
+    store.patchRadio({ iaru_region: "2" });
+    radio = store.getRadio();
+    expect(radio?.iaruRegion).toBe(2);
+
     const versionMessage =
       "SmartSDR-MB=4.0.1.39161#PSoC-MBTRX=1.0.6.0#PSoC-MBPA100=0.0.1.28#FPGA-MB=0x85d60e8c";
     store.patchRadio(parseRadioVersionReply(versionMessage), {

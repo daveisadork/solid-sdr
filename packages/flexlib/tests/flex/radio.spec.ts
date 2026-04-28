@@ -26,7 +26,7 @@ describe("Radio", () => {
 
     // when we tune the slice
     await slice?.setFrequency(14.075);
-    expect(connection.lastCommand()).toBe("slice tune 0 14.075000");
+    expect(connection.lastCommand()).toBe("slice tune 0 14.075000 autopan=1");
     expect(slice?.frequencyMHz).toBeCloseTo(14.075);
     expect(changes.length).toBe(2);
 
@@ -108,9 +108,7 @@ describe("Radio", () => {
     expect(connection.lastCommand()).toBe("slice set 0 rtty_shift=170");
 
     await slice?.setFmToneValue(100.0);
-    expect(connection.lastCommand()).toBe(
-      "slice set 0 fm_tone_value=100.000000",
-    );
+    expect(connection.lastCommand()).toBe("slice set 0 fm_tone_value=100.0");
 
     await slice?.setFmPreDeEmphasisEnabled(true);
     expect(connection.lastCommand()).toBe("slice set 0 dfm_pre_de_emphasis=1");
@@ -187,9 +185,7 @@ describe("Radio", () => {
 
     connection.prepareResponse("stream create", { message: "4000009" });
     const creationPromise = radio.createRemoteAudioTxStream();
-    expect(connection.lastCommand()).toBe(
-      "stream create type=remote_audio_tx",
-    );
+    expect(connection.lastCommand()).toBe("stream create type=remote_audio_tx");
 
     connection.emitStatus(
       "S1|stream 0x04000009 type=remote_audio_tx compression=OPUS client_handle=0x5678",
@@ -362,9 +358,7 @@ describe("Radio", () => {
     expect(connection.lastCommand()).toBe("radio callsign KF0SMY");
 
     await radio.setFullDuplexEnabled(false);
-    expect(connection.lastCommand()).toBe(
-      "radio set full_duplex_enabled=0",
-    );
+    expect(connection.lastCommand()).toBe("radio set full_duplex_enabled=0");
 
     await radio.setNetworkMtu(1428);
     expect(connection.lastCommand()).toBe(

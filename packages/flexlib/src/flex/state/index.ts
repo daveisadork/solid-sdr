@@ -59,7 +59,7 @@ export type { PanadapterSnapshot } from "./panadapter.js";
 export type { WaterfallSnapshot } from "./waterfall.js";
 export type { AudioStreamKind, AudioStreamSnapshot } from "./audio-stream.js";
 export type { FeatureLicenseSnapshot } from "./feature-license.js";
-export type { ApdSnapshot } from "./apd.js";
+export type { ApdSamplerPort, ApdSnapshot, ApdTxAntenna } from "./apd.js";
 export type { EqualizerSnapshot, EqualizerId } from "./equalizer.js";
 export type { KnownMeterUnits, MeterSnapshot, MeterUnits } from "./meter.js";
 export type { TxBandSettingSnapshot } from "./tx-band-settings.js";

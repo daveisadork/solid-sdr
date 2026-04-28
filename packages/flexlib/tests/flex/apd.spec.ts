@@ -16,7 +16,10 @@ describe("APD controller", () => {
     connection.emitStatus("S1|apd enable=1 configurable=1");
     connection.emitStatus("S1|apd freq=0.000000 tx_error_mHz=0.250000");
     connection.emitStatus(
-      "S1|apd slice=0 mmx=0 client_handle=0x12345678 ant=ANT1 freq=14.100000 rx_error_mHz=0.125000 equalizer_active=1 configurable=1",
+      "S1|apd slice=0 mmx=0 client_handle=0x12345678 ant=ANT1 freq=14.100000 rfpower=100 rx_error_mHz=0.125000 equalizer_active=1 configurable=1",
+    );
+    connection.emitStatus(
+      "S1|apd sampler tx_ant=ANT1 selected_sampler=RX_A valid_samplers=RX_A,XVTA",
     );
 
     // then the APD controller reflects the parsed state
@@ -30,6 +33,13 @@ describe("APD controller", () => {
     expect(controller.clientHandle).toBe(0x12345678);
     expect(controller.rxErrorMilliHz).toBeCloseTo(0.125, 6);
     expect(controller.txErrorMilliHz).toBeCloseTo(0.25, 6);
+    expect(controller.rfPower).toBe(100);
+    expect(controller.availableSamplerPortsAnt1).toEqual([
+      "INTERNAL",
+      "RX_A",
+      "XVTA",
+    ]);
+    expect(controller.selectedSamplerPortAnt1).toBe("RX_A");
 
     // given a change spy is attached
     const changeSpy = vi.fn();
@@ -42,5 +52,13 @@ describe("APD controller", () => {
     expect(connection.lastCommand()).toBe("apd enable=0");
     expect(controller.enabled).toBe(false);
     expect(changeSpy).toHaveBeenCalled();
+
+    await controller.equalizerReset();
+    expect(connection.lastCommand()).toBe("apd reset");
+    expect(controller.equalizerActive).toBe(false);
+
+    await controller.setSamplerPort("ANT1", "XVTA");
+    expect(connection.lastCommand()).toBe("apd sampler tx_ant=ANT1 sample_port=XVTA");
+    expect(controller.selectedSamplerPortAnt1).toBe("XVTA");
   });
 });

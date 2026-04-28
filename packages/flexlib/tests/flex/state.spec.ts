@@ -335,7 +335,12 @@ describe("createRadioStateStore", () => {
     store.apply(makeStatus("S1|apd freq=0.000000 tx_error_mHz=0.500000"));
     store.apply(
       makeStatus(
-        "S1|apd slice=0 mmx=0 client_handle=0x7F7C21E0 ant=ANT1 freq=14.100000 rx_error_mHz=0.000000 equalizer_active=1 configurable=1",
+        "S1|apd slice=0 mmx=0 client_handle=0x7F7C21E0 ant=ANT1 freq=14.100000 rfpower=100 rx_error_mHz=0.000000 equalizer_active=1 configurable=1",
+      ),
+    );
+    store.apply(
+      makeStatus(
+        "S1|apd sampler tx_ant=ANT1 selected_sampler=RX_A valid_samplers=RX_A,XVTA",
       ),
     );
 
@@ -349,6 +354,13 @@ describe("createRadioStateStore", () => {
     expect(apd?.sliceId).toBe("0");
     expect(apd?.clientHandle).toBe(0x7f7c21e0);
     expect(apd?.txErrorMilliHz).toBeCloseTo(0.5, 6);
+    expect(apd?.rfPower).toBe(100);
+    expect(apd?.availableSamplerPortsAnt1).toEqual([
+      "INTERNAL",
+      "RX_A",
+      "XVTA",
+    ]);
+    expect(apd?.selectedSamplerPortAnt1).toBe("RX_A");
 
     store.apply(makeStatus("S1|apd equalizer_reset"));
     apd = store.getApd();

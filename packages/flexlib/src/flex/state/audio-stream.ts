@@ -21,6 +21,7 @@ export interface AudioStreamSnapshot {
   readonly type: AudioStreamKind;
   readonly compression?: string;
   readonly clientHandle?: number;
+  readonly radioAck: boolean;
   readonly ip?: string;
   readonly daxChannel?: number;
   readonly slice?: string;
@@ -44,7 +45,7 @@ export function createAudioStreamSnapshot(
   const rawDiff = freezeAttributes(attributes);
   const partial: Mutable<Partial<AudioStreamSnapshot>> = previous
     ? {}
-    : { id, tx: false };
+    : { id, radioAck: false, tx: false };
 
   for (const [key, value] of Object.entries(attributes)) {
     switch (key) {
@@ -59,8 +60,12 @@ export function createAudioStreamSnapshot(
         break;
       case "client_handle": {
         const parsed = parseIntegerHex(value);
-        if (parsed !== undefined) partial.clientHandle = parsed;
-        else logParseError("audio_stream", key, value);
+        if (parsed !== undefined) {
+          partial.clientHandle = parsed;
+          partial.radioAck = true;
+        } else {
+          logParseError("audio_stream", key, value);
+        }
         break;
       }
       case "ip":

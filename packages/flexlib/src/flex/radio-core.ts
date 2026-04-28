@@ -73,10 +73,12 @@ import {
 import { type MeterController, MeterControllerImpl } from "./meter.js";
 import {
   type AudioStreamController,
+  type DaxTxAudioStreamController,
   type AudioStreamTxController,
   type RemoteAudioTxStreamController,
   AudioStreamControllerImpl,
   AudioStreamTxControllerImpl,
+  DaxTxAudioStreamControllerImpl,
   RemoteAudioTxStreamControllerImpl,
 } from "./audio-stream.js";
 import {
@@ -643,13 +645,21 @@ class RadioImpl {
 
   audioStreams(): Array<
     | AudioStreamController
+    | DaxTxAudioStreamController
     | AudioStreamTxController
     | RemoteAudioTxStreamController
   > {
     return Array.from(this.audioControllers.values());
   }
 
-  audioStream(id: string): AudioStreamController | undefined {
+  audioStream(
+    id: string,
+  ):
+    | AudioStreamController
+    | DaxTxAudioStreamController
+    | AudioStreamTxController
+    | RemoteAudioTxStreamController
+    | undefined {
     return this.getOrCreateController(
       "audioStream",
       id,
@@ -659,7 +669,7 @@ class RadioImpl {
         if (!stream) return undefined;
         switch (stream.type) {
           case "dax_tx":
-            return new AudioStreamTxControllerImpl(this, id);
+            return new DaxTxAudioStreamControllerImpl(this, id);
           case "remote_audio_tx":
             return new RemoteAudioTxStreamControllerImpl(this, id);
           default:
@@ -846,10 +856,10 @@ class RadioImpl {
     );
   }
 
-  async createDaxTxAudioStream(): Promise<AudioStreamTxController> {
+  async createDaxTxAudioStream(): Promise<DaxTxAudioStreamController> {
     return this.createAudioStreamController(
       "stream create type=dax_tx",
-      AudioStreamTxControllerImpl,
+      DaxTxAudioStreamControllerImpl,
     );
   }
 
@@ -1164,7 +1174,7 @@ class RadioImpl {
             if (!stream) return undefined;
             switch (stream.type) {
               case "dax_tx":
-                return new AudioStreamTxControllerImpl(this, change.id);
+                return new DaxTxAudioStreamControllerImpl(this, change.id);
               case "remote_audio_tx":
                 return new RemoteAudioTxStreamControllerImpl(this, change.id);
               default:

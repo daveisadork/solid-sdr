@@ -168,6 +168,7 @@ describe("Radio", () => {
     expect(stream.streamId).toBe("0x04000008");
     expect(stream.compression).toBe("OPUS");
     expect(stream.clientHandle).toBe(0x1234);
+    expect(stream.radioAck).toBe(true);
     expect(stream.ip).toBe("10.0.0.5");
 
     // when the stream state is updated
@@ -194,6 +195,7 @@ describe("Radio", () => {
     const stream = await creationPromise;
     expect(stream.type).toBe("remote_audio_tx");
     expect(stream.clientHandle).toBe(0x5678);
+    expect(stream.radioAck).toBe(true);
   });
 
   it("creates dax rx audio stream controllers", async () => {
@@ -215,6 +217,34 @@ describe("Radio", () => {
     expect(stream.type).toBe("dax_rx");
     expect(stream.daxChannel).toBe(3);
     expect(stream.clientHandle).toBe(0x9abc);
+    expect(stream.radioAck).toBe(true);
+  });
+
+  it("creates dax tx audio stream controllers and requests tx ownership", async () => {
+    const { radio, connection } = await createConnectedRadio();
+
+    connection.prepareResponse("stream create", { message: "2000003" });
+    const creationPromise = radio.createDaxTxAudioStream();
+    expect(connection.lastCommand()).toBe("stream create type=dax_tx");
+
+    connection.emitStatus(
+      "S1|stream 0x02000003 type=dax_tx client_handle=0xC0FFEE tx=0",
+    );
+
+    const stream = await creationPromise;
+    expect(stream.type).toBe("dax_tx");
+    expect(stream.clientHandle).toBe(0xc0ffee);
+    expect(stream.radioAck).toBe(true);
+    expect(stream.tx).toBe(false);
+
+    await stream.requestTx(true);
+    expect(connection.lastCommand()).toBe("stream set 0x02000003 tx=1");
+
+    connection.emitStatus("S1|stream 0x02000003 tx=1");
+    expect(stream.tx).toBe(true);
+
+    await stream.requestTx(false);
+    expect(connection.lastCommand()).toBe("stream set 0x02000003 tx=0");
   });
 
   it("surfaces command rejections with error details", async () => {

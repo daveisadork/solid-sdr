@@ -51,6 +51,17 @@ export interface AudioStreamTxController extends AudioStreamController {
   sendReducedBwAudio(samples: Int16Array): void;
 }
 
+/** DAX TX stream controller with explicit TX ownership requests. */
+export interface DaxTxAudioStreamController extends AudioStreamTxController {
+  /**
+   * Request or yield DAX TX ownership from the radio.
+   *
+   * In MultiFLEX scenarios, this asks the radio to grant this client
+   * transmit ownership or to yield it back to another client.
+   */
+  requestTx(tx: boolean): Promise<void>;
+}
+
 /** Remote audio TX stream controller — supports PCM and Opus. */
 export interface RemoteAudioTxStreamController extends AudioStreamTxController {
   /**
@@ -92,6 +103,10 @@ export class AudioStreamControllerImpl implements AudioStreamController {
 
   get ip() {
     return this.current().ip;
+  }
+
+  get radioAck() {
+    return this.current().radioAck;
   }
 
   get daxChannel() {
@@ -237,6 +252,16 @@ export class AudioStreamTxControllerImpl
     pkt.samples.set(samples.subarray(0, count));
     this.txPacketCount = (this.txPacketCount + 1) & 0xf;
     this.radio.sendUdp(pkt.toBytes());
+  }
+}
+
+/** DAX TX audio stream with explicit TX ownership requests. */
+export class DaxTxAudioStreamControllerImpl
+  extends AudioStreamTxControllerImpl
+  implements DaxTxAudioStreamController
+{
+  async requestTx(tx: boolean): Promise<void> {
+    await this.radio.command(`stream set ${this.id} tx=${tx ? 1 : 0}`);
   }
 }
 

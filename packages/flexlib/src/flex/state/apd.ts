@@ -137,6 +137,9 @@ export function createApdSnapshot(
         else if (value) logParseError("apd", key, value);
         break;
       }
+      // These fields are interpreted together in applySamplerAttributes()
+      // because they update antenna-specific derived state rather than
+      // mapping 1:1 onto flat APD snapshot properties.
       case "tx_ant":
       case "selected_sampler":
       case "valid_samplers":

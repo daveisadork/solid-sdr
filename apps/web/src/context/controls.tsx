@@ -113,7 +113,7 @@ type PanadapterController = NonNullable<
 >;
 
 type ControlScope = "slice" | "panadapter" | "radio";
-type ControlOp = "toggle" | "set" | "adjust" | "cycle";
+export type ControlOp = "toggle" | "set" | "adjust" | "cycle";
 type ChoiceValue = string | number;
 
 type ControlRuntime = {

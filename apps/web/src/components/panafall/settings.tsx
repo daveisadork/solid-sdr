@@ -459,6 +459,8 @@ function AntennaSettings(props: {
   const [rawHighDbm, setRawHighDbm] = createSignal(0);
   const [rawLowDbm, setRawLowDbm] = createSignal(0);
 
+  createEffect(() => props.panadapterController.refreshRfGainInfo());
+
   createEffect(() => setRawFrequency(props.panadapter.centerFrequencyMHz));
   createEffect(() => setRawBandwidth(props.panadapter.bandwidthMHz));
   createEffect(() => setRawHighDbm(props.panadapter.highDbm));
@@ -640,7 +642,10 @@ function BandSettings(props: {
             }`
           : props.panadapter.band
       }
-      onChange={(value: string) => props.panadapterController.setBand(value)}
+      onChange={(value: string) => {
+        if (!value) return;
+        props.panadapterController.setBand(value);
+      }}
     >
       <For each={BANDS}>
         {(band) => (
@@ -653,11 +658,7 @@ function BandSettings(props: {
         <Separator class="col-span-3 my-2" />
         <For each={Object.values(state.status.xvtr)}>
           {(xvtr) => (
-            <ToggleGroupItem
-              variant="outline"
-              value={`x${xvtr.id}`}
-              onClick={() => props.panadapterController.setBand("none")}
-            >
+            <ToggleGroupItem variant="outline" value={`x${xvtr.id}`}>
               {xvtr.name}
             </ToggleGroupItem>
           )}
@@ -676,10 +677,6 @@ export function PanSettings() {
   const [menuRef, setMenuRef] = createSignal<HTMLElement>();
 
   const { radio, state } = useFlexRadio();
-
-  createEffect(() => {
-    panadapterController()?.refreshRfGainInfo();
-  });
 
   return (
     <div class="absolute max-h-full p-2 flex z-50 pointer-events-none">

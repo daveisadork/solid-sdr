@@ -687,14 +687,24 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
   createEffect(() => setRawShift(props.slice.rttyShiftHz));
   createEffect(() => setRawRepeaterOffset(props.slice.fmRepeaterOffsetMHz));
 
-  const splitParent = createMemo(
-    () => state.status.slice[runtime.split[props.slice.id]?.parent],
-  );
-  const splitChild = createMemo(
-    () => state.status.slice[runtime.split[props.slice.id]?.child],
-  );
+  const splitParent = createMemo(() => {
+    const split = runtime.split[props.slice.id];
+    return split ? state.status.slice[split.parent] : null;
+  });
 
-  const splitPartner = createMemo(() => splitParent() || splitChild());
+  const splitChild = createMemo(() => {
+    const split = runtime.split[props.slice.id];
+    return split ? state.status.slice[split.child] : null;
+  });
+
+  const splitPartner = () => splitParent() || splitChild();
+
+  const splitDisabled = createMemo(() => {
+    if (!state.status.radio.availableSlices) {
+      return !splitChild();
+    }
+    return props.slice.diversityChild;
+  });
 
   const diversityParent = createMemo(() => {
     if (!props.slice.diversityChild) return;
@@ -1053,11 +1063,7 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
                       />
                       <Show when={!splitParent()}>
                         <ToggleButton
-                          disabled={
-                            (state.status.radio.availableSlices === 0 &&
-                              !Boolean(splitChild())) ||
-                            props.slice.diversityChild
-                          }
+                          disabled={splitDisabled()}
                           class="flex justify-center items-center h-4.5 px-1 rounded-sm text-muted-foreground data-pressed:bg-red-500 data-pressed:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
                           pressed={Boolean(splitChild())}
                           onChange={(pressed) =>

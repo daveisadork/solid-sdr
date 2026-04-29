@@ -1,596 +1,776 @@
 import {
+  Accessor,
   batch,
   createContext,
   createMemo,
   ParentComponent,
   useContext,
 } from "solid-js";
-import useFlexRadio from "./flexradio";
-import { BANDS } from "~/components/panafall/settings";
-import { useRuntime } from "./runtime";
 import { produce } from "solid-js/store";
 import { MidiControl } from "~/components/midi-control";
+import { BANDS } from "~/components/panafall/settings";
+import useFlexRadio from "./flexradio";
+import { useRuntime } from "./runtime";
 
-/**
- * User-facing slice identifiers.
- *
- * Flex labels slices as A, B, C, etc. These are stable enough for user
- * mappings and avoid coupling bindings to runtime slice ids.
- */
 export type SliceSelector = "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H";
-
-/**
- * Flex slice mode name.
- *
- * This can be narrowed later to a literal union once the supported mode list
- * is centralized.
- */
 export type SliceMode = string;
-
-/**
- * Flex band identifier.
- *
- * This can be narrowed later to a literal union once the supported band list
- * is centralized.
- */
 export type PanadapterBand = string;
-
-/**
- * Absolute scalar value normalized to the range 0..1.
- *
- * This is not range-safe at the type level; validate at runtime.
- */
 export type Normalized = number;
-
-/**
- * Centered scalar value normalized to the range -1..1.
- *
- * This is useful for values with a natural center point such as offsets.
- * This is not range-safe at the type level; validate at runtime.
- */
 export type SignedNormalized = number;
 
-/**
- * Optional slice selector for slice- and panadapter-scoped actions.
- *
- * When omitted, the action targets the active slice. When present, the action
- * targets the explicitly addressed slice.
- */
-type SliceTargeted = {
-  /**
-   * Slice letter to target.
-   *
-   * If omitted, resolve the action against the active slice.
-   */
-  slice?: SliceSelector;
-};
-
 type Empty = Record<never, never>;
+type SliceTargeted = { slice?: SliceSelector };
 
-/**
- * Boolean property toggle action.
- *
- * Use this for stateful boolean properties where the current value should be
- * inverted by the executor.
- */
-type Toggle<T extends string, Extra extends object = Empty> = Extra & {
-  /**
-   * Semantic action target.
-   */
+type ToggleAction<T extends string, Extra extends object = Empty> = Extra & {
   target: T;
-
-  /**
-   * Toggle the current boolean value.
-   */
   op: "toggle";
 };
 
-/**
- * Boolean property set action.
- *
- * Use this for explicit on/off control, including momentary bindings that emit
- * true on press and false on release.
- */
-type SetBoolean<T extends string, Extra extends object = Empty> = Extra & {
-  /**
-   * Semantic action target.
-   */
-  target: T;
-
-  /**
-   * Set the property to an explicit boolean value.
-   */
-  op: "set";
-
-  /**
-   * Boolean value to apply.
-   */
-  value: boolean;
-};
-
-/**
- * Relative stepped adjustment action.
- *
- * The executor interprets `delta` in target-specific steps. For example,
- * `slice.frequency` may interpret one step as the current tune step size.
- */
-type AdjustSteps<T extends string, Extra extends object = Empty> = Extra & {
-  /**
-   * Semantic action target.
-   */
-  target: T;
-
-  /**
-   * Apply a relative adjustment.
-   */
-  op: "adjust";
-
-  /**
-   * Signed step delta.
-   *
-   * Positive values increase, negative values decrease.
-   */
-  delta: number;
-};
-
-/**
- * Absolute normalized set action.
- *
- * Use this for bounded scalar properties that can be represented as 0..1,
- * such as volume, power, or zoom.
- */
-type SetNormalized<T extends string, Extra extends object = Empty> = Extra & {
-  /**
-   * Semantic action target.
-   */
-  target: T;
-
-  /**
-   * Set the property to an absolute value.
-   */
-  op: "set";
-
-  /**
-   * Normalized scalar value in the range 0..1.
-   */
-  value: Normalized;
-};
-
-/**
- * Absolute centered normalized set action.
- *
- * Use this for bounded scalar properties with a natural center, such as
- * offsets that can move above or below zero.
- */
-type SetSignedNormalized<
+type SetBooleanAction<
   T extends string,
   Extra extends object = Empty,
 > = Extra & {
-  /**
-   * Semantic action target.
-   */
   target: T;
-
-  /**
-   * Set the property to an absolute value.
-   */
   op: "set";
-
-  /**
-   * Centered normalized scalar value in the range -1..1.
-   */
-  value: SignedNormalized;
+  value: boolean;
 };
 
-/**
- * Relative cycling action for discrete choices.
- *
- * This is useful for mode/band/tune-step style controls where the executor
- * advances or reverses within a finite set of values.
- */
-type Cycle<T extends string, Extra extends object = Empty> = Extra & {
-  /**
-   * Semantic action target.
-   */
+type AdjustAction<T extends string, Extra extends object = Empty> = Extra & {
   target: T;
-
-  /**
-   * Cycle through a discrete value set.
-   */
-  op: "cycle";
-
-  /**
-   * Signed cycle delta.
-   *
-   * `1` typically means next, `-1` means previous.
-   */
+  op: "adjust";
   delta: number;
 };
 
-/**
- * Explicit set action for non-boolean, non-normalized values.
- *
- * Use this for values such as mode names, band names, slice letters, or
- * concrete numeric values like a tune step in Hz.
- */
-type SetValue<
+type SetNormalizedAction<
+  T extends string,
+  Extra extends object = Empty,
+> = Extra & {
+  target: T;
+  op: "set";
+  value: Normalized;
+};
+
+type SetSignedNormalizedAction<
+  T extends string,
+  Extra extends object = Empty,
+> = Extra & {
+  target: T;
+  op: "set";
+  value: SignedNormalized;
+};
+
+type CycleAction<T extends string, Extra extends object = Empty> = Extra & {
+  target: T;
+  op: "cycle";
+  delta: number;
+};
+
+type SetValueAction<
   T extends string,
   TValue,
   Extra extends object = Empty,
 > = Extra & {
-  /**
-   * Semantic action target.
-   */
   target: T;
-
-  /**
-   * Set the property to an explicit value.
-   */
   op: "set";
-
-  /**
-   * Value to apply.
-   */
   value: TValue;
 };
 
-/**
- * Multiplicative bandwidth scaling action.
- *
- * This is used for panadapter zooming where the most useful user-facing
- * control is a percentage change rather than an absolute target value.
- */
-type ScaleBandwidth<Extra extends object = Empty> = Extra & {
-  /**
-   * Semantic action target.
-   */
+type CommandAction<T extends string, Extra extends object = Empty> = Extra & {
+  target: T;
+};
+
+type ScaleBandwidthAction<Extra extends object = Empty> = Extra & {
   target: "panadapter.bandwidth";
-
-  /**
-   * Bandwidth change direction.
-   *
-   * `"increase"` widens the bandwidth and `"decrease"` narrows it.
-   */
   change: "increase" | "decrease";
-
-  /**
-   * Positive scale factor.
-   *
-   * A value of `0.25` means "change by 25%". Executors should typically apply
-   * this as `bandwidth *= 1 + factor` for increase and
-   * `bandwidth /= 1 + factor` for decrease.
-   */
   factor: number;
 };
 
+type BooleanControlAction<T extends string, Extra extends object = Empty> =
+  | ToggleAction<T, Extra>
+  | SetBooleanAction<T, Extra>;
+
+type NormalizedControlAction<T extends string, Extra extends object = Empty> =
+  | AdjustAction<T, Extra>
+  | SetNormalizedAction<T, Extra>;
+
+type SignedNormalizedControlAction<
+  T extends string,
+  Extra extends object = Empty,
+> = AdjustAction<T, Extra> | SetSignedNormalizedAction<T, Extra>;
+
+type ChoiceControlAction<
+  T extends string,
+  TValue,
+  Extra extends object = Empty,
+> = CycleAction<T, Extra> | SetValueAction<T, TValue, Extra>;
+
+type FlexRadioApi = ReturnType<typeof useFlexRadio>;
+type RuntimeApi = ReturnType<typeof useRuntime>;
+type RadioController = NonNullable<ReturnType<FlexRadioApi["radio"]>>;
+type SliceController = NonNullable<ReturnType<RadioController["slice"]>>;
+type PanadapterController = NonNullable<
+  ReturnType<RadioController["panadapter"]>
+>;
+
+type ControlScope = "slice" | "panadapter" | "radio";
+type ControlOp = "toggle" | "set" | "adjust" | "cycle";
+type ChoiceValue = string | number;
+
+type ControlRuntime = {
+  radio: FlexRadioApi["radio"];
+  state: FlexRadioApi["state"];
+  runtime: RuntimeApi["runtime"];
+  setRuntime: RuntimeApi["setRuntime"];
+  activeSlice: Accessor<SliceController | undefined>;
+  activePan: Accessor<PanadapterController | undefined>;
+  getSlice: (selector?: SliceSelector) => SliceController | undefined;
+  getPan: (selector?: SliceSelector) => PanadapterController | undefined;
+  getBandList: () => readonly string[];
+  getSelectableSlices: () => readonly SliceSelector[];
+};
+
+type ControlEditor<TAction extends { target: string }> =
+  | { kind: "command" }
+  | { kind: "boolean" }
+  | { kind: "relative-step" }
+  | { kind: "normalized" }
+  | { kind: "signed-normalized" }
+  | {
+      kind: "choice";
+      getChoices: (
+        ctx: ControlRuntime,
+        action?: TAction,
+      ) => readonly ChoiceValue[];
+    }
+  | { kind: "bandwidth-scale" };
+
+type ControlDefinition<TAction extends { target: string }> = {
+  target: TAction["target"];
+  label: string;
+  scope: ControlScope;
+  ops: readonly ControlOp[];
+  editor: ControlEditor<TAction>;
+  execute: (ctx: ControlRuntime, action: TAction) => void;
+};
+
+function defineControl<TAction extends { target: string }>(
+  definition: ControlDefinition<TAction>,
+) {
+  return definition;
+}
+
+function resolveBooleanAction(
+  action: ToggleAction<string> | SetBooleanAction<string>,
+  current: boolean,
+) {
+  return action.op === "toggle" ? !current : action.value;
+}
+
+function cycleListValue<T>(
+  values: readonly T[],
+  current: T,
+  delta: number,
+): T | undefined {
+  if (values.length === 0) return undefined;
+  const currentIndex = values.indexOf(current);
+  const startIndex = currentIndex >= 0 ? currentIndex : 0;
+  const nextIndex =
+    (((startIndex + delta) % values.length) + values.length) % values.length;
+  return values[nextIndex];
+}
+
+function fromNormalized(value: Normalized, max: number, min = 0) {
+  return Math.round(min + value * (max - min));
+}
+
+function fromSignedNormalized(value: SignedNormalized, maxAbsValue: number) {
+  return Math.round(value * maxAbsValue);
+}
+
+function warnNotImplemented(action: { target: string }) {
+  console.warn("not implemented:", action);
+}
+
 /**
- * FlexRadio semantic action union for the initial v1 action catalog.
+ * Add new controls here.
  *
- * Design notes:
- * - Omitted `slice` means "active slice".
- * - `panadapter.*` actions resolve to the panadapter that owns the addressed
- *   slice, or the active slice's panadapter when `slice` is omitted.
- * - `radio.*` actions always target the connected radio directly.
- * - Targets with no `op` are one-shot commands rather than stateful properties.
+ * Each entry is the source of truth for:
+ * - the runtime list of available controls
+ * - the action type for that target
+ * - the handler used by dispatch
  */
-export type ControlAction =
-  /**
-   * Adjust a slice's tuned frequency by a target-specific number of steps.
-   *
-   * With no `slice`, affects the active slice.
-   */
-  | AdjustSteps<"slice.frequency", SliceTargeted>
+export const CONTROL_DEFINITIONS = [
+  defineControl<AdjustAction<"slice.frequency", SliceTargeted>>({
+    target: "slice.frequency",
+    label: "Slice Frequency",
+    scope: "slice",
+    ops: ["adjust"],
+    editor: { kind: "relative-step" },
+    execute(ctx, action) {
+      const slice = ctx.getSlice(action.slice);
+      if (!slice) return;
 
-  /**
-   * Cycle the slice's tune step selection.
-   *
-   * With no `slice`, affects the active slice.
-   */
-  | Cycle<"slice.tuneStep", SliceTargeted>
+      const deltaMhz = (slice.tuneStepHz / 1_000_000) * action.delta;
+      const nextFrequency = slice.frequencyMHz + deltaMhz;
+      const pan = ctx.getPan(action.slice);
 
-  /**
-   * Set the slice's tune step directly.
-   *
-   * The numeric value is intended to represent a concrete step size in Hz.
-   * With no `slice`, affects the active slice.
-   */
-  | SetValue<"slice.tuneStep", number, SliceTargeted>
+      if (pan) {
+        const panLow = pan.centerFrequencyMHz - pan.bandwidthMHz / 2;
+        const panHigh = pan.centerFrequencyMHz + pan.bandwidthMHz / 2;
+        const filterLow = nextFrequency + slice.filterLowHz / 1_000_000;
+        const filterHigh = nextFrequency + slice.filterHighHz / 1_000_000;
 
-  /**
-   * Cycle the slice's mode selection.
-   *
-   * With no `slice`, affects the active slice.
-   */
-  | Cycle<"slice.mode", SliceTargeted>
+        batch(() => {
+          if (filterHigh > panHigh || filterLow < panLow) {
+            pan.setCenterFrequency(pan.centerFrequencyMHz + deltaMhz);
+          }
+          slice.setFrequency(nextFrequency, false);
+        });
+        return;
+      }
 
-  /**
-   * Set the slice's mode directly.
-   *
-   * With no `slice`, affects the active slice.
-   */
-  | SetValue<"slice.mode", SliceMode, SliceTargeted>
+      slice.setFrequency(nextFrequency, false);
+    },
+  }),
 
-  /**
-   * Adjust the slice filter width by steps.
-   *
-   * With no `slice`, affects the active slice.
-   */
-  | AdjustSteps<"slice.filter.width", SliceTargeted>
+  defineControl<ChoiceControlAction<"slice.tuneStep", number, SliceTargeted>>({
+    target: "slice.tuneStep",
+    label: "Slice Tune Step",
+    scope: "slice",
+    ops: ["cycle", "set"],
+    editor: {
+      kind: "choice",
+      getChoices(ctx, action) {
+        return ctx.getSlice(action?.slice)?.tuneStepListHz ?? [];
+      },
+    },
+    execute(ctx, action) {
+      const slice = ctx.getSlice(action.slice);
+      if (!slice) return;
 
-  /**
-   * Set the slice filter width as a normalized value.
-   *
-   * With no `slice`, affects the active slice.
-   */
-  | SetNormalized<"slice.filter.width", SliceTargeted>
+      const value =
+        action.op === "cycle"
+          ? cycleListValue(slice.tuneStepListHz, slice.tuneStepHz, action.delta)
+          : action.value;
 
-  /**
-   * Adjust the slice audio level by steps.
-   *
-   * With no `slice`, affects the active slice.
-   */
-  | AdjustSteps<"slice.audio.level", SliceTargeted>
+      if (value === undefined) return;
+      slice.setTuneStep(value);
+    },
+  }),
 
-  /**
-   * Set the slice audio level as a normalized value.
-   *
-   * With no `slice`, affects the active slice.
-   */
-  | SetNormalized<"slice.audio.level", SliceTargeted>
+  defineControl<ChoiceControlAction<"slice.mode", SliceMode, SliceTargeted>>({
+    target: "slice.mode",
+    label: "Slice Mode",
+    scope: "slice",
+    ops: ["cycle", "set"],
+    editor: {
+      kind: "choice",
+      getChoices(ctx, action) {
+        return ctx.getSlice(action?.slice)?.modeList ?? [];
+      },
+    },
+    execute(ctx, action) {
+      const slice = ctx.getSlice(action.slice);
+      if (!slice) return;
 
-  /**
-   * Toggle the slice audio mute state.
-   *
-   * With no `slice`, affects the active slice.
-   */
-  | Toggle<"slice.audio.mute", SliceTargeted>
+      const value =
+        action.op === "cycle"
+          ? cycleListValue(slice.modeList, slice.mode, action.delta)
+          : action.value;
 
-  /**
-   * Set the slice audio mute state explicitly.
-   *
-   * With no `slice`, affects the active slice.
-   */
-  | SetBoolean<"slice.audio.mute", SliceTargeted>
+      if (!value) return;
+      slice.setMode(value);
+    },
+  }),
 
-  /**
-   * Toggle the slice RIT enabled state.
-   *
-   * With no `slice`, affects the active slice.
-   */
-  | Toggle<"slice.rit.enabled", SliceTargeted>
+  defineControl<NormalizedControlAction<"slice.filter.width", SliceTargeted>>({
+    target: "slice.filter.width",
+    label: "Slice Filter Width",
+    scope: "slice",
+    ops: ["adjust", "set"],
+    editor: { kind: "normalized" },
+    execute(_ctx, action) {
+      warnNotImplemented(action);
+    },
+  }),
 
-  /**
-   * Set the slice RIT enabled state explicitly.
-   *
-   * With no `slice`, affects the active slice.
-   */
-  | SetBoolean<"slice.rit.enabled", SliceTargeted>
+  defineControl<NormalizedControlAction<"slice.audio.level", SliceTargeted>>({
+    target: "slice.audio.level",
+    label: "Slice Audio Level",
+    scope: "slice",
+    ops: ["adjust", "set"],
+    editor: { kind: "normalized" },
+    execute(ctx, action) {
+      const slice = ctx.getSlice(action.slice);
+      if (!slice) return;
 
-  /**
-   * Adjust the slice RIT offset by steps.
-   *
-   * With no `slice`, affects the active slice.
-   */
-  | AdjustSteps<"slice.rit.offset", SliceTargeted>
+      const value =
+        action.op === "adjust"
+          ? slice.audioGain + action.delta
+          : fromNormalized(action.value, 100);
 
-  /**
-   * Set the slice RIT offset as a centered normalized value.
-   *
-   * With no `slice`, affects the active slice.
-   */
-  | SetSignedNormalized<"slice.rit.offset", SliceTargeted>
+      slice.setAudioGain(value);
+    },
+  }),
 
-  /**
-   * Clear the slice RIT offset.
-   *
-   * With no `slice`, affects the active slice.
-   */
-  | {
-      /**
-       * One-shot command target.
-       */
-      target: "slice.rit.clear";
+  defineControl<BooleanControlAction<"slice.audio.mute", SliceTargeted>>({
+    target: "slice.audio.mute",
+    label: "Slice Audio Mute",
+    scope: "slice",
+    ops: ["toggle", "set"],
+    editor: { kind: "boolean" },
+    execute(ctx, action) {
+      const slice = ctx.getSlice(action.slice);
+      if (!slice) return;
+      slice.setMute(resolveBooleanAction(action, slice.isMuted));
+    },
+  }),
 
-      /**
-       * Slice letter to target.
-       *
-       * If omitted, resolve against the active slice.
-       */
-      slice?: SliceSelector;
-    }
+  defineControl<BooleanControlAction<"slice.rit.enabled", SliceTargeted>>({
+    target: "slice.rit.enabled",
+    label: "Slice RIT Enabled",
+    scope: "slice",
+    ops: ["toggle", "set"],
+    editor: { kind: "boolean" },
+    execute(ctx, action) {
+      const slice = ctx.getSlice(action.slice);
+      if (!slice) return;
+      slice.setRitEnabled(resolveBooleanAction(action, slice.ritEnabled));
+    },
+  }),
 
-  /**
-   * Toggle the slice split state.
-   *
-   * With no `slice`, affects the active slice.
-   */
-  | Toggle<"slice.split.enabled", SliceTargeted>
+  defineControl<
+    SignedNormalizedControlAction<"slice.rit.offset", SliceTargeted>
+  >({
+    target: "slice.rit.offset",
+    label: "Slice RIT Offset",
+    scope: "slice",
+    ops: ["adjust", "set"],
+    editor: { kind: "signed-normalized" },
+    execute(ctx, action) {
+      const slice = ctx.getSlice(action.slice);
+      if (!slice) return;
 
-  /**
-   * Set the slice split state explicitly.
-   *
-   * With no `slice`, affects the active slice.
-   */
-  | SetBoolean<"slice.split.enabled", SliceTargeted>
-  | {
-      target: "slice.split.swap";
-      slice?: SliceSelector;
-    }
+      const value =
+        action.op === "adjust"
+          ? slice.ritOffsetHz + action.delta
+          : fromSignedNormalized(action.value, 100);
 
-  /**
-   * Cycle the active slice selection.
-   *
-   * This changes which slice is active rather than mutating a specific slice.
-   */
-  | {
-      /**
-       * Semantic action target.
-       */
-      target: "slice.select";
+      slice.setRitOffset(value);
+    },
+  }),
 
-      /**
-       * Cycle through available slices.
-       */
-      op: "cycle";
+  defineControl<CommandAction<"slice.rit.clear", SliceTargeted>>({
+    target: "slice.rit.clear",
+    label: "Slice RIT Clear",
+    scope: "slice",
+    ops: [],
+    editor: { kind: "command" },
+    execute(ctx, action) {
+      const slice = ctx.getSlice(action.slice);
+      if (!slice) return;
+      slice.setRitOffset(0);
+    },
+  }),
 
-      /**
-       * Signed cycle delta.
-       *
-       * `1` typically means next, `-1` means previous.
-       */
-      delta: number;
-    }
+  defineControl<BooleanControlAction<"slice.split.enabled", SliceTargeted>>({
+    target: "slice.split.enabled",
+    label: "Slice Split Enabled",
+    scope: "slice",
+    ops: ["toggle", "set"],
+    editor: { kind: "boolean" },
+    execute(ctx, action) {
+      const source = ctx.getSlice(action.slice);
+      if (!source) return;
 
-  /**
-   * Set the active slice explicitly by slice letter.
-   */
-  | {
-      /**
-       * Semantic action target.
-       */
-      target: "slice.select";
+      const splitState = ctx.runtime.split[source.id];
+      const isSplit = source.id in ctx.runtime.split;
+      const enableSplit = resolveBooleanAction(action, isSplit);
 
-      /**
-       * Set the active slice explicitly.
-       */
-      op: "set";
+      if (isSplit === enableSplit) return;
 
-      /**
-       * Slice letter to activate.
-       */
-      value: SliceSelector;
-    }
+      if (enableSplit) {
+        source.clone().then((child) => {
+          batch(() => {
+            ctx.setRuntime("split", source.id, {
+              child: child.id,
+              parent: null,
+            });
+            ctx.setRuntime("split", child.id, {
+              child: null,
+              parent: source.id,
+            });
+          });
+          child.setMute(true);
+          if (source.isTransmitEnabled) {
+            child.enableTransmit(true);
+          }
+        });
+        return;
+      }
 
-  /**
-   * Cycle the panadapter's band selection.
-   *
-   * With no `panadapter`, affects the active slice.
-   */
-  | Cycle<"panadapter.band", SliceTargeted>
+      if (!splitState) return;
+      const splitParent = splitState.parent
+        ? ctx.radio()?.slice(splitState.parent)
+        : source;
+      const splitChild = splitState.child
+        ? ctx.radio()?.slice(splitState.child)
+        : source;
 
-  /**
-   * Set the panadapter's band directly.
-   *
-   * With no `panadapter`, affects the active slice.
-   */
-  | SetValue<"panadapter.band", PanadapterBand, SliceTargeted>
+      if (!splitParent || !splitChild) return;
 
-  /**
-   * Toggle the addressed slice's panadapter band zoom mode.
-   *
-   * With no `slice`, resolves through the active slice's panadapter.
-   */
-  | Toggle<"panadapter.bandZoom", SliceTargeted>
+      splitParent.enableTransmit(
+        splitParent.isTransmitEnabled || splitChild.isTransmitEnabled,
+      );
+      splitChild.close().then(() => {
+        ctx.setRuntime(
+          "split",
+          produce((split) => {
+            delete split[splitParent.id];
+            delete split[splitChild.id];
+          }),
+        );
+      });
+    },
+  }),
 
-  /**
-   * Set the addressed slice's panadapter band zoom mode explicitly.
-   *
-   * With no `slice`, resolves through the active slice's panadapter.
-   */
-  | SetBoolean<"panadapter.bandZoom", SliceTargeted>
+  defineControl<CommandAction<"slice.split.swap", SliceTargeted>>({
+    target: "slice.split.swap",
+    label: "Slice Split Swap",
+    scope: "slice",
+    ops: [],
+    editor: { kind: "command" },
+    execute(ctx, action) {
+      const source = ctx.getSlice(action.slice);
+      if (!source) return;
 
-  /**
-   * Toggle the addressed slice's panadapter segment zoom mode.
-   *
-   * With no `slice`, resolves through the active slice's panadapter.
-   */
-  | Toggle<"panadapter.segmentZoom", SliceTargeted>
+      const splitState = ctx.runtime.split[source.id];
+      if (!splitState) return;
 
-  /**
-   * Set the addressed slice's panadapter segment zoom mode explicitly.
-   *
-   * With no `slice`, resolves through the active slice's panadapter.
-   */
-  | SetBoolean<"panadapter.segmentZoom", SliceTargeted>
+      const splitParent = splitState.parent
+        ? ctx.radio()?.slice(splitState.parent)
+        : source;
+      const splitChild = splitState.child
+        ? ctx.radio()?.slice(splitState.child)
+        : source;
 
-  /**
-   * Scale the addressed slice's panadapter bandwidth by a percentage factor.
-   *
-   * With no `slice`, resolves through the active slice's panadapter.
-   */
-  | ScaleBandwidth<SliceTargeted>
+      if (!splitParent || !splitChild) return;
 
-  /**
-   * Adjust the slice AGC threshold by steps.
-   *
-   * With no `slice`, affects the active slice.
-   */
-  | AdjustSteps<"slice.agc.threshold", SliceTargeted>
+      batch(() => {
+        ctx.setRuntime("split", splitChild.id, {
+          child: splitParent.id,
+          parent: null,
+        });
+        ctx.setRuntime("split", splitParent.id, {
+          child: null,
+          parent: splitChild.id,
+        });
 
-  /**
-   * Set the slice AGC threshold as a normalized value.
-   *
-   * With no `slice`, affects the active slice.
-   */
-  | SetNormalized<"slice.agc.threshold", SliceTargeted>
-  | Toggle<"slice.nr.enabled", SliceTargeted>
-  | SetBoolean<"slice.nr.enabled", SliceTargeted>
-  | AdjustSteps<"slice.nr.level", SliceTargeted>
-  | SetNormalized<"slice.nr.level", SliceTargeted>
-  | Toggle<"slice.nrs.enabled", SliceTargeted>
-  | SetBoolean<"slice.nrs.enabled", SliceTargeted>
-  | Toggle<"slice.rnn.enabled", SliceTargeted>
-  | SetBoolean<"slice.rnn.enabled", SliceTargeted>
+        const partnerMute = splitParent.isMuted;
+        splitParent.enableTransmit(splitChild.isTransmitEnabled);
+        splitParent.setMute(splitChild.isMuted);
+        splitChild.setMute(partnerMute);
+      });
+    },
+  }),
 
-  /**
-   * Toggle MOX on the connected radio.
-   */
-  | Toggle<"radio.mox">
+  defineControl<ChoiceControlAction<"slice.select", SliceSelector>>({
+    target: "slice.select",
+    label: "Active Slice",
+    scope: "slice",
+    ops: ["cycle", "set"],
+    editor: {
+      kind: "choice",
+      getChoices(ctx) {
+        return ctx.getSelectableSlices();
+      },
+    },
+    execute(ctx, action) {
+      const slices = ctx.getSelectableSlices();
+      if (slices.length === 0) return;
 
-  /**
-   * Set MOX explicitly on the connected radio.
-   */
-  | SetBoolean<"radio.mox">
+      const value =
+        action.op === "cycle"
+          ? cycleListValue(
+              slices,
+              ctx.activeSlice()?.indexLetter as SliceSelector,
+              action.delta,
+            )
+          : action.value;
 
-  /**
-   * Start an ATU tune operation on the connected radio.
-   */
-  | {
-      /**
-       * One-shot command target.
-       */
-      target: "radio.atu.startTune";
-    }
+      if (!value) return;
+      ctx.getSlice(value)?.setActive(true);
+    },
+  }),
 
-  /**
-   * Adjust RF power by steps on the connected radio.
-   */
-  | AdjustSteps<"radio.rfPower">
+  defineControl<
+    ChoiceControlAction<"panadapter.band", PanadapterBand, SliceTargeted>
+  >({
+    target: "panadapter.band",
+    label: "Panadapter Band",
+    scope: "panadapter",
+    ops: ["cycle", "set"],
+    editor: {
+      kind: "choice",
+      getChoices(ctx) {
+        return ctx.getBandList();
+      },
+    },
+    execute(ctx, action) {
+      const pan = ctx.getPan(action.slice);
+      if (!pan) return;
 
-  /**
-   * Set RF power as a normalized value on the connected radio.
-   */
-  | SetNormalized<"radio.rfPower">
+      const bands = ctx.getBandList();
+      if (bands.length === 0) return;
 
-  /**
-   * Adjust tune power by steps on the connected radio.
-   */
-  | AdjustSteps<"radio.tunePower">
+      const currentBand = pan.xvtr
+        ? Object.values(ctx.state.status.xvtr).find(
+            (xvtr) => xvtr.name === pan.xvtr,
+          )?.id
+        : pan.band;
 
-  /**
-   * Set tune power as a normalized value on the connected radio.
-   */
-  | SetNormalized<"radio.tunePower">
+      const value =
+        action.op === "cycle"
+          ? cycleListValue(bands, currentBand ?? bands[0], action.delta)
+          : action.value;
 
-  /**
-   * Toggle TX Tune on the connected radio.
-   */
-  | Toggle<"radio.txTune">
+      if (!value) return;
+      pan.setBand(value);
+    },
+  }),
 
-  /**
-   * Set TX Tune explicitly on the connected radio.
-   */
-  | SetBoolean<"radio.txTune">
+  defineControl<BooleanControlAction<"panadapter.bandZoom", SliceTargeted>>({
+    target: "panadapter.bandZoom",
+    label: "Panadapter Band Zoom",
+    scope: "panadapter",
+    ops: ["toggle", "set"],
+    editor: { kind: "boolean" },
+    execute(ctx, action) {
+      const pan = ctx.getPan(action.slice);
+      if (!pan) return;
+      pan.setBandZoom(resolveBooleanAction(action, pan.isBandZoomOn));
+    },
+  }),
 
-  /**
-   * Adjust CW speed by steps on the connected radio.
-   */
-  | AdjustSteps<"radio.cw.speed">
+  defineControl<BooleanControlAction<"panadapter.segmentZoom", SliceTargeted>>({
+    target: "panadapter.segmentZoom",
+    label: "Panadapter Segment Zoom",
+    scope: "panadapter",
+    ops: ["toggle", "set"],
+    editor: { kind: "boolean" },
+    execute(ctx, action) {
+      const pan = ctx.getPan(action.slice);
+      if (!pan) return;
+      pan.setSegmentZoom(resolveBooleanAction(action, pan.isSegmentZoomOn));
+    },
+  }),
 
-  /**
-   * Set CW speed as a normalized value on the connected radio.
-   */
-  | SetNormalized<"radio.cw.speed">;
+  defineControl<ScaleBandwidthAction<SliceTargeted>>({
+    target: "panadapter.bandwidth",
+    label: "Panadapter Bandwidth",
+    scope: "panadapter",
+    ops: [],
+    editor: { kind: "bandwidth-scale" },
+    execute(ctx, action) {
+      const pan = ctx.getPan(action.slice);
+      if (!pan) return;
+
+      const factor = 1 + action.factor;
+      const bandwidth =
+        action.change === "increase"
+          ? pan.bandwidthMHz * factor
+          : pan.bandwidthMHz / factor;
+
+      pan.setBandwidth(bandwidth);
+    },
+  }),
+
+  defineControl<NormalizedControlAction<"slice.agc.threshold", SliceTargeted>>({
+    target: "slice.agc.threshold",
+    label: "Slice AGC Threshold",
+    scope: "slice",
+    ops: ["adjust", "set"],
+    editor: { kind: "normalized" },
+    execute(_ctx, action) {
+      warnNotImplemented(action);
+    },
+  }),
+
+  defineControl<BooleanControlAction<"slice.nr.enabled", SliceTargeted>>({
+    target: "slice.nr.enabled",
+    label: "Slice NR Enabled",
+    scope: "slice",
+    ops: ["toggle", "set"],
+    editor: { kind: "boolean" },
+    execute(ctx, action) {
+      const slice = ctx.getSlice(action.slice);
+      if (!slice) return;
+      slice.setNrEnabled(resolveBooleanAction(action, slice.nrEnabled));
+    },
+  }),
+
+  defineControl<NormalizedControlAction<"slice.nr.level", SliceTargeted>>({
+    target: "slice.nr.level",
+    label: "Slice NR Level",
+    scope: "slice",
+    ops: ["adjust", "set"],
+    editor: { kind: "normalized" },
+    execute(ctx, action) {
+      const slice = ctx.getSlice(action.slice);
+      if (!slice) return;
+
+      const value =
+        action.op === "adjust"
+          ? slice.nrLevel + action.delta
+          : fromNormalized(action.value, 100);
+
+      slice.setNrLevel(value);
+    },
+  }),
+
+  defineControl<BooleanControlAction<"slice.nrs.enabled", SliceTargeted>>({
+    target: "slice.nrs.enabled",
+    label: "Slice NRS Enabled",
+    scope: "slice",
+    ops: ["toggle", "set"],
+    editor: { kind: "boolean" },
+    execute(ctx, action) {
+      const slice = ctx.getSlice(action.slice);
+      if (!slice) return;
+      slice.setNrsEnabled(resolveBooleanAction(action, slice.nrsEnabled));
+    },
+  }),
+
+  defineControl<BooleanControlAction<"slice.rnn.enabled", SliceTargeted>>({
+    target: "slice.rnn.enabled",
+    label: "Slice RNN Enabled",
+    scope: "slice",
+    ops: ["toggle", "set"],
+    editor: { kind: "boolean" },
+    execute(ctx, action) {
+      const slice = ctx.getSlice(action.slice);
+      if (!slice) return;
+      slice.setRnnEnabled(resolveBooleanAction(action, slice.rnnEnabled));
+    },
+  }),
+
+  defineControl<BooleanControlAction<"radio.mox">>({
+    target: "radio.mox",
+    label: "Radio MOX",
+    scope: "radio",
+    ops: ["toggle", "set"],
+    editor: { kind: "boolean" },
+    execute(ctx, action) {
+      const radioController = ctx.radio();
+      if (!radioController) return;
+      radioController.setMox(resolveBooleanAction(action, radioController.mox));
+    },
+  }),
+
+  defineControl<CommandAction<"radio.atu.startTune">>({
+    target: "radio.atu.startTune",
+    label: "Radio ATU Start Tune",
+    scope: "radio",
+    ops: [],
+    editor: { kind: "command" },
+    execute(ctx) {
+      const radioController = ctx.radio();
+      if (!radioController) return;
+      radioController.startAtuTune();
+    },
+  }),
+
+  defineControl<NormalizedControlAction<"radio.rfPower">>({
+    target: "radio.rfPower",
+    label: "Radio RF Power",
+    scope: "radio",
+    ops: ["adjust", "set"],
+    editor: { kind: "normalized" },
+    execute(ctx, action) {
+      const radioController = ctx.radio();
+      if (!radioController) return;
+
+      const value =
+        action.op === "adjust"
+          ? radioController.rfPower + action.delta
+          : fromNormalized(action.value, 100);
+
+      radioController.setRfPower(value);
+    },
+  }),
+
+  defineControl<NormalizedControlAction<"radio.tunePower">>({
+    target: "radio.tunePower",
+    label: "Radio Tune Power",
+    scope: "radio",
+    ops: ["adjust", "set"],
+    editor: { kind: "normalized" },
+    execute(ctx, action) {
+      const radioController = ctx.radio();
+      if (!radioController) return;
+
+      const value =
+        action.op === "adjust"
+          ? radioController.tunePower + action.delta
+          : fromNormalized(action.value, 100);
+
+      radioController.setTunePower(value);
+    },
+  }),
+
+  defineControl<BooleanControlAction<"radio.txTune">>({
+    target: "radio.txTune",
+    label: "Radio TX Tune",
+    scope: "radio",
+    ops: ["toggle", "set"],
+    editor: { kind: "boolean" },
+    execute(ctx, action) {
+      const radioController = ctx.radio();
+      if (!radioController) return;
+      radioController.setTxTune(
+        resolveBooleanAction(action, radioController.txTune),
+      );
+    },
+  }),
+
+  defineControl<NormalizedControlAction<"radio.cw.speed">>({
+    target: "radio.cw.speed",
+    label: "Radio CW Speed",
+    scope: "radio",
+    ops: ["adjust", "set"],
+    editor: { kind: "normalized" },
+    execute(ctx, action) {
+      const radioController = ctx.radio();
+      if (!radioController) return;
+
+      const currentSpeed = radioController.cwSpeedWpm ?? 5;
+      const value =
+        action.op === "adjust"
+          ? currentSpeed + action.delta
+          : fromNormalized(action.value, 100, 5);
+
+      radioController.setCwSpeedWpm(value);
+    },
+  }),
+] as const;
+
+type ControlDefinitionUnion = (typeof CONTROL_DEFINITIONS)[number];
+type ActionFromDefinition<TDefinition> =
+  TDefinition extends ControlDefinition<infer TAction> ? TAction : never;
+
+export type ControlAction = ActionFromDefinition<ControlDefinitionUnion>;
+export type ControlTarget = ControlAction["target"];
+
+type ControlRegistry = {
+  [TTarget in ControlTarget]: Extract<
+    ControlDefinitionUnion,
+    { target: TTarget }
+  >;
+};
+
+export const CONTROL_REGISTRY = Object.fromEntries(
+  CONTROL_DEFINITIONS.map((definition) => [definition.target, definition]),
+) as ControlRegistry;
 
 const ControlsContext = createContext<{
   dispatch: (action: ControlAction) => void;
@@ -607,297 +787,91 @@ export const ControlsProvider: ParentComponent = (props) => {
   const { radio, state } = useFlexRadio();
   const { runtime, setRuntime } = useRuntime();
 
-  const activeSlice = createMemo(() => {
-    const slice = Object.values(state.status.slice).find(
-      (slice) =>
-        slice.clientHandle === state.clientHandleInt &&
-        slice.isInUse &&
-        slice.isActive,
-    );
-    return radio()?.slice(slice?.id);
+  const sliceIdsBySelector = createMemo(() => {
+    const map = new Map<SliceSelector, string>();
+
+    for (const slice of Object.values(state.status.slice)) {
+      if (!slice.isInUse || !slice.indexLetter) continue;
+      map.set(slice.indexLetter as SliceSelector, slice.id);
+    }
+
+    return map;
   });
 
-  const getSlice = (index?: SliceSelector | undefined) =>
-    index
-      ? radio()
-          ?.slices()
-          .find((slice) => slice.indexLetter === index)
-      : activeSlice();
+  const getSelectableSlices = createMemo(() =>
+    Object.values(state.status.slice)
+      .filter(
+        (slice) =>
+          slice.clientHandle === state.clientHandleInt &&
+          slice.isInUse &&
+          slice.indexLetter,
+      )
+      .map((slice) => slice.indexLetter as SliceSelector),
+  );
 
-  const getPan = (index?: SliceSelector | undefined) =>
-    radio()?.panadapter(getSlice(index)?.panadapterStreamId);
+  const activeSlice = createMemo(() => {
+    const slice = Object.values(state.status.slice).find(
+      (entry) =>
+        entry.clientHandle === state.clientHandleInt &&
+        entry.isInUse &&
+        entry.isActive,
+    );
 
-  const bandList = createMemo(() => [
+    if (!slice) return undefined;
+    return radio()?.slice(slice.id);
+  });
+
+  const activePan = createMemo(() => {
+    const slice = activeSlice();
+    if (!slice) return undefined;
+    return radio()?.panadapter(slice.panadapterStreamId);
+  });
+
+  const getSlice = (selector?: SliceSelector) => {
+    if (!selector) return activeSlice();
+
+    const id = sliceIdsBySelector().get(selector);
+    if (!id) return undefined;
+    return radio()?.slice(id);
+  };
+
+  const getPan = (selector?: SliceSelector) => {
+    if (!selector) return activePan();
+
+    const slice = getSlice(selector);
+    if (!slice) return undefined;
+    return radio()?.panadapter(slice.panadapterStreamId);
+  };
+
+  const getBandList = createMemo(() => [
     ...BANDS.map((band) => band.id),
     ...Object.keys(state.status.xvtr),
   ]);
 
-  const dispatch = (action: ControlAction) => {
-    switch (action.target) {
-      case "slice.frequency": {
-        const slice = getSlice(action.slice);
-        const pan = getPan(action.slice);
-        if (!slice) return;
-        const delta = (slice.tuneStepHz / 1_000_000) * action.delta;
-        const panLow = pan.centerFrequencyMHz - pan.bandwidthMHz / 2;
-        const panHigh = pan.centerFrequencyMHz + pan.bandwidthMHz / 2;
-        const nextFreq = slice.frequencyMHz + delta;
-        const filterLow = nextFreq + slice.filterLowHz / 1_000_000;
-        const filterHigh = nextFreq + slice.filterHighHz / 1_000_000;
-        batch(() => {
-          if (filterHigh > panHigh || filterLow < panLow) {
-            pan.setCenterFrequency(pan.centerFrequencyMHz + delta);
-          }
-          slice.setFrequency(nextFreq, false);
-        });
-        break;
-      }
-      case "slice.tuneStep": {
-        const slice = getSlice(action.slice);
-        if (!slice) return;
-        const value =
-          action.op === "cycle"
-            ? slice.tuneStepListHz.at(
-                (slice.tuneStepListHz.indexOf(slice.tuneStepHz) +
-                  action.delta) %
-                  slice.tuneStepListHz.length,
-              )
-            : action.value;
-        slice.setTuneStep(value);
-        break;
-      }
-      case "slice.mode": {
-        const slice = getSlice(action.slice);
-        if (!slice) return;
-        const value =
-          action.op === "cycle"
-            ? slice.modeList.at(
-                (slice.modeList.indexOf(slice.mode) + action.delta) %
-                  slice.modeList.length,
-              )
-            : action.value;
-        slice.setMode(value);
-        break;
-      }
-      case "slice.audio.level": {
-        const slice = getSlice(action.slice);
-        if (!slice) return;
-        const value =
-          action.op === "adjust"
-            ? slice.audioGain + action.delta
-            : Math.round(action.value * 100);
-        slice.setAudioGain(value);
-        break;
-      }
-      case "slice.audio.mute": {
-        const slice = getSlice(action.slice);
-        if (!slice) return;
-        const value = action.op === "toggle" ? !slice.isMuted : action.value;
-        slice.setMute(value);
-        break;
-      }
-      case "slice.rit.enabled": {
-        const slice = getSlice(action.slice);
-        if (!slice) return;
-        const value = action.op === "toggle" ? !slice.ritEnabled : action.value;
-        slice.setRitEnabled(value);
-        break;
-      }
-      case "slice.rit.offset": {
-        const slice = getSlice(action.slice);
-        if (!slice) return;
-        const value =
-          action.op === "adjust"
-            ? slice.ritOffsetHz + action.delta
-            : Math.round(action.value * 200) - 100;
-        slice.setRitOffset(value);
-        break;
-      }
-      case "slice.rit.clear": {
-        const slice = getSlice(action.slice);
-        if (!slice) return;
-        slice.setRitOffset(0);
-        break;
-      }
-      case "slice.split.enabled": {
-        const slice = getSlice();
-        if (!slice) return;
-        const isSplit = slice.id in runtime.split;
-        const splitParent = isSplit
-          ? (radio()?.slice(runtime.split[slice.id]?.parent) ?? slice)
-          : undefined;
-        const splitChild = isSplit
-          ? (radio()?.slice(runtime.split[slice.id]?.child) ?? slice)
-          : undefined;
-        const enableSplit = action.op === "toggle" ? !isSplit : action.value;
-        if (isSplit === enableSplit) return;
-        if (enableSplit) {
-          slice.clone().then((child) =>
-            batch(() => {
-              setRuntime("split", slice.id, {
-                child: child.id,
-                parent: null,
-              });
-              setRuntime("split", child.id, {
-                child: null,
-                parent: slice.id,
-              });
-              child.setMute(true);
-              if (slice.isTransmitEnabled) {
-                child.enableTransmit(true);
-              }
-            }),
-          );
-        } else {
-          splitParent.enableTransmit(
-            splitParent.isTransmitEnabled || splitChild.isTransmitEnabled,
-          );
-          splitChild.close().then(() => {
-            setRuntime(
-              "split",
-              produce((split) => {
-                delete split[splitParent.id];
-                delete split[splitChild.id];
-              }),
-            );
-          });
-        }
-        break;
-      }
-      case "slice.split.swap": {
-        const slice = getSlice();
-        if (!slice) return;
-        const isSplit = slice.id in runtime.split;
-        if (!isSplit) return;
-        const splitParent =
-          radio()?.slice(runtime.split[slice.id]?.parent) ?? slice;
-        const splitChild =
-          radio()?.slice(runtime.split[slice.id]?.child) ?? slice;
+  const controlRuntime: ControlRuntime = {
+    radio,
+    state,
+    runtime,
+    setRuntime,
+    activeSlice,
+    activePan,
+    getSlice,
+    getPan,
+    getBandList,
+    getSelectableSlices,
+  };
 
-        batch(() => {
-          setRuntime("split", splitChild.id, {
-            child: splitParent.id,
-            parent: null,
-          });
-          setRuntime("split", splitParent.id, {
-            child: null,
-            parent: splitChild.id,
-          });
-          const partnerMute = splitParent.isMuted;
-          splitParent.enableTransmit(splitChild.isTransmitEnabled);
-          splitParent.setMute(splitChild.isMuted);
-          splitChild.setMute(partnerMute);
-        });
-        break;
-      }
-      case "slice.nr.enabled": {
-        const slice = getSlice(action.slice);
-        if (!slice) return;
-        const value = action.op === "toggle" ? !slice.nrEnabled : action.value;
-        slice.setNrEnabled(value);
-        break;
-      }
-      case "slice.nrs.enabled": {
-        const slice = getSlice(action.slice);
-        if (!slice) return;
-        const value = action.op === "toggle" ? !slice.nrsEnabled : action.value;
-        slice.setNrsEnabled(value);
-        break;
-      }
-      case "slice.rnn.enabled": {
-        const slice = getSlice(action.slice);
-        if (!slice) return;
-        const value = action.op === "toggle" ? !slice.rnnEnabled : action.value;
-        slice.setRnnEnabled(value);
-        break;
-      }
-      case "panadapter.band": {
-        const pan = getPan(action.slice);
-        if (!pan) return;
-        const currentBand = pan.xvtr
-          ? Object.values(state.status.xvtr).find(
-              (xvtr) => xvtr.name === pan.xvtr,
-            )?.id
-          : pan.band;
-        const bands = bandList();
-        const value =
-          action.op === "cycle"
-            ? bands.at(
-                (bands.indexOf(currentBand) + action.delta) % bands.length,
-              )
-            : action.value;
-        pan.setBand(value);
-        break;
-      }
-      case "panadapter.bandZoom": {
-        const pan = getPan(action.slice);
-        if (!pan) return;
-        const value = action.op === "toggle" ? !pan.isBandZoomOn : action.value;
-        pan.setBandZoom(value);
-        break;
-      }
-      case "panadapter.segmentZoom": {
-        const pan = getPan(action.slice);
-        if (!pan) return;
-        const value =
-          action.op === "toggle" ? !pan.isSegmentZoomOn : action.value;
-        pan.setSegmentZoom(value);
-        break;
-      }
-      case "panadapter.bandwidth": {
-        console.log(action);
-        const pan = getPan(action.slice);
-        if (!pan) return;
-        const factor = 1 + action.factor;
-        const bandwidth =
-          action.change === "increase"
-            ? pan.bandwidthMHz * factor
-            : pan.bandwidthMHz / factor;
-        pan.setBandwidth(bandwidth);
-        break;
-      }
-      case "radio.rfPower": {
-        const r = radio();
-        if (!r) return;
-        const value =
-          action.op === "set"
-            ? Math.round(action.value * 100)
-            : r.rfPower + action.delta;
-        r.setRfPower(value);
-        break;
-      }
-      case "radio.mox": {
-        const r = radio();
-        const value = action.op === "toggle" ? !r.mox : action.value;
-        r.setMox(value);
-        break;
-      }
-      case "radio.txTune": {
-        const r = radio();
-        const value = action.op === "toggle" ? !r.txTune : action.value;
-        r.setTxTune(value);
-        break;
-      }
-      case "radio.atu.startTune": {
-        radio().startAtuTune();
-        break;
-      }
-      case "radio.tunePower": {
-        const r = radio();
-        const value =
-          action.op === "adjust"
-            ? r.tunePower + action.delta
-            : Math.round(action.value * 100);
-        r.setTunePower(value);
-        break;
-      }
-      case "slice.filter.width":
-      case "slice.select":
-      case "slice.agc.threshold":
-      case "radio.cw.speed":
-      default:
-        console.warn("not implemented:", action);
+  const dispatch = (action: ControlAction) => {
+    const definition = CONTROL_REGISTRY[action.target];
+
+    if (!definition) {
+      console.warn("unknown control action:", action);
+      return;
     }
+
+    (
+      definition.execute as (ctx: ControlRuntime, action: ControlAction) => void
+    )(controlRuntime, action);
   };
 
   return (

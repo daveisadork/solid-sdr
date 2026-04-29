@@ -8,6 +8,7 @@ import {
 } from "solid-js";
 import { createStore, SetStoreFunction } from "solid-js/store";
 import { DaxChannelMode } from "~/lib/dax-audio-sink/types";
+import { ControlAction } from "./controls";
 
 export type PeakStyle = "none" | "points" | "line";
 export type FillStyle = "none" | "solid" | "gradient";
@@ -39,10 +40,71 @@ export interface SpotPreferences {
   overrideBackgroundColor: string | null;
 }
 
+export type MidiSource =
+  | { device: string; channel: number; kind: "cc"; controller: number }
+  | { device: string; channel: number; kind: "note"; note: number }
+  | { device: string; channel: number; kind: "pitchBend" };
+
+type ToggleAction = Extract<ControlAction, { op: "toggle" }>;
+type AdjustAction = Extract<ControlAction, { op: "adjust" }>;
+type CycleAction = Extract<ControlAction, { op: "cycle" }>;
+type BooleanSetAction = Extract<ControlAction, { op: "set"; value: boolean }>;
+type NumberSetAction = Extract<ControlAction, { op: "set"; value: number }>;
+type EnumSetAction = Exclude<
+  Extract<ControlAction, { op: "set" }>,
+  BooleanSetAction | NumberSetAction
+>;
+type OneShotAction = Exclude<ControlAction, { op: string }>;
+
+type TriggerOptions = {
+  mode: "trigger";
+  trigger?: "press" | "release";
+};
+
+type RelativeOptions = {
+  mode: "relative";
+  encoding: "offset-binary" | "twos-complement";
+  scale?: number;
+  invert?: boolean;
+};
+
+type GateOptions = {
+  mode: "gate";
+  threshold?: number;
+  momentary?: boolean;
+};
+
+type AbsoluteOptions = {
+  mode: "absolute";
+  min?: number;
+  max?: number;
+  invert?: boolean;
+};
+
+type ScaleOptions = {
+  mode: "relative";
+  factor: number;
+};
+
+export type MidiMapping =
+  | { midi: MidiSource; action: ToggleAction; options?: TriggerOptions }
+  | { midi: MidiSource; action: AdjustAction; options: RelativeOptions }
+  | { midi: MidiSource; action: CycleAction; options?: RelativeOptions }
+  | { midi: MidiSource; action: BooleanSetAction; options?: GateOptions }
+  | { midi: MidiSource; action: NumberSetAction; options: AbsoluteOptions }
+  | { midi: MidiSource; action: EnumSetAction; options?: TriggerOptions }
+  | { midi: MidiSource; action: OneShotAction; options?: TriggerOptions }
+  | {
+      midi: MidiSource;
+      action: Extract<ControlAction, { target: "panadapter.bandwidth" }>;
+      options: ScaleOptions;
+    };
+
 export interface Preferences {
   stationName: string;
   smoothScroll: boolean;
   enableBlurEffects: boolean;
+  midiMappings: MidiMapping[];
   enableTransparencyEffects: boolean;
   spots: SpotPreferences;
   showDisplayMarkers: boolean;
@@ -99,6 +161,7 @@ const initialPreferences = () =>
     enableBlurEffects: true,
     enableTransparencyEffects: true,
     showDisplayMarkers: true,
+    midiMappings: [],
     spots: {
       enabled: true,
       levels: 3,

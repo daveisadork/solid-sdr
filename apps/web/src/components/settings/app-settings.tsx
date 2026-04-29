@@ -4,24 +4,7 @@ import {
   PeakStyle,
   usePreferences,
 } from "../../context/preferences";
-import { Button } from "../ui/button";
-import {
-  Dialog,
-  DialogTitle,
-  DialogHeader,
-  DialogContent,
-  DialogTrigger,
-} from "../ui/dialog";
-import MdiSettings from "~icons/mdi/settings";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "../ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { SimpleSwitch } from "../ui/simple-switch";
 import {
   SegmentedControl,

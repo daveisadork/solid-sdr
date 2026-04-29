@@ -21,6 +21,7 @@ import { RadioSettings } from "./radio-settings";
 import { Button } from "@kobalte/core/button";
 import { SpotsSettings } from "./spots-settings";
 import { MemorySettings } from "./memory-settings";
+import { MidiSettings } from "./midi-settings";
 
 export function Settings() {
   return (
@@ -39,11 +40,12 @@ export function Settings() {
           defaultValue="app"
           class="w-full relative flex flex-col gap-2 shrink overflow-hidden"
         >
-          <TabsList class="grid grid-cols-4">
+          <TabsList class="grid grid-cols-5">
             <TabsTrigger value="app">SolidSDR</TabsTrigger>
             <TabsTrigger value="radio">Radio</TabsTrigger>
             <TabsTrigger value="memory">Memory</TabsTrigger>
             <TabsTrigger value="spots">Spots</TabsTrigger>
+            <TabsTrigger value="midi">MIDI</TabsTrigger>
           </TabsList>
           <div
             class="relative overflow-y-auto shrink pb-2"
@@ -62,6 +64,9 @@ export function Settings() {
             </TabsContent>
             <TabsContent value="spots">
               <SpotsSettings />
+            </TabsContent>
+            <TabsContent value="midi">
+              <MidiSettings />
             </TabsContent>
           </div>
         </Tabs>

@@ -18,6 +18,7 @@ import { Panafalls } from "./components/panafall/panafalls";
 import { FPSCounter } from "./components/fps";
 import { RuntimeProvider } from "./context/runtime";
 import { Show } from "solid-js";
+import { ControlsProvider } from "./context/controls";
 
 function AppInner() {
   const { preferences, setPreferences } = usePreferences();
@@ -58,8 +59,10 @@ function App() {
         <RtcProvider>
           <FlexRadioProvider>
             <RuntimeProvider>
-              <AppInner />
-              <RtcAudio /> {/* keeps audio elements mounted */}
+              <ControlsProvider>
+                <AppInner />
+                <RtcAudio /> {/* keeps audio elements mounted */}
+              </ControlsProvider>
             </RuntimeProvider>
           </FlexRadioProvider>
         </RtcProvider>

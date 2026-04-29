@@ -84,6 +84,7 @@ import { usePanafall } from "~/context/panafall";
 import { Separator } from "./ui/separator";
 import { usePreferences } from "~/context/preferences";
 import { useRuntime } from "~/context/runtime";
+import { SliceSelector, useControls } from "~/context/controls";
 
 const FILTER_MAX_HZ = 12_000;
 const FILTER_MIN_HZ = -FILTER_MAX_HZ;
@@ -672,6 +673,7 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
   const flagBounds = createElementBounds(flag);
   const { preferences } = usePreferences();
   const { runtime, setRuntime } = useRuntime();
+  const { dispatch } = useControls();
   const [compactLayout, setCompactLayout] = createSignal(false);
 
   const [rawMark, setRawMark] = createSignal(props.slice.rttyMarkHz);
@@ -1052,47 +1054,20 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
                       <Show when={!splitParent()}>
                         <ToggleButton
                           disabled={
-                            state.status.radio.availableSlices === 0 &&
-                            !Boolean(splitChild())
+                            (state.status.radio.availableSlices === 0 &&
+                              !Boolean(splitChild())) ||
+                            props.slice.diversityChild
                           }
-                          class="flex justify-center items-center h-4.5 px-1 rounded-sm text-muted-foreground data-pressed:bg-red-500 data-pressed:text-foreground"
+                          class="flex justify-center items-center h-4.5 px-1 rounded-sm text-muted-foreground data-pressed:bg-red-500 data-pressed:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
                           pressed={Boolean(splitChild())}
-                          onChange={(pressed) => {
-                            if (pressed) {
-                              sliceController()
-                                .clone()
-                                .then((partner) =>
-                                  batch(() => {
-                                    setRuntime("split", props.slice.id, {
-                                      child: partner.id,
-                                      parent: null,
-                                    });
-                                    setRuntime("split", partner.id, {
-                                      child: null,
-                                      parent: props.slice.id,
-                                    });
-                                    partner.enableTransmit(true);
-                                    partner.setMute(true);
-                                  }),
-                                );
-                            } else {
-                              const partner = splitPartner();
-                              radio()
-                                ?.slice(partner.id)
-                                ?.close()
-                                .then(() => {
-                                  setRuntime(
-                                    "split",
-                                    [props.slice.id, partner.id],
-                                    undefined,
-                                  );
-                                });
-                              sliceController().enableTransmit(
-                                props.slice.isTransmitEnabled ||
-                                  partner.isTransmitEnabled,
-                              );
-                            }
-                          }}
+                          onChange={(pressed) =>
+                            dispatch({
+                              target: "slice.split.enabled",
+                              slice: props.slice.indexLetter as SliceSelector,
+                              op: "set",
+                              value: pressed,
+                            })
+                          }
                         >
                           <SplitIcon />
                         </ToggleButton>
@@ -1101,26 +1076,12 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
                         <ToggleButton
                           class="flex justify-center items-center h-4.5 px-1 rounded-sm text-muted-foreground data-pressed:bg-red-500 data-pressed:text-foreground"
                           pressed={Boolean(splitChild())}
-                          onChange={() => {
-                            const partner = splitPartner();
-                            const ctrl = radio()?.slice(partner.id);
-                            batch(() => {
-                              setRuntime("split", props.slice.id, {
-                                child: partner.id,
-                                parent: null,
-                              });
-                              setRuntime("split", partner.id, {
-                                child: null,
-                                parent: props.slice.id,
-                              });
-                              const partnerMute = partner.isMuted;
-                              ctrl.enableTransmit(
-                                props.slice.isTransmitEnabled,
-                              );
-                              ctrl.setMute(props.slice.isMuted);
-                              sliceController().setMute(partnerMute);
-                            });
-                          }}
+                          onChange={() =>
+                            dispatch({
+                              target: "slice.split.swap",
+                              slice: props.slice.indexLetter as SliceSelector,
+                            })
+                          }
                         >
                           <SwapIcon />
                         </ToggleButton>

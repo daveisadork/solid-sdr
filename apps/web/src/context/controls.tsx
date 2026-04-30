@@ -289,8 +289,46 @@ export const CONTROL_DEFINITIONS = [
     scope: "slice",
     ops: ["adjust", "set"],
     editor: { kind: "normalized" },
-    execute(_ctx, action) {
-      warnNotImplemented(action);
+    execute(ctx, action) {
+      const slice = ctx.getSlice(action.slice);
+      if (!slice) return;
+
+      switch (slice.mode) {
+        case "DIGU":
+        case "USB": {
+          const value =
+            action.op === "adjust"
+              ? slice.filterHighHz + action.delta
+              : Math.round(100 * action.value) * 100;
+          return slice.setFilterHigh(Math.max(slice.filterLowHz, value));
+        }
+        case "DIGL":
+        case "LSB": {
+          const value =
+            action.op === "adjust"
+              ? slice.filterLowHz + action.delta
+              : Math.round(-100 * action.value) * 100;
+          return slice.setFilterLow(Math.min(slice.filterHighHz, value));
+        }
+        case "CW":
+        case "RTTY": {
+          const value =
+            action.op === "adjust"
+              ? slice.filterHighHz + action.delta
+              : Math.round(100 * action.value) * 5;
+          return slice.setFilter(-value, value);
+        }
+        case "FM":
+        case "NFM":
+          return;
+        default: {
+          const value =
+            action.op === "adjust"
+              ? slice.filterHighHz + action.delta
+              : Math.round(100 * action.value) * 100;
+          return slice.setFilter(-value, value);
+        }
+      }
     },
   }),
 

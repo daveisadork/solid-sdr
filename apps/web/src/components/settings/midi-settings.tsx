@@ -1109,14 +1109,13 @@ function MidiSettingsInner() {
           <CardTitle>MIDI Controller Settings</CardTitle>
         </CardHeader>
         <CardContent class="flex flex-col gap-4">
-          <span>{lastCommand()}</span>
           <Table class="w-full">
             <TableHeader>
               <TableRow>
+                <TableHead>MIDI</TableHead>
                 <TableHead>Control</TableHead>
-                <TableHead>Does</TableHead>
-                <TableHead>Device</TableHead>
-                <TableHead>Physical Control</TableHead>
+                <TableHead>Action</TableHead>
+                {/* <TableHead>Port</TableHead> */}
                 <TableHead class="min-w-0" />
               </TableRow>
             </TableHeader>
@@ -1124,14 +1123,14 @@ function MidiSettingsInner() {
               <For each={preferences.midiMappings}>
                 {(mapping, index) => (
                   <TableRow>
+                    <TableCell>{sourceToString(mapping.midi)}</TableCell>
                     <TableCell>{describeControl(mapping)}</TableCell>
                     <TableCell>{describeBehavior(mapping)}</TableCell>
-                    <TableCell>
-                      {mapping.midi.port
-                        ? (inputs.get(mapping.midi.port)?.name ?? "Missing")
-                        : "Any device"}
-                    </TableCell>
-                    <TableCell>{sourceToString(mapping.midi)}</TableCell>
+                    {/* <TableCell> */}
+                    {/*   {mapping.midi.port */}
+                    {/*     ? (inputs.get(mapping.midi.port)?.name ?? "Missing") */}
+                    {/*     : "Any device"} */}
+                    {/* </TableCell> */}
                     <TableCell>
                       <Button
                         variant="ghost"
@@ -1151,7 +1150,7 @@ function MidiSettingsInner() {
             </TableBody>
           </Table>
         </CardContent>
-        <CardFooter>
+        <CardFooter class="flex justify-end">
           <AddMappingDialog />
         </CardFooter>
       </Card>

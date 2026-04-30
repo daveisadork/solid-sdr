@@ -287,6 +287,8 @@ const filterConstraints: Record<string, FilterConstraint> = {
   DIGL: { low: -12_000, high: 0 },
   RTTY: { low: -1_500, high: 1_500 },
   CW: { low: -1_500, high: 1_500 },
+  NFM: { low: -5_500, high: 5_500 },
+  FM: { low: -8_000, high: 8_000 },
   DFM: { low: -10_000, high: 10_000 },
 };
 

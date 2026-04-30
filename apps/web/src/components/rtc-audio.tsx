@@ -193,7 +193,7 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
   for (let channel = 1; channel <= 16; channel++) {
     const daxChannel = channel; // capture for closure
     createEffect(() => {
-      if (!state.clientHandle || !preferences.daxRxConfig[daxChannel].enabled)
+      if (!state.clientHandle || !preferences.daxRxConfig[daxChannel]?.enabled)
         return;
       const promise = radio()?.createDaxRxAudioStream({ daxChannel });
       onCleanup(() =>

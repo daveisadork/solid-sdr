@@ -60,6 +60,7 @@ import {
 } from "~/context/controls";
 import BaselineDelete from "~icons/ic/baseline-delete";
 import { MidiValueRing } from "../midi-value-ring";
+import { reconcile } from "solid-js/store";
 
 type InputType = MidiMapping["input"];
 type Behavior = MidiMapping["behavior"];
@@ -654,7 +655,7 @@ function AddMappingDialog() {
                   }
                 >
                   {(source) => (
-                    <div class="flex">
+                    <div class="flex justify-between">
                       <div class="flex flex-col gap-2">
                         <div>
                           {inputs.get(source().port ?? "")?.name ??
@@ -1063,7 +1064,7 @@ function AddMappingDialog() {
           ]}
         />
 
-        <DialogFooter class="justify-between">
+        <DialogFooter class="sm:justify-between items-center">
           <Show when={draftMapping()}>
             {(mapping) => (
               <div class="text-xs text-muted-foreground">
@@ -1084,6 +1085,7 @@ function MidiSettingsInner() {
   const { preferences, setPreferences } = usePreferences();
   const { inputs } = createMIDIPorts();
   const [lastCommand, setLastCommand] = createSignal("");
+  const [importFile, setImportFile] = createSignal<File>();
 
   function onMessage(this: MIDIInput, message: MIDIMessageEvent) {
     const source = eventToSource(message);
@@ -1100,6 +1102,28 @@ function MidiSettingsInner() {
         input.removeEventListener("midimessage", onMessage),
       );
     });
+  });
+
+  const downloadUrl = createMemo(() => {
+    const blob = new Blob([JSON.stringify(preferences.midiMappings, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    onCleanup(() => URL.revokeObjectURL(url));
+    return url;
+  });
+
+  createEffect(() => {
+    const file = importFile();
+    if (!file) return;
+    const reader = new FileReader();
+    const onLoad = (event: ProgressEvent<FileReader>) => {
+      const mappings = JSON.parse(event.target.result as string);
+      setPreferences("midiMappings", reconcile(mappings));
+    };
+    reader.addEventListener("load", onLoad, { once: true });
+    reader.readAsText(file);
+    onCleanup(() => reader.removeEventListener("load", onLoad));
   });
 
   return (
@@ -1150,7 +1174,25 @@ function MidiSettingsInner() {
             </TableBody>
           </Table>
         </CardContent>
-        <CardFooter class="flex justify-end">
+        <CardFooter class="flex gap-2">
+          <Button as="label">
+            <input
+              class="hidden"
+              type="file"
+              onChange={(event) => {
+                setImportFile(event.target.files.item(0));
+              }}
+            />
+            Import
+          </Button>
+          <Button
+            as="a"
+            href={downloadUrl()}
+            download="solid-sdr-midi-mappings.json"
+          >
+            Export
+          </Button>
+          <div class="grow" />
           <AddMappingDialog />
         </CardFooter>
       </Card>

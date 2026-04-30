@@ -633,7 +633,7 @@ function AddMappingDialog() {
 
   return (
     <Dialog open={open()} onOpenChange={setOpen}>
-      <DialogTrigger as={Button}>Add Mapping</DialogTrigger>
+      <DialogTrigger as={Button}>New</DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add Mapping</DialogTitle>
@@ -1133,7 +1133,7 @@ function MidiSettingsInner() {
           <CardTitle>MIDI Controller Settings</CardTitle>
         </CardHeader>
         <CardContent class="flex flex-col gap-4">
-          <Table class="w-full">
+          <Table class="w-full whitespace-nowrap">
             <TableHeader>
               <TableRow>
                 <TableHead>MIDI</TableHead>

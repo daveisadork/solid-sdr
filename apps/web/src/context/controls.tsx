@@ -79,8 +79,8 @@ type CommandAction<T extends string, Extra extends object = Empty> = Extra & {
   target: T;
 };
 
-type ScaleBandwidthAction<Extra extends object = Empty> = Extra & {
-  target: "panadapter.bandwidth";
+type ScaleAction<T extends string, Extra extends object = Empty> = Extra & {
+  target: T;
   change: "increase" | "decrease";
   factor: number;
 };
@@ -142,7 +142,7 @@ type ControlEditor<TAction extends { target: string }> =
         action?: TAction,
       ) => readonly ChoiceValue[];
     }
-  | { kind: "bandwidth-scale" };
+  | { kind: "scaled-number" };
 
 type ControlDefinition<TAction extends { target: string }> = {
   target: TAction["target"];
@@ -565,12 +565,12 @@ export const CONTROL_DEFINITIONS = [
     },
   }),
 
-  defineControl<ScaleBandwidthAction<SliceTargeted>>({
+  defineControl<ScaleAction<"panadapter.bandwidth", SliceTargeted>>({
     target: "panadapter.bandwidth",
     label: "Panadapter Bandwidth",
     scope: "panadapter",
     ops: [],
-    editor: { kind: "bandwidth-scale" },
+    editor: { kind: "scaled-number" },
     execute(ctx, action) {
       const pan = ctx.getPan(action.slice);
       if (!pan) return;
@@ -774,6 +774,10 @@ export const CONTROL_REGISTRY = Object.fromEntries(
 
 const ControlsContext = createContext<{
   dispatch: (action: ControlAction) => void;
+  getChoices: (
+    target: ControlTarget,
+    slice?: SliceSelector,
+  ) => readonly ChoiceValue[];
 }>();
 
 export function useControls() {
@@ -861,6 +865,24 @@ export const ControlsProvider: ParentComponent = (props) => {
     getSelectableSlices,
   };
 
+  const getChoices = (target: ControlTarget, slice?: SliceSelector) => {
+    const definition = CONTROL_REGISTRY[target];
+    if (definition.editor.kind !== "choice") return [];
+
+    const editor = definition.editor as {
+      kind: "choice";
+      getChoices: (
+        ctx: ControlRuntime,
+        action?: { target: ControlTarget; slice?: SliceSelector },
+      ) => readonly ChoiceValue[];
+    };
+
+    return editor.getChoices(
+      controlRuntime as never,
+      (slice ? { target, slice } : { target }) as never,
+    );
+  };
+
   const dispatch = (action: ControlAction) => {
     const definition = CONTROL_REGISTRY[action.target];
 
@@ -875,7 +897,7 @@ export const ControlsProvider: ParentComponent = (props) => {
   };
 
   return (
-    <ControlsContext.Provider value={{ dispatch }}>
+    <ControlsContext.Provider value={{ dispatch, getChoices }}>
       {props.children}
       <MidiControl />
     </ControlsContext.Provider>

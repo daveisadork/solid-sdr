@@ -8,7 +8,7 @@ import {
 } from "solid-js";
 import { createStore, SetStoreFunction } from "solid-js/store";
 import { DaxChannelMode } from "~/lib/dax-audio-sink/types";
-import { ControlAction } from "./controls";
+import { ControlTarget, SliceSelector } from "./controls";
 
 export type PeakStyle = "none" | "points" | "line";
 export type FillStyle = "none" | "solid" | "gradient";
@@ -49,60 +49,91 @@ export type MidiSource =
       id: null;
     };
 
-type ToggleAction = Extract<ControlAction, { op: "toggle" }>;
-type AdjustAction = Extract<ControlAction, { op: "adjust" }>;
-type CycleAction = Extract<ControlAction, { op: "cycle" }>;
-type BooleanSetAction = Extract<ControlAction, { op: "set"; value: boolean }>;
-type NumberSetAction = Extract<ControlAction, { op: "set"; value: number }>;
-type EnumSetAction = Exclude<
-  Extract<ControlAction, { op: "set" }>,
-  BooleanSetAction | NumberSetAction
->;
-type OneShotAction = Exclude<ControlAction, { op: string }>;
-
-type TriggerOptions = {
-  mode: "trigger";
-  trigger?: "press" | "release";
+type MidiControlRef = {
+  target: ControlTarget;
+  slice?: SliceSelector;
 };
 
-type RelativeOptions = {
-  mode: "relative";
-  encoding: "offset-binary" | "twos-complement";
-  scale?: number;
-  invert?: boolean;
-};
+type AbsoluteMidiSource = Extract<MidiSource, { kind: "cc" | "pitchBend" }>;
+type ButtonMidiSource = Extract<MidiSource, { kind: "cc" | "note" }>;
+type RelativeMidiSource = Extract<MidiSource, { kind: "cc" }>;
 
-type GateOptions = {
-  mode: "gate";
+type AbsoluteMidiMapping =
+  | {
+      midi: AbsoluteMidiSource;
+      input: "ranged";
+      behavior: "set-value";
+      control: MidiControlRef;
+      invert?: boolean;
+    }
+  | {
+      midi: AbsoluteMidiSource;
+      input: "ranged";
+      behavior: "select-from-list";
+      control: MidiControlRef;
+    };
+
+type ButtonMidiMappingBase = {
+  midi: ButtonMidiSource;
+  input: "button";
+  control: MidiControlRef;
   threshold?: number;
-  momentary?: boolean;
 };
 
-type AbsoluteOptions = {
-  mode: "absolute";
-  min?: number;
-  max?: number;
+type ButtonMidiMapping =
+  | (ButtonMidiMappingBase & {
+      behavior: "toggle";
+    })
+  | (ButtonMidiMappingBase & {
+      behavior: "follow-button";
+      invert?: boolean;
+    })
+  | (ButtonMidiMappingBase & {
+      behavior: "press";
+    })
+  | (ButtonMidiMappingBase & {
+      behavior: "set-item";
+      value: string | number;
+    })
+  | (ButtonMidiMappingBase & {
+      behavior: "change-item";
+      direction: "next" | "previous";
+    })
+  | (ButtonMidiMappingBase & {
+      behavior: "change-value";
+      direction: "increase" | "decrease";
+      amount: number;
+    })
+  | (ButtonMidiMappingBase & {
+      behavior: "scale-value";
+      direction: "increase" | "decrease";
+      factor: number;
+    });
+
+type RelativeMidiMappingBase = {
+  midi: RelativeMidiSource;
+  input: "relative";
+  control: MidiControlRef;
   invert?: boolean;
 };
 
-type ScaleOptions = {
-  mode: "relative";
-  factor: number;
-};
+type RelativeMidiMapping =
+  | (RelativeMidiMappingBase & {
+      behavior: "change-item";
+    })
+  | (RelativeMidiMappingBase & {
+      behavior: "change-value";
+      amount: number;
+    })
+  | (RelativeMidiMappingBase & {
+      behavior: "scale-value";
+      factor: number;
+    });
 
 export type MidiMapping =
-  | { midi: MidiSource; action: ToggleAction; options?: TriggerOptions }
-  | { midi: MidiSource; action: AdjustAction; options: RelativeOptions }
-  | { midi: MidiSource; action: CycleAction; options?: RelativeOptions }
-  | { midi: MidiSource; action: BooleanSetAction; options?: GateOptions }
-  | { midi: MidiSource; action: NumberSetAction; options: AbsoluteOptions }
-  | { midi: MidiSource; action: EnumSetAction; options?: TriggerOptions }
-  | { midi: MidiSource; action: OneShotAction; options?: TriggerOptions }
-  | {
-      midi: MidiSource;
-      action: Extract<ControlAction, { target: "panadapter.bandwidth" }>;
-      options: ScaleOptions;
-    };
+  | AbsoluteMidiMapping
+  | ButtonMidiMapping
+  | RelativeMidiMapping;
 
 export interface Preferences {
   stationName: string;

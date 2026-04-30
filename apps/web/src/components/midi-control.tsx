@@ -1,11 +1,15 @@
 import { createEffect, createMemo, onCleanup } from "solid-js";
-import { ControlAction, useControls } from "~/context/controls";
-import { MidiMapping, usePreferences } from "~/context/preferences";
+import {
+  CONTROL_REGISTRY,
+  type ControlAction,
+  useControls,
+} from "~/context/controls";
+import { type MidiMapping, usePreferences } from "~/context/preferences";
 import { createMIDIPorts } from "~/lib/midi";
 
 export enum MIDICommand {
-  NoteOn = 8,
-  NoteOff = 9,
+  NoteOff = 8,
+  NoteOn = 9,
   PolyAftertouch = 10,
   ControlChange = 11,
   ProgramChange = 12,
@@ -15,18 +19,11 @@ export enum MIDICommand {
 }
 
 export interface ParsedMidiMessage {
-  // the id of the port where the message originated
   port: string;
   command: MIDICommand;
   channel: number;
-
-  // Present for note/cc/poly-aftertouch, absent for pitch bend.
   id: number | null;
-
-  // The thing you usually care about operationally.
   value: number;
-
-  // Stable identity for mapping/routing.
   key: string;
 }
 
@@ -53,14 +50,12 @@ export function parseMidiMessage(message: MIDIMessageEvent): ParsedMidiMessage {
     case MIDICommand.PitchBend: {
       const lsb = data1 ?? 0;
       const msb = data2 ?? 0;
-      const value = (msb << 7) | lsb;
-
       return {
         port,
         command,
         channel,
         id: null,
-        value,
+        value: (msb << 7) | lsb,
         key: `${command}:${channel}:null`,
       };
     }
@@ -94,38 +89,230 @@ const COMMANDS_MAP: Record<MidiMapping["midi"]["kind"], MIDICommand[]> = {
   pitchBend: [MIDICommand.PitchBend],
 };
 
+function normalizedMidiValue(parsed: ParsedMidiMessage) {
+  return parsed.command === MIDICommand.PitchBend
+    ? parsed.value / 16383
+    : parsed.value / 127;
+}
+
+function isButtonOn(parsed: ParsedMidiMessage, threshold = 0.5) {
+  if (parsed.command === MIDICommand.NoteOff) return false;
+  return normalizedMidiValue(parsed) >= threshold;
+}
+
+function relativeDelta(parsed: ParsedMidiMessage) {
+  if (parsed.command !== MIDICommand.ControlChange) return 0;
+  return parsed.value - 64;
+}
+
+function mappingLookupKey(mapping: MidiMapping, command: MIDICommand) {
+  return `${command}:${mapping.midi.channel}:${mapping.midi.id}`;
+}
+
 export function MidiControl() {
   const { preferences } = usePreferences();
-  const { dispatch } = useControls();
+  const { dispatch, getChoices } = useControls();
   const { inputs } = createMIDIPorts();
 
-  const createOnMessage = createMemo((mappings: Map<string, MidiMapping>) => {
-    function onMessage(this: MIDIInput, message: MIDIMessageEvent) {
-      const parsed = parseMidiMessage(message);
-      const mapping = mappings.get(parsed.key);
-      if (!mapping) {
-        console.log("ignoring unmapped message", parsed);
-      }
-      // build and dispatch action
-    }
-    return onMessage;
-  });
-
   const onMessage = createMemo(() => {
-    const mappings = new Map<string, MidiMapping>();
-    for (const mapping of preferences.midiMappings) {
+    const lookup = new Map<string, { index: number; mapping: MidiMapping }[]>();
+    const buttonStates = new Map<number, boolean>();
+
+    preferences.midiMappings.forEach((mapping, index) => {
       for (const command of COMMANDS_MAP[mapping.midi.kind]) {
-        const key = `${command}:${mapping.midi.channel}:${mapping.midi.id}`;
-        mappings.set(key, mapping);
+        const key = mappingLookupKey(mapping, command);
+        const group = lookup.get(key);
+        if (group) {
+          group.push({ index, mapping });
+        } else {
+          lookup.set(key, [{ index, mapping }]);
+        }
       }
-    }
+    });
+
     return function onMessage(this: MIDIInput, message: MIDIMessageEvent) {
       const parsed = parseMidiMessage(message);
-      const mapping = mappings.get(parsed.key);
-      if (!mapping) {
-        console.log("ignoring unmapped message", parsed);
+      const matches = lookup.get(parsed.key);
+      if (!matches) return;
+
+      for (const { index, mapping } of matches) {
+        if (mapping.midi.port && mapping.midi.port !== parsed.port) continue;
+
+        const definition = CONTROL_REGISTRY[mapping.control.target];
+        const baseAction = mapping.control.slice
+          ? { target: mapping.control.target, slice: mapping.control.slice }
+          : { target: mapping.control.target };
+
+        switch (mapping.behavior) {
+          case "set-value": {
+            if (
+              definition.editor.kind !== "normalized" &&
+              definition.editor.kind !== "signed-normalized"
+            ) {
+              continue;
+            }
+
+            let value = normalizedMidiValue(parsed);
+            if (mapping.invert) value = 1 - value;
+
+            dispatch({
+              ...baseAction,
+              op: "set",
+              value:
+                definition.editor.kind === "signed-normalized"
+                  ? value * 2 - 1
+                  : value,
+            } as ControlAction);
+            continue;
+          }
+
+          case "select-from-list": {
+            if (definition.editor.kind !== "choice") continue;
+            const choices = getChoices(
+              mapping.control.target,
+              mapping.control.slice,
+            );
+            if (choices.length === 0) continue;
+
+            const percent = normalizedMidiValue(parsed);
+            const choiceIndex = Math.min(
+              choices.length - 1,
+              Math.floor(percent * choices.length),
+            );
+
+            dispatch({
+              ...baseAction,
+              op: "set",
+              value: choices[choiceIndex],
+            } as ControlAction);
+            continue;
+          }
+
+          case "toggle": {
+            const current = isButtonOn(parsed, mapping.threshold ?? 0.5);
+            const previous = buttonStates.get(index) ?? false;
+            buttonStates.set(index, current);
+            if (!current || previous) continue;
+
+            dispatch({
+              ...baseAction,
+              op: "toggle",
+            } as ControlAction);
+            continue;
+          }
+
+          case "follow-button": {
+            const current = isButtonOn(parsed, mapping.threshold ?? 0.5);
+            const previous = buttonStates.get(index);
+            buttonStates.set(index, current);
+            if (previous === current) continue;
+
+            dispatch({
+              ...baseAction,
+              op: "set",
+              value: mapping.invert ? !current : current,
+            } as ControlAction);
+            continue;
+          }
+
+          case "press": {
+            const current = isButtonOn(parsed, mapping.threshold ?? 0.5);
+            const previous = buttonStates.get(index) ?? false;
+            buttonStates.set(index, current);
+            if (!current || previous) continue;
+
+            dispatch(baseAction as ControlAction);
+            continue;
+          }
+
+          case "set-item": {
+            const current = isButtonOn(parsed, mapping.threshold ?? 0.5);
+            const previous = buttonStates.get(index) ?? false;
+            buttonStates.set(index, current);
+            if (!current || previous) continue;
+
+            dispatch({
+              ...baseAction,
+              op: "set",
+              value: mapping.value,
+            } as ControlAction);
+            continue;
+          }
+
+          case "change-item": {
+            let delta = 0;
+
+            if (mapping.input === "button") {
+              const current = isButtonOn(parsed, mapping.threshold ?? 0.5);
+              const previous = buttonStates.get(index) ?? false;
+              buttonStates.set(index, current);
+              if (!current || previous) continue;
+              delta = mapping.direction === "next" ? 1 : -1;
+            } else {
+              const raw = relativeDelta(parsed);
+              if (raw === 0) continue;
+              delta = (mapping.invert ? -raw : raw) > 0 ? 1 : -1;
+            }
+
+            dispatch({
+              ...baseAction,
+              op: "cycle",
+              delta,
+            } as ControlAction);
+            continue;
+          }
+
+          case "change-value": {
+            let delta = 0;
+
+            if (mapping.input === "button") {
+              const current = isButtonOn(parsed, mapping.threshold ?? 0.5);
+              const previous = buttonStates.get(index) ?? false;
+              buttonStates.set(index, current);
+              if (!current || previous) continue;
+              delta =
+                (mapping.direction === "increase" ? 1 : -1) * mapping.amount;
+            } else {
+              const raw = relativeDelta(parsed);
+              if (raw === 0) continue;
+              delta = raw * mapping.amount * (mapping.invert ? -1 : 1);
+            }
+
+            dispatch({
+              ...baseAction,
+              op: "adjust",
+              delta,
+            } as ControlAction);
+            continue;
+          }
+
+          case "scale-value": {
+            if (mapping.control.target !== "panadapter.bandwidth") continue;
+
+            let change: "increase" | "decrease";
+
+            if (mapping.input === "button") {
+              const current = isButtonOn(parsed, mapping.threshold ?? 0.5);
+              const previous = buttonStates.get(index) ?? false;
+              buttonStates.set(index, current);
+              if (!current || previous) continue;
+              change = mapping.direction;
+            } else {
+              const raw = relativeDelta(parsed);
+              if (raw === 0) continue;
+              change =
+                (mapping.invert ? -raw : raw) > 0 ? "increase" : "decrease";
+            }
+
+            dispatch({
+              ...baseAction,
+              target: "panadapter.bandwidth",
+              change,
+              factor: mapping.factor,
+            } as ControlAction);
+          }
+        }
       }
-      // build and dispatch action
     };
   });
 
@@ -147,31 +334,25 @@ export function MidiControl() {
         });
         break;
 
-      case "8:0:1": // button 1 on
-      case "9:0:1": // button 1 off
+      case "8:0:1":
+      case "9:0:1":
         dispatch({
           target: "slice.rnn.enabled",
           op: "set",
           value: parsed.command === MIDICommand.NoteOn && parsed.value > 0,
         });
         break;
-      case "8:0:2": // button 2
-        break;
-      case "8:0:3": // button 3
+      case "8:0:3":
         dispatch({
           target: "panadapter.bandZoom",
           op: "toggle",
         });
         break;
-      case "8:0:4": // button 4
+      case "8:0:4":
         dispatch({
           target: "panadapter.segmentZoom",
           op: "toggle",
         });
-        break;
-      case "8:0:5": // button 5
-        break;
-      case "8:0:6": // button 6
         break;
       default:
         console.log(parsed);
@@ -187,5 +368,6 @@ export function MidiControl() {
       ),
     );
   });
+
   return <></>;
 }

@@ -20,27 +20,17 @@ import {
   CardTitle,
 } from "../ui/card";
 import {
-  SegmentedControl,
-  SegmentedControlGroup,
-  SegmentedControlIndicator,
-  SegmentedControlItem,
-  SegmentedControlItemLabel,
-  SegmentedControlItemsList,
-  SegmentedControlLabel,
-} from "../ui/segmented-control";
-import {
   createEffect,
   createMemo,
   createSignal,
   For,
-  Match,
   onCleanup,
   Show,
   Switch,
+  Match,
 } from "solid-js";
 import { TextField, TextFieldInput, TextFieldLabel } from "../ui/text-field";
 import { SimpleSwitch } from "../ui/simple-switch";
-import useFlexRadio from "~/context/flexradio";
 import { parseMidiMessage } from "../midi-control";
 import {
   Table,
@@ -61,34 +51,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
-import { BANDS } from "~/components/panafall/settings";
 import {
   CONTROL_DEFINITIONS,
   CONTROL_REGISTRY,
-  type ControlOp,
+  type ControlTarget,
   type SliceSelector,
+  useControls,
 } from "~/context/controls";
-import * as ButtonPrimitive from "@kobalte/core/button";
 import BaselineDelete from "~icons/ic/baseline-delete";
 
-type ControlTarget = keyof typeof CONTROL_REGISTRY;
+type InputType = MidiMapping["input"];
+type Behavior = MidiMapping["behavior"];
 type SliceOption = "active" | SliceSelector;
-type TriggerKind = "press" | "release";
-type RelativeEncoding = "offset-binary" | "twos-complement";
-type StepDirection = "1" | "-1";
 type ChoiceOption = { key: string; label: string; value: string | number };
-type ChoiceHelpers = {
-  getSlice: (selector?: SliceSelector) => unknown;
-  getBandList: () => readonly string[];
-  getSelectableSlices: () => readonly SliceSelector[];
-};
-
-const KINDS: Record<number, MidiSource["kind"]> = {
-  8: "note",
-  9: "note",
-  11: "cc",
-  14: "pitchBend",
-};
 
 const SLICE_OPTIONS: readonly SliceOption[] = [
   "active",
@@ -102,27 +77,45 @@ const SLICE_OPTIONS: readonly SliceOption[] = [
   "H",
 ];
 
-const TRIGGER_OPTIONS: readonly TriggerKind[] = ["press", "release"];
-const RELATIVE_ENCODINGS: readonly RelativeEncoding[] = [
-  "offset-binary",
-  "twos-complement",
-];
-const BOOLEAN_VALUES = [
-  { value: "true", label: "On" },
-  { value: "false", label: "Off" },
+const KINDS: Record<number, MidiSource["kind"]> = {
+  8: "note",
+  9: "note",
+  11: "cc",
+  14: "pitchBend",
+};
+
+const INPUT_LABELS: Record<InputType, string> = {
+  button: "Button, key, or switch",
+  ranged: "0% to 100% control",
+  relative: "Free-spinning control",
+};
+
+const BEHAVIOR_LABELS: Record<Behavior, string> = {
+  "set-value": "Set value",
+  "select-from-list": "Pick from list",
+  toggle: "Toggle",
+  "follow-button": "Follow control state",
+  press: "Run once when pressed",
+  "set-item": "Pick this item",
+  "change-item": "Move through list",
+  "change-value": "Change value by an amount",
+  "scale-value": "Multiply or divide by a factor",
+};
+
+const ITEM_DIRECTIONS = [
+  { value: "next", label: "Next item" },
+  { value: "previous", label: "Previous item" },
 ] as const;
-const BANDWIDTH_DIRECTIONS = [
+
+const VALUE_DIRECTIONS = [
   { value: "increase", label: "Increase" },
   { value: "decrease", label: "Decrease" },
-] as const;
-const STEP_DIRECTIONS = [
-  { value: "1", label: "Increase" },
-  { value: "-1", label: "Decrease" },
 ] as const;
 
 function eventToSource(event: MIDIMessageEvent): MidiSource | null {
   const { command, channel, port, id } = parseMidiMessage(event);
   const kind = KINDS[command];
+
   switch (kind) {
     case "pitchBend":
       return { port, channel, kind, id: null };
@@ -134,19 +127,144 @@ function eventToSource(event: MIDIMessageEvent): MidiSource | null {
   }
 }
 
-const sourceToString = (source: MidiSource): string => {
+function sameSource(a: MidiSource, b: MidiSource) {
+  return (
+    a.port === b.port &&
+    a.channel === b.channel &&
+    a.kind === b.kind &&
+    a.id === b.id
+  );
+}
+
+function sourceToString(source: MidiSource) {
   switch (source.kind) {
     case "note":
-      return `Ch ${source.channel + 1} Note ${source.id}`;
+      return `Ch ${source.channel + 1} Button ${source.id}`;
     case "cc":
-      return `Ch ${source.channel + 1} CC ${source.id}`;
+      return `Ch ${source.channel + 1} Control ${source.id}`;
     case "pitchBend":
-      return `Ch ${source.channel + 1} Pitch Bend`;
+      return `Ch ${source.channel + 1} Pitch Wheel`;
   }
-};
+}
 
-function titleCase(value: string) {
-  return value.charAt(0).toUpperCase() + value.slice(1);
+function controlNeedsSlice(target: ControlTarget | null) {
+  if (!target) return false;
+  const definition = CONTROL_REGISTRY[target];
+  return definition.scope !== "radio" && target !== "slice.select";
+}
+
+function availableInputTypes(source: MidiSource | null): InputType[] {
+  if (!source) return [];
+
+  switch (source.kind) {
+    case "note":
+      return ["button"];
+    case "pitchBend":
+      return ["ranged"];
+    case "cc":
+      return ["button", "ranged", "relative"];
+  }
+}
+
+function supportsInput(target: ControlTarget, input: InputType) {
+  const editorKind = CONTROL_REGISTRY[target].editor.kind;
+
+  switch (input) {
+    case "button":
+      return [
+        "boolean",
+        "command",
+        "choice",
+        "relative-step",
+        "normalized",
+        "signed-normalized",
+        "scaled-number",
+      ].includes(editorKind);
+    case "ranged":
+      return ["choice", "normalized", "signed-normalized"].includes(editorKind);
+    case "relative":
+      return [
+        "choice",
+        "relative-step",
+        "normalized",
+        "signed-normalized",
+        "scaled-number",
+      ].includes(editorKind);
+  }
+}
+
+function behaviorOptions(
+  input: InputType | undefined,
+  target: ControlTarget | null,
+): { value: Behavior; label: string }[] {
+  if (!input || !target) return [];
+
+  const editorKind = CONTROL_REGISTRY[target].editor.kind;
+
+  switch (input) {
+    case "button":
+      switch (editorKind) {
+        case "boolean":
+          return [
+            { value: "toggle", label: BEHAVIOR_LABELS.toggle },
+            { value: "follow-button", label: BEHAVIOR_LABELS["follow-button"] },
+          ];
+        case "command":
+          return [{ value: "press", label: BEHAVIOR_LABELS.press }];
+        case "choice":
+          return [
+            { value: "set-item", label: BEHAVIOR_LABELS["set-item"] },
+            { value: "change-item", label: BEHAVIOR_LABELS["change-item"] },
+          ];
+        case "relative-step":
+        case "normalized":
+        case "signed-normalized":
+          return [
+            { value: "change-value", label: BEHAVIOR_LABELS["change-value"] },
+          ];
+        case "scaled-number":
+          return [
+            { value: "scale-value", label: BEHAVIOR_LABELS["scale-value"] },
+          ];
+      }
+      break;
+
+    case "ranged":
+      switch (editorKind) {
+        case "choice":
+          return [
+            {
+              value: "select-from-list",
+              label: BEHAVIOR_LABELS["select-from-list"],
+            },
+          ];
+        case "normalized":
+        case "signed-normalized":
+          return [{ value: "set-value", label: BEHAVIOR_LABELS["set-value"] }];
+      }
+      break;
+
+    case "relative":
+      switch (editorKind) {
+        case "choice":
+          return [
+            { value: "change-item", label: BEHAVIOR_LABELS["change-item"] },
+          ];
+        case "relative-step":
+        case "normalized":
+        case "signed-normalized":
+          return [
+            { value: "change-value", label: BEHAVIOR_LABELS["change-value"] },
+          ];
+        case "scaled-number":
+          return [
+            { value: "scale-value", label: BEHAVIOR_LABELS["scale-value"] },
+          ];
+      }
+      break;
+  }
+
+  return [];
 }
 
 function parseNumber(value: string, fallback: number) {
@@ -154,96 +272,77 @@ function parseNumber(value: string, fallback: number) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-function controlUsesSliceSelector(target: ControlTarget | null) {
-  if (!target) return false;
-  const control = CONTROL_REGISTRY[target];
-  return control.scope !== "radio" && control.target !== "slice.select";
+function clampPercent(value: string, fallback: number) {
+  const parsed = parseNumber(value, fallback);
+  return Math.max(0, Math.min(100, parsed));
 }
 
-function getChoiceValues(
-  target: ControlTarget,
-  helpers: ChoiceHelpers,
-  slice?: SliceSelector,
-) {
-  const definition = CONTROL_REGISTRY[target];
-  if (definition.editor.kind !== "choice") return [] as const;
-
-  const editor = definition.editor as {
-    kind: "choice";
-    getChoices: (
-      ctx: ChoiceHelpers,
-      action?: { target: ControlTarget; slice?: SliceSelector },
-    ) => readonly (string | number)[];
-  };
-
-  const action =
-    controlUsesSliceSelector(target) && slice ? { target, slice } : { target };
-
-  return editor.getChoices(helpers, action);
+function describeControl(mapping: MidiMapping) {
+  const label =
+    CONTROL_REGISTRY[mapping.control.target]?.label ?? mapping.control.target;
+  return mapping.control.slice ? `${label} (${mapping.control.slice})` : label;
 }
 
-function defaultOperation(
-  target: ControlTarget,
-  sourceKind: MidiSource["kind"],
-): ControlOp | undefined {
-  const control = CONTROL_REGISTRY[target];
-  if (control.ops.length === 0) return undefined;
-
-  if (sourceKind === "note") {
-    if (control.editor.kind === "boolean" && control.ops.includes("toggle")) {
-      return "toggle";
-    }
-    if (control.editor.kind === "choice" && control.ops.includes("cycle")) {
-      return "cycle";
-    }
+function describeBehavior(mapping: MidiMapping) {
+  switch (mapping.behavior) {
+    case "set-value":
+      return mapping.invert ? "Set value (reversed)" : "Set value";
+    case "select-from-list":
+      return "Pick from list by position";
+    case "toggle":
+      return "Toggle when pressed";
+    case "follow-button":
+      return mapping.invert
+        ? "Follow control state (reversed)"
+        : "Follow control state";
+    case "press":
+      return "Run once when pressed";
+    case "set-item":
+      return `Pick item: ${mapping.value}`;
+    case "change-item":
+      return mapping.input === "button"
+        ? mapping.direction === "next"
+          ? "Next item"
+          : "Previous item"
+        : "Move through list";
+    case "change-value":
+      return mapping.input === "button"
+        ? `${mapping.direction === "increase" ? "Increase" : "Decrease"} by ${mapping.amount}`
+        : `Change by ${mapping.amount}`;
+    case "scale-value":
+      return mapping.input === "button"
+        ? `${mapping.direction === "increase" ? "Multiply" : "Divide"} by ${mapping.factor}`
+        : `Multiply/divide by ${mapping.factor}`;
   }
-
-  if (
-    (sourceKind === "cc" || sourceKind === "pitchBend") &&
-    (control.editor.kind === "normalized" ||
-      control.editor.kind === "signed-normalized") &&
-    control.ops.includes("set")
-  ) {
-    return "set";
-  }
-
-  return control.ops[0];
 }
 
 function AddMappingDialog() {
   const { setPreferences } = usePreferences();
-  const { radio, state } = useFlexRadio();
-  const ports = createMIDIPorts();
+  const { inputs } = createMIDIPorts();
+  const { getChoices } = useControls();
 
   const [open, setOpen] = createSignal(false);
-  const [capturedEvent, setCapturedEvent] =
-    createSignal<MIDIMessageEvent | null>(null);
-  const [target, setTarget] = createSignal<ControlTarget | null>(null);
-  const [operation, setOperation] = createSignal<ControlOp | undefined>();
-  const [scopeSelector, setScopeSelector] = createSignal<SliceOption>("active");
-  const [booleanValue, setBooleanValue] = createSignal<"true" | "false">(
-    "true",
+  const [capturedSource, setCapturedSource] = createSignal<MidiSource | null>(
+    null,
   );
-  const [choiceValue, setChoiceValue] = createSignal<string>();
-  const [trigger, setTrigger] = createSignal<TriggerKind>("press");
-  const [relativeEncoding, setRelativeEncoding] =
-    createSignal<RelativeEncoding>("offset-binary");
+  const [recentValues, setRecentValues] = createSignal<number[]>([]);
+  const [inputType, setInputType] = createSignal<InputType>();
+  const [target, setTarget] = createSignal<ControlTarget | null>(null);
+  const [behavior, setBehavior] = createSignal<Behavior>();
+  const [sliceOption, setSliceOption] = createSignal<SliceOption>("active");
+  const [selectedChoiceKey, setSelectedChoiceKey] = createSignal<string>();
+  const [thresholdPercent, setThresholdPercent] = createSignal("50");
   const [invert, setInvert] = createSignal(false);
-  const [scale, setScale] = createSignal("1");
-  const [minimum, setMinimum] = createSignal("0");
-  const [maximum, setMaximum] = createSignal("1");
-  const [threshold, setThreshold] = createSignal("64");
-  const [momentary, setMomentary] = createSignal(true);
-  const [stepDirection, setStepDirection] = createSignal<StepDirection>("1");
-  const [bandwidthChange, setBandwidthChange] = createSignal<
+  const [itemDirection, setItemDirection] = createSignal<"next" | "previous">(
+    "next",
+  );
+  const [valueDirection, setValueDirection] = createSignal<
     "increase" | "decrease"
   >("increase");
-  const [bandwidthFactor, setBandwidthFactor] = createSignal("0.25");
+  const [amount, setAmount] = createSignal("1");
+  const [factor, setFactor] = createSignal("0.25");
 
-  const source = createMemo(() => {
-    const event = capturedEvent();
-    return event ? eventToSource(event) : null;
-  });
+  const inputOptions = createMemo(() => availableInputTypes(capturedSource()));
 
   const control = createMemo(() => {
     const value = target();
@@ -251,391 +350,251 @@ function AddMappingDialog() {
   });
 
   const selectedSlice = createMemo(() => {
-    const value = scopeSelector();
+    const value = sliceOption();
     return value === "active" ? undefined : value;
   });
 
-  const sliceIdsBySelector = createMemo(() => {
-    const map = new Map<SliceSelector, string>();
-
-    for (const slice of Object.values(state.status.slice)) {
-      if (!slice.isInUse || !slice.indexLetter) continue;
-      map.set(slice.indexLetter as SliceSelector, slice.id);
+  const choiceOptions = createMemo<ChoiceOption[]>(() => {
+    const targetValue = target();
+    if (
+      !targetValue ||
+      CONTROL_REGISTRY[targetValue].editor.kind !== "choice"
+    ) {
+      return [];
     }
 
-    return map;
-  });
-
-  const activeSlice = createMemo(() => {
-    const slice = Object.values(state.status.slice).find(
-      (entry) =>
-        entry.clientHandle === state.clientHandleInt &&
-        entry.isInUse &&
-        entry.isActive,
-    );
-
-    if (!slice) return undefined;
-    return radio()?.slice(slice.id);
-  });
-
-  const getSlice = (selector?: SliceSelector) => {
-    if (!selector) return activeSlice();
-
-    const id = sliceIdsBySelector().get(selector);
-    if (!id) return undefined;
-    return radio()?.slice(id);
-  };
-
-  const getSelectableSlices = createMemo(() =>
-    Object.values(state.status.slice)
-      .filter(
-        (slice) =>
-          slice.clientHandle === state.clientHandleInt &&
-          slice.isInUse &&
-          slice.indexLetter,
-      )
-      .map((slice) => slice.indexLetter as SliceSelector),
-  );
-
-  const getBandList = createMemo(() => [
-    ...BANDS.map((band) => band.id),
-    ...Object.keys(state.status.xvtr),
-  ]);
-
-  const choiceOptions = createMemo(() => {
-    const definition = control();
-    if (!definition || definition.editor.kind !== "choice") return [];
-
-    const values = getChoiceValues(
-      definition.target,
-      {
-        getSlice,
-        getBandList,
-        getSelectableSlices,
-      },
-      selectedSlice(),
-    );
-
-    return values.map((value) => ({
+    return getChoices(targetValue, selectedSlice()).map((value) => ({
       key: String(value),
       label: String(value),
       value,
     }));
   });
 
-  const validTargets = createMemo<ControlTarget[]>(() => {
-    switch (source()?.kind) {
-      case "cc":
-      case "pitchBend":
-        return CONTROL_DEFINITIONS.filter((definition) =>
-          [
-            "relative-step",
-            "normalized",
-            "signed-normalized",
-            "bandwidth-scale",
-          ].includes(definition.editor.kind),
-        )
-          .map((definition) => definition.target)
-          .toSorted((a, b) =>
-            CONTROL_REGISTRY[a].label.localeCompare(CONTROL_REGISTRY[b].label),
-          );
-      case "note":
-        return CONTROL_DEFINITIONS.filter((definition) =>
-          ["boolean", "command", "choice", "relative-step"].includes(
-            definition.editor.kind,
-          ),
-        )
-          .map((definition) => definition.target)
-          .toSorted((a, b) =>
-            CONTROL_REGISTRY[a].label.localeCompare(CONTROL_REGISTRY[b].label),
-          );
-      default:
-        return [];
-    }
+  const validTargets = createMemo(() => {
+    const input = inputType();
+    if (!input) return [] as ControlTarget[];
+
+    return CONTROL_DEFINITIONS.filter((definition) =>
+      supportsInput(definition.target, input),
+    )
+      .map((definition) => definition.target)
+      .toSorted((a, b) =>
+        CONTROL_REGISTRY[a].label.localeCompare(CONTROL_REGISTRY[b].label),
+      );
   });
 
+  const currentBehaviorOptions = createMemo(() =>
+    behaviorOptions(inputType(), target()),
+  );
+
   const draftMapping = createMemo((): MidiMapping | null => {
-    const midi = source();
-    const definition = control();
-    if (!midi || !definition) return null;
+    const midi = capturedSource();
+    const input = inputType();
+    const targetValue = target();
+    const chosenBehavior = behavior();
 
-    const base =
-      controlUsesSliceSelector(definition.target) && selectedSlice()
-        ? { slice: selectedSlice() }
-        : {};
-    const currentOperation =
-      definition.ops.length > 0 ? operation() : undefined;
-    const direction = parseNumber(stepDirection(), 1);
+    if (!midi || !input || !targetValue || !chosenBehavior) return null;
 
-    switch (definition.editor.kind) {
-      case "command":
-        return {
-          midi,
-          action: {
-            target: definition.target,
-            ...base,
-          } as MidiMapping["action"],
-          options: { mode: "trigger", trigger: trigger() },
-        } as MidiMapping;
+    const controlRef =
+      controlNeedsSlice(targetValue) && selectedSlice()
+        ? { target: targetValue, slice: selectedSlice() }
+        : { target: targetValue };
 
-      case "boolean":
-        if (currentOperation === "toggle") {
+    if (input === "ranged") {
+      if (midi.kind !== "cc" && midi.kind !== "pitchBend") return null;
+
+      switch (chosenBehavior) {
+        case "set-value":
           return {
             midi,
-            action: {
-              target: definition.target,
-              op: "toggle",
-              ...base,
-            } as MidiMapping["action"],
-            options: { mode: "trigger", trigger: trigger() },
-          } as MidiMapping;
-        }
-
-        if (currentOperation === "set") {
-          return {
-            midi,
-            action: {
-              target: definition.target,
-              op: "set",
-              value: booleanValue() === "true",
-              ...base,
-            } as MidiMapping["action"],
-            options: {
-              mode: "gate",
-              threshold: parseNumber(threshold(), 64),
-              momentary: momentary(),
-            },
-          } as MidiMapping;
-        }
-
-        return null;
-
-      case "relative-step":
-        if (currentOperation !== "adjust" && currentOperation !== "cycle") {
-          return null;
-        }
-
-        return {
-          midi,
-          action: {
-            target: definition.target,
-            op: currentOperation,
-            delta: direction,
-            ...base,
-          } as MidiMapping["action"],
-          options: {
-            mode: "relative",
-            encoding: relativeEncoding(),
-            scale: parseNumber(scale(), 1),
+            input,
+            behavior: chosenBehavior,
+            control: controlRef,
             invert: invert(),
-          },
-        } as MidiMapping;
-
-      case "normalized":
-        if (currentOperation === "adjust") {
+          } as MidiMapping;
+        case "select-from-list":
           return {
             midi,
-            action: {
-              target: definition.target,
-              op: "adjust",
-              delta: direction,
-              ...base,
-            } as MidiMapping["action"],
-            options: {
-              mode: "relative",
-              encoding: relativeEncoding(),
-              scale: parseNumber(scale(), 1),
-              invert: invert(),
-            },
+            input,
+            behavior: chosenBehavior,
+            control: controlRef,
           } as MidiMapping;
-        }
+        default:
+          return null;
+      }
+    }
 
-        if (currentOperation === "set") {
+    if (input === "button") {
+      if (midi.kind !== "cc" && midi.kind !== "note") return null;
+
+      const threshold = clampPercent(thresholdPercent(), 50) / 100;
+
+      switch (chosenBehavior) {
+        case "toggle":
           return {
             midi,
-            action: {
-              target: definition.target,
-              op: "set",
-              value: 1,
-              ...base,
-            } as MidiMapping["action"],
-            options: {
-              mode: "absolute",
-              min: parseNumber(minimum(), 0),
-              max: parseNumber(maximum(), 1),
-              invert: invert(),
-            },
+            input,
+            behavior: chosenBehavior,
+            control: controlRef,
+            threshold,
           } as MidiMapping;
-        }
-
-        return null;
-
-      case "signed-normalized":
-        if (currentOperation === "adjust") {
+        case "follow-button":
           return {
             midi,
-            action: {
-              target: definition.target,
-              op: "adjust",
-              delta: direction,
-              ...base,
-            } as MidiMapping["action"],
-            options: {
-              mode: "relative",
-              encoding: relativeEncoding(),
-              scale: parseNumber(scale(), 1),
-              invert: invert(),
-            },
+            input,
+            behavior: chosenBehavior,
+            control: controlRef,
+            threshold,
+            invert: invert(),
           } as MidiMapping;
-        }
-
-        if (currentOperation === "set") {
+        case "press":
           return {
             midi,
-            action: {
-              target: definition.target,
-              op: "set",
-              value: 0,
-              ...base,
-            } as MidiMapping["action"],
-            options: {
-              mode: "absolute",
-              min: parseNumber(minimum(), -1),
-              max: parseNumber(maximum(), 1),
-              invert: invert(),
-            },
+            input,
+            behavior: chosenBehavior,
+            control: controlRef,
+            threshold,
           } as MidiMapping;
-        }
-
-        return null;
-
-      case "choice":
-        if (currentOperation === "cycle") {
-          const options =
-            midi.kind === "note"
-              ? undefined
-              : {
-                  mode: "relative" as const,
-                  encoding: relativeEncoding(),
-                  scale: parseNumber(scale(), 1),
-                  invert: invert(),
-                };
-
-          return {
-            midi,
-            action: {
-              target: definition.target,
-              op: "cycle",
-              delta: direction,
-              ...base,
-            } as MidiMapping["action"],
-            ...(options ? { options } : {}),
-          } as MidiMapping;
-        }
-
-        if (currentOperation === "set") {
-          const selected = choiceOptions().find(
-            (option) => option.key === choiceValue(),
+        case "set-item": {
+          const option = choiceOptions().find(
+            (entry) => entry.key === selectedChoiceKey(),
           );
-          if (!selected) return null;
-
+          if (!option) return null;
           return {
             midi,
-            action: {
-              target: definition.target,
-              op: "set",
-              value: selected.value,
-              ...base,
-            } as MidiMapping["action"],
-            options: { mode: "trigger", trigger: trigger() },
+            input,
+            behavior: chosenBehavior,
+            control: controlRef,
+            threshold,
+            value: option.value,
           } as MidiMapping;
         }
+        case "change-item":
+          return {
+            midi,
+            input,
+            behavior: chosenBehavior,
+            control: controlRef,
+            threshold,
+            direction: itemDirection(),
+          } as MidiMapping;
+        case "change-value":
+          return {
+            midi,
+            input,
+            behavior: chosenBehavior,
+            control: controlRef,
+            threshold,
+            direction: valueDirection(),
+            amount: parseNumber(amount(), 1),
+          } as MidiMapping;
+        case "scale-value":
+          return {
+            midi,
+            input,
+            behavior: chosenBehavior,
+            control: controlRef,
+            threshold,
+            direction: valueDirection(),
+            factor: parseNumber(factor(), 0.25),
+          } as MidiMapping;
+        default:
+          return null;
+      }
+    }
 
-        return null;
+    if (midi.kind !== "cc") return null;
 
-      case "bandwidth-scale":
+    switch (chosenBehavior) {
+      case "change-item":
         return {
           midi,
-          action: {
-            target: definition.target,
-            change: bandwidthChange(),
-            factor: parseNumber(bandwidthFactor(), 0.25),
-            ...base,
-          } as MidiMapping["action"],
-          options: {
-            mode: "relative",
-            factor: parseNumber(bandwidthFactor(), 0.25),
-          },
+          input,
+          behavior: chosenBehavior,
+          control: controlRef,
+          invert: invert(),
         } as MidiMapping;
+      case "change-value":
+        return {
+          midi,
+          input,
+          behavior: chosenBehavior,
+          control: controlRef,
+          invert: invert(),
+          amount: parseNumber(amount(), 1),
+        } as MidiMapping;
+      case "scale-value":
+        return {
+          midi,
+          input,
+          behavior: chosenBehavior,
+          control: controlRef,
+          invert: invert(),
+          factor: parseNumber(factor(), 0.25),
+        } as MidiMapping;
+      default:
+        return null;
     }
   });
 
   const activeItem = createMemo(() => {
-    if (!source()) return 0;
-    if (!target()) return 1;
-    return draftMapping() ? 3 : 2;
+    if (!capturedSource()) return 0;
+    if (!inputType()) return 1;
+    if (!target()) return 2;
+    return draftMapping() ? 4 : 3;
   });
 
   createEffect(() => {
     if (!open()) {
-      setCapturedEvent(null);
+      setCapturedSource(null);
+      setRecentValues([]);
+      setInputType(undefined);
       setTarget(null);
-      setOperation(undefined);
-      setScopeSelector("active");
-      setBooleanValue("true");
-      setChoiceValue(undefined);
-      setTrigger("press");
-      setRelativeEncoding("offset-binary");
+      setBehavior(undefined);
+      setSliceOption("active");
+      setSelectedChoiceKey(undefined);
+      setThresholdPercent("50");
       setInvert(false);
-      setScale("1");
-      setMinimum("0");
-      setMaximum("1");
-      setThreshold("64");
-      setMomentary(true);
-      setStepDirection("1");
-      setBandwidthChange("increase");
-      setBandwidthFactor("0.25");
+      setItemDirection("next");
+      setValueDirection("increase");
+      setAmount("1");
+      setFactor("0.25");
     }
   });
 
   createEffect(() => {
-    if (!open() || capturedEvent()) return;
+    if (!open()) return;
 
-    const inputs = Array.from(ports.inputs.values());
-    inputs.forEach((input) => {
-      input.addEventListener("midimessage", setCapturedEvent, { once: true });
-    });
+    const handleMessage = (event: MIDIMessageEvent) => {
+      const source = eventToSource(event);
+      if (!source) return;
 
-    onCleanup(() => {
-      inputs.forEach((input) => {
-        input.removeEventListener("midimessage", setCapturedEvent);
-      });
-    });
-  });
+      const currentSource = capturedSource();
+      if (!currentSource) {
+        setCapturedSource(source);
+        setRecentValues([parseMidiMessage(event).value]);
+        return;
+      }
 
-  createEffect(() => {
-    const currentSource = source();
-    const currentTarget = target();
-    if (!currentSource || !currentTarget) {
-      setOperation(undefined);
-      return;
-    }
+      if (!sameSource(currentSource, source)) return;
+      const value = parseMidiMessage(event).value;
+      setRecentValues((previous) => [...previous.slice(-11), value]);
+    };
 
-    const nextDefault = defaultOperation(currentTarget, currentSource.kind);
-    const controlDefinition = CONTROL_REGISTRY[currentTarget];
-    setOperation((current) =>
-      current && controlDefinition.ops.includes(current)
-        ? current
-        : nextDefault,
+    inputs.forEach((input) =>
+      input.addEventListener("midimessage", handleMessage),
     );
+    onCleanup(() => {
+      inputs.forEach((input) =>
+        input.removeEventListener("midimessage", handleMessage),
+      );
+    });
   });
 
   createEffect(() => {
-    const options = choiceOptions();
-    setChoiceValue((current) =>
-      current && options.some((option) => option.key === current)
-        ? current
-        : options[0]?.key,
+    const options = inputOptions();
+    setInputType((current) =>
+      current && options.includes(current) ? current : options[0],
     );
   });
 
@@ -646,11 +605,28 @@ function AddMappingDialog() {
     }
   });
 
+  createEffect(() => {
+    const options = currentBehaviorOptions();
+    setBehavior((current) =>
+      current && options.some((option) => option.value === current)
+        ? current
+        : options[0]?.value,
+    );
+  });
+
+  createEffect(() => {
+    const options = choiceOptions();
+    setSelectedChoiceKey((current) =>
+      current && options.some((option) => option.key === current)
+        ? current
+        : options[0]?.key,
+    );
+  });
+
   const saveMapping = () => {
     const mapping = draftMapping();
     if (!mapping) return;
-
-    setPreferences("midiMappings", (mappings) => [...mappings, mapping]);
+    setPreferences("midiMappings", (previous) => [...previous, mapping]);
     setOpen(false);
   };
 
@@ -661,38 +637,85 @@ function AddMappingDialog() {
         <DialogHeader>
           <DialogTitle>Add Mapping</DialogTitle>
         </DialogHeader>
+
         <Timeline
           activeItem={activeItem()}
           items={[
             {
-              title: "MIDI Input",
+              title: "Capture Control",
               description: (
                 <Show
-                  when={source()}
+                  when={capturedSource()}
                   fallback={
                     <div class="inline-flex items-center gap-2">
                       <SvgSpinners180Ring />
-                      <span>Waiting for input...</span>
+                      <span>Move or press a control...</span>
                     </div>
                   }
                 >
-                  {(midiSource) => (
+                  {(source) => (
                     <div class="flex flex-col gap-2">
                       <div>
-                        {ports.inputs.get(midiSource().port)?.name ??
-                          midiSource().port}{" "}
-                        {sourceToString(midiSource())}
+                        {inputs.get(source().port ?? "")?.name ??
+                          "Unknown device"}{" "}
+                        {sourceToString(source())}
                       </div>
+                      <Show when={recentValues().length > 0}>
+                        <div class="text-xs text-muted-foreground">
+                          Recent values: {recentValues().join(", ")}
+                        </div>
+                      </Show>
                       <Button
                         variant="outline"
                         size="sm"
                         class="w-fit"
-                        onClick={() => setCapturedEvent(null)}
+                        onClick={() => {
+                          setCapturedSource(null);
+                          setRecentValues([]);
+                        }}
                       >
                         Capture Again
                       </Button>
                     </div>
                   )}
+                </Show>
+              ),
+            },
+            {
+              title: "Control Type",
+              description: (
+                <Show when={inputOptions().length > 0}>
+                  <Show
+                    when={inputOptions().length > 1}
+                    fallback={
+                      <div class="pt-2 text-sm">
+                        {inputType() ? INPUT_LABELS[inputType()!] : ""}
+                      </div>
+                    }
+                  >
+                    <div class="pt-2">
+                      <Select<InputType>
+                        value={inputType()}
+                        onChange={setInputType}
+                        options={inputOptions()}
+                        itemComponent={(props) => (
+                          <SelectItem item={props.item}>
+                            {INPUT_LABELS[props.item.rawValue]}
+                          </SelectItem>
+                        )}
+                      >
+                        <SelectLabel>
+                          How should this control behave?
+                        </SelectLabel>
+                        <SelectTrigger>
+                          <SelectValue<InputType>>
+                            {(state) => INPUT_LABELS[state.selectedOption()]}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent />
+                      </Select>
+                    </div>
+                  </Show>
                 </Show>
               ),
             },
@@ -711,7 +734,7 @@ function AddMappingDialog() {
                       </SelectItem>
                     )}
                   >
-                    <SelectLabel>Control</SelectLabel>
+                    <SelectLabel>What should it control?</SelectLabel>
                     <SelectTrigger>
                       <SelectValue<ControlTarget>>
                         {(state) =>
@@ -725,17 +748,15 @@ function AddMappingDialog() {
               ),
             },
             {
-              title: "Configuration",
+              title: "Behavior",
               description: (
                 <Show when={control()}>
                   {(definition) => (
                     <div class="flex flex-col gap-4 pt-2">
-                      <Show
-                        when={controlUsesSliceSelector(definition().target)}
-                      >
+                      <Show when={controlNeedsSlice(definition().target)}>
                         <Select<SliceOption>
-                          value={scopeSelector()}
-                          onChange={setScopeSelector}
+                          value={sliceOption()}
+                          onChange={setSliceOption}
                           options={[...SLICE_OPTIONS]}
                           itemComponent={(props) => (
                             <SelectItem item={props.item}>
@@ -745,11 +766,7 @@ function AddMappingDialog() {
                             </SelectItem>
                           )}
                         >
-                          <SelectLabel>
-                            {definition().scope === "panadapter"
-                              ? "Source Slice"
-                              : "Target Slice"}
-                          </SelectLabel>
+                          <SelectLabel>Which slice?</SelectLabel>
                           <SelectTrigger>
                             <SelectValue<SliceOption>>
                               {(state) =>
@@ -763,48 +780,102 @@ function AddMappingDialog() {
                         </Select>
                       </Show>
 
-                      <Show when={definition().ops.length > 1}>
-                        <SegmentedControl
-                          value={operation()}
-                          onChange={(value) => setOperation(value as ControlOp)}
+                      <Select<Behavior>
+                        value={behavior()}
+                        onChange={setBehavior}
+                        options={currentBehaviorOptions().map(
+                          (option) => option.value,
+                        )}
+                        itemComponent={(props) => (
+                          <SelectItem item={props.item}>
+                            {
+                              currentBehaviorOptions().find(
+                                (option) =>
+                                  option.value === props.item.rawValue,
+                              )?.label
+                            }
+                          </SelectItem>
+                        )}
+                      >
+                        <SelectLabel>What should it do?</SelectLabel>
+                        <SelectTrigger>
+                          <SelectValue<Behavior>>
+                            {(state) =>
+                              currentBehaviorOptions().find(
+                                (option) =>
+                                  option.value === state.selectedOption(),
+                              )?.label
+                            }
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent />
+                      </Select>
+
+                      <Show when={inputType() === "button"}>
+                        <TextField
+                          value={thresholdPercent()}
+                          onChange={setThresholdPercent}
                         >
-                          <SegmentedControlLabel>
-                            Operation
-                          </SegmentedControlLabel>
-                          <SegmentedControlGroup>
-                            <SegmentedControlIndicator />
-                            <SegmentedControlItemsList>
-                              <For each={definition().ops}>
-                                {(op) => (
-                                  <SegmentedControlItem value={op}>
-                                    <SegmentedControlItemLabel class="capitalize">
-                                      {op}
-                                    </SegmentedControlItemLabel>
-                                  </SegmentedControlItem>
-                                )}
-                              </For>
-                            </SegmentedControlItemsList>
-                          </SegmentedControlGroup>
-                        </SegmentedControl>
+                          <TextFieldLabel>Pressed At (%)</TextFieldLabel>
+                          <TextFieldInput type="number" />
+                        </TextField>
                       </Show>
 
                       <Switch>
                         <Match
                           when={
-                            definition().editor.kind === "boolean" &&
-                            operation() === "set"
+                            behavior() === "set-item" &&
+                            choiceOptions().length > 0
                           }
                         >
-                          <Select<"true" | "false">
-                            value={booleanValue()}
-                            onChange={setBooleanValue}
-                            options={BOOLEAN_VALUES.map(
+                          <Select<string>
+                            value={selectedChoiceKey()}
+                            onChange={setSelectedChoiceKey}
+                            options={choiceOptions().map(
+                              (option) => option.key,
+                            )}
+                            itemComponent={(props) => (
+                              <SelectItem item={props.item}>
+                                {
+                                  choiceOptions().find(
+                                    (option) =>
+                                      option.key === props.item.rawValue,
+                                  )?.label
+                                }
+                              </SelectItem>
+                            )}
+                          >
+                            <SelectLabel>Item</SelectLabel>
+                            <SelectTrigger>
+                              <SelectValue<string>>
+                                {(state) =>
+                                  choiceOptions().find(
+                                    (option) =>
+                                      option.key === state.selectedOption(),
+                                  )?.label
+                                }
+                              </SelectValue>
+                            </SelectTrigger>
+                            <SelectContent />
+                          </Select>
+                        </Match>
+
+                        <Match
+                          when={
+                            behavior() === "change-item" &&
+                            inputType() === "button"
+                          }
+                        >
+                          <Select<"next" | "previous">
+                            value={itemDirection()}
+                            onChange={setItemDirection}
+                            options={ITEM_DIRECTIONS.map(
                               (option) => option.value,
                             )}
                             itemComponent={(props) => (
                               <SelectItem item={props.item}>
                                 {
-                                  BOOLEAN_VALUES.find(
+                                  ITEM_DIRECTIONS.find(
                                     (option) =>
                                       option.value === props.item.rawValue,
                                   )?.label
@@ -812,11 +883,11 @@ function AddMappingDialog() {
                               </SelectItem>
                             )}
                           >
-                            <SelectLabel>Value</SelectLabel>
+                            <SelectLabel>Direction</SelectLabel>
                             <SelectTrigger>
-                              <SelectValue<"true" | "false">>
+                              <SelectValue<"next" | "previous">>
                                 {(state) =>
-                                  BOOLEAN_VALUES.find(
+                                  ITEM_DIRECTIONS.find(
                                     (option) =>
                                       option.value === state.selectedOption(),
                                   )?.label
@@ -829,66 +900,21 @@ function AddMappingDialog() {
 
                         <Match
                           when={
-                            definition().editor.kind === "choice" &&
-                            operation() === "set"
+                            behavior() === "change-value" &&
+                            inputType() === "button"
                           }
-                        >
-                          <Show
-                            when={choiceOptions().length > 0}
-                            fallback={
-                              <div class="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
-                                No values are currently available for this
-                                control.
-                              </div>
-                            }
-                          >
-                            <Select<string>
-                              value={choiceValue()}
-                              onChange={setChoiceValue}
-                              options={choiceOptions().map(
-                                (option) => option.key,
-                              )}
-                              itemComponent={(props) => (
-                                <SelectItem item={props.item}>
-                                  {
-                                    choiceOptions().find(
-                                      (option) =>
-                                        option.key === props.item.rawValue,
-                                    )?.label
-                                  }
-                                </SelectItem>
-                              )}
-                            >
-                              <SelectLabel>Value</SelectLabel>
-                              <SelectTrigger>
-                                <SelectValue<string>>
-                                  {(state) =>
-                                    choiceOptions().find(
-                                      (option) =>
-                                        option.key === state.selectedOption(),
-                                    )?.label
-                                  }
-                                </SelectValue>
-                              </SelectTrigger>
-                              <SelectContent />
-                            </Select>
-                          </Show>
-                        </Match>
-
-                        <Match
-                          when={definition().editor.kind === "bandwidth-scale"}
                         >
                           <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <Select<"increase" | "decrease">
-                              value={bandwidthChange()}
-                              onChange={setBandwidthChange}
-                              options={BANDWIDTH_DIRECTIONS.map(
+                              value={valueDirection()}
+                              onChange={setValueDirection}
+                              options={VALUE_DIRECTIONS.map(
                                 (option) => option.value,
                               )}
                               itemComponent={(props) => (
                                 <SelectItem item={props.item}>
                                   {
-                                    BANDWIDTH_DIRECTIONS.find(
+                                    VALUE_DIRECTIONS.find(
                                       (option) =>
                                         option.value === props.item.rawValue,
                                     )?.label
@@ -900,7 +926,7 @@ function AddMappingDialog() {
                               <SelectTrigger>
                                 <SelectValue<"increase" | "decrease">>
                                   {(state) =>
-                                    BANDWIDTH_DIRECTIONS.find(
+                                    VALUE_DIRECTIONS.find(
                                       (option) =>
                                         option.value === state.selectedOption(),
                                     )?.label
@@ -910,184 +936,110 @@ function AddMappingDialog() {
                               <SelectContent />
                             </Select>
 
-                            <TextField
-                              value={bandwidthFactor()}
-                              onChange={setBandwidthFactor}
-                            >
-                              <TextFieldLabel>Factor</TextFieldLabel>
+                            <TextField value={amount()} onChange={setAmount}>
+                              <TextFieldLabel>Amount</TextFieldLabel>
                               <TextFieldInput type="number" />
                             </TextField>
                           </div>
                         </Match>
-                      </Switch>
 
-                      <Show
-                        when={
-                          operation() === "adjust" || operation() === "cycle"
-                        }
-                      >
-                        <Select<StepDirection>
-                          value={stepDirection()}
-                          onChange={setStepDirection}
-                          options={STEP_DIRECTIONS.map(
-                            (option) => option.value,
-                          )}
-                          itemComponent={(props) => (
-                            <SelectItem item={props.item}>
-                              {
-                                STEP_DIRECTIONS.find(
-                                  (option) =>
-                                    option.value === props.item.rawValue,
-                                )?.label
-                              }
-                            </SelectItem>
-                          )}
-                        >
-                          <SelectLabel>Direction</SelectLabel>
-                          <SelectTrigger>
-                            <SelectValue<StepDirection>>
-                              {(state) =>
-                                STEP_DIRECTIONS.find(
-                                  (option) =>
-                                    option.value === state.selectedOption(),
-                                )?.label
-                              }
-                            </SelectValue>
-                          </SelectTrigger>
-                          <SelectContent />
-                        </Select>
-                      </Show>
-
-                      <Switch>
                         <Match
                           when={
-                            definition().editor.kind === "command" ||
-                            (definition().editor.kind === "boolean" &&
-                              operation() === "toggle") ||
-                            (definition().editor.kind === "choice" &&
-                              operation() === "set")
+                            behavior() === "change-value" &&
+                            inputType() === "relative"
                           }
                         >
-                          <Select<TriggerKind>
-                            value={trigger()}
-                            onChange={setTrigger}
-                            options={[...TRIGGER_OPTIONS]}
-                            itemComponent={(props) => (
-                              <SelectItem item={props.item}>
-                                {titleCase(props.item.rawValue)}
-                              </SelectItem>
-                            )}
-                          >
-                            <SelectLabel>Trigger</SelectLabel>
-                            <SelectTrigger>
-                              <SelectValue<TriggerKind>>
-                                {(state) => titleCase(state.selectedOption())}
-                              </SelectValue>
-                            </SelectTrigger>
-                            <SelectContent />
-                          </Select>
+                          <TextField value={amount()} onChange={setAmount}>
+                            <TextFieldLabel>Amount Per Step</TextFieldLabel>
+                            <TextFieldInput type="number" />
+                          </TextField>
                         </Match>
 
                         <Match
                           when={
-                            definition().editor.kind === "boolean" &&
-                            operation() === "set"
+                            behavior() === "scale-value" &&
+                            inputType() === "button"
                           }
                         >
                           <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                            <TextField
-                              value={threshold()}
-                              onChange={setThreshold}
-                            >
-                              <TextFieldLabel>Threshold</TextFieldLabel>
-                              <TextFieldInput type="number" />
-                            </TextField>
-
-                            <div class="pt-7">
-                              <SimpleSwitch
-                                checked={momentary()}
-                                onChange={setMomentary}
-                                label="Momentary"
-                              />
-                            </div>
-                          </div>
-                        </Match>
-
-                        <Match
-                          when={
-                            definition().editor.kind === "relative-step" ||
-                            (definition().editor.kind === "normalized" &&
-                              operation() === "adjust") ||
-                            (definition().editor.kind === "signed-normalized" &&
-                              operation() === "adjust") ||
-                            (definition().editor.kind === "choice" &&
-                              operation() === "cycle")
-                          }
-                        >
-                          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                            <Select<RelativeEncoding>
-                              value={relativeEncoding()}
-                              onChange={setRelativeEncoding}
-                              options={[...RELATIVE_ENCODINGS]}
+                            <Select<"increase" | "decrease">
+                              value={valueDirection()}
+                              onChange={setValueDirection}
+                              options={VALUE_DIRECTIONS.map(
+                                (option) => option.value,
+                              )}
                               itemComponent={(props) => (
                                 <SelectItem item={props.item}>
-                                  {props.item.rawValue}
+                                  {
+                                    VALUE_DIRECTIONS.find(
+                                      (option) =>
+                                        option.value === props.item.rawValue,
+                                    )?.label
+                                  }
                                 </SelectItem>
                               )}
                             >
-                              <SelectLabel>Encoding</SelectLabel>
+                              <SelectLabel>Direction</SelectLabel>
                               <SelectTrigger>
-                                <SelectValue<RelativeEncoding>>
-                                  {(state) => state.selectedOption()}
+                                <SelectValue<"increase" | "decrease">>
+                                  {(state) =>
+                                    VALUE_DIRECTIONS.find(
+                                      (option) =>
+                                        option.value === state.selectedOption(),
+                                    )?.label
+                                  }
                                 </SelectValue>
                               </SelectTrigger>
                               <SelectContent />
                             </Select>
 
-                            <TextField value={scale()} onChange={setScale}>
-                              <TextFieldLabel>Scale</TextFieldLabel>
+                            <TextField value={factor()} onChange={setFactor}>
+                              <TextFieldLabel>Factor</TextFieldLabel>
                               <TextFieldInput type="number" />
                             </TextField>
-
-                            <div class="sm:col-span-2">
-                              <SimpleSwitch
-                                checked={invert()}
-                                onChange={setInvert}
-                                label="Invert"
-                              />
-                            </div>
                           </div>
                         </Match>
 
                         <Match
                           when={
-                            (definition().editor.kind === "normalized" &&
-                              operation() === "set") ||
-                            (definition().editor.kind === "signed-normalized" &&
-                              operation() === "set")
+                            behavior() === "scale-value" &&
+                            inputType() === "relative"
                           }
                         >
-                          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                            <TextField value={minimum()} onChange={setMinimum}>
-                              <TextFieldLabel>Min</TextFieldLabel>
-                              <TextFieldInput type="number" />
-                            </TextField>
-
-                            <TextField value={maximum()} onChange={setMaximum}>
-                              <TextFieldLabel>Max</TextFieldLabel>
-                              <TextFieldInput type="number" />
-                            </TextField>
-
-                            <div class="sm:col-span-2">
-                              <SimpleSwitch
-                                checked={invert()}
-                                onChange={setInvert}
-                                label="Invert"
-                              />
-                            </div>
-                          </div>
+                          <TextField value={factor()} onChange={setFactor}>
+                            <TextFieldLabel>Factor</TextFieldLabel>
+                            <TextFieldInput type="number" />
+                          </TextField>
                         </Match>
                       </Switch>
+
+                      <Show
+                        when={
+                          behavior() === "set-value" ||
+                          behavior() === "follow-button" ||
+                          (inputType() === "relative" &&
+                            (behavior() === "change-item" ||
+                              behavior() === "change-value" ||
+                              behavior() === "scale-value"))
+                        }
+                      >
+                        <SimpleSwitch
+                          checked={invert()}
+                          onChange={setInvert}
+                          label="Reverse Direction"
+                        />
+                      </Show>
+
+                      <Show
+                        when={
+                          behavior() === "set-item" &&
+                          choiceOptions().length === 0
+                        }
+                      >
+                        <div class="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+                          No items are currently available for this control.
+                        </div>
+                      </Show>
                     </div>
                   )}
                 </Show>
@@ -1095,14 +1047,12 @@ function AddMappingDialog() {
             },
           ]}
         />
+
         <DialogFooter class="justify-between">
           <Show when={draftMapping()}>
             {(mapping) => (
               <div class="text-xs text-muted-foreground">
-                Saves as {mapping().action.target}
-                {"options" in mapping() && mapping().options
-                  ? ` (${mapping().options.mode})`
-                  : ""}
+                {describeControl(mapping())}: {describeBehavior(mapping())}
               </div>
             )}
           </Show>
@@ -1117,24 +1067,23 @@ function AddMappingDialog() {
 
 function MidiSettingsInner() {
   const { preferences, setPreferences } = usePreferences();
-  const [lastCommand, setLastCommand] = createSignal("");
   const { inputs } = createMIDIPorts();
+  const [lastCommand, setLastCommand] = createSignal("");
 
   function onMessage(this: MIDIInput, message: MIDIMessageEvent) {
     const source = eventToSource(message);
     if (!source) return;
-    setLastCommand(sourceToString(source));
+
+    const parsed = parseMidiMessage(message);
+    setLastCommand(`${sourceToString(source)} = ${parsed.value}`);
   }
 
   createEffect(() => {
-    inputs.forEach((input) => {
-      input.addEventListener("midimessage", onMessage);
-    });
-
+    inputs.forEach((input) => input.addEventListener("midimessage", onMessage));
     onCleanup(() => {
-      inputs.forEach((input) => {
-        input.removeEventListener("midimessage", onMessage);
-      });
+      inputs.forEach((input) =>
+        input.removeEventListener("midimessage", onMessage),
+      );
     });
   });
 
@@ -1149,10 +1098,10 @@ function MidiSettingsInner() {
           <Table class="w-full">
             <TableHeader>
               <TableRow>
-                <TableHead>Action</TableHead>
-                <TableHead>Mode</TableHead>
+                <TableHead>Control</TableHead>
+                <TableHead>Does</TableHead>
                 <TableHead>Device</TableHead>
-                <TableHead>Event</TableHead>
+                <TableHead>Physical Control</TableHead>
                 <TableHead class="min-w-0" />
               </TableRow>
             </TableHeader>
@@ -1160,22 +1109,26 @@ function MidiSettingsInner() {
               <For each={preferences.midiMappings}>
                 {(mapping, index) => (
                   <TableRow>
-                    <TableCell>{mapping.action.target}</TableCell>
-                    <TableCell>{mapping.options?.mode ?? "trigger"}</TableCell>
+                    <TableCell>{describeControl(mapping)}</TableCell>
+                    <TableCell>{describeBehavior(mapping)}</TableCell>
                     <TableCell>
-                      {inputs.get(mapping.midi.port)?.name ?? "Missing"}
+                      {mapping.midi.port
+                        ? (inputs.get(mapping.midi.port)?.name ?? "Missing")
+                        : "Any device"}
                     </TableCell>
                     <TableCell>{sourceToString(mapping.midi)}</TableCell>
                     <TableCell>
-                      <ButtonPrimitive.Button
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         onClick={() => {
-                          setPreferences("midiMappings", (prev) =>
-                            prev.toSpliced(index(), 1),
+                          setPreferences("midiMappings", (previous) =>
+                            previous.toSpliced(index(), 1),
                           );
                         }}
                       >
                         <BaselineDelete />
-                      </ButtonPrimitive.Button>
+                      </Button>
                     </TableCell>
                   </TableRow>
                 )}

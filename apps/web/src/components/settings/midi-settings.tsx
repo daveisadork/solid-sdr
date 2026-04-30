@@ -31,7 +31,7 @@ import {
 } from "solid-js";
 import { TextField, TextFieldInput, TextFieldLabel } from "../ui/text-field";
 import { SimpleSwitch } from "../ui/simple-switch";
-import { parseMidiMessage } from "../midi-control";
+import { ParsedMidiMessage, parseMidiMessage } from "../midi-control";
 import {
   Table,
   TableBody,
@@ -59,6 +59,7 @@ import {
   useControls,
 } from "~/context/controls";
 import BaselineDelete from "~icons/ic/baseline-delete";
+import { MidiValueRing } from "../midi-value-ring";
 
 type InputType = MidiMapping["input"];
 type Behavior = MidiMapping["behavior"];
@@ -325,7 +326,7 @@ function AddMappingDialog() {
   const [capturedSource, setCapturedSource] = createSignal<MidiSource | null>(
     null,
   );
-  const [recentValues, setRecentValues] = createSignal<number[]>([]);
+  const [lastMessage, setLastMessage] = createSignal<ParsedMidiMessage>();
   const [inputType, setInputType] = createSignal<InputType>();
   const [target, setTarget] = createSignal<ControlTarget | null>(null);
   const [behavior, setBehavior] = createSignal<Behavior>();
@@ -547,7 +548,6 @@ function AddMappingDialog() {
   createEffect(() => {
     if (!open()) {
       setCapturedSource(null);
-      setRecentValues([]);
       setInputType(undefined);
       setTarget(null);
       setBehavior(undefined);
@@ -569,16 +569,16 @@ function AddMappingDialog() {
       const source = eventToSource(event);
       if (!source) return;
 
+      const parsed = parseMidiMessage(event);
       const currentSource = capturedSource();
       if (!currentSource) {
         setCapturedSource(source);
-        setRecentValues([parseMidiMessage(event).value]);
+        setLastMessage(parsed);
         return;
       }
 
       if (!sameSource(currentSource, source)) return;
-      const value = parseMidiMessage(event).value;
-      setRecentValues((previous) => [...previous.slice(-11), value]);
+      setLastMessage(parsed);
     };
 
     inputs.forEach((input) =>
@@ -633,7 +633,7 @@ function AddMappingDialog() {
   return (
     <Dialog open={open()} onOpenChange={setOpen}>
       <DialogTrigger as={Button}>Add Mapping</DialogTrigger>
-      <DialogContent class="sm:max-w-2xl">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Add Mapping</DialogTitle>
         </DialogHeader>
@@ -654,28 +654,29 @@ function AddMappingDialog() {
                   }
                 >
                   {(source) => (
-                    <div class="flex flex-col gap-2">
-                      <div>
-                        {inputs.get(source().port ?? "")?.name ??
-                          "Unknown device"}{" "}
-                        {sourceToString(source())}
-                      </div>
-                      <Show when={recentValues().length > 0}>
-                        <div class="text-xs text-muted-foreground">
-                          Recent values: {recentValues().join(", ")}
+                    <div class="flex">
+                      <div class="flex flex-col gap-2">
+                        <div>
+                          {inputs.get(source().port ?? "")?.name ??
+                            "Unknown device"}{" "}
+                          {sourceToString(source())}
                         </div>
-                      </Show>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        class="w-fit"
-                        onClick={() => {
-                          setCapturedSource(null);
-                          setRecentValues([]);
-                        }}
-                      >
-                        Capture Again
-                      </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          class="w-fit"
+                          onClick={() => {
+                            setCapturedSource(null);
+                          }}
+                        >
+                          Capture Again
+                        </Button>
+                      </div>
+                      <div>
+                        <Show when={lastMessage()}>
+                          <MidiValueRing message={lastMessage()} />
+                        </Show>
+                      </div>
                     </div>
                   )}
                 </Show>
@@ -693,7 +694,7 @@ function AddMappingDialog() {
                       </div>
                     }
                   >
-                    <div class="pt-2">
+                    <div class="pt-2 flex">
                       <Select<InputType>
                         value={inputType()}
                         onChange={setInputType}
@@ -722,7 +723,7 @@ function AddMappingDialog() {
             {
               title: "Target Control",
               description: (
-                <div class="pt-2">
+                <div class="pt-2 flex">
                   <Select<ControlTarget>
                     value={target() ?? undefined}
                     onChange={setTarget}
@@ -780,36 +781,50 @@ function AddMappingDialog() {
                         </Select>
                       </Show>
 
-                      <Select<Behavior>
-                        value={behavior()}
-                        onChange={setBehavior}
-                        options={currentBehaviorOptions().map(
-                          (option) => option.value,
-                        )}
-                        itemComponent={(props) => (
-                          <SelectItem item={props.item}>
-                            {
-                              currentBehaviorOptions().find(
-                                (option) =>
-                                  option.value === props.item.rawValue,
-                              )?.label
-                            }
-                          </SelectItem>
-                        )}
+                      <Show
+                        when={currentBehaviorOptions().length > 1}
+                        fallback={
+                          <div class="flex flex-col gap-1">
+                            <div class="text-sm font-medium leading-none">
+                              What should it do?
+                            </div>
+                            <div class="text-sm">
+                              {currentBehaviorOptions()[0]?.label}
+                            </div>
+                          </div>
+                        }
                       >
-                        <SelectLabel>What should it do?</SelectLabel>
-                        <SelectTrigger>
-                          <SelectValue<Behavior>>
-                            {(state) =>
-                              currentBehaviorOptions().find(
-                                (option) =>
-                                  option.value === state.selectedOption(),
-                              )?.label
-                            }
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent />
-                      </Select>
+                        <Select<Behavior>
+                          value={behavior()}
+                          onChange={setBehavior}
+                          options={currentBehaviorOptions().map(
+                            (option) => option.value,
+                          )}
+                          itemComponent={(props) => (
+                            <SelectItem item={props.item}>
+                              {
+                                currentBehaviorOptions().find(
+                                  (option) =>
+                                    option.value === props.item.rawValue,
+                                )?.label
+                              }
+                            </SelectItem>
+                          )}
+                        >
+                          <SelectLabel>What should it do?</SelectLabel>
+                          <SelectTrigger>
+                            <SelectValue<Behavior>>
+                              {(state) =>
+                                currentBehaviorOptions().find(
+                                  (option) =>
+                                    option.value === state.selectedOption(),
+                                )?.label
+                              }
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent />
+                        </Select>
+                      </Show>
 
                       <Show when={inputType() === "button"}>
                         <TextField

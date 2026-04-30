@@ -116,3 +116,111 @@ export function range(start: number, end?: number, step = 1): number[] {
   const length = Math.max(Math.ceil((end - start) / step), 0);
   return Array.from({ length }, (_, i) => start + i * step);
 }
+
+export const synchronizeMaps = <K, V>(
+  target: Map<K, V>,
+  source?: ReadonlyMap<K, V> | null,
+): void => {
+  if (!source) return target.clear();
+  for (const key of target.keys()) {
+    if (!source.has(key)) target.delete(key);
+  }
+  for (const [key, value] of source) {
+    target.set(key, value);
+  }
+};
+
+window.syncMaps = synchronizeMaps;
+
+export interface SynchronizeMapsBenchmarkOptions {
+  size?: number;
+  iterations?: number;
+  warmupIterations?: number;
+  churn?: number;
+}
+
+export interface SynchronizeMapsBenchmarkResult {
+  size: number;
+  iterations: number;
+  warmupIterations: number;
+  churn: number;
+  totalMs: number;
+  averageMs: number;
+  minMs: number;
+  maxMs: number;
+  opsPerSecond: number;
+  finalSize: number;
+}
+
+const getNow = () => globalThis.performance?.now?.() ?? Date.now();
+
+export const benchmarkSynchronizeMaps = ({
+  size = 10_000,
+  iterations = 100,
+  warmupIterations = 10,
+  churn = Math.max(1, Math.floor(size * 0.05)),
+}: SynchronizeMapsBenchmarkOptions = {}): SynchronizeMapsBenchmarkResult => {
+  const normalizedSize = Math.max(0, Math.trunc(size));
+  const normalizedIterations = Math.max(1, Math.trunc(iterations));
+  const normalizedWarmupIterations = Math.max(0, Math.trunc(warmupIterations));
+  const normalizedChurn = Math.max(
+    0,
+    Math.min(normalizedSize, Math.trunc(churn)),
+  );
+
+  const source = new Map<number, number>();
+  const target = new Map<number, number>();
+
+  const prepareSource = (iteration: number) => {
+    const start = normalizedChurn * iteration;
+    source.clear();
+
+    for (let i = 0; i < normalizedSize; i++) {
+      const key = start + i;
+      source.set(key, key);
+    }
+  };
+
+  const runPass = (runIterations: number) => {
+    let totalMs = 0;
+    let minMs = Number.POSITIVE_INFINITY;
+    let maxMs = 0;
+
+    for (let iteration = 0; iteration < runIterations; iteration++) {
+      prepareSource(iteration);
+
+      const start = getNow();
+      synchronizeMaps(target, source);
+      const durationMs = getNow() - start;
+
+      totalMs += durationMs;
+      minMs = Math.min(minMs, durationMs);
+      maxMs = Math.max(maxMs, durationMs);
+    }
+
+    return {
+      totalMs,
+      minMs: Number.isFinite(minMs) ? minMs : 0,
+      maxMs,
+    };
+  };
+
+  runPass(normalizedWarmupIterations);
+  const { totalMs, minMs, maxMs } = runPass(normalizedIterations);
+  const averageMs = totalMs / normalizedIterations;
+
+  return {
+    size: normalizedSize,
+    iterations: normalizedIterations,
+    warmupIterations: normalizedWarmupIterations,
+    churn: normalizedChurn,
+    totalMs,
+    averageMs,
+    minMs,
+    maxMs,
+    opsPerSecond: totalMs === 0 ? Number.POSITIVE_INFINITY : 1000 / averageMs,
+    finalSize: target.size,
+  };
+};
+
+window.benchmark = benchmarkSynchronizeMaps;

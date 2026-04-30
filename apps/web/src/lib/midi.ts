@@ -1,85 +1,71 @@
-import { Accessor, createEffect, createSignal, onCleanup } from "solid-js";
+import { type Accessor, createMemo, createSignal } from "solid-js";
 import { ReactiveMap } from "@solid-primitives/map";
+import { synchronizeMaps } from "./utils";
 
-export const createMIDIAccess = (
+const inputs = new ReactiveMap<string, MIDIInput>();
+const outputs = new ReactiveMap<string, MIDIOutput>();
+const [access, setAccess] = createSignal<MIDIAccess | undefined>();
+
+let accessRequest: Promise<MIDIAccess | undefined> | undefined;
+let attachedAccess: MIDIAccess | undefined;
+
+function syncPorts(midi?: MIDIAccess) {
+  synchronizeMaps(inputs, midi?.inputs);
+  synchronizeMaps(outputs, midi?.outputs);
+}
+
+function onStateChange() {
+  syncPorts(attachedAccess);
+}
+
+function ensureMIDIAccess(options?: MIDIOptions) {
+  if (accessRequest || typeof navigator === "undefined") return accessRequest;
+  if (!navigator.requestMIDIAccess) return;
+
+  accessRequest = navigator.requestMIDIAccess(options).then((midi) => {
+    if (attachedAccess !== midi) {
+      attachedAccess?.removeEventListener("statechange", onStateChange);
+      attachedAccess = midi;
+      midi.addEventListener("statechange", onStateChange);
+    }
+
+    setAccess(midi);
+    syncPorts(midi);
+    return midi;
+  });
+
+  return accessRequest;
+}
+
+export function createMIDIAccess(
   options?: MIDIOptions,
-): Accessor<MIDIAccess> => {
-  const [access, setAccess] = createSignal<MIDIAccess | undefined>();
-
-  navigator?.requestMIDIAccess?.(options).then(setAccess);
-
+): Accessor<MIDIAccess | undefined> {
+  void ensureMIDIAccess(options);
   return access;
-};
+}
 
-export const createMIDIPorts = (options?: MIDIOptions) => {
-  const inputs = new ReactiveMap<string, MIDIInput>();
-  const outputs = new ReactiveMap<string, MIDIOutput>();
-  const access = createMIDIAccess(options);
-
-  const update = () => {
-    const midi = access();
-    if (!midi) {
-      inputs.clear();
-      outputs.clear();
-      return;
-    }
-    inputs
-      .keys()
-      .filter((key) => !midi.inputs.has(key))
-      .toArray()
-      .forEach((key) => inputs.delete(key));
-    midi.inputs.forEach((port, key) => {
-      if (!inputs.has(key)) inputs.set(key, port);
-    });
-    outputs
-      .keys()
-      .filter((key) => !midi.outputs.has(key))
-      .toArray()
-      .forEach((key) => outputs.delete(key));
-    midi.outputs.forEach((port, key) => {
-      if (!outputs.has(key)) outputs.set(key, port);
-    });
-  };
-
-  createEffect(() => {
-    const midi = access();
-    if (!midi) return;
-    midi.addEventListener("statechange", update);
-    onCleanup(() => midi.removeEventListener("statechange", update));
-    update();
-  });
-
+export function createMIDIPorts(options?: MIDIOptions) {
+  void ensureMIDIAccess(options);
   return { inputs, outputs };
-};
+}
 
-export const createReactiveMIDIAccess = (
+export function createReactiveMIDIAccess(
   options?: MIDIOptions,
-): Accessor<MIDIAccess> => {
-  const access = createMIDIAccess(options);
-  const { inputs, outputs } = createMIDIPorts(options);
-  const [proxy, setProxy] = createSignal<MIDIAccess | undefined>();
+): Accessor<MIDIAccess | undefined> {
+  const midiAccess = createMIDIAccess(options);
 
-  createEffect(() => {
-    const midi = access();
-    if (!access) {
-      setProxy();
-      return;
-    }
-    setProxy(
-      new Proxy(midi, {
-        get(target, prop, receiver) {
-          switch (prop) {
-            case "inputs":
-              return inputs;
-            case "outputs":
-              return outputs;
-            default:
-              return Reflect.get(target, prop, receiver);
-          }
-        },
-      }),
-    );
+  const accessProxy = createMemo(() => {
+    const midi = midiAccess();
+    if (!midi) return undefined;
+
+    return new Proxy(midi, {
+      get(target, prop, receiver) {
+        if (prop === "inputs") return inputs;
+        if (prop === "outputs") return outputs;
+        return Reflect.get(target, prop, receiver);
+      },
+    });
   });
 
-  return proxy;
-};
+  return accessProxy;
+}

@@ -41,9 +41,13 @@ export interface SpotPreferences {
 }
 
 export type MidiSource =
-  | { device: string; channel: number; kind: "cc"; controller: number }
-  | { device: string; channel: number; kind: "note"; note: number }
-  | { device: string; channel: number; kind: "pitchBend" };
+  | { port: string | null; channel: number; kind: "cc" | "note"; id: number }
+  | {
+      port: string | null;
+      channel: number;
+      kind: "pitchBend";
+      id: null;
+    };
 
 type ToggleAction = Extract<ControlAction, { op: "toggle" }>;
 type AdjustAction = Extract<ControlAction, { op: "adjust" }>;

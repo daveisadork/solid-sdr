@@ -828,7 +828,7 @@ export function useControls() {
 }
 
 export const ControlsProvider: ParentComponent = (props) => {
-  const { radio, state } = useFlexRadio();
+  const { radio, state, bands } = useFlexRadio();
   const { runtime, setRuntime } = useRuntime();
   const { preferences } = usePreferences();
 
@@ -888,10 +888,7 @@ export const ControlsProvider: ParentComponent = (props) => {
     return radio()?.panadapter(slice.panadapterStreamId);
   };
 
-  const getBandList = createMemo(() => [
-    ...BANDS.map((band) => band.id),
-    ...Object.keys(state.status.xvtr),
-  ]);
+  const getBandList = createMemo(() => bands.keys().toArray());
 
   const controlRuntime: ControlRuntime = {
     radio,

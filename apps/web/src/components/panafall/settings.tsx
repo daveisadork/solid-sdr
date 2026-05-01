@@ -2,7 +2,15 @@ import useFlexRadio, {
   PanadapterState,
   WaterfallState,
 } from "~/context/flexradio";
-import { createEffect, createSignal, For, Match, Show, Switch } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  Match,
+  Show,
+  Switch,
+} from "solid-js";
 import {
   NumberField,
   NumberFieldDecrementTrigger,
@@ -629,7 +637,22 @@ function BandSettings(props: {
   panadapter: PanadapterState;
   panadapterController: PanadapterController;
 }) {
-  const { state } = useFlexRadio();
+  const { bands, state } = useFlexRadio();
+
+  const plainBands = createMemo(() =>
+    bands
+      .entries()
+      .filter(([key, _]) => !key.startsWith("x"))
+      .toArray(),
+  );
+
+  const xvrtBands = createMemo(() =>
+    bands
+      .entries()
+      .filter(([key, _]) => key.startsWith("x"))
+      .toArray(),
+  );
+
   return (
     <ToggleGroup
       class="grid grid-cols-3 gap-1"
@@ -647,19 +670,19 @@ function BandSettings(props: {
         props.panadapterController.setBand(value);
       }}
     >
-      <For each={BANDS}>
-        {(band) => (
-          <ToggleGroupItem variant="outline" value={band.id}>
-            {band.label}
+      <For each={plainBands()}>
+        {([value, label]) => (
+          <ToggleGroupItem variant="outline" value={value}>
+            {label}
           </ToggleGroupItem>
         )}
       </For>
-      <Show when={Object.keys(state.status.xvtr)?.length > 0}>
+      <Show when={xvrtBands().length}>
         <Separator class="col-span-3 my-2" />
-        <For each={Object.values(state.status.xvtr)}>
-          {(xvtr) => (
-            <ToggleGroupItem variant="outline" value={`x${xvtr.id}`}>
-              {xvtr.name}
+        <For each={xvrtBands()}>
+          {([value, label]) => (
+            <ToggleGroupItem variant="outline" value={value}>
+              {label}
             </ToggleGroupItem>
           )}
         </For>

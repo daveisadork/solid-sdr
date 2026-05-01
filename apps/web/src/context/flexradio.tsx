@@ -180,6 +180,7 @@ const FlexRadioContext = createContext<{
   state: AppState;
   setState: SetStoreFunction<AppState>;
   spots: ReactiveMap<string, SpotState>;
+  bands: ReactiveMap<string, string>;
   radio: () => Radio | null;
   client: Accessor<FlexClient>;
   connect: (addr: { host: string; port: number }) => void;
@@ -557,6 +558,39 @@ export const FlexRadioProvider: ParentComponent = (props) => {
   globalThis.state = state;
   globalThis.sendCommand = sendCommand; // Expose for debugging
 
+  const bands = new ReactiveMap<string, string>([
+    ["160", "160m"],
+    ["80", "80m"],
+    ["60", "60m"],
+    ["40", "40m"],
+    ["30", "30m"],
+    ["20", "20m"],
+    ["17", "17m"],
+    ["15", "15m"],
+    ["12", "12m"],
+    ["10", "10m"],
+    ["6", "6m"],
+    ["33", "WWV"],
+    ["34", "GEN"],
+    ["2200", "2200m"],
+    ["630", "630m"],
+  ]);
+
+  createEffect(() => {
+    const xvrtBands = new Map<string, string>(
+      Object.values(state.status.xvtr)
+        .filter(({ valid }) => valid)
+        .toSorted((a, b) => a.order - b.order)
+        .map(({ id, name }) => [`x${id}`, name]),
+    );
+    for (const band of bands.keys()) {
+      if (band.startsWith("x") && !xvrtBands.has(band)) bands.delete(band);
+    }
+    for (const [key, value] of xvrtBands) {
+      bands.set(key, value);
+    }
+  });
+
   return (
     <FlexRadioContext.Provider
       value={{
@@ -566,6 +600,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         sendCommand,
         connect,
         disconnect,
+        bands,
         radio: activeRadio,
         client: flexClient,
       }}

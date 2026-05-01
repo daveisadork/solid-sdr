@@ -1,9 +1,5 @@
-import { createEffect, createSignal, onCleanup } from "solid-js";
-import type { ParsedMidiMessage } from "./midi-control";
-
-type MidiValueRingProps = {
-  message: ParsedMidiMessage;
-};
+import { createEffect, createSignal, onCleanup, Show } from "solid-js";
+import { ParsedMidiMessage } from "~/lib/midi";
 
 const SIZE = 120;
 const STROKE = 16;
@@ -35,17 +31,20 @@ function normalizedValue(message: ParsedMidiMessage) {
   return message.command === 14 ? message.value / 16383 : message.value / 127;
 }
 
-function isNoteMessage(message: ParsedMidiMessage) {
-  return message.command === 8 || message.command === 9;
-}
-
 function isNoteOn(message: ParsedMidiMessage) {
   return normalizedValue(message) >= 0.5;
 }
 
-export function MidiValueRing(props: MidiValueRingProps) {
+export function MidiValueRing(props: {
+  message: ParsedMidiMessage;
+  forceNote?: boolean;
+}) {
   const [latchedOn, setLatchedOn] = createSignal(isNoteOn(props.message));
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  const isNoteMessage = (message: ParsedMidiMessage) => {
+    return props.forceNote || message.command === 8 || message.command === 9;
+  };
 
   createEffect(() => {
     const message = props.message;
@@ -64,7 +63,7 @@ export function MidiValueRing(props: MidiValueRingProps) {
       setLatchedOn(true);
       timeoutId = setTimeout(() => {
         timeoutId = undefined;
-        setLatchedOn(false);
+        setLatchedOn(isNoteOn(props.message));
       }, 250);
       return;
     }
@@ -82,8 +81,6 @@ export function MidiValueRing(props: MidiValueRingProps) {
   const marker = () => polarToCartesian(markerAngle(), RADIUS);
   const track = arcPath(START_ANGLE, START_ANGLE + SWEEP_ANGLE);
   const noteLabel = () => (latchedOn() ? "on" : "off");
-  const noteColorClass = () =>
-    latchedOn() ? "fill-emerald-500" : "fill-red-500";
 
   return (
     <svg
@@ -114,11 +111,16 @@ export function MidiValueRing(props: MidiValueRingProps) {
         y={CENTER}
         text-anchor="middle"
         dominant-baseline="middle"
-        class={`text-[24px] font-bold ${
-          isNoteMessage(props.message) ? noteColorClass() : "fill-current"
-        }`}
+        class="text-[24px] font-bold"
+        classList={{
+          "fill-green-500": isNoteMessage(props.message) && latchedOn(),
+          "fill-red-500": isNoteMessage(props.message) && !latchedOn(),
+          "fill-current": !isNoteMessage(props.message),
+        }}
       >
-        {isNoteMessage(props.message) ? noteLabel() : `${percent()}%`}
+        <Show when={isNoteMessage(props.message)} fallback={`${percent()}%`}>
+          {noteLabel()}
+        </Show>
       </text>
     </svg>
   );

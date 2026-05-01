@@ -1,6 +1,6 @@
 import { type Accessor, createMemo, createSignal } from "solid-js";
 import { ReactiveMap } from "@solid-primitives/map";
-import { synchronizeMaps } from "./utils";
+import { synchronizeMaps } from "../utils";
 
 const inputs = new ReactiveMap<string, MIDIInput>();
 const outputs = new ReactiveMap<string, MIDIOutput>();

@@ -1,8 +1,4 @@
-import {
-  type MidiMapping,
-  type MidiSource,
-  usePreferences,
-} from "../../context/preferences";
+import { usePreferences } from "../../context/preferences";
 import { Button } from "../ui/button";
 import {
   Dialog,
@@ -29,9 +25,17 @@ import {
   Switch,
   Match,
 } from "solid-js";
-import { TextField, TextFieldInput, TextFieldLabel } from "../ui/text-field";
+import {
+  NumberField,
+  NumberFieldDecrementTrigger,
+  NumberFieldGroup,
+  NumberFieldIncrementTrigger,
+  NumberFieldInput,
+  NumberFieldLabel,
+} from "../ui/number-field";
+
 import { SimpleSwitch } from "../ui/simple-switch";
-import { ParsedMidiMessage, parseMidiMessage } from "../midi-control";
+import { SimpleSlider } from "../ui/simple-slider";
 import {
   Table,
   TableBody,
@@ -40,12 +44,19 @@ import {
   TableHeader,
   TableRow,
 } from "../ui/table";
-import { createMIDIPorts } from "~/lib/midi";
+import {
+  createMIDIPorts,
+  MidiMapping,
+  MidiSource,
+  ParsedMidiMessage,
+  parseMidiMessage,
+} from "~/lib/midi";
 import { Timeline } from "../ui/timeline";
 import SvgSpinners180Ring from "~icons/svg-spinners/180-ring";
 import {
   Select,
   SelectContent,
+  SelectDescription,
   SelectItem,
   SelectLabel,
   SelectTrigger,
@@ -59,8 +70,10 @@ import {
   useControls,
 } from "~/context/controls";
 import BaselineDelete from "~icons/ic/baseline-delete";
+import MdiRefresh from "~icons/mdi/refresh";
 import { MidiValueRing } from "../midi-value-ring";
 import { reconcile } from "solid-js/store";
+import useFlexRadio from "~/context/flexradio";
 
 type InputType = MidiMapping["input"];
 type Behavior = MidiMapping["behavior"];
@@ -99,20 +112,10 @@ const BEHAVIOR_LABELS: Record<Behavior, string> = {
   "follow-button": "Follow control state",
   press: "Run once when pressed",
   "set-item": "Pick this item",
-  "change-item": "Move through list",
+  "change-item": "Cycle through list",
   "change-value": "Change value by an amount",
   "scale-value": "Multiply or divide by a factor",
 };
-
-const ITEM_DIRECTIONS = [
-  { value: "next", label: "Next item" },
-  { value: "previous", label: "Previous item" },
-] as const;
-
-const VALUE_DIRECTIONS = [
-  { value: "increase", label: "Increase" },
-  { value: "decrease", label: "Decrease" },
-] as const;
 
 function eventToSource(event: MIDIMessageEvent): MidiSource | null {
   const { command, channel, port, id } = parseMidiMessage(event);
@@ -131,7 +134,7 @@ function eventToSource(event: MIDIMessageEvent): MidiSource | null {
 
 function sameSource(a: MidiSource, b: MidiSource) {
   return (
-    a.port === b.port &&
+    (!a.port || a.port === b.port) &&
     a.channel === b.channel &&
     a.kind === b.kind &&
     a.id === b.id
@@ -162,7 +165,7 @@ function availableInputTypes(source: MidiSource | null): InputType[] {
     case "note":
       return ["button"];
     case "pitchBend":
-      return ["ranged"];
+      return ["relative"];
     case "cc":
       return ["button", "ranged", "relative"];
   }
@@ -269,16 +272,6 @@ function behaviorOptions(
   return [];
 }
 
-function parseNumber(value: string, fallback: number) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : fallback;
-}
-
-function clampPercent(value: string, fallback: number) {
-  const parsed = parseNumber(value, fallback);
-  return Math.max(0, Math.min(100, parsed));
-}
-
 function describeControl(mapping: MidiMapping) {
   const label =
     CONTROL_REGISTRY[mapping.control.target]?.label ?? mapping.control.target;
@@ -294,9 +287,7 @@ function describeBehavior(mapping: MidiMapping) {
     case "toggle":
       return "Toggle when pressed";
     case "follow-button":
-      return mapping.invert
-        ? "Follow control state (reversed)"
-        : "Follow control state";
+      return mapping.invert ? "Inactive while pressed" : "Active while pressed";
     case "press":
       return "Run once when pressed";
     case "set-item":
@@ -313,8 +304,8 @@ function describeBehavior(mapping: MidiMapping) {
         : `Change by ${mapping.amount}`;
     case "scale-value":
       return mapping.input === "button"
-        ? `${mapping.direction === "increase" ? "Multiply" : "Divide"} by ${mapping.factor}`
-        : `Multiply/divide by ${mapping.factor}`;
+        ? `${mapping.direction === "increase" ? "Multiply" : "Divide"} by ${mapping.factor + 1}`
+        : `Multiply/divide by ${mapping.factor + 1}`;
   }
 }
 
@@ -322,6 +313,7 @@ function AddMappingDialog() {
   const { setPreferences } = usePreferences();
   const { inputs } = createMIDIPorts();
   const { getChoices } = useControls();
+  const { bands } = useFlexRadio();
 
   const [open, setOpen] = createSignal(false);
   const [capturedSource, setCapturedSource] = createSignal<MidiSource | null>(
@@ -333,7 +325,7 @@ function AddMappingDialog() {
   const [behavior, setBehavior] = createSignal<Behavior>();
   const [sliceOption, setSliceOption] = createSignal<SliceOption>("active");
   const [selectedChoiceKey, setSelectedChoiceKey] = createSignal<string>();
-  const [thresholdPercent, setThresholdPercent] = createSignal("50");
+  const [thresholdPercent, setThresholdPercent] = createSignal(50);
   const [invert, setInvert] = createSignal(false);
   const [itemDirection, setItemDirection] = createSignal<"next" | "previous">(
     "next",
@@ -341,8 +333,9 @@ function AddMappingDialog() {
   const [valueDirection, setValueDirection] = createSignal<
     "increase" | "decrease"
   >("increase");
-  const [amount, setAmount] = createSignal("1");
-  const [factor, setFactor] = createSignal("0.25");
+  const [amount, setAmount] = createSignal(1);
+  const [factor, setFactor] = createSignal(0.25);
+  const [selectedPort, setSelectedPort] = createSignal<string | null>(null);
 
   const inputOptions = createMemo(() => availableInputTypes(capturedSource()));
 
@@ -367,7 +360,10 @@ function AddMappingDialog() {
 
     return getChoices(targetValue, selectedSlice()).map((value) => ({
       key: String(value),
-      label: String(value),
+      label:
+        targetValue === "panadapter.band"
+          ? bands.get(String(value))
+          : String(value),
       value,
     }));
   });
@@ -390,7 +386,7 @@ function AddMappingDialog() {
   );
 
   const draftMapping = createMemo((): MidiMapping | null => {
-    const midi = capturedSource();
+    const midi = { ...capturedSource(), port: selectedPort() };
     const input = inputType();
     const targetValue = target();
     const chosenBehavior = behavior();
@@ -429,7 +425,7 @@ function AddMappingDialog() {
     if (input === "button") {
       if (midi.kind !== "cc" && midi.kind !== "note") return null;
 
-      const threshold = clampPercent(thresholdPercent(), 50) / 100;
+      const threshold = thresholdPercent() / 100;
 
       switch (chosenBehavior) {
         case "toggle":
@@ -488,7 +484,7 @@ function AddMappingDialog() {
             control: controlRef,
             threshold,
             direction: valueDirection(),
-            amount: parseNumber(amount(), 1),
+            amount: amount(),
           } as MidiMapping;
         case "scale-value":
           return {
@@ -498,7 +494,7 @@ function AddMappingDialog() {
             control: controlRef,
             threshold,
             direction: valueDirection(),
-            factor: parseNumber(factor(), 0.25),
+            factor: factor(),
           } as MidiMapping;
         default:
           return null;
@@ -523,7 +519,7 @@ function AddMappingDialog() {
           behavior: chosenBehavior,
           control: controlRef,
           invert: invert(),
-          amount: parseNumber(amount(), 1),
+          amount: amount(),
         } as MidiMapping;
       case "scale-value":
         return {
@@ -532,12 +528,19 @@ function AddMappingDialog() {
           behavior: chosenBehavior,
           control: controlRef,
           invert: invert(),
-          factor: parseNumber(factor(), 0.25),
+          factor: factor(),
         } as MidiMapping;
       default:
         return null;
     }
   });
+
+  const draftMappingDescription = () => {
+    const mapping = draftMapping();
+    return mapping
+      ? `${describeControl(mapping)}: ${describeBehavior(mapping)}`
+      : "";
+  };
 
   const activeItem = createMemo(() => {
     if (!capturedSource()) return 0;
@@ -554,12 +557,12 @@ function AddMappingDialog() {
       setBehavior(undefined);
       setSliceOption("active");
       setSelectedChoiceKey(undefined);
-      setThresholdPercent("50");
+      setThresholdPercent(50);
       setInvert(false);
       setItemDirection("next");
       setValueDirection("increase");
-      setAmount("1");
-      setFactor("0.25");
+      setAmount(1);
+      setFactor(0.25);
     }
   });
 
@@ -569,6 +572,12 @@ function AddMappingDialog() {
     const handleMessage = (event: MIDIMessageEvent) => {
       const source = eventToSource(event);
       if (!source) return;
+      const port = selectedPort();
+
+      if (port && source.port !== port) {
+        return;
+      }
+      source.port = port;
 
       const parsed = parseMidiMessage(event);
       const currentSource = capturedSource();
@@ -631,73 +640,94 @@ function AddMappingDialog() {
     setOpen(false);
   };
 
+  createEffect(() => console.log(capturedSource()));
+
   return (
     <Dialog open={open()} onOpenChange={setOpen}>
       <DialogTrigger as={Button}>New</DialogTrigger>
-      <DialogContent>
+      <DialogContent class="translate-y-0 flex flex-col top-1/12 max-h-10/12 overflow-hidden">
         <DialogHeader>
           <DialogTitle>Add Mapping</DialogTitle>
         </DialogHeader>
 
-        <Timeline
-          activeItem={activeItem()}
-          items={[
-            {
-              title: "Capture Control",
-              description: (
-                <Show
-                  when={capturedSource()}
-                  fallback={
-                    <div class="inline-flex items-center gap-2">
-                      <SvgSpinners180Ring />
-                      <span>Move or press a control...</span>
-                    </div>
-                  }
-                >
-                  {(source) => (
-                    <div class="flex justify-between">
-                      <div class="flex flex-col gap-2">
-                        <div>
-                          {inputs.get(source().port ?? "")?.name ??
-                            "Unknown device"}{" "}
-                          {sourceToString(source())}
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          class="w-fit"
-                          onClick={() => {
-                            setCapturedSource(null);
-                          }}
+        <div class="shrink overflow-auto">
+          <Timeline
+            activeItem={activeItem()}
+            items={[
+              {
+                title: "Capture Control",
+                description: (
+                  <div class="pt-2 flex gap-2 justify-between items-center">
+                    <Select<string | null>
+                      class="flex flex-col gap-2 grow"
+                      value={selectedPort()}
+                      onChange={setSelectedPort}
+                      options={inputs.keys().toArray()}
+                      placeholder="Any Device"
+                      itemComponent={(props) => (
+                        <SelectItem item={props.item}>
+                          {inputs.get(props.item.rawValue)?.name}
+                        </SelectItem>
+                      )}
+                    >
+                      <SelectLabel>Which device?</SelectLabel>
+                      <SelectTrigger>
+                        <SelectValue<InputType>>
+                          {(state) => inputs.get(state.selectedOption())?.name}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectDescription>
+                        <Show
+                          when={capturedSource()}
+                          fallback={<span>Listening for input...</span>}
                         >
-                          Capture Again
-                        </Button>
-                      </div>
-                      <div>
-                        <Show when={lastMessage()}>
-                          <MidiValueRing message={lastMessage()} />
+                          {(source) => (
+                            <span>
+                              Captured{" "}
+                              <span class="text-green-500">
+                                {sourceToString(source())}
+                              </span>
+                            </span>
+                          )}
                         </Show>
-                      </div>
+                      </SelectDescription>
+                      <SelectContent />
+                    </Select>
+                    <Button
+                      variant="outline"
+                      class="grow-0 shrink-0"
+                      size="icon"
+                      disabled={!capturedSource()}
+                      onClick={() => {
+                        setCapturedSource(null);
+                      }}
+                    >
+                      <Show
+                        when={capturedSource()}
+                        fallback={<SvgSpinners180Ring class="size-full" />}
+                      >
+                        <MdiRefresh class="size-full" />
+                      </Show>
+                    </Button>
+                    <div class="size-16">
+                      <Show when={lastMessage()}>
+                        <MidiValueRing
+                          message={lastMessage()}
+                          forceNote={inputType() === "button"}
+                        />
+                      </Show>
                     </div>
-                  )}
-                </Show>
-              ),
-            },
-            {
-              title: "Control Type",
-              description: (
-                <Show when={inputOptions().length > 0}>
-                  <Show
-                    when={inputOptions().length > 1}
-                    fallback={
-                      <div class="pt-2 text-sm">
-                        {inputType() ? INPUT_LABELS[inputType()!] : ""}
-                      </div>
-                    }
-                  >
-                    <div class="pt-2 flex">
+                  </div>
+                ),
+              },
+              {
+                title: "Control Type",
+                description: (
+                  <div class="pt-2 flex flex-col gap-4">
+                    <div>
                       <Select<InputType>
                         class="flex flex-col gap-2"
+                        disabled={inputOptions().length < 2}
                         value={inputType()}
                         onChange={setInputType}
                         options={inputOptions()}
@@ -718,128 +748,120 @@ function AddMappingDialog() {
                         <SelectContent />
                       </Select>
                     </div>
-                  </Show>
-                </Show>
-              ),
-            },
-            {
-              title: "Target Control",
-              description: (
-                <div class="pt-2 flex">
-                  <Select<ControlTarget>
-                    class="flex flex-col gap-2"
-                    value={target() ?? undefined}
-                    onChange={setTarget}
-                    options={validTargets()}
-                    placeholder="Select control..."
-                    itemComponent={(props) => (
-                      <SelectItem item={props.item}>
-                        {CONTROL_REGISTRY[props.item.rawValue].label}
-                      </SelectItem>
-                    )}
-                  >
-                    <SelectLabel>What should it control?</SelectLabel>
-                    <SelectTrigger>
-                      <SelectValue<ControlTarget>>
-                        {(state) =>
-                          CONTROL_REGISTRY[state.selectedOption()]?.label
-                        }
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent />
-                  </Select>
-                </div>
-              ),
-            },
-            {
-              title: "Behavior",
-              description: (
-                <Show when={control()}>
-                  {(definition) => (
-                    <div class="flex flex-col gap-4 pt-2">
-                      <Show when={controlNeedsSlice(definition().target)}>
-                        <Select<SliceOption>
-                          class="flex flex-col gap-2"
-                          value={sliceOption()}
-                          onChange={setSliceOption}
-                          options={[...SLICE_OPTIONS]}
-                          itemComponent={(props) => (
-                            <SelectItem item={props.item}>
-                              {props.item.rawValue === "active"
-                                ? "Active"
-                                : `Slice ${props.item.rawValue}`}
-                            </SelectItem>
-                          )}
-                        >
-                          <SelectLabel>Which slice?</SelectLabel>
-                          <SelectTrigger>
-                            <SelectValue<SliceOption>>
-                              {(state) =>
-                                state.selectedOption() === "active"
-                                  ? "Active"
-                                  : `Slice ${state.selectedOption()}`
-                              }
-                            </SelectValue>
-                          </SelectTrigger>
-                          <SelectContent />
-                        </Select>
-                      </Show>
 
-                      <Show
-                        when={currentBehaviorOptions().length > 1}
-                        fallback={
-                          <div class="flex flex-col gap-1">
-                            <div class="text-sm font-medium leading-none">
-                              What should it do?
-                            </div>
-                            <div class="text-sm">
-                              {currentBehaviorOptions()[0]?.label}
-                            </div>
-                          </div>
-                        }
+                    <Show when={inputType() === "button"}>
+                      <SimpleSlider
+                        class="w-fit"
+                        label="Activation Threshold"
+                        value={[thresholdPercent()]}
+                        onChange={setThresholdPercent}
+                        minValue={1}
+                        maxValue={100}
+                        getValueLabel={({ values: [value] }) => `${value}%`}
+                      />
+                    </Show>
+                  </div>
+                ),
+              },
+              {
+                title: "Target Control",
+                description: (
+                  <div class="pt-2 flex flex-col gap-4">
+                    <Select<ControlTarget>
+                      class="flex flex-col gap-2"
+                      value={target() ?? undefined}
+                      onChange={setTarget}
+                      options={validTargets()}
+                      placeholder="Select control..."
+                      itemComponent={(props) => (
+                        <SelectItem item={props.item}>
+                          {CONTROL_REGISTRY[props.item.rawValue].label}
+                        </SelectItem>
+                      )}
+                    >
+                      <SelectLabel>What should it control?</SelectLabel>
+                      <SelectTrigger>
+                        <SelectValue<ControlTarget>>
+                          {(state) =>
+                            CONTROL_REGISTRY[state.selectedOption()]?.label
+                          }
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent />
+                    </Select>
+                    <Show when={controlNeedsSlice(control()?.target)}>
+                      <Select<SliceOption>
+                        class="flex flex-col gap-2"
+                        value={sliceOption()}
+                        onChange={setSliceOption}
+                        options={[...SLICE_OPTIONS]}
+                        itemComponent={(props) => (
+                          <SelectItem item={props.item}>
+                            {props.item.rawValue === "active"
+                              ? "Active"
+                              : `Slice ${props.item.rawValue}`}
+                          </SelectItem>
+                        )}
                       >
-                        <Select<Behavior>
-                          class="flex flex-col gap-2"
-                          value={behavior()}
-                          onChange={setBehavior}
-                          options={currentBehaviorOptions().map(
-                            (option) => option.value,
-                          )}
-                          itemComponent={(props) => (
-                            <SelectItem item={props.item}>
-                              {
-                                currentBehaviorOptions().find(
-                                  (option) =>
-                                    option.value === props.item.rawValue,
-                                )?.label
-                              }
-                            </SelectItem>
-                          )}
-                        >
-                          <SelectLabel>What should it do?</SelectLabel>
-                          <SelectTrigger>
-                            <SelectValue<Behavior>>
-                              {(state) =>
-                                currentBehaviorOptions().find(
-                                  (option) =>
-                                    option.value === state.selectedOption(),
-                                )?.label
-                              }
-                            </SelectValue>
-                          </SelectTrigger>
-                          <SelectContent />
-                        </Select>
-                      </Show>
-
-                      <Show when={inputType() === "button"}>
-                        <TextField
-                          value={thresholdPercent()}
-                          onChange={setThresholdPercent}
-                        >
-                          <TextFieldLabel>Pressed At (%)</TextFieldLabel>
-                          <TextFieldInput type="number" />
-                        </TextField>
-                      </Show>
+                        <SelectLabel>
+                          Which{" "}
+                          {target()?.startsWith("panadapter")
+                            ? "slice's panadapter"
+                            : "slice"}
+                          ?
+                        </SelectLabel>
+                        <SelectTrigger>
+                          <SelectValue<SliceOption>>
+                            {(state) =>
+                              state.selectedOption() === "active"
+                                ? "Active"
+                                : `Slice ${state.selectedOption()}`
+                            }
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent />
+                      </Select>
+                    </Show>
+                  </div>
+                ),
+              },
+              {
+                title: "Behavior",
+                description: (
+                  <Show when={control()}>
+                    <div class="flex flex-col gap-4 pt-2">
+                      <Select<Behavior>
+                        class="flex flex-col gap-2"
+                        value={behavior()}
+                        onChange={setBehavior}
+                        disabled={currentBehaviorOptions().length <= 1}
+                        options={currentBehaviorOptions().map(
+                          (option) => option.value,
+                        )}
+                        itemComponent={(props) => (
+                          <SelectItem item={props.item}>
+                            {
+                              currentBehaviorOptions().find(
+                                (option) =>
+                                  option.value === props.item.rawValue,
+                              )?.label
+                            }
+                          </SelectItem>
+                        )}
+                      >
+                        <SelectLabel>What should it do?</SelectLabel>
+                        <SelectTrigger>
+                          <SelectValue<Behavior>>
+                            {(state) =>
+                              currentBehaviorOptions().find(
+                                (option) =>
+                                  option.value === state.selectedOption(),
+                              )?.label
+                            }
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent />
+                      </Select>
 
                       <Switch>
                         <Match
@@ -891,29 +913,19 @@ function AddMappingDialog() {
                             class="flex flex-col gap-2"
                             value={itemDirection()}
                             onChange={setItemDirection}
-                            options={ITEM_DIRECTIONS.map(
-                              (option) => option.value,
-                            )}
+                            options={["previous", "next"]}
                             itemComponent={(props) => (
-                              <SelectItem item={props.item}>
-                                {
-                                  ITEM_DIRECTIONS.find(
-                                    (option) =>
-                                      option.value === props.item.rawValue,
-                                  )?.label
-                                }
+                              <SelectItem item={props.item} class="capitalize">
+                                {props.item.rawValue}
                               </SelectItem>
                             )}
                           >
                             <SelectLabel>Direction</SelectLabel>
                             <SelectTrigger>
-                              <SelectValue<"next" | "previous">>
-                                {(state) =>
-                                  ITEM_DIRECTIONS.find(
-                                    (option) =>
-                                      option.value === state.selectedOption(),
-                                  )?.label
-                                }
+                              <SelectValue<
+                                "next" | "previous"
+                              > class="capitalize">
+                                {(state) => state.selectedOption()}
                               </SelectValue>
                             </SelectTrigger>
                             <SelectContent />
@@ -931,38 +943,44 @@ function AddMappingDialog() {
                               class="flex flex-col gap-2"
                               value={valueDirection()}
                               onChange={setValueDirection}
-                              options={VALUE_DIRECTIONS.map(
-                                (option) => option.value,
-                              )}
+                              options={["decrease", "increase"]}
                               itemComponent={(props) => (
-                                <SelectItem item={props.item}>
-                                  {
-                                    VALUE_DIRECTIONS.find(
-                                      (option) =>
-                                        option.value === props.item.rawValue,
-                                    )?.label
-                                  }
+                                <SelectItem
+                                  item={props.item}
+                                  class="capitalize"
+                                >
+                                  {props.item.rawValue}
                                 </SelectItem>
                               )}
                             >
                               <SelectLabel>Direction</SelectLabel>
                               <SelectTrigger>
-                                <SelectValue<"increase" | "decrease">>
-                                  {(state) =>
-                                    VALUE_DIRECTIONS.find(
-                                      (option) =>
-                                        option.value === state.selectedOption(),
-                                    )?.label
-                                  }
+                                <SelectValue<
+                                  "increase" | "decrease"
+                                > class="capitalize">
+                                  {(state) => state.selectedOption()}
                                 </SelectValue>
                               </SelectTrigger>
                               <SelectContent />
                             </Select>
 
-                            <TextField value={amount()} onChange={setAmount}>
-                              <TextFieldLabel>Amount</TextFieldLabel>
-                              <TextFieldInput type="number" />
-                            </TextField>
+                            <NumberField
+                              class="flex flex-col gap-2 select-none"
+                              rawValue={amount()}
+                              minValue={0.000001}
+                              onRawValueChange={setAmount}
+                              changeOnWheel={false}
+                              format={false}
+                            >
+                              <NumberFieldLabel class="select-none">
+                                Amount
+                              </NumberFieldLabel>
+                              <NumberFieldGroup class="select-none">
+                                <NumberFieldInput />
+                                <NumberFieldIncrementTrigger class="select-none" />
+                                <NumberFieldDecrementTrigger class="select-none" />
+                              </NumberFieldGroup>
+                            </NumberField>
                           </div>
                         </Match>
 
@@ -972,10 +990,23 @@ function AddMappingDialog() {
                             inputType() === "relative"
                           }
                         >
-                          <TextField value={amount()} onChange={setAmount}>
-                            <TextFieldLabel>Amount Per Step</TextFieldLabel>
-                            <TextFieldInput type="number" />
-                          </TextField>
+                          <NumberField
+                            class="flex flex-col gap-2 select-none"
+                            rawValue={amount()}
+                            minValue={0.000001}
+                            onRawValueChange={setAmount}
+                            changeOnWheel={false}
+                            format={false}
+                          >
+                            <NumberFieldLabel class="select-none">
+                              Amount Per Step
+                            </NumberFieldLabel>
+                            <NumberFieldGroup class="select-none">
+                              <NumberFieldInput />
+                              <NumberFieldIncrementTrigger class="select-none" />
+                              <NumberFieldDecrementTrigger class="select-none" />
+                            </NumberFieldGroup>
+                          </NumberField>
                         </Match>
 
                         <Match
@@ -984,44 +1015,45 @@ function AddMappingDialog() {
                             inputType() === "button"
                           }
                         >
-                          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                            <Select<"increase" | "decrease">
-                              class="flex flex-col gap-2"
-                              value={valueDirection()}
-                              onChange={setValueDirection}
-                              options={VALUE_DIRECTIONS.map(
-                                (option) => option.value,
-                              )}
-                              itemComponent={(props) => (
-                                <SelectItem item={props.item}>
-                                  {
-                                    VALUE_DIRECTIONS.find(
-                                      (option) =>
-                                        option.value === props.item.rawValue,
-                                    )?.label
-                                  }
-                                </SelectItem>
-                              )}
-                            >
-                              <SelectLabel>Direction</SelectLabel>
-                              <SelectTrigger>
-                                <SelectValue<"increase" | "decrease">>
-                                  {(state) =>
-                                    VALUE_DIRECTIONS.find(
-                                      (option) =>
-                                        option.value === state.selectedOption(),
-                                    )?.label
-                                  }
-                                </SelectValue>
-                              </SelectTrigger>
-                              <SelectContent />
-                            </Select>
+                          <Select<"increase" | "decrease">
+                            class="flex flex-col gap-2"
+                            value={valueDirection()}
+                            onChange={setValueDirection}
+                            options={["increase", "decrease"]}
+                            itemComponent={(props) => (
+                              <SelectItem item={props.item} class="capitalize">
+                                {props.item.rawValue === "increase"
+                                  ? "Multiply"
+                                  : "Divide"}
+                              </SelectItem>
+                            )}
+                          >
+                            <SelectLabel>Operation</SelectLabel>
+                            <SelectTrigger>
+                              <SelectValue<
+                                "increase" | "decrease"
+                              > class="capitalize">
+                                {(state) =>
+                                  state.selectedOption() === "increase"
+                                    ? "Multiply"
+                                    : "Divide"
+                                }
+                              </SelectValue>
+                            </SelectTrigger>
+                            <SelectContent />
+                          </Select>
 
-                            <TextField value={factor()} onChange={setFactor}>
-                              <TextFieldLabel>Factor</TextFieldLabel>
-                              <TextFieldInput type="number" />
-                            </TextField>
-                          </div>
+                          <SimpleSlider
+                            label="Factor"
+                            value={[factor()]}
+                            onChange={setFactor}
+                            minValue={0}
+                            maxValue={1}
+                            step={0.01}
+                            getValueLabel={({ values: [value] }) =>
+                              `${value * 100}%`
+                            }
+                          />
                         </Match>
 
                         <Match
@@ -1030,10 +1062,17 @@ function AddMappingDialog() {
                             inputType() === "relative"
                           }
                         >
-                          <TextField value={factor()} onChange={setFactor}>
-                            <TextFieldLabel>Factor</TextFieldLabel>
-                            <TextFieldInput type="number" />
-                          </TextField>
+                          <SimpleSlider
+                            label="Factor"
+                            value={[factor()]}
+                            onChange={setFactor}
+                            minValue={0}
+                            maxValue={1}
+                            step={0.01}
+                            getValueLabel={({ values: [value] }) =>
+                              `${value * 100}%`
+                            }
+                          />
                         </Match>
                       </Switch>
 
@@ -1050,7 +1089,7 @@ function AddMappingDialog() {
                         <SimpleSwitch
                           checked={invert()}
                           onChange={setInvert}
-                          label="Reverse Direction"
+                          label="Invert"
                         />
                       </Show>
 
@@ -1065,21 +1104,17 @@ function AddMappingDialog() {
                         </div>
                       </Show>
                     </div>
-                  )}
-                </Show>
-              ),
-            },
-          ]}
-        />
+                  </Show>
+                ),
+              },
+            ]}
+          />
+        </div>
 
-        <DialogFooter class="sm:justify-between items-center">
-          <Show when={draftMapping()}>
-            {(mapping) => (
-              <div class="text-xs text-muted-foreground">
-                {describeControl(mapping())}: {describeBehavior(mapping())}
-              </div>
-            )}
-          </Show>
+        <DialogFooter class="flex-row justify-between sm:justify-between items-center gap-4">
+          <div class="text-xs text-muted-foreground">
+            {draftMappingDescription()}
+          </div>
           <Button onClick={saveMapping} disabled={!draftMapping()}>
             Save
           </Button>
@@ -1144,10 +1179,10 @@ function MidiSettingsInner() {
           <Table class="w-full whitespace-nowrap">
             <TableHeader>
               <TableRow>
+                <TableHead>Device</TableHead>
                 <TableHead>MIDI</TableHead>
                 <TableHead>Control</TableHead>
                 <TableHead>Action</TableHead>
-                {/* <TableHead>Port</TableHead> */}
                 <TableHead class="min-w-0" />
               </TableRow>
             </TableHeader>
@@ -1155,14 +1190,14 @@ function MidiSettingsInner() {
               <For each={preferences.midiMappings}>
                 {(mapping, index) => (
                   <TableRow>
+                    <TableCell>
+                      {mapping.midi.port
+                        ? (inputs.get(mapping.midi.port)?.name ?? "Missing")
+                        : "Any device"}
+                    </TableCell>
                     <TableCell>{sourceToString(mapping.midi)}</TableCell>
                     <TableCell>{describeControl(mapping)}</TableCell>
                     <TableCell>{describeBehavior(mapping)}</TableCell>
-                    {/* <TableCell> */}
-                    {/*   {mapping.midi.port */}
-                    {/*     ? (inputs.get(mapping.midi.port)?.name ?? "Missing") */}
-                    {/*     : "Any device"} */}
-                    {/* </TableCell> */}
                     <TableCell>
                       <Button
                         variant="ghost"

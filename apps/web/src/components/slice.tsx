@@ -639,7 +639,7 @@ const SliceFilter = (props: {
 
   return (
     <Popover>
-      <PopoverTrigger class="text-blue-500 text-xs text-center font-mono grow textbox-trim-both textbox-edge-cap-alphabetic">
+      <PopoverTrigger class="w-12 text-blue-500 text-xs text-center font-mono grow textbox-trim-both textbox-edge-cap-alphabetic">
         {filterText()}
       </PopoverTrigger>
       <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 fancy-bg-popover">

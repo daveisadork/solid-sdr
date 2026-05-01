@@ -4,6 +4,7 @@ import {
   createContext,
   createMemo,
   ParentComponent,
+  Show,
   useContext,
 } from "solid-js";
 import { produce } from "solid-js/store";
@@ -11,6 +12,7 @@ import { MidiControl } from "~/components/midi-control";
 import { BANDS } from "~/components/panafall/settings";
 import useFlexRadio from "./flexradio";
 import { useRuntime } from "./runtime";
+import { usePreferences } from "./preferences";
 
 export type SliceSelector = "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H";
 export type SliceMode = string;
@@ -828,6 +830,7 @@ export function useControls() {
 export const ControlsProvider: ParentComponent = (props) => {
   const { radio, state } = useFlexRadio();
   const { runtime, setRuntime } = useRuntime();
+  const { preferences } = usePreferences();
 
   const sliceIdsBySelector = createMemo(() => {
     const map = new Map<SliceSelector, string>();
@@ -937,7 +940,9 @@ export const ControlsProvider: ParentComponent = (props) => {
   return (
     <ControlsContext.Provider value={{ dispatch, getChoices }}>
       {props.children}
-      <MidiControl />
+      <Show when={preferences.midiMappings.length}>
+        <MidiControl />
+      </Show>
     </ControlsContext.Provider>
   );
 };

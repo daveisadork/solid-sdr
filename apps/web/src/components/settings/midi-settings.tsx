@@ -697,6 +697,7 @@ function AddMappingDialog() {
                   >
                     <div class="pt-2 flex">
                       <Select<InputType>
+                        class="flex flex-col gap-2"
                         value={inputType()}
                         onChange={setInputType}
                         options={inputOptions()}
@@ -726,6 +727,7 @@ function AddMappingDialog() {
               description: (
                 <div class="pt-2 flex">
                   <Select<ControlTarget>
+                    class="flex flex-col gap-2"
                     value={target() ?? undefined}
                     onChange={setTarget}
                     options={validTargets()}
@@ -757,6 +759,7 @@ function AddMappingDialog() {
                     <div class="flex flex-col gap-4 pt-2">
                       <Show when={controlNeedsSlice(definition().target)}>
                         <Select<SliceOption>
+                          class="flex flex-col gap-2"
                           value={sliceOption()}
                           onChange={setSliceOption}
                           options={[...SLICE_OPTIONS]}
@@ -796,6 +799,7 @@ function AddMappingDialog() {
                         }
                       >
                         <Select<Behavior>
+                          class="flex flex-col gap-2"
                           value={behavior()}
                           onChange={setBehavior}
                           options={currentBehaviorOptions().map(
@@ -845,6 +849,7 @@ function AddMappingDialog() {
                           }
                         >
                           <Select<string>
+                            class="flex flex-col gap-2"
                             value={selectedChoiceKey()}
                             onChange={setSelectedChoiceKey}
                             options={choiceOptions().map(
@@ -883,6 +888,7 @@ function AddMappingDialog() {
                           }
                         >
                           <Select<"next" | "previous">
+                            class="flex flex-col gap-2"
                             value={itemDirection()}
                             onChange={setItemDirection}
                             options={ITEM_DIRECTIONS.map(
@@ -922,6 +928,7 @@ function AddMappingDialog() {
                         >
                           <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <Select<"increase" | "decrease">
+                              class="flex flex-col gap-2"
                               value={valueDirection()}
                               onChange={setValueDirection}
                               options={VALUE_DIRECTIONS.map(
@@ -979,6 +986,7 @@ function AddMappingDialog() {
                         >
                           <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <Select<"increase" | "decrease">
+                              class="flex flex-col gap-2"
                               value={valueDirection()}
                               onChange={setValueDirection}
                               options={VALUE_DIRECTIONS.map(

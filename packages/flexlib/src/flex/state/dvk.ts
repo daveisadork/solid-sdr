@@ -90,7 +90,7 @@ export function createDvkSnapshot(
           partial.recordings = Object.freeze(filtered);
         }
       } else {
-        const name = (attributes["name"] ?? "").replace(/^"|"$/g, "");
+        const name = attributes["name"] ?? "";
         const durationMs = parseInteger(attributes["duration"]) ?? 0;
         const existing = prevRecordings.findIndex((r) => r.id === recId);
         const recording: DvkRecording = Object.freeze({

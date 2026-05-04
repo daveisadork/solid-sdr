@@ -24,13 +24,13 @@ describe("DVK snapshot", () => {
     store.apply(makeStatus("S1|dvk status=idle enabled=1"));
 
     // when a recording is added
-    store.apply(makeStatus("S2|dvk added id=1 name=CQ duration=3500"));
+    store.apply(makeStatus('S2|dvk added id=1 name="CQ DX" duration=3500'));
 
     // then the recording appears in state
     const dvk = store.getDvk();
     expect(dvk?.recordings).toHaveLength(1);
     expect(dvk?.recordings[0].id).toBe("1");
-    expect(dvk?.recordings[0].name).toBe("CQ");
+    expect(dvk?.recordings[0].name).toBe("CQ DX");
     expect(dvk?.recordings[0].durationMs).toBe(3500);
   });
 

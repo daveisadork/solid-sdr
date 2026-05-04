@@ -75,4 +75,21 @@ describe("parseFlexMessage", () => {
       "Default^Default FHM-1^Default FHM-1 DX^",
     );
   });
+
+  it("parses quoted status values with embedded spaces", () => {
+    const raw =
+      'S10AF6D40|display_marker group=IARU3 id=58 label="All Modes" start_freq=29.100000 stop_freq=29.300000 color=gray opacity=30';
+    const message = parseFlexMessage(raw, Date.now());
+    expect(message).toBeDefined();
+    if (!message || message.kind !== "status")
+      throw new Error("expected status");
+    expect(message.source).toBe("display_marker");
+    expect(message.attributes["group"]).toBe("IARU3");
+    expect(message.attributes["id"]).toBe("58");
+    expect(message.attributes["label"]).toBe("All Modes");
+    expect(message.attributes["start_freq"]).toBe("29.100000");
+    expect(message.attributes["stop_freq"]).toBe("29.300000");
+    expect(message.attributes["color"]).toBe("gray");
+    expect(message.attributes["opacity"]).toBe("30");
+  });
 });

@@ -55,7 +55,7 @@ export function createDisplayMarkerSnapshot(
         // Identity is resolved before snapshot creation.
         break;
       case "label":
-        partial.label = value.replace(/\u007f/g, " ").replace(/^"|"$/g, "");
+        partial.label = value.replace(/\u007f/g, " ");
         break;
       case "start_freq": {
         const parsed = parseFloatSafe(value);

@@ -289,7 +289,7 @@ function parseAttributes(
           const equals = chunk.indexOf("=");
           if (equals === -1) continue;
           const keyPart = chunk.slice(0, equals);
-          const value = chunk.slice(equals + 1);
+          const value = normalizeStatusAttributeValue(chunk.slice(equals + 1));
           const dot = keyPart.indexOf(".");
           if (dot !== -1) {
             const prefix = keyPart.slice(0, dot);
@@ -321,7 +321,7 @@ function parseAttributes(
         const equals = chunk.indexOf("=");
         if (equals === -1) continue;
         const key = chunk.slice(0, equals);
-        const value = chunk.slice(equals + 1);
+        const value = normalizeStatusAttributeValue(chunk.slice(equals + 1));
         attributes[key] = value;
       }
     }
@@ -336,7 +336,7 @@ function parseAttributes(
       if (key) attributes[key] = "";
     } else {
       const key = segment.slice(0, equals).trim();
-      const value = segment.slice(equals + 1);
+      const value = normalizeStatusAttributeValue(segment.slice(equals + 1));
       if (key) attributes[key] = value;
     }
     return { attributes, identifier };
@@ -367,11 +367,30 @@ function parseSpaceSeparatedAttributes(
     const key = segment.slice(index, equals);
     index = equals + 1;
     let end = index;
-    while (end < length && segment[end] !== " ") end += 1;
-    const value = segment.slice(index, end);
+    let quoted = false;
+    while (end < length) {
+      const char = segment[end];
+      const prev = end > index ? segment[end - 1] : undefined;
+      if (char === '"' && prev !== "\\") {
+        quoted = !quoted;
+      } else if (char === " " && !quoted) {
+        break;
+      }
+      end += 1;
+    }
+    const value = normalizeStatusAttributeValue(segment.slice(index, end));
     attributes[key] = value;
     index = end + 1;
   }
+}
+
+const ESCAPED_STATUS_QUOTE = /\\(["\\])/g;
+
+function normalizeStatusAttributeValue(value: string): string {
+  if (value.startsWith('"') && value.endsWith('"') && value.length >= 2) {
+    return value.slice(1, -1).replace(ESCAPED_STATUS_QUOTE, "$1");
+  }
+  return value;
 }
 
 function parseMetadata(segment: string): Record<string, string> {

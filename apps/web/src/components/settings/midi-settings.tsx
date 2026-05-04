@@ -640,8 +640,6 @@ function AddMappingDialog() {
     setOpen(false);
   };
 
-  createEffect(() => console.log(capturedSource()));
-
   return (
     <Dialog open={open()} onOpenChange={setOpen}>
       <DialogTrigger as={Button}>New</DialogTrigger>

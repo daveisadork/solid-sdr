@@ -105,6 +105,13 @@ export function AppSettings() {
             label="Tuning Guide"
           />
           <SimpleSwitch
+            checked={preferences.showDisplayMarkers}
+            onChange={(isChecked) => {
+              setPreferences("showDisplayMarkers", isChecked);
+            }}
+            label="Display Markers (Band Plan)"
+          />
+          <SimpleSwitch
             checked={preferences.showFps}
             onChange={(isChecked) => {
               setPreferences("showFps", isChecked);

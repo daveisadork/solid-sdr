@@ -674,7 +674,7 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
   const sentinelBounds = createElementBounds(sentinel);
   const flagBounds = createElementBounds(flag);
   const { preferences } = usePreferences();
-  const { runtime, setRuntime } = useRuntime();
+  const { runtime } = useRuntime();
   const { dispatch } = useControls();
   const [compactLayout, setCompactLayout] = createSignal(false);
 
@@ -869,6 +869,25 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
     setState("status", "slice", props.slice.id, "isDetached", detached);
   });
 
+  createEffect(() => {
+    // we have to compute and set the tx offset since the radio doesn't do it for us.
+    const ctrl = sliceController();
+    if (!props.slice.mode.endsWith("FM")) {
+      ctrl.setTxOffsetFrequency(0);
+      return;
+    }
+    switch (props.slice.repeaterOffsetDirection) {
+      case "UP":
+        ctrl.setTxOffsetFrequency(Math.abs(props.slice.fmRepeaterOffsetMHz));
+        break;
+      case "DOWN":
+        ctrl.setTxOffsetFrequency(-Math.abs(props.slice.fmRepeaterOffsetMHz));
+        break;
+      default:
+        ctrl.setTxOffsetFrequency(0);
+    }
+  });
+
   return (
     <>
       <Show when={!props.slice.isDetached}>
@@ -937,6 +956,7 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
             <div
               class="absolute top-0 left-0 w-0 max-w-0 translate-y-(--panafall-top) translate-x-(--flag-offset) overflow-visible"
               classList={{
+                // "top-4": preferences.showDisplayMarkers,
                 "z-20": isActive(),
                 "z-10": !isActive(),
               }}
@@ -1339,7 +1359,7 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
                               }}
                               getValueLabel={(params) => `${params.values[0]}%`}
                               label="Squelch"
-                              switchChecked={props.slice.nrEnabled}
+                              switchChecked={props.slice.squelchEnabled}
                               onSwitchChange={(isChecked) => {
                                 sliceController().setSquelchEnabled(isChecked);
                               }}

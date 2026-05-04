@@ -1,11 +1,14 @@
 import {
   createContext,
   createEffect,
+  createSignal,
   ParentComponent,
   useContext,
 } from "solid-js";
 import { createStore, produce, SetStoreFunction } from "solid-js/store";
 import useFlexRadio from "./flexradio";
+import { usePreferences } from "./preferences";
+import { createPageVisibility } from "@solid-primitives/page-visibility";
 
 export interface SliceSplitState {
   parent: string | null;
@@ -30,9 +33,23 @@ export function useRuntime() {
 
 export const RuntimeProvider: ParentComponent = (props) => {
   const { state } = useFlexRadio();
+  const { preferences } = usePreferences();
   const [runtime, setRuntime] = createStore<RuntimeState>({
     fps: {},
     split: {},
+  });
+
+  const visible = createPageVisibility();
+
+  const [wakeLock, setWakeLock] = createSignal<WakeLockSentinel>();
+
+  createEffect(() => {
+    if (!(preferences.preventScreenSleep && state.clientHandle))
+      return wakeLock()?.release();
+    if (wakeLock()?.released !== false && visible()) {
+      console.debug("Requesting wake lock");
+      navigator.wakeLock?.request("screen").then(setWakeLock);
+    }
   });
 
   createEffect(() => {

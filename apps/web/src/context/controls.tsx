@@ -252,7 +252,18 @@ export const CONTROL_DEFINITIONS = [
 
       const value =
         action.op === "cycle"
-          ? cycleListValue(slice.tuneStepListHz, slice.tuneStepHz, action.delta)
+          ? cycleListValue(
+              slice.tuneStepListHz,
+              // the current value may not match one of the presets, so find the closest one in the direction of the cycle
+              action.delta > 0
+                ? (slice.tuneStepListHz.findLast(
+                    (step) => step <= slice.tuneStepHz,
+                  ) ?? slice.tuneStepListHz.at(0))
+                : (slice.tuneStepListHz.find(
+                    (step) => step >= slice.tuneStepHz,
+                  ) ?? slice.tuneStepListHz.at(-1)),
+              action.delta,
+            )
           : action.value;
 
       if (value === undefined) return;
@@ -308,7 +319,7 @@ export const CONTROL_DEFINITIONS = [
         case "LSB": {
           const value =
             action.op === "adjust"
-              ? slice.filterLowHz + action.delta
+              ? slice.filterLowHz - action.delta
               : Math.round(-100 * action.value) * 100;
           return slice.setFilterLow(Math.min(slice.filterHighHz, value));
         }

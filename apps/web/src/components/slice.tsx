@@ -29,9 +29,15 @@ import BaselineChevronLeft from "~icons/ic/baseline-chevron-left";
 import BaselineChevronRight from "~icons/ic/baseline-chevron-right";
 import BaselineVolumeUp from "~icons/ic/baseline-volume-up";
 import BaselineVolumeOff from "~icons/ic/baseline-volume-off";
-import BaselineDelete from "~icons/ic/baseline-delete";
 import SplitIcon from "~icons/material-symbols/split-scene-left-outline";
 import SwapIcon from "~icons/material-symbols/swap-horiz";
+import MdiUnlocked from "~icons/mdi/unlocked-outline";
+import MdiLock from "~icons/mdi/lock-outline";
+import MdiPlay from "~icons/mdi/play";
+import MdiRecord from "~icons/mdi/record";
+import MdiStop from "~icons/mdi/stop";
+import MdiClose from "~icons/mdi/close-circle-outline";
+import MdiSettings from "~icons/mdi/settings";
 import { Button } from "./ui/button";
 import { Portal } from "solid-js/web";
 import {
@@ -966,7 +972,7 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
               }}
             >
               <div
-                class="absolute top-0 pt-1 pb-4 px-1 z-20 overflow-visible pointer-events-none"
+                class="absolute top-0 pt-1 pb-4 px-1 z-20 overflow-visible pointer-events-none w-max"
                 classList={{
                   "left-px": flagSide() === "right",
                   "right-0": flagSide() === "left",
@@ -1015,453 +1021,375 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
                   }
                 >
                   <div
-                    class="border rounded-md overflow-hidden flex flex-col p-1.5 gap-1 pointer-events-auto text-sm font-mono drop-shadow-black fancy-bg-background"
-                    classList={{
-                      "drop-shadow-lg": isActive(),
-                      "drop-shadow-md": !isActive(),
-                    }}
+                    class="flex gap-0.5 pointer-events-auto"
+                    classList={{ "flex-row-reverse": flagSide() === "right" }}
                   >
-                    <div
-                      class="absolute top-0 left-0 right-0 bottom-0 pointer-events-none rounded-md"
-                      classList={{
-                        "bg-background/25": !isActive(),
-                      }}
-                    />
-                    <div class="flex justify-between items-center gap-1">
-                      <Select
-                        value={props.slice.rxAntenna}
-                        options={Array.from(props.slice.availableRxAntennas)}
-                        onChange={(v: string) => {
-                          if (!v || v === props.slice.rxAntenna) return;
-                          sliceController().setRxAntenna(v);
-                        }}
-                        itemComponent={(props) => (
-                          <SelectItem item={props.item}>
-                            {props.item.rawValue.replace("_", " ")}
-                          </SelectItem>
-                        )}
-                      >
-                        <SelectTriggerPrimitive
-                          aria-label="RX Antenna"
-                          class="flex items-center text-blue-500 font-medium"
-                        >
-                          <SelectValue<string> class="textbox-trim-both textbox-edge-cap-alphabetic">
-                            {(state) =>
-                              state.selectedOption().replace("_", "\xA0")
-                            }
-                          </SelectValue>
-                        </SelectTriggerPrimitive>
-                        <SelectContent />
-                      </Select>
-                      <Select
-                        value={props.slice.txAntenna}
-                        options={Array.from(props.slice.availableTxAntennas)}
-                        onChange={(v: string) => {
-                          if (!v || v === props.slice.txAntenna) return;
-                          sliceController().setTxAntenna(v);
-                        }}
-                        itemComponent={(props) => (
-                          <SelectItem item={props.item}>
-                            {props.item.rawValue.replace("_", " ")}
-                          </SelectItem>
-                        )}
-                      >
-                        <SelectTriggerPrimitive
-                          aria-label="TX Antenna"
-                          class="flex items-center text-red-500 font-medium"
-                        >
-                          <SelectValue<string> class="textbox-trim-both textbox-edge-cap-alphabetic">
-                            {(state) =>
-                              state.selectedOption()?.replace("_", " ") ??
-                              "????"
-                            }
-                          </SelectValue>
-                        </SelectTriggerPrimitive>
-                        <SelectContent />
-                      </Select>
-                      <SliceFilter
-                        slice={props.slice}
-                        controller={sliceController()}
-                      />
-                      <Show when={!splitParent()}>
-                        <ToggleButton
-                          disabled={splitDisabled()}
-                          class="flex justify-center items-center h-4.5 px-1 rounded-sm text-muted-foreground data-pressed:bg-red-500 data-pressed:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
-                          pressed={Boolean(splitChild())}
-                          onChange={(pressed) =>
-                            dispatch({
-                              target: "slice.split.enabled",
-                              slice: props.slice.indexLetter as SliceSelector,
-                              op: "set",
-                              value: pressed,
-                            })
-                          }
-                        >
-                          <SplitIcon />
-                        </ToggleButton>
-                      </Show>
-                      <Show when={splitParent()}>
-                        <ToggleButton
-                          class="flex justify-center items-center h-4.5 px-1 rounded-sm text-muted-foreground data-pressed:bg-red-500 data-pressed:text-foreground"
-                          pressed={Boolean(splitChild())}
-                          onChange={() =>
-                            dispatch({
-                              target: "slice.split.swap",
-                              slice: props.slice.indexLetter as SliceSelector,
-                            })
-                          }
-                        >
-                          <SwapIcon />
-                        </ToggleButton>
-                      </Show>
+                    <div class="flex flex-col justify-between items-center py-1.5 opacity-75">
                       <ToggleButton
-                        class="flex justify-center items-center h-4.5 font-extrabold px-1 rounded-sm text-muted-foreground data-pressed:bg-red-500 data-pressed:text-foreground"
-                        pressed={props.slice.isTransmitEnabled}
-                        onChange={(pressed) => {
-                          sliceController().enableTransmit(pressed);
-                        }}
+                        class="aspect-square"
+                        onChange={() => sliceController().close()}
                       >
-                        <span class="leading-tight textbox-trim-both textbox-edge-cap-alphabetic">
-                          TX
-                        </span>
+                        <MdiClose class="size-4" />
                       </ToggleButton>
                       <ToggleButton
-                        pressed={compactLayout()}
-                        onChange={setCompactLayout}
-                        class="flex items-center bg-blue-500 h-4.5 px-1 rounded-sm"
+                        class="aspect-square data-pressed:text-yellow-500"
+                        pressed={props.slice.isLocked}
+                        onChange={(pressed) =>
+                          sliceController().setLocked(pressed)
+                        }
                       >
-                        <span class="font-extrabold textbox-edge-cap-alphabetic textbox-trim-both">
-                          {props.slice.indexLetter}
-                        </span>
+                        <Show
+                          when={props.slice.isLocked}
+                          fallback={<MdiUnlocked class="size-4" />}
+                        >
+                          <MdiLock class="size-4" />
+                        </Show>
+                      </ToggleButton>
+                      <ToggleButton
+                        class="aspect-square data-pressed:text-red-500"
+                        pressed={props.slice.recordingEnabled}
+                        onChange={(pressed) =>
+                          sliceController().setRecordingEnabled(pressed)
+                        }
+                      >
+                        <Show
+                          when={props.slice.recordingEnabled}
+                          fallback={<MdiRecord class="size-4" />}
+                        >
+                          <MdiStop class="size-4" />
+                        </Show>
+                      </ToggleButton>
+                      <ToggleButton
+                        class="aspect-square not-disabled:text-green-500"
+                        pressed={props.slice.playbackEnabled}
+                        disabled={!props.slice.playbackAvailable}
+                        onChange={(pressed) =>
+                          sliceController().setPlaybackEnabled(pressed)
+                        }
+                      >
+                        <Show
+                          when={props.slice.playbackEnabled}
+                          fallback={<MdiPlay class="size-4" />}
+                        >
+                          <MdiStop class="size-4" />
+                        </Show>
                       </ToggleButton>
                     </div>
-                    <Show when={!props.slice.diversityChild}>
-                      <div class="flex justify-between items-center">
+                    <div
+                      class="border rounded-md overflow-hidden flex flex-col p-1.5 gap-1 pointer-events-auto text-sm font-mono drop-shadow-black fancy-bg-background"
+                      classList={{
+                        "drop-shadow-lg": isActive(),
+                        "drop-shadow-md": !isActive(),
+                      }}
+                    >
+                      <div
+                        class="absolute top-0 left-0 right-0 bottom-0 pointer-events-none rounded-md"
+                        classList={{
+                          "bg-background/25": !isActive(),
+                        }}
+                      />
+                      <div class="flex justify-between items-center gap-1">
+                        <Select
+                          value={props.slice.rxAntenna}
+                          options={Array.from(props.slice.availableRxAntennas)}
+                          onChange={(v: string) => {
+                            if (!v || v === props.slice.rxAntenna) return;
+                            sliceController().setRxAntenna(v);
+                          }}
+                          itemComponent={(props) => (
+                            <SelectItem item={props.item}>
+                              {props.item.rawValue.replace("_", " ")}
+                            </SelectItem>
+                          )}
+                        >
+                          <SelectTriggerPrimitive
+                            aria-label="RX Antenna"
+                            class="flex items-center text-blue-500 font-medium"
+                          >
+                            <SelectValue<string> class="textbox-trim-both textbox-edge-cap-alphabetic">
+                              {(state) =>
+                                state.selectedOption().replace("_", "\xA0")
+                              }
+                            </SelectValue>
+                          </SelectTriggerPrimitive>
+                          <SelectContent />
+                        </Select>
+                        <Select
+                          value={props.slice.txAntenna}
+                          options={Array.from(props.slice.availableTxAntennas)}
+                          onChange={(v: string) => {
+                            if (!v || v === props.slice.txAntenna) return;
+                            sliceController().setTxAntenna(v);
+                          }}
+                          itemComponent={(props) => (
+                            <SelectItem item={props.item}>
+                              {props.item.rawValue.replace("_", " ")}
+                            </SelectItem>
+                          )}
+                        >
+                          <SelectTriggerPrimitive
+                            aria-label="TX Antenna"
+                            class="flex items-center text-red-500 font-medium"
+                          >
+                            <SelectValue<string> class="textbox-trim-both textbox-edge-cap-alphabetic">
+                              {(state) =>
+                                state.selectedOption()?.replace("_", " ") ??
+                                "????"
+                              }
+                            </SelectValue>
+                          </SelectTriggerPrimitive>
+                          <SelectContent />
+                        </Select>
+                        <SliceFilter
+                          slice={props.slice}
+                          controller={sliceController()}
+                        />
+                        <Show when={!splitParent()}>
+                          <ToggleButton
+                            disabled={splitDisabled()}
+                            class="flex justify-center items-center h-4.5 px-1 rounded-sm text-muted-foreground data-pressed:bg-red-500 data-pressed:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
+                            pressed={Boolean(splitChild())}
+                            onChange={(pressed) =>
+                              dispatch({
+                                target: "slice.split.enabled",
+                                slice: props.slice.indexLetter as SliceSelector,
+                                op: "set",
+                                value: pressed,
+                              })
+                            }
+                          >
+                            <SplitIcon />
+                          </ToggleButton>
+                        </Show>
+                        <Show when={splitParent()}>
+                          <ToggleButton
+                            class="flex justify-center items-center h-4.5 px-1 rounded-sm text-muted-foreground data-pressed:bg-red-500 data-pressed:text-foreground"
+                            pressed={Boolean(splitChild())}
+                            onChange={() =>
+                              dispatch({
+                                target: "slice.split.swap",
+                                slice: props.slice.indexLetter as SliceSelector,
+                              })
+                            }
+                          >
+                            <SwapIcon />
+                          </ToggleButton>
+                        </Show>
+                        <ToggleButton
+                          class="flex justify-center items-center h-4.5 font-extrabold px-1 rounded-sm text-muted-foreground data-pressed:bg-red-500 data-pressed:text-foreground"
+                          pressed={props.slice.isTransmitEnabled}
+                          onChange={(pressed) => {
+                            sliceController().enableTransmit(pressed);
+                          }}
+                        >
+                          <span class="leading-tight textbox-trim-both textbox-edge-cap-alphabetic">
+                            TX
+                          </span>
+                        </ToggleButton>
+                        <ToggleButton
+                          pressed={compactLayout()}
+                          onChange={setCompactLayout}
+                          class="flex items-center bg-blue-500 h-4.5 px-1 rounded-sm"
+                        >
+                          <span class="font-extrabold textbox-edge-cap-alphabetic textbox-trim-both">
+                            {props.slice.indexLetter}
+                          </span>
+                        </ToggleButton>
+                      </div>
+                      <Show when={!props.slice.diversityChild}>
+                        <div class="flex justify-between items-center">
+                          <Popover>
+                            <PopoverTrigger
+                              class="textbox-trim-both textbox-edge-cap-alphabetic"
+                              disabled={props.slice.diversityChild}
+                            >
+                              {props.slice.mode.padEnd(4, "\xA0")}
+                            </PopoverTrigger>
+                            <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 fancy-bg-popover">
+                              <PopoverArrow />
+                              <div class="p-4 flex flex-col space-y-4 max-h-(--kb-popper-content-available-height) overflow-x-auto">
+                                <ToggleGroup
+                                  value={props.slice.mode}
+                                  onChange={(mode: string) => {
+                                    if (!mode || mode === props.slice.mode)
+                                      return;
+                                    sliceController().setMode(mode);
+                                  }}
+                                  class="grid grid-cols-4"
+                                >
+                                  <For each={props.slice.modeList}>
+                                    {(mode) => (
+                                      <ToggleGroupItem
+                                        variant="outline"
+                                        size="sm"
+                                        // class="data-pressed:bg-primary data-pressed:text-primary-foreground"
+                                        value={mode}
+                                      >
+                                        {mode}
+                                      </ToggleGroupItem>
+                                    )}
+                                  </For>
+                                </ToggleGroup>
+
+                                <Show when={props.slice.mode === "RTTY"}>
+                                  <Separator />
+                                  <div class="grid grid-cols-2 gap-2">
+                                    <NumberField
+                                      class="flex flex-col gap-2 select-none"
+                                      rawValue={rawMark()}
+                                      format={false}
+                                      minValue={0}
+                                      maxValue={10_000}
+                                      step={10}
+                                      onRawValueChange={setRawMark}
+                                      onFocusOut={() =>
+                                        sliceController().setRttyMark(rawMark())
+                                      }
+                                    >
+                                      <NumberFieldLabel class="select-none">
+                                        Mark Hz
+                                      </NumberFieldLabel>
+                                      <NumberFieldGroup class="select-none">
+                                        <NumberFieldInput />
+                                        <NumberFieldIncrementTrigger class="select-none" />
+                                        <NumberFieldDecrementTrigger class="select-none" />
+                                      </NumberFieldGroup>
+                                    </NumberField>
+                                    <NumberField
+                                      class="flex flex-col gap-2 select-none"
+                                      rawValue={rawShift()}
+                                      format={false}
+                                      minValue={0}
+                                      maxValue={10_000}
+                                      step={10}
+                                      onRawValueChange={setRawShift}
+                                      onFocusOut={() =>
+                                        sliceController().setRttyShift(
+                                          rawShift(),
+                                        )
+                                      }
+                                    >
+                                      <NumberFieldLabel class="select-none">
+                                        Shift Hz
+                                      </NumberFieldLabel>
+                                      <NumberFieldGroup class="select-none">
+                                        <NumberFieldInput />
+                                        <NumberFieldIncrementTrigger class="select-none" />
+                                        <NumberFieldDecrementTrigger class="select-none" />
+                                      </NumberFieldGroup>
+                                    </NumberField>
+                                  </div>
+                                </Show>
+                                <Separator />
+                                <FilterControls
+                                  slice={props.slice}
+                                  controller={sliceController()}
+                                />
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                          <FrequencyInput
+                            class="text-right bg-transparent text-lg/tight font-mono"
+                            size={14}
+                            valueHz={Math.round(props.slice.frequencyMHz * 1e6)}
+                            onCommit={tuneSlice}
+                          />
+                        </div>
+                      </Show>
+                      <LevelMeter
+                        meter={levelMeter()}
+                        compressionFactor={0.6}
+                        compressionThreshold={-73}
+                      />
+                      <div class="grid grid-cols-5  text-xs h-3.5 font-medium justify-evenly *:flex *:justify-center *:items-center *:h-full *:basis-0 *:grow *:shrink *:min-w-0">
                         <Popover>
                           <PopoverTrigger
-                            class="textbox-trim-both textbox-edge-cap-alphabetic"
-                            disabled={props.slice.diversityChild}
+                            onContextMenu={(e) => {
+                              e.preventDefault();
+                              sliceController().setMute(!props.slice.isMuted);
+                            }}
                           >
-                            {props.slice.mode.padEnd(4, "\xA0")}
+                            <Show
+                              when={props.slice.isMuted}
+                              fallback={<BaselineVolumeUp />}
+                            >
+                              <BaselineVolumeOff />
+                            </Show>
                           </PopoverTrigger>
                           <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 fancy-bg-popover">
                             <PopoverArrow />
                             <div class="p-4 flex flex-col space-y-4 max-h-(--kb-popper-content-available-height) overflow-x-auto">
-                              <ToggleGroup
-                                value={props.slice.mode}
-                                onChange={(mode: string) => {
-                                  if (!mode || mode === props.slice.mode)
-                                    return;
-                                  sliceController().setMode(mode);
+                              <SimpleSwitch
+                                checked={props.slice.isMuted}
+                                onChange={(isChecked) => {
+                                  sliceController().setMute(isChecked);
                                 }}
-                                class="grid grid-cols-4"
-                              >
-                                <For each={props.slice.modeList}>
-                                  {(mode) => (
-                                    <ToggleGroupItem
-                                      variant="outline"
-                                      size="sm"
-                                      // class="data-pressed:bg-primary data-pressed:text-primary-foreground"
-                                      value={mode}
-                                    >
-                                      {mode}
-                                    </ToggleGroupItem>
-                                  )}
-                                </For>
-                              </ToggleGroup>
-
-                              <Show when={props.slice.mode === "RTTY"}>
-                                <Separator />
-                                <div class="grid grid-cols-2 gap-2">
-                                  <NumberField
-                                    class="flex flex-col gap-2 select-none"
-                                    rawValue={rawMark()}
-                                    format={false}
-                                    minValue={0}
-                                    maxValue={10_000}
-                                    step={10}
-                                    onRawValueChange={setRawMark}
-                                    onFocusOut={() =>
-                                      sliceController().setRttyMark(rawMark())
-                                    }
-                                  >
-                                    <NumberFieldLabel class="select-none">
-                                      Mark Hz
-                                    </NumberFieldLabel>
-                                    <NumberFieldGroup class="select-none">
-                                      <NumberFieldInput />
-                                      <NumberFieldIncrementTrigger class="select-none" />
-                                      <NumberFieldDecrementTrigger class="select-none" />
-                                    </NumberFieldGroup>
-                                  </NumberField>
-                                  <NumberField
-                                    class="flex flex-col gap-2 select-none"
-                                    rawValue={rawShift()}
-                                    format={false}
-                                    minValue={0}
-                                    maxValue={10_000}
-                                    step={10}
-                                    onRawValueChange={setRawShift}
-                                    onFocusOut={() =>
-                                      sliceController().setRttyShift(rawShift())
-                                    }
-                                  >
-                                    <NumberFieldLabel class="select-none">
-                                      Shift Hz
-                                    </NumberFieldLabel>
-                                    <NumberFieldGroup class="select-none">
-                                      <NumberFieldInput />
-                                      <NumberFieldIncrementTrigger class="select-none" />
-                                      <NumberFieldDecrementTrigger class="select-none" />
-                                    </NumberFieldGroup>
-                                  </NumberField>
-                                </div>
-                              </Show>
-                              <Separator />
-                              <FilterControls
-                                slice={props.slice}
-                                controller={sliceController()}
+                                label="Audio Mute"
                               />
-                            </div>
-                          </PopoverContent>
-                        </Popover>
-                        <FrequencyInput
-                          class="text-right bg-transparent text-lg/tight font-mono"
-                          size={14}
-                          valueHz={Math.round(props.slice.frequencyMHz * 1e6)}
-                          onCommit={tuneSlice}
-                        />
-                      </div>
-                    </Show>
-                    <LevelMeter
-                      meter={levelMeter()}
-                      compressionFactor={0.6}
-                      compressionThreshold={-73}
-                    />
-                    <div class="flex items-center text-xs h-3.5 font-medium justify-evenly *:flex *:justify-center *:items-center *:h-full *:basis-0 *:grow *:shrink *:min-w-0">
-                      <Popover>
-                        <PopoverTrigger
-                          onContextMenu={(e) => {
-                            e.preventDefault();
-                            sliceController().setMute(!props.slice.isMuted);
-                          }}
-                        >
-                          <Show
-                            when={props.slice.isMuted}
-                            fallback={<BaselineVolumeUp />}
-                          >
-                            <BaselineVolumeOff />
-                          </Show>
-                        </PopoverTrigger>
-                        <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 fancy-bg-popover">
-                          <PopoverArrow />
-                          <div class="p-4 flex flex-col space-y-4 max-h-(--kb-popper-content-available-height) overflow-x-auto">
-                            <SimpleSwitch
-                              checked={props.slice.isMuted}
-                              onChange={(isChecked) => {
-                                sliceController().setMute(isChecked);
-                              }}
-                              label="Audio Mute"
-                            />
-                            <SimpleSlider
-                              minValue={0}
-                              maxValue={100}
-                              value={[props.slice.audioGain]}
-                              onChange={([value]) => {
-                                sliceController().setAudioGain(value);
-                              }}
-                              getValueLabel={(params) => `${params.values[0]}%`}
-                              label="Audio Level"
-                            />
-                            <Slider
-                              minValue={0}
-                              maxValue={100}
-                              value={[props.slice.audioPan]}
-                              onChange={([value]) => {
-                                sliceController().setAudioPan(value);
-                              }}
-                              getValueLabel={(params) => {
-                                const value = params.values[0] - 50;
-                                if (value === 0) return "Center";
-                                return value < 0 ? `L${-value}` : `R${value}`;
-                              }}
-                              class="space-y-3"
-                            >
-                              <div class="flex w-full justify-between">
-                                <SliderLabel>Audio Pan</SliderLabel>
-                                <SliderValueLabel />
-                              </div>
-                              <SliderTrack>
-                                <SliderFill
-                                  style={{
-                                    right:
-                                      props.slice.audioPan > 50
-                                        ? `${100 - props.slice.audioPan}%`
-                                        : "50%",
-                                    left:
-                                      props.slice.audioPan <= 50
-                                        ? `${props.slice.audioPan}%`
-                                        : "50%",
-                                  }}
-                                />
-                                <SliderThumb />
-                              </SliderTrack>
-                            </Slider>
-                            <SegmentedControl
-                              value={props.slice.agcMode}
-                              onChange={(value) => {
-                                sliceController().setAgcMode(value);
-                              }}
-                            >
-                              <SegmentedControlLabel>
-                                AGC Mode
-                              </SegmentedControlLabel>
-                              <SegmentedControlGroup>
-                                <SegmentedControlIndicator />
-                                <SegmentedControlItemsList>
-                                  <For
-                                    each={[
-                                      { label: "Off", value: "off" },
-                                      { label: "Slow", value: "slow" },
-                                      { label: "Med", value: "med" },
-                                      { label: "Fast", value: "fast" },
-                                    ]}
-                                  >
-                                    {({ label, value }) => (
-                                      <SegmentedControlItem value={value}>
-                                        <SegmentedControlItemLabel>
-                                          {label}
-                                        </SegmentedControlItemLabel>
-                                      </SegmentedControlItem>
-                                    )}
-                                  </For>
-                                </SegmentedControlItemsList>
-                              </SegmentedControlGroup>
-                            </SegmentedControl>
-                            <SimpleSlider
-                              disabled={props.slice.agcMode === "off"}
-                              minValue={0}
-                              maxValue={100}
-                              value={[props.slice.agcThreshold]}
-                              onChange={([threshold]) => {
-                                sliceController().setAgcSettings({ threshold });
-                              }}
-                              getValueLabel={(params) => `${params.values[0]}%`}
-                              label="AGC Threshold"
-                            />
-                            <SliderToggle
-                              disabled={!props.slice.squelchEnabled}
-                              minValue={0}
-                              maxValue={100}
-                              value={[props.slice.squelchLevel]}
-                              onChange={([value]) => {
-                                sliceController().setSquelchLevel(value);
-                              }}
-                              getValueLabel={(params) => `${params.values[0]}%`}
-                              label="Squelch"
-                              switchChecked={props.slice.squelchEnabled}
-                              onSwitchChange={(isChecked) => {
-                                sliceController().setSquelchEnabled(isChecked);
-                              }}
-                            />
-                            <SimpleSwitch
-                              checked={props.slice.diversityEnabled}
-                              disabled={props.slice.diversityChild}
-                              onChange={(isChecked) => {
-                                sliceController().setDiversityEnabled(
-                                  isChecked,
-                                );
-                              }}
-                              label="Diversity Reception"
-                            />
-                            <Show when={props.slice.diversityParent}>
-                              <Show
-                                when={
-                                  state.status.featureLicense?.features?.DIV_ESC
-                                    ?.enabled
+                              <SimpleSlider
+                                minValue={0}
+                                maxValue={100}
+                                value={[props.slice.audioGain]}
+                                onChange={([value]) => {
+                                  sliceController().setAudioGain(value);
+                                }}
+                                getValueLabel={(params) =>
+                                  `${params.values[0]}%`
                                 }
+                                label="Audio Level"
+                              />
+                              <Slider
+                                minValue={0}
+                                maxValue={100}
+                                value={[props.slice.audioPan]}
+                                onChange={([value]) => {
+                                  sliceController().setAudioPan(value);
+                                }}
+                                getValueLabel={(params) => {
+                                  const value = params.values[0] - 50;
+                                  if (value === 0) return "Center";
+                                  return value < 0 ? `L${-value}` : `R${value}`;
+                                }}
+                                class="space-y-3"
                               >
-                                <SimpleSwitch
-                                  checked={props.slice.escEnabled}
-                                  disabled={props.slice.diversityChild}
-                                  onChange={(isChecked) => {
-                                    sliceController().setEscEnabled(isChecked);
-                                  }}
-                                  label="Enhanced Signal Clarity (ESC)"
-                                />
-                                <SimpleSlider
-                                  disabled={!props.slice.escEnabled}
-                                  value={[props.slice.escGain]}
-                                  minValue={0.01}
-                                  maxValue={2.0}
-                                  step={0.01}
-                                  onChange={([value]) => {
-                                    if (value === props.slice.escGain) return;
-                                    sliceController()
-                                      .setEscGain(value)
-                                      .catch(console.log);
-                                  }}
-                                  getValueLabel={(params) =>
-                                    `${params.values[0]}`
-                                  }
-                                  label="ESC Gain"
-                                />
-                                <SimpleSlider
-                                  disabled={!props.slice.escEnabled}
-                                  minValue={0}
-                                  maxValue={360}
-                                  value={[
-                                    Math.round(
-                                      radToDeg(props.slice.escPhaseShift),
-                                    ),
-                                  ]}
-                                  onChange={([value]) => {
-                                    const rad = degToRad(value);
-                                    if (rad === props.slice.escPhaseShift)
-                                      return;
-                                    sliceController()
-                                      .setEscPhaseShift(rad)
-                                      .catch(console.log);
-                                  }}
-                                  getValueLabel={(params) =>
-                                    `${params.values[0]}°`
-                                  }
-                                  label="ESC Phase Shift"
-                                />
-                              </Show>
-                            </Show>
-                          </div>
-                        </PopoverContent>
-                      </Popover>
-                      <Show when={props.slice.mode.endsWith("FM")}>
-                        <Popover>
-                          <PopoverTrigger>
-                            <span class="textbox-trim-both textbox-edge-cap-alphabetic">
-                              OPT
-                            </span>
-                          </PopoverTrigger>
-                          <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 fancy-bg-popover">
-                            <PopoverArrow />
-                            <div class="elative p-4 flex flex-col space-y-4 max-h-(--kb-popper-content-available-height) overflow-x-auto">
+                                <div class="flex w-full justify-between">
+                                  <SliderLabel>Audio Pan</SliderLabel>
+                                  <SliderValueLabel />
+                                </div>
+                                <SliderTrack>
+                                  <SliderFill
+                                    style={{
+                                      right:
+                                        props.slice.audioPan > 50
+                                          ? `${100 - props.slice.audioPan}%`
+                                          : "50%",
+                                      left:
+                                        props.slice.audioPan <= 50
+                                          ? `${props.slice.audioPan}%`
+                                          : "50%",
+                                    }}
+                                  />
+                                  <SliderThumb />
+                                </SliderTrack>
+                              </Slider>
                               <SegmentedControl
-                                value={props.slice.fmToneMode}
+                                value={props.slice.agcMode}
                                 onChange={(value) => {
-                                  sliceController().setFmToneMode(value);
+                                  sliceController().setAgcMode(value);
                                 }}
                               >
                                 <SegmentedControlLabel>
-                                  Tone Mode
+                                  AGC Mode
                                 </SegmentedControlLabel>
                                 <SegmentedControlGroup>
                                   <SegmentedControlIndicator />
                                   <SegmentedControlItemsList>
                                     <For
                                       each={[
-                                        { label: "Off", value: "OFF" },
-                                        {
-                                          label: "CTCSS TX",
-                                          value: "CTCSS_TX",
-                                        },
+                                        { label: "Off", value: "off" },
+                                        { label: "Slow", value: "slow" },
+                                        { label: "Med", value: "med" },
+                                        { label: "Fast", value: "fast" },
                                       ]}
                                     >
                                       {({ label, value }) => (
@@ -1475,357 +1403,569 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
                                   </SegmentedControlItemsList>
                                 </SegmentedControlGroup>
                               </SegmentedControl>
-                              <Select
-                                class="flex flex-col gap-2 select-none"
-                                value={props.slice.fmToneValue}
-                                options={toneValues.map((v) => v.hz)}
-                                onChange={(v: string) => {
-                                  if (!v || v === props.slice.fmToneValue)
-                                    return;
-                                  sliceController().setFmToneValue(v);
+                              <SimpleSlider
+                                disabled={props.slice.agcMode === "off"}
+                                minValue={0}
+                                maxValue={100}
+                                value={[props.slice.agcThreshold]}
+                                onChange={([threshold]) => {
+                                  sliceController().setAgcSettings({
+                                    threshold,
+                                  });
                                 }}
-                                itemComponent={(props) => (
-                                  <SelectItem
-                                    item={props.item}
-                                    class="font-mono"
-                                  >
-                                    {toneValues
-                                      .find((v) => v.hz === props.item.rawValue)
-                                      ?.name.replace(" ", "\xA0") || "None"}
-                                  </SelectItem>
-                                )}
-                              >
-                                <SelectLabel>Tone Value</SelectLabel>
-                                <SelectTrigger aria-label="FM Tone Value">
-                                  <SelectValue<string> class="font-mono">
-                                    {(state) =>
-                                      toneValues.find(
-                                        (v) => v.hz === state.selectedOption(),
-                                      )?.name
-                                    }
-                                  </SelectValue>
-                                </SelectTrigger>
-                                <SelectContent />
-                              </Select>
-                              <SegmentedControl
-                                value={props.slice.repeaterOffsetDirection}
-                                onChange={(value) => {
-                                  sliceController().setRepeaterOffsetDirection(
-                                    value,
-                                  );
-                                }}
-                              >
-                                <SegmentedControlLabel>
-                                  Offset Direction
-                                </SegmentedControlLabel>
-                                <SegmentedControlGroup>
-                                  <SegmentedControlIndicator />
-                                  <SegmentedControlItemsList>
-                                    <For each={["DOWN", "SIMPLEX", "UP"]}>
-                                      {(value) => (
-                                        <SegmentedControlItem value={value}>
-                                          <SegmentedControlItemLabel class="capitalize">
-                                            {value.toLowerCase()}
-                                          </SegmentedControlItemLabel>
-                                        </SegmentedControlItem>
-                                      )}
-                                    </For>
-                                  </SegmentedControlItemsList>
-                                </SegmentedControlGroup>
-                              </SegmentedControl>
-                              <NumberField
-                                class="flex flex-col gap-2 select-none"
-                                rawValue={rawRepeaterOffset()}
-                                format={false}
-                                onRawValueChange={setRawRepeaterOffset}
-                                onFocusOut={() => {
-                                  if (
-                                    rawRepeaterOffset() ===
-                                    props.slice.fmRepeaterOffsetMHz
-                                  )
-                                    return;
-                                  sliceController().setFmRepeaterOffsetFrequency(
-                                    rawRepeaterOffset(),
-                                  );
-                                }}
-                              >
-                                <NumberFieldLabel class="select-none">
-                                  Offset MHz
-                                </NumberFieldLabel>
-                                <NumberFieldGroup class="select-none">
-                                  <NumberFieldInput />
-                                  <NumberFieldIncrementTrigger class="select-none" />
-                                  <NumberFieldDecrementTrigger class="select-none" />
-                                </NumberFieldGroup>
-                              </NumberField>
-                              <SimpleSwitch
-                                checked={tuneToOffset()}
-                                onChange={(checked) => {
-                                  const offset =
-                                    props.slice.repeaterOffsetDirection === "UP"
-                                      ? props.slice.fmRepeaterOffsetMHz
-                                      : props.slice.repeaterOffsetDirection ===
-                                          "DOWN"
-                                        ? -props.slice.fmRepeaterOffsetMHz
-                                        : 0;
-                                  const freq = checked
-                                    ? props.slice.frequencyMHz + offset
-                                    : props.slice.frequencyMHz - offset;
-                                  sliceController().setFrequency(freq);
-                                  setTuneToOffset(checked);
-                                }}
-                                label="Reverse (Tune to Offset Freq)"
+                                getValueLabel={(params) =>
+                                  `${params.values[0]}%`
+                                }
+                                label="AGC Threshold"
                               />
+                              <SliderToggle
+                                disabled={!props.slice.squelchEnabled}
+                                minValue={0}
+                                maxValue={100}
+                                value={[props.slice.squelchLevel]}
+                                onChange={([value]) => {
+                                  sliceController().setSquelchLevel(value);
+                                }}
+                                getValueLabel={(params) =>
+                                  `${params.values[0]}%`
+                                }
+                                label="Squelch"
+                                switchChecked={props.slice.squelchEnabled}
+                                onSwitchChange={(isChecked) => {
+                                  sliceController().setSquelchEnabled(
+                                    isChecked,
+                                  );
+                                }}
+                              />
+                              <SimpleSwitch
+                                checked={props.slice.diversityEnabled}
+                                disabled={props.slice.diversityChild}
+                                onChange={(isChecked) => {
+                                  sliceController().setDiversityEnabled(
+                                    isChecked,
+                                  );
+                                }}
+                                label="Diversity Reception"
+                              />
+                              <Show when={props.slice.diversityParent}>
+                                <Show
+                                  when={
+                                    state.status.featureLicense?.features
+                                      ?.DIV_ESC?.enabled
+                                  }
+                                >
+                                  <SimpleSwitch
+                                    checked={props.slice.escEnabled}
+                                    disabled={props.slice.diversityChild}
+                                    onChange={(isChecked) => {
+                                      sliceController().setEscEnabled(
+                                        isChecked,
+                                      );
+                                    }}
+                                    label="Enhanced Signal Clarity (ESC)"
+                                  />
+                                  <SimpleSlider
+                                    disabled={!props.slice.escEnabled}
+                                    value={[props.slice.escGain]}
+                                    minValue={0.01}
+                                    maxValue={2.0}
+                                    step={0.01}
+                                    onChange={([value]) => {
+                                      if (value === props.slice.escGain) return;
+                                      sliceController()
+                                        .setEscGain(value)
+                                        .catch(console.log);
+                                    }}
+                                    getValueLabel={(params) =>
+                                      `${params.values[0]}`
+                                    }
+                                    label="ESC Gain"
+                                  />
+                                  <SimpleSlider
+                                    disabled={!props.slice.escEnabled}
+                                    minValue={0}
+                                    maxValue={360}
+                                    value={[
+                                      Math.round(
+                                        radToDeg(props.slice.escPhaseShift),
+                                      ),
+                                    ]}
+                                    onChange={([value]) => {
+                                      const rad = degToRad(value);
+                                      if (rad === props.slice.escPhaseShift)
+                                        return;
+                                      sliceController()
+                                        .setEscPhaseShift(rad)
+                                        .catch(console.log);
+                                    }}
+                                    getValueLabel={(params) =>
+                                      `${params.values[0]}°`
+                                    }
+                                    label="ESC Phase Shift"
+                                  />
+                                </Show>
+                              </Show>
                             </div>
                           </PopoverContent>
                         </Popover>
-                      </Show>
-                      <Show when={!props.slice.mode.endsWith("FM")}>
+                        <Show when={props.slice.mode.endsWith("FM")}>
+                          <Popover>
+                            <PopoverTrigger>
+                              <span class="textbox-trim-both textbox-edge-cap-alphabetic">
+                                OPT
+                              </span>
+                            </PopoverTrigger>
+                            <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 fancy-bg-popover">
+                              <PopoverArrow />
+                              <div class="elative p-4 flex flex-col space-y-4 max-h-(--kb-popper-content-available-height) overflow-x-auto">
+                                <SegmentedControl
+                                  value={props.slice.fmToneMode}
+                                  onChange={(value) => {
+                                    sliceController().setFmToneMode(value);
+                                  }}
+                                >
+                                  <SegmentedControlLabel>
+                                    Tone Mode
+                                  </SegmentedControlLabel>
+                                  <SegmentedControlGroup>
+                                    <SegmentedControlIndicator />
+                                    <SegmentedControlItemsList>
+                                      <For
+                                        each={[
+                                          { label: "Off", value: "OFF" },
+                                          {
+                                            label: "CTCSS TX",
+                                            value: "CTCSS_TX",
+                                          },
+                                        ]}
+                                      >
+                                        {({ label, value }) => (
+                                          <SegmentedControlItem value={value}>
+                                            <SegmentedControlItemLabel>
+                                              {label}
+                                            </SegmentedControlItemLabel>
+                                          </SegmentedControlItem>
+                                        )}
+                                      </For>
+                                    </SegmentedControlItemsList>
+                                  </SegmentedControlGroup>
+                                </SegmentedControl>
+                                <Select
+                                  class="flex flex-col gap-2 select-none"
+                                  value={props.slice.fmToneValue}
+                                  options={toneValues.map((v) => v.hz)}
+                                  onChange={(v: string) => {
+                                    if (!v || v === props.slice.fmToneValue)
+                                      return;
+                                    sliceController().setFmToneValue(v);
+                                  }}
+                                  itemComponent={(props) => (
+                                    <SelectItem
+                                      item={props.item}
+                                      class="font-mono"
+                                    >
+                                      {toneValues
+                                        .find(
+                                          (v) => v.hz === props.item.rawValue,
+                                        )
+                                        ?.name.replace(" ", "\xA0") || "None"}
+                                    </SelectItem>
+                                  )}
+                                >
+                                  <SelectLabel>Tone Value</SelectLabel>
+                                  <SelectTrigger aria-label="FM Tone Value">
+                                    <SelectValue<string> class="font-mono">
+                                      {(state) =>
+                                        toneValues.find(
+                                          (v) =>
+                                            v.hz === state.selectedOption(),
+                                        )?.name
+                                      }
+                                    </SelectValue>
+                                  </SelectTrigger>
+                                  <SelectContent />
+                                </Select>
+                                <SegmentedControl
+                                  value={props.slice.repeaterOffsetDirection}
+                                  onChange={(value) => {
+                                    sliceController().setRepeaterOffsetDirection(
+                                      value,
+                                    );
+                                  }}
+                                >
+                                  <SegmentedControlLabel>
+                                    Offset Direction
+                                  </SegmentedControlLabel>
+                                  <SegmentedControlGroup>
+                                    <SegmentedControlIndicator />
+                                    <SegmentedControlItemsList>
+                                      <For each={["DOWN", "SIMPLEX", "UP"]}>
+                                        {(value) => (
+                                          <SegmentedControlItem value={value}>
+                                            <SegmentedControlItemLabel class="capitalize">
+                                              {value.toLowerCase()}
+                                            </SegmentedControlItemLabel>
+                                          </SegmentedControlItem>
+                                        )}
+                                      </For>
+                                    </SegmentedControlItemsList>
+                                  </SegmentedControlGroup>
+                                </SegmentedControl>
+                                <NumberField
+                                  class="flex flex-col gap-2 select-none"
+                                  rawValue={rawRepeaterOffset()}
+                                  format={false}
+                                  onRawValueChange={setRawRepeaterOffset}
+                                  onFocusOut={() => {
+                                    if (
+                                      rawRepeaterOffset() ===
+                                      props.slice.fmRepeaterOffsetMHz
+                                    )
+                                      return;
+                                    sliceController().setFmRepeaterOffsetFrequency(
+                                      rawRepeaterOffset(),
+                                    );
+                                  }}
+                                >
+                                  <NumberFieldLabel class="select-none">
+                                    Offset MHz
+                                  </NumberFieldLabel>
+                                  <NumberFieldGroup class="select-none">
+                                    <NumberFieldInput />
+                                    <NumberFieldIncrementTrigger class="select-none" />
+                                    <NumberFieldDecrementTrigger class="select-none" />
+                                  </NumberFieldGroup>
+                                </NumberField>
+                                <SimpleSwitch
+                                  checked={tuneToOffset()}
+                                  onChange={(checked) => {
+                                    const offset =
+                                      props.slice.repeaterOffsetDirection ===
+                                      "UP"
+                                        ? props.slice.fmRepeaterOffsetMHz
+                                        : props.slice
+                                              .repeaterOffsetDirection ===
+                                            "DOWN"
+                                          ? -props.slice.fmRepeaterOffsetMHz
+                                          : 0;
+                                    const freq = checked
+                                      ? props.slice.frequencyMHz + offset
+                                      : props.slice.frequencyMHz - offset;
+                                    sliceController().setFrequency(freq);
+                                    setTuneToOffset(checked);
+                                  }}
+                                  label="Reverse (Tune to Offset Freq)"
+                                />
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                        </Show>
+                        <Show when={!props.slice.mode.endsWith("FM")}>
+                          <Popover>
+                            <PopoverTrigger>
+                              <span class="textbox-trim-both textbox-edge-cap-alphabetic">
+                                DSP
+                              </span>
+                            </PopoverTrigger>
+                            <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 fancy-bg-popover">
+                              <PopoverArrow />
+                              <div class="elative p-4 flex flex-col space-y-4 max-h-(--kb-popper-content-available-height) overflow-x-auto">
+                                <SliderToggle
+                                  disabled={!props.slice.wnbEnabled}
+                                  minValue={0}
+                                  maxValue={100}
+                                  value={[props.slice.wnbLevel]}
+                                  onChange={([value]) => {
+                                    sliceController().setWnbLevel(value);
+                                  }}
+                                  getValueLabel={(params) =>
+                                    `${params.values[0]}%`
+                                  }
+                                  label="Wideband Noise Blanker (WNB)"
+                                  switchChecked={props.slice.wnbEnabled}
+                                  onSwitchChange={(isChecked) => {
+                                    sliceController().setWnbEnabled(isChecked);
+                                  }}
+                                />
+                                <SliderToggle
+                                  disabled={!props.slice.nbEnabled}
+                                  minValue={0}
+                                  maxValue={100}
+                                  value={[props.slice.nbLevel]}
+                                  onChange={([value]) => {
+                                    sliceController().setNbLevel(value);
+                                  }}
+                                  getValueLabel={(params) =>
+                                    `${params.values[0]}%`
+                                  }
+                                  label="Noise Blanker (NB)"
+                                  switchChecked={props.slice.nbEnabled}
+                                  onSwitchChange={(isChecked) => {
+                                    sliceController().setNbEnabled(isChecked);
+                                  }}
+                                />
+                                <SliderToggle
+                                  disabled={!props.slice.nrEnabled}
+                                  minValue={0}
+                                  maxValue={99}
+                                  value={[props.slice.nrLevel]}
+                                  onChange={([value]) => {
+                                    sliceController().setNrLevel(value);
+                                  }}
+                                  getValueLabel={(params) =>
+                                    `${params.values[0]}%`
+                                  }
+                                  label="Noise Reduction (NR)"
+                                  switchChecked={props.slice.nrEnabled}
+                                  onSwitchChange={(isChecked) => {
+                                    sliceController().setNrEnabled(isChecked);
+                                  }}
+                                />
+                                <SimpleSwitch
+                                  checked={props.slice.nrsEnabled}
+                                  onChange={(isChecked) => {
+                                    sliceController().setNrsEnabled(isChecked);
+                                  }}
+                                  label="Spectral Subtraction (NRS)"
+                                />
+                                <SimpleSwitch
+                                  checked={props.slice.nrfEnabled}
+                                  onChange={(isChecked) => {
+                                    sliceController().setNrfEnabled(isChecked);
+                                  }}
+                                  label="Noise Reduction Filter (NRF)"
+                                />
+                                <Show when={props.slice.mode !== "CW"}>
+                                  <SimpleSwitch
+                                    checked={props.slice.rnnEnabled}
+                                    onChange={(isChecked) => {
+                                      sliceController().setRnnEnabled(
+                                        isChecked,
+                                      );
+                                    }}
+                                    label="AI Noise Reduction (RNN)"
+                                  />
+                                  <SliderToggle
+                                    disabled={!props.slice.anfEnabled}
+                                    minValue={0}
+                                    maxValue={99}
+                                    value={[props.slice.anfLevel]}
+                                    onChange={([value]) => {
+                                      sliceController().setAnfLevel(value);
+                                    }}
+                                    getValueLabel={(params) =>
+                                      `${params.values[0]}%`
+                                    }
+                                    label="Automatic Notch Filter (ANF)"
+                                    switchChecked={props.slice.anfEnabled}
+                                    onSwitchChange={(isChecked) => {
+                                      sliceController().setAnfEnabled(
+                                        isChecked,
+                                      );
+                                    }}
+                                  />
+                                  <SimpleSwitch
+                                    checked={props.slice.anftEnabled}
+                                    onChange={(isChecked) => {
+                                      sliceController().setAnftEnabled(
+                                        isChecked,
+                                      );
+                                    }}
+                                    label=" FFT Auto Notch Filter (ANFT)"
+                                  />
+                                </Show>
+                                <Show when={props.slice.mode === "CW"}>
+                                  <SliderToggle
+                                    disabled={!props.slice.apfEnabled}
+                                    minValue={0}
+                                    maxValue={100}
+                                    value={[props.slice.apfLevel]}
+                                    onChange={([value]) => {
+                                      sliceController().setApfLevel(value);
+                                    }}
+                                    getValueLabel={(params) =>
+                                      `${params.values[0]}%`
+                                    }
+                                    label="Automatic Peaking Filter (APF)"
+                                    switchChecked={props.slice.apfEnabled}
+                                    onSwitchChange={(isChecked) => {
+                                      sliceController().setApfEnabled(
+                                        isChecked,
+                                      );
+                                    }}
+                                  />
+                                </Show>
+                                <SliderToggle
+                                  disabled={!props.slice.nrlEnabled}
+                                  minValue={0}
+                                  maxValue={100}
+                                  value={[props.slice.nrlLevel]}
+                                  onChange={([value]) => {
+                                    sliceController().setNrlLevel(value);
+                                  }}
+                                  getValueLabel={(params) =>
+                                    `${params.values[0]}%`
+                                  }
+                                  label="Legacy Noise Reduction (NRL)"
+                                  switchChecked={props.slice.nrlEnabled}
+                                  onSwitchChange={(isChecked) => {
+                                    sliceController().setNrlEnabled(isChecked);
+                                  }}
+                                />
+                                <Show when={props.slice.mode !== "CW"}>
+                                  <SliderToggle
+                                    disabled={!props.slice.anflEnabled}
+                                    minValue={0}
+                                    maxValue={100}
+                                    value={[props.slice.anflLevel]}
+                                    onChange={([value]) => {
+                                      sliceController().setAnflLevel(value);
+                                    }}
+                                    getValueLabel={(params) =>
+                                      `${params.values[0]}%`
+                                    }
+                                    label="Legacy Auto Notch Filter (ANFL)"
+                                    switchChecked={props.slice.anflEnabled}
+                                    onSwitchChange={(isChecked) => {
+                                      sliceController().setAnflEnabled(
+                                        isChecked,
+                                      );
+                                    }}
+                                  />
+                                </Show>
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                        </Show>
                         <Popover>
                           <PopoverTrigger>
                             <span class="textbox-trim-both textbox-edge-cap-alphabetic">
-                              DSP
+                              RIT
                             </span>
                           </PopoverTrigger>
                           <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 fancy-bg-popover">
                             <PopoverArrow />
-                            <div class="elative p-4 flex flex-col space-y-4 max-h-(--kb-popper-content-available-height) overflow-x-auto">
+                            <div class="relative p-4 flex flex-col space-y-4 max-h-(--kb-popper-content-available-height) overflow-x-auto">
                               <SliderToggle
-                                disabled={!props.slice.wnbEnabled}
-                                minValue={0}
+                                disabled={!props.slice.ritEnabled}
+                                minValue={-100}
                                 maxValue={100}
-                                value={[props.slice.wnbLevel]}
+                                value={[props.slice.ritOffsetHz]}
                                 onChange={([value]) => {
-                                  sliceController().setWnbLevel(value);
+                                  if (value === props.slice.ritOffsetHz) return;
+                                  sliceController().setRitOffset(value);
                                 }}
                                 getValueLabel={(params) =>
-                                  `${params.values[0]}%`
+                                  `${params.values[0]} Hz`
                                 }
-                                label="Wideband Noise Blanker (WNB)"
-                                switchChecked={props.slice.wnbEnabled}
+                                label="RX Offset (RIT)"
+                                switchChecked={props.slice.ritEnabled}
                                 onSwitchChange={(isChecked) => {
-                                  sliceController().setWnbEnabled(isChecked);
+                                  sliceController().setRitEnabled(isChecked);
                                 }}
                               />
                               <SliderToggle
-                                disabled={!props.slice.nbEnabled}
-                                minValue={0}
+                                disabled={!props.slice.xitEnabled}
+                                minValue={-100}
                                 maxValue={100}
-                                value={[props.slice.nbLevel]}
+                                value={[props.slice.xitOffsetHz]}
                                 onChange={([value]) => {
-                                  sliceController().setNbLevel(value);
+                                  if (value === props.slice.xitOffsetHz) return;
+                                  sliceController().setXitOffset(value);
                                 }}
                                 getValueLabel={(params) =>
-                                  `${params.values[0]}%`
+                                  `${params.values[0]} Hz`
                                 }
-                                label="Noise Blanker (NB)"
-                                switchChecked={props.slice.nbEnabled}
+                                label="TX Offset (XIT)"
+                                switchChecked={props.slice.xitEnabled}
                                 onSwitchChange={(isChecked) => {
-                                  sliceController().setNbEnabled(isChecked);
+                                  sliceController().setXitEnabled(isChecked);
                                 }}
                               />
-                              <SliderToggle
-                                disabled={!props.slice.nrEnabled}
-                                minValue={0}
-                                maxValue={99}
-                                value={[props.slice.nrLevel]}
-                                onChange={([value]) => {
-                                  sliceController().setNrLevel(value);
-                                }}
-                                getValueLabel={(params) =>
-                                  `${params.values[0]}%`
-                                }
-                                label="Noise Reduction (NR)"
-                                switchChecked={props.slice.nrEnabled}
-                                onSwitchChange={(isChecked) => {
-                                  sliceController().setNrEnabled(isChecked);
-                                }}
-                              />
-                              <SimpleSwitch
-                                checked={props.slice.nrsEnabled}
-                                onChange={(isChecked) => {
-                                  sliceController().setNrsEnabled(isChecked);
-                                }}
-                                label="Spectral Subtraction (NRS)"
-                              />
-                              <SimpleSwitch
-                                checked={props.slice.nrfEnabled}
-                                onChange={(isChecked) => {
-                                  sliceController().setNrfEnabled(isChecked);
-                                }}
-                                label="Noise Reduction Filter (NRF)"
-                              />
-                              <Show when={props.slice.mode !== "CW"}>
-                                <SimpleSwitch
-                                  checked={props.slice.rnnEnabled}
-                                  onChange={(isChecked) => {
-                                    sliceController().setRnnEnabled(isChecked);
-                                  }}
-                                  label="AI Noise Reduction (RNN)"
-                                />
-                                <SliderToggle
-                                  disabled={!props.slice.anfEnabled}
-                                  minValue={0}
-                                  maxValue={99}
-                                  value={[props.slice.anfLevel]}
-                                  onChange={([value]) => {
-                                    sliceController().setAnfLevel(value);
-                                  }}
-                                  getValueLabel={(params) =>
-                                    `${params.values[0]}%`
-                                  }
-                                  label="Automatic Notch Filter (ANF)"
-                                  switchChecked={props.slice.anfEnabled}
-                                  onSwitchChange={(isChecked) => {
-                                    sliceController().setAnfEnabled(isChecked);
-                                  }}
-                                />
-                                <SimpleSwitch
-                                  checked={props.slice.anftEnabled}
-                                  onChange={(isChecked) => {
-                                    sliceController().setAnftEnabled(isChecked);
-                                  }}
-                                  label=" FFT Auto Notch Filter (ANFT)"
-                                />
-                              </Show>
-                              <Show when={props.slice.mode === "CW"}>
-                                <SliderToggle
-                                  disabled={!props.slice.apfEnabled}
-                                  minValue={0}
-                                  maxValue={100}
-                                  value={[props.slice.apfLevel]}
-                                  onChange={([value]) => {
-                                    sliceController().setApfLevel(value);
-                                  }}
-                                  getValueLabel={(params) =>
-                                    `${params.values[0]}%`
-                                  }
-                                  label="Automatic Peaking Filter (APF)"
-                                  switchChecked={props.slice.apfEnabled}
-                                  onSwitchChange={(isChecked) => {
-                                    sliceController().setApfEnabled(isChecked);
-                                  }}
-                                />
-                              </Show>
-                              <SliderToggle
-                                disabled={!props.slice.nrlEnabled}
-                                minValue={0}
-                                maxValue={100}
-                                value={[props.slice.nrlLevel]}
-                                onChange={([value]) => {
-                                  sliceController().setNrlLevel(value);
-                                }}
-                                getValueLabel={(params) =>
-                                  `${params.values[0]}%`
-                                }
-                                label="Legacy Noise Reduction (NRL)"
-                                switchChecked={props.slice.nrlEnabled}
-                                onSwitchChange={(isChecked) => {
-                                  sliceController().setNrlEnabled(isChecked);
-                                }}
-                              />
-                              <Show when={props.slice.mode !== "CW"}>
-                                <SliderToggle
-                                  disabled={!props.slice.anflEnabled}
-                                  minValue={0}
-                                  maxValue={100}
-                                  value={[props.slice.anflLevel]}
-                                  onChange={([value]) => {
-                                    sliceController().setAnflLevel(value);
-                                  }}
-                                  getValueLabel={(params) =>
-                                    `${params.values[0]}%`
-                                  }
-                                  label="Legacy Auto Notch Filter (ANFL)"
-                                  switchChecked={props.slice.anflEnabled}
-                                  onSwitchChange={(isChecked) => {
-                                    sliceController().setAnflEnabled(isChecked);
-                                  }}
-                                />
-                              </Show>
                             </div>
                           </PopoverContent>
                         </Popover>
-                      </Show>
-                      <Popover>
-                        <PopoverTrigger>
-                          <span class="textbox-trim-both textbox-edge-cap-alphabetic">
-                            RIT
-                          </span>
-                        </PopoverTrigger>
-                        <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 fancy-bg-popover">
-                          <PopoverArrow />
-                          <div class="relative p-4 flex flex-col space-y-4 max-h-(--kb-popper-content-available-height) overflow-x-auto">
-                            <SliderToggle
-                              disabled={!props.slice.ritEnabled}
-                              minValue={-100}
-                              maxValue={100}
-                              value={[props.slice.ritOffsetHz]}
-                              onChange={([value]) => {
-                                if (value === props.slice.ritOffsetHz) return;
-                                sliceController().setRitOffset(value);
-                              }}
-                              getValueLabel={(params) =>
-                                `${params.values[0]} Hz`
-                              }
-                              label="RX Offset (RIT)"
-                              switchChecked={props.slice.ritEnabled}
-                              onSwitchChange={(isChecked) => {
-                                sliceController().setRitEnabled(isChecked);
-                              }}
-                            />
-                            <SliderToggle
-                              disabled={!props.slice.xitEnabled}
-                              minValue={-100}
-                              maxValue={100}
-                              value={[props.slice.xitOffsetHz]}
-                              onChange={([value]) => {
-                                if (value === props.slice.xitOffsetHz) return;
-                                sliceController().setXitOffset(value);
-                              }}
-                              getValueLabel={(params) =>
-                                `${params.values[0]} Hz`
-                              }
-                              label="TX Offset (XIT)"
-                              switchChecked={props.slice.xitEnabled}
-                              onSwitchChange={(isChecked) => {
-                                sliceController().setXitEnabled(isChecked);
-                              }}
-                            />
-                          </div>
-                        </PopoverContent>
-                      </Popover>
-                      <Select
-                        value={props.slice.daxChannel}
-                        options={Array.from(
-                          { length: state.status.radio.sliceCount + 1 },
-                          (_, i) => i,
-                        )}
-                        onChange={(v: number) => {
-                          if (v === props.slice.daxChannel) return;
-                          sliceController().setDaxChannel(v);
-                        }}
-                        itemComponent={(props) => (
-                          <SelectItem item={props.item}>
-                            {props.item.rawValue || "None"}
-                          </SelectItem>
-                        )}
-                      >
-                        <SelectTriggerPrimitive
-                          aria-label="DAX Channel"
-                          class="h-auto p-0 textbox-trim-both textbox-edge-cap-alphabetic"
+                        <Select
+                          value={props.slice.daxChannel}
+                          options={Array.from(
+                            { length: state.status.radio.sliceCount + 1 },
+                            (_, i) => i,
+                          )}
+                          onChange={(v: number) => {
+                            if (v === props.slice.daxChannel) return;
+                            sliceController().setDaxChannel(v);
+                          }}
+                          itemComponent={(props) => (
+                            <SelectItem item={props.item}>
+                              {props.item.rawValue || "None"}
+                            </SelectItem>
+                          )}
                         >
-                          DAX
-                        </SelectTriggerPrimitive>
-                        <SelectContent />
-                      </Select>
-                      <div
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          sliceController().close();
-                        }}
-                      >
-                        <BaselineDelete />
+                          <SelectTriggerPrimitive
+                            aria-label="DAX Channel"
+                            class="h-auto p-0 textbox-trim-both textbox-edge-cap-alphabetic"
+                          >
+                            DAX
+                          </SelectTriggerPrimitive>
+                          <SelectContent />
+                        </Select>
+                        <Popover>
+                          <PopoverTrigger>
+                            <MdiSettings />
+                          </PopoverTrigger>
+                          <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 fancy-bg-popover">
+                            <PopoverArrow />
+                            <div class="relative p-4 flex flex-col space-y-4 max-h-(--kb-popper-content-available-height) overflow-x-auto">
+                              <NumberField
+                                class="flex flex-col gap-2 select-none"
+                                rawValue={props.slice.tuneStepHz}
+                                format={false}
+                                minValue={1}
+                                maxValue={1_000_000}
+                                onRawValueChange={(v) =>
+                                  sliceController().setTuneStep(v)
+                                }
+                              >
+                                <NumberFieldLabel class="select-none">
+                                  Tune Step Hz
+                                </NumberFieldLabel>
+                                <div class="flex gap-2">
+                                  <Button
+                                    size="icon"
+                                    variant="outline"
+                                    onClick={() => {
+                                      const ctrl = sliceController();
+                                      ctrl.setTuneStep(
+                                        ctrl.tuneStepListHz.findLast(
+                                          (v) => v < ctrl.tuneStepHz,
+                                        ) ?? ctrl.tuneStepListHz.at(0),
+                                      );
+                                    }}
+                                  >
+                                    <BaselineChevronLeft />
+                                  </Button>
+                                  <NumberFieldGroup class="select-none">
+                                    <NumberFieldInput />
+                                  </NumberFieldGroup>
+                                  <Button
+                                    size="icon"
+                                    variant="outline"
+                                    onClick={() => {
+                                      const ctrl = sliceController();
+                                      ctrl.setTuneStep(
+                                        ctrl.tuneStepListHz.find(
+                                          (v) => v > ctrl.tuneStepHz,
+                                        ) ?? ctrl.tuneStepListHz.at(-1),
+                                      );
+                                    }}
+                                  >
+                                    <BaselineChevronRight />
+                                  </Button>
+                                </div>
+                              </NumberField>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
                       </div>
                     </div>
                   </div>

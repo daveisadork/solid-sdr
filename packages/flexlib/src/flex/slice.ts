@@ -735,6 +735,7 @@ export class SliceControllerImpl implements SliceController {
   }
 
   async setFrequency(frequencyMHz: number, autoPan = true): Promise<void> {
+    if (this.current().isLocked) return;
     const formattedFrequency = formatMegahertz(frequencyMHz);
     const change = this.radio.getStore().patchSlice(this.id, {
       freq: formattedFrequency,

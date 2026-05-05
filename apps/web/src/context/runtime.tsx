@@ -44,10 +44,10 @@ export const RuntimeProvider: ParentComponent = (props) => {
   const [wakeLock, setWakeLock] = createSignal<WakeLockSentinel>();
 
   createEffect(() => {
+    const isVisible = visible();
     if (!(preferences.preventScreenSleep && state.clientHandle))
       return wakeLock()?.release();
-    if (wakeLock()?.released !== false && visible()) {
-      console.debug("Requesting wake lock");
+    if (wakeLock()?.released !== false && isVisible) {
       navigator.wakeLock?.request("screen").then(setWakeLock);
     }
   });

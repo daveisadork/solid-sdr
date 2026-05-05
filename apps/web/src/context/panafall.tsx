@@ -94,7 +94,6 @@ export const PanafallProvider: ParentComponent<{ streamId?: string }> = (
     createSignal<HTMLElement>();
   const [panadapterControlsRef, setPanadapterControlsRef] =
     createSignal<HTMLElement>();
-  const [wakeLock, setWakeLock] = createSignal<WakeLockSentinel>();
   const panafallBounds = createElementBounds(panafallControlsRef);
   const panadapter = createMemo(
     () => state.status.panadapter[props.streamId ?? state.selectedPanadapter],
@@ -164,14 +163,6 @@ export const PanafallProvider: ParentComponent<{ streamId?: string }> = (
       : panafallBounds.left;
     return pan.width / 2 + mhzToPx(offsetMHz) + offsetPx;
   };
-
-  createEffect(() => {
-    if (!(preferences.preventScreenSleep && state.clientHandle))
-      return wakeLock()?.release();
-    if (wakeLock()?.released !== false) {
-      navigator.wakeLock?.request("screen").then(setWakeLock);
-    }
-  });
 
   return (
     <Show

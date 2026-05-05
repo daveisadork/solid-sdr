@@ -14,6 +14,7 @@ export type PeakStyle = "none" | "points" | "line";
 export type FillStyle = "none" | "solid" | "gradient";
 export type GradientStyle = "color" | "classic";
 export type PanadapterSettingsStyle = "sidebar" | "floating";
+export type SliceTxMeter = "power" | "swr";
 
 export interface Gradient {
   name: string;
@@ -51,6 +52,7 @@ export interface Preferences {
   peakStyle: PeakStyle;
   fillStyle: FillStyle;
   gradientStyle: GradientStyle;
+  sliceTxMeter: SliceTxMeter;
   meterStyle: "instant" | "smooth" | "ballistic";
   theme: ConfigColorMode;
   panBackgroundColor: string;
@@ -115,6 +117,7 @@ const getDefaults = (): Preferences => ({
   fillStyle: "solid",
   gradientStyle: "color",
   meterStyle: "smooth",
+  sliceTxMeter: "power",
   theme: "dark",
   panBackgroundColor: "#02517e",
   showFps: false,

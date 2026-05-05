@@ -11,9 +11,11 @@ import {
   createMemo,
   createSignal,
   For,
+  Match,
   onCleanup,
   Show,
   splitProps,
+  Switch,
 } from "solid-js";
 import {
   Popover,
@@ -70,7 +72,13 @@ import {
   SegmentedControlItemsList,
   SegmentedControlLabel,
 } from "./ui/segmented-control";
-import { cn, degToRad, radToDeg, roundToDevicePixels } from "~/lib/utils";
+import {
+  cn,
+  dbmToWatts,
+  degToRad,
+  radToDeg,
+  roundToDevicePixels,
+} from "~/lib/utils";
 import { FrequencyInput } from "./frequency-input";
 import { SliderToggle } from "./ui/slider-toggle";
 import { SimpleSwitch } from "./ui/simple-switch";
@@ -88,9 +96,11 @@ import { LevelMeter } from "./level-meter";
 import { SliceController } from "@repo/flexlib";
 import { usePanafall } from "~/context/panafall";
 import { Separator } from "./ui/separator";
-import { usePreferences } from "~/context/preferences";
+import { SliceTxMeter, usePreferences } from "~/context/preferences";
 import { useRuntime } from "~/context/runtime";
 import { SliceSelector, useControls } from "~/context/controls";
+import { SimpleMeter } from "./ui/simple-meter";
+import { TxMeter } from "./ui/tx-meter";
 
 const FILTER_MAX_HZ = 12_000;
 const FILTER_MIN_HZ = -FILTER_MAX_HZ;
@@ -679,7 +689,7 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
   const windowSize = createWindowSize();
   const sentinelBounds = createElementBounds(sentinel);
   const flagBounds = createElementBounds(flag);
-  const { preferences } = usePreferences();
+  const { preferences, setPreferences } = usePreferences();
   const { runtime } = useRuntime();
   const { dispatch } = useControls();
   const [compactLayout, setCompactLayout] = createSignal(false);
@@ -1296,11 +1306,31 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
                           />
                         </div>
                       </Show>
-                      <LevelMeter
-                        meter={levelMeter()}
-                        compressionFactor={0.6}
-                        compressionThreshold={-73}
-                      />
+                      <div
+                        classList={{
+                          hidden:
+                            props.slice.isTransmitEnabled &&
+                            state.status.radio.interlockTxClientHandle ===
+                              state.clientHandleInt,
+                        }}
+                      >
+                        <LevelMeter
+                          meter={levelMeter()}
+                          compressionFactor={0.6}
+                          compressionThreshold={-73}
+                        />
+                      </div>
+                      <Show when={props.slice.isTransmitEnabled}>
+                        <div
+                          classList={{
+                            hidden:
+                              state.status.radio.interlockTxClientHandle !==
+                              state.clientHandleInt,
+                          }}
+                        >
+                          <TxMeter />
+                        </div>
+                      </Show>
                       <div class="grid grid-cols-5  text-xs h-3.5 font-medium justify-evenly *:flex *:justify-center *:items-center *:h-full *:basis-0 *:grow *:shrink *:min-w-0">
                         <Popover>
                           <PopoverTrigger
@@ -1963,6 +1993,39 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
                                   </Button>
                                 </div>
                               </NumberField>
+
+                              <Select
+                                class="flex flex-col gap-2 select-none"
+                                value={preferences.sliceTxMeter}
+                                onChange={(value: SliceTxMeter) => {
+                                  if (!value) return;
+                                  if (value !== preferences.sliceTxMeter) {
+                                    setPreferences("sliceTxMeter", value);
+                                  }
+                                }}
+                                options={["power", "swr"]}
+                                itemComponent={(props) => (
+                                  <SelectItem item={props.item}>
+                                    {
+                                      { power: "Power", swr: "SWR" }[
+                                        props.item.rawValue
+                                      ]
+                                    }
+                                  </SelectItem>
+                                )}
+                              >
+                                <SelectLabel>TX Meter</SelectLabel>
+                                <SelectTrigger>
+                                  <SelectValue<string>>
+                                    {(state) =>
+                                      ({ power: "Power", swr: "SWR" })[
+                                        state.selectedOption()
+                                      ]
+                                    }
+                                  </SelectValue>
+                                </SelectTrigger>
+                                <SelectContent />
+                              </Select>
                             </div>
                           </PopoverContent>
                         </Popover>

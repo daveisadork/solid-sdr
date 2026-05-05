@@ -31,7 +31,7 @@ function AppInner() {
       >
         <Panafalls />
         <RightSidebar />
-        <SidebarTrigger class="z-50 absolute right-4 top-4 select-none aspect-square fancy-bg-background size-10 not-pointer-coarse:size-5 pointer-coarse:border">
+        <SidebarTrigger class="z-50 absolute right-4 top-4 select-none aspect-square fancy-bg-background size-10 not-pointer-coarse:size-5 pointer-coarse:border pointer-coarse:right-2 pointer-coarse:top-2">
           <BaselineViewSidebar />
         </SidebarTrigger>
       </SidebarProvider>

@@ -303,15 +303,24 @@ function TxSection() {
             label="ATU Memory"
             // tooltip="Enable memories for the ATU."
           />
-          <SimpleSwitch
-            checked={state.status.apd.enabled}
-            disabled={!state.status.apd.configurable}
-            onChange={(isChecked) => {
-              radio()?.apd().setEnabled(isChecked);
-            }}
-            label={`APD ${state.status.apd.enabled && !state.status.apd.equalizerActive ? "(Calibrating)" : ""}`}
-            // tooltip="Toggle SmartSignal (Adaptive Pre-Distortion)"
-          />
+          <div class="flex flex-col">
+            <SimpleSwitch
+              checked={state.status.apd.enabled}
+              disabled={!state.status.apd.configurable}
+              onChange={(isChecked) => {
+                radio()?.apd().setEnabled(isChecked);
+              }}
+              label="APD"
+              // tooltip="Toggle SmartSignal (Adaptive Pre-Distortion)"
+            />
+            <span class="text-muted-foreground text-xs capitalize">
+              {state.status.apd.enabled
+                ? state.status.apd.equalizerActive
+                  ? "Active"
+                  : "Calibrating"
+                : ""}
+            </span>
+          </div>
         </div>
       </AccordionContent>
     </AccordionItem>

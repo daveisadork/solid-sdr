@@ -1,4 +1,10 @@
-import { createEffect, createSignal, For, Show } from "solid-js";
+import {
+  ComponentProps,
+  createEffect,
+  createSignal,
+  For,
+  Show,
+} from "solid-js";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import {
@@ -11,11 +17,35 @@ import {
 import { Skeleton } from "./ui/skeleton";
 import useFlexRadio, { ConnectionState } from "~/context/flexradio";
 import { ProgressCircle } from "./ui/progress-circle";
-import { getModelInfo } from "@repo/flexlib";
+import {
+  FlexRadioDescriptor,
+  getModelInfo,
+  KNOWN_RADIO_MODEL_NAMES,
+} from "@repo/flexlib";
 import { Badge } from "./ui/badge";
+import MaterialSymbolsPowerPlug from "~icons/material-symbols/power-plug";
+import MaterialSymbolsPowerPlugOff from "~icons/material-symbols/power-plug-off";
+import * as ButtonPrimitive from "@kobalte/core/button";
+import {
+  DropdownMenu,
+  DropdownMenuArrow,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
+import { Key } from "@solid-primitives/keyed";
+
+const STATUS_MAP: Record<string, ComponentProps<typeof Badge>["variant"]> = {
+  Available: "success",
+  In_Use: "error",
+  Recovery: "warning",
+  Updating: "warning",
+};
 
 export default function Connect() {
-  const { connect, disconnect, state } = useFlexRadio();
+  const { connect, disconnect, state, client } = useFlexRadio();
 
   const [open, setOpen] = createSignal(
     state.connectModal.status === ConnectionState.disconnected,
@@ -52,13 +82,16 @@ export default function Connect() {
       }}
     >
       <DialogTrigger
-        as={Button<"button">}
-        variant="outline"
-        class="font-sans not-pointer-coarse:h-6 not-pointer-coarse:px-2"
+        as={ButtonPrimitive.Button<"button">}
+        class="size-8 not-pointer-coarse:size-5 aspect-square"
+        title={state.clientHandle ? "Disconnect" : "Connect"}
       >
-        <span class="not-pointer-coarse:text-xs">
-          {state.clientHandle ? "Disconnect" : "Connect"}
-        </span>
+        <Show
+          when={state.clientHandle}
+          fallback={<MaterialSymbolsPowerPlug class="size-full" />}
+        >
+          <MaterialSymbolsPowerPlugOff class="size-full" />
+        </Show>
       </DialogTrigger>
       <DialogContent class="flex flex-col sm:max-w-md data-closed:slide-out-to-left data-closed:slide-out-to-bottom data-expanded:slide-in-from-left data-expanded:slide-in-from-bottom overflow-hidden">
         <DialogHeader>
@@ -82,80 +115,124 @@ export default function Connect() {
                 </li>
               }
             >
-              {(radio) => (
-                <li class="flex p-2 items-center gap-2 overflow-hidden">
-                  <div class="flex flex-col items-center shrink basis-0 not-sm:hidden">
-                    <img
-                      src={`images/radios/${getModelInfo(radio.model).imageName}`}
-                      class="shrink"
-                    />
+              {(radio) => {
+                return (
+                  <li class="flex p-2 items-center gap-2 overflow-hidden">
+                    <div class="flex flex-col items-center shrink basis-0 not-sm:hidden">
+                      <img
+                        src={`images/radios/${getModelInfo(radio.model).imageName}`}
+                        class="shrink"
+                      />
+                      <div class="min-w-20 flex justify-around">
+                        <Badge variant={STATUS_MAP[radio.status] ?? "warning"}>
+                          {radio.status.replace("_", "\xa0")}
+                        </Badge>
+                      </div>
+                    </div>
+                    <div class="flex text-sm flex-col grow justify-center overflow-hidden text-ellipsis">
+                      <span class="font-semibold">{radio.model}</span>
+                      <div class="inline-flex gap-1">
+                        <span class="text-ellipsis overflow-hidden">
+                          {[
+                            radio.nickname?.replaceAll("_", "\xa0"),
+                            radio.callsign,
+                          ]
+                            .filter(Boolean)
+                            .join("\xa0|\xa0")}
+                        </span>
+                      </div>
+                      <span class="text-muted-foreground">{radio.host}</span>
+                    </div>
+                    <Show when={radio.guiClients}>
+                      {(guiClients) => (
+                        <div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger
+                              as={Button<"button">}
+                              variant="destructive"
+                              size="icon"
+                              class="bg-warning text-warning-foreground"
+                            >
+                              <MaterialSymbolsPowerPlugOff class="size-full" />
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent class="overflow-visible">
+                              <DropdownMenuArrow />
+                              <DropdownMenuLabel>
+                                {radio.licensedClients - radio.availableClients}
+                                /{radio.licensedClients} Clients Connected
+                              </DropdownMenuLabel>
+                              <DropdownMenuSeparator />
+                              <Key each={guiClients()} by="clientHandle">
+                                {(guiClient) => (
+                                  <DropdownMenuItem
+                                    onSelect={() => {
+                                      console.log(
+                                        "Disconnecting client",
+                                        guiClient(),
+                                      );
+                                      client()
+                                        .disconnectClient(
+                                          radio,
+                                          guiClient().clientHandle,
+                                        )
+                                        .then(console.log)
+                                        .catch(console.error);
+                                    }}
+                                  >
+                                    Disconnect {guiClient().program} (
+                                    {guiClient().station})
+                                  </DropdownMenuItem>
+                                )}
+                              </Key>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      )}
+                    </Show>
                     <div>
-                      <Badge
-                        variant={
-                          radio.status === "Available" ? "success" : "error"
+                      <Show
+                        when={
+                          state.connectModal.status ===
+                            ConnectionState.connecting &&
+                          state.connectModal.selectedRadio === radio.host
+                        }
+                        fallback={
+                          <Button
+                            size="icon"
+                            classList={{
+                              "bg-success text-success-foreground":
+                                radio.availableClients > 0,
+                              "bg-warning text-warning-foreground":
+                                !radio.availableClients,
+                            }}
+                            class="bg-success text-success-foreground"
+                            disabled={
+                              state.connectModal.status ===
+                                ConnectionState.connecting ||
+                              radio.status !== "Available"
+                            }
+                            onClick={() => {
+                              if (
+                                state.connectModal.status !==
+                                ConnectionState.disconnected
+                              )
+                                return;
+                              connect({ host: radio.host, port: radio.port });
+                            }}
+                          >
+                            <MaterialSymbolsPowerPlug class="size-full" />
+                          </Button>
                         }
                       >
-                        {radio.status.replace("_", "\xa0")}
-                      </Badge>
-                    </div>
-                  </div>
-                  <div class="flex text-sm flex-col grow justify-center overflow-hidden text-ellipsis">
-                    <span class="font-semibold">{radio.model}</span>
-                    <div class="inline-flex gap-1">
-                      <Show when={radio.nickname}>
-                        <span class="text-ellipsis overflow-hidden">
-                          {radio.nickname.replace("_", " ")}
-                        </span>
-                      </Show>
-                      <Show when={radio.callsign}>
-                        <span class="font-mono text-ellipsis overflow-hidden">
-                          {radio.callsign}
-                        </span>
+                        <ProgressCircle
+                          size="xs"
+                          value={state.connectModal.stage * 33.33}
+                        />
                       </Show>
                     </div>
-                    <span class="text-muted-foreground">{radio.host}</span>
-                  </div>
-                  <div>
-                    <Show
-                      when={
-                        state.connectModal.status ===
-                          ConnectionState.connecting &&
-                        state.connectModal.selectedRadio === radio.host
-                      }
-                      fallback={
-                        <Button
-                          classList={{
-                            "bg-success text-success-foreground":
-                              radio.availableClients > 0,
-                            "bg-warning text-warning-foreground":
-                              !radio.availableClients,
-                          }}
-                          class="bg-success text-success-foreground"
-                          disabled={
-                            state.connectModal.status ===
-                            ConnectionState.connecting
-                          }
-                          onClick={() => {
-                            if (
-                              state.connectModal.status !==
-                              ConnectionState.disconnected
-                            )
-                              return;
-                            connect({ host: radio.host, port: radio.port });
-                          }}
-                        >
-                          Connect
-                        </Button>
-                      }
-                    >
-                      <ProgressCircle
-                        size="xs"
-                        value={state.connectModal.stage * 33.33}
-                      />
-                    </Show>
-                  </div>
-                </li>
-              )}
+                  </li>
+                );
+              }}
             </For>
           </ul>
         </Card>

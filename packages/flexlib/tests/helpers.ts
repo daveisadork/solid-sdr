@@ -157,6 +157,10 @@ export class MockFlexTransport
   implements FlexTransport
 {
   connection?: MockFlexConnection;
+  readonly connections: MockFlexConnection[] = [];
+  private readonly pendingConnectionSetups: Array<
+    (connection: MockFlexConnection) => void
+  > = [];
 
   on<K extends keyof FlexTransportEvents>(
     event: K,
@@ -168,8 +172,15 @@ export class MockFlexTransport
   async startDiscovery(): Promise<void> {}
   async stopDiscovery(): Promise<void> {}
 
+  prepareNextConnection(setup: (connection: MockFlexConnection) => void): void {
+    this.pendingConnectionSetups.push(setup);
+  }
+
   createConnection(): FlexConnection {
     this.connection = new MockFlexConnection();
+    const setup = this.pendingConnectionSetups.shift();
+    setup?.(this.connection);
+    this.connections.push(this.connection);
     return this.connection;
   }
 

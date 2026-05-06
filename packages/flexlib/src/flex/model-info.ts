@@ -15,10 +15,7 @@ export type RadioPlatform =
 /**
  * RapidM modem support level for a radio model.
  */
-export type ModemSupport =
-  | "supported"
-  | "not-supported"
-  | "supported-dev-only";
+export type ModemSupport = "supported" | "not-supported" | "supported-dev-only";
 
 /**
  * RapidM modem configuration variant supported by a model.
@@ -550,11 +547,11 @@ const RADIO_MODEL_INFO_BY_NAME: Readonly<Record<string, RadioModelInfo>> =
       hasOverlordPa: false,
       hasTxAmplifier: false,
       supportsRapidMModem: "supported",
-      supportedRapidMModemConfigTypes: [
-        "single-modem",
-        "dual-modem-copro",
-      ],
-      imageName: "6400.png",
+      supportedRapidMModemConfigTypes: ["single-modem", "dual-modem-copro"],
+      // official lib has this as 6400.png but that file doesn't exist.
+      // since the actual 6400 uses 6600.png, we'll use that instead.
+      // imageName: "6400.png",
+      imageName: "6600.png",
       sliceNames: ["A", "B"],
     }),
     "AU-510": defineModelInfo("AU-510", {
@@ -668,7 +665,9 @@ export const DEFAULT_RADIO_MODEL_INFO = RADIO_MODEL_INFO_BY_NAME.DEFAULT;
  * Canonical model names known to the static model table, excluding DEFAULT.
  */
 export const KNOWN_RADIO_MODEL_NAMES = Object.freeze(
-  Object.keys(RADIO_MODEL_INFO_BY_NAME).filter((modelName) => modelName !== "DEFAULT"),
+  Object.keys(RADIO_MODEL_INFO_BY_NAME).filter(
+    (modelName) => modelName !== "DEFAULT",
+  ),
 );
 
 /**
@@ -676,7 +675,9 @@ export const KNOWN_RADIO_MODEL_NAMES = Object.freeze(
  *
  * Unknown or empty model strings return the upstream DEFAULT entry.
  */
-export function getModelInfo(modelName: string | null | undefined): RadioModelInfo {
+export function getModelInfo(
+  modelName: string | null | undefined,
+): RadioModelInfo {
   const normalized = normalizeModelName(modelName);
   return RADIO_MODEL_INFO_BY_NAME[normalized] ?? DEFAULT_RADIO_MODEL_INFO;
 }

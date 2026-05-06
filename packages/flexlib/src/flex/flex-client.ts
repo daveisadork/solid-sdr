@@ -13,8 +13,11 @@ import type { FlexTransport, RadioEndpoint } from "./transport.js";
 import type { Logger } from "./adapters.js";
 import type { FlexRadioDescriptor } from "./adapters.js";
 import { Radio, type RadioConnectOptions } from "./radio-core.js";
+import { FlexCommandRejectedError } from "./errors.js";
 import { parseVitaPacket } from "../vita/parser.js";
 import { decodeDiscoveryPayload } from "./discovery.js";
+import { describeResponseCode } from "./response-codes.js";
+import { parseFlexMessage, type FlexReplyMessage } from "./protocol.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -33,6 +36,15 @@ export interface FlexClientOptions {
   readonly offlineTimeoutMs?: number;
 }
 
+/** Options for lightweight one-shot command connections. */
+export interface FlexClientCommandOptions {
+  /**
+   * How long to wait for the radio's reply before failing.
+   * Defaults to 5000ms.
+   */
+  readonly timeoutMs?: number;
+}
+
 /** Event map for the FlexClient. */
 export interface FlexClientEvents {
   /** A new radio was discovered on the network. */
@@ -40,7 +52,10 @@ export interface FlexClientEvents {
   /** A known radio's discovery data was updated (e.g. availableClients changed). */
   readonly radioUpdated: Radio;
   /** A previously discovered radio stopped sending discovery packets on a specific endpoint. */
-  readonly radioLost: { readonly serial: string; readonly endpoint?: RadioEndpoint };
+  readonly radioLost: {
+    readonly serial: string;
+    readonly endpoint?: RadioEndpoint;
+  };
   /** Transport-level error. */
   readonly error: unknown;
 }
@@ -186,6 +201,38 @@ export class FlexClient {
     return radio;
   }
 
+  /**
+   * Force-disconnect a GUI client by handle using a lightweight transient TCP
+   * connection instead of a full radio session.
+   */
+  async disconnectClient(
+    target: Radio | RadioEndpoint,
+    clientHandle: number | string,
+    options?: FlexClientCommandOptions,
+  ): Promise<void> {
+    if (this.closed) throw new Error("FlexClient is closed");
+    const endpoint = target instanceof Radio ? target.endpoint : target;
+    const handle = normalizeClientHandle(clientHandle);
+    const reply = await this.sendEphemeralCommand(
+      endpoint,
+      `client disconnect ${handle}`,
+      options,
+    );
+
+    if (reply.code !== 0) {
+      throw new FlexCommandRejectedError(
+        reply.message || `Radio rejected command: client disconnect ${handle}`,
+        {
+          sequence: reply.sequence,
+          code: reply.code,
+          raw: reply.raw,
+          message: reply.message,
+        },
+        describeResponseCode(reply.code),
+      );
+    }
+  }
+
   // -----------------------------------------------------------------------
   // Cleanup
   // -----------------------------------------------------------------------
@@ -282,10 +329,7 @@ export class FlexClient {
   // Offline timers
   // -----------------------------------------------------------------------
 
-  private scheduleOfflineTimer(
-    serial: string,
-    endpoint: RadioEndpoint,
-  ): void {
+  private scheduleOfflineTimer(serial: string, endpoint: RadioEndpoint): void {
     if (this.offlineTimeoutMs <= 0) return;
 
     const key = `${serial}:${endpoint.host}:${endpoint.port}`;
@@ -305,4 +349,99 @@ export class FlexClient {
     for (const timer of this.offlineTimers.values()) clearTimeout(timer);
     this.offlineTimers.clear();
   }
+
+  private async sendEphemeralCommand(
+    endpoint: RadioEndpoint,
+    command: string,
+    options?: FlexClientCommandOptions,
+  ): Promise<FlexReplyMessage> {
+    const connection = this.transport.createConnection();
+    const sequence = 1;
+    const timeoutMs = options?.timeoutMs ?? 5_000;
+    let tcpBuffer = "";
+
+    try {
+      const replyPromise = new Promise<FlexReplyMessage>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error(`Timed out waiting for reply to: ${command}`));
+        }, timeoutMs);
+
+        const clear = () => {
+          clearTimeout(timeout);
+          tcpSubscription.unsubscribe();
+          errorSubscription.unsubscribe();
+          closeSubscription.unsubscribe();
+        };
+
+        const tcpSubscription = connection.on("tcpData", (data) => {
+          tcpBuffer += decodeTcpChunk(data);
+
+          while (true) {
+            const newlineIndex = tcpBuffer.indexOf("\n");
+            if (newlineIndex === -1) break;
+
+            const line = tcpBuffer.slice(0, newlineIndex).replace(/\r$/, "");
+            tcpBuffer = tcpBuffer.slice(newlineIndex + 1);
+
+            const parsed = parseFlexMessage(line, Date.now());
+            if (parsed?.kind === "reply" && parsed.sequence === sequence) {
+              clear();
+              resolve(parsed);
+              return;
+            }
+          }
+        });
+
+        const errorSubscription = connection.on("error", (error) => {
+          clear();
+          reject(error);
+        });
+
+        const closeSubscription = connection.on("close", () => {
+          clear();
+          reject(
+            new Error(
+              `Command connection closed before reply was received: ${command}`,
+            ),
+          );
+        });
+      });
+
+      await connection.connectTcp(endpoint);
+      await connection.sendTcp(`C${sequence}|${command}\n`);
+      return await replyPromise;
+    } finally {
+      await connection.close().catch((error) => {
+        this.logger?.warn?.("Failed to close ephemeral command connection", {
+          endpoint,
+          command,
+          error,
+        });
+      });
+    }
+  }
+}
+
+function decodeTcpChunk(data: string | Uint8Array): string {
+  if (typeof data === "string") return data;
+  return new TextDecoder().decode(data);
+}
+
+function normalizeClientHandle(clientHandle: number | string): string {
+  if (typeof clientHandle === "number") {
+    if (!Number.isInteger(clientHandle) || clientHandle < 0) {
+      throw new Error(`Invalid client handle: ${clientHandle}`);
+    }
+    return `0x${clientHandle.toString(16).toUpperCase()}`;
+  }
+
+  const trimmed = clientHandle.trim();
+  if (!trimmed) throw new Error("Client handle must not be empty");
+  if (/^0x[0-9a-f]+$/i.test(trimmed)) {
+    return `0x${trimmed.slice(2).toUpperCase()}`;
+  }
+  if (/^\d+$/.test(trimmed)) {
+    return `0x${Number.parseInt(trimmed, 10).toString(16).toUpperCase()}`;
+  }
+  throw new Error(`Invalid client handle: ${clientHandle}`);
 }

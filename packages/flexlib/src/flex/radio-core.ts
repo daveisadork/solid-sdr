@@ -155,6 +155,11 @@ export type ConnectionSyncDetail =
   | "network"
   | "complete";
 
+export type DisconnectedReason =
+  | "forced"
+  | "wan_validation_failed"
+  | "duplicate_client_id";
+
 /** Granular progress detail emitted during the "connecting" phase. */
 export interface ConnectionProgressDetail {
   readonly stage: ConnectionProgressStage;
@@ -220,7 +225,7 @@ export interface RadioEvents {
   readonly message: FlexWireMessage;
   readonly spotTriggered: SpotTriggeredEvent;
   readonly ready: undefined;
-  readonly disconnected: undefined;
+  readonly disconnected: DisconnectedReason;
   readonly error: unknown;
 }
 

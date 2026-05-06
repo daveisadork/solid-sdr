@@ -22,8 +22,18 @@ import { Button } from "@kobalte/core/button";
 import { SpotsSettings } from "./spots-settings";
 import { MemorySettings } from "./memory-settings";
 import { MidiSettings } from "./midi-settings";
+import {
+  DropdownMenu,
+  DropdownMenuArrow,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuShortcut,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
+import { createSignal } from "solid-js";
+import { Dynamic } from "solid-js/web";
 
-export function Settings() {
+export function OldSettings() {
   return (
     <Dialog modal={false}>
       <DialogTrigger
@@ -76,5 +86,53 @@ export function Settings() {
         </Tabs>
       </DialogContent>
     </Dialog>
+  );
+}
+
+const tabs = {
+  app: AppSettings,
+  radio: RadioSettings,
+  memory: MemorySettings,
+  spots: SpotsSettings,
+  controllers: MidiSettings,
+};
+
+export function Settings() {
+  const [activeTab, setActiveTab] = createSignal(null);
+  return (
+    <>
+      <Dialog
+        open={activeTab() !== null}
+        onOpenChange={(open) => !open && setActiveTab(null)}
+      >
+        <Dynamic component={tabs[activeTab()]} />
+      </Dialog>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          as={Button<"button">}
+          class="size-8 not-pointer-coarse:size-5 aspect-square"
+        >
+          <MdiSettings class="size-full" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent class="overflow-visible">
+          <DropdownMenuArrow />
+          <DropdownMenuItem onSelect={() => setActiveTab("app")}>
+            App Settings
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => setActiveTab("radio")}>
+            Radio Setup
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => setActiveTab("memory")}>
+            Memory
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => setActiveTab("spots")}>
+            Spots
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => setActiveTab("controllers")}>
+            Controllers
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </>
   );
 }

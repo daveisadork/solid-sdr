@@ -50,6 +50,12 @@ import { SimpleSwitch } from "../ui/simple-switch";
 import { usePreferences } from "~/context/preferences";
 import { InfoItem } from "./common";
 import { SimpleSlider } from "../ui/simple-slider";
+import {
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../ui/dialog";
 
 export const columns: ColumnDef<SpotState>[] = [
   {
@@ -320,87 +326,76 @@ function SpotsSettingsInner(props: { radio: Radio }) {
   const { preferences, setPreferences } = usePreferences();
 
   return (
-    <div class="flex flex-col gap-4 text-sm text-x">
-      <Card class="bg-transparent">
-        <CardHeader>
-          <CardTitle>Spot Settings</CardTitle>
-        </CardHeader>
-        <CardContent class="flex flex-col gap-4">
-          <SimpleSwitch
-            checked={preferences.spots.enabled}
-            onChange={(isChecked) =>
-              setPreferences("spots", "enabled", isChecked)
-            }
-            label="Enable Spots"
-          />
-          <SimpleSlider
-            minValue={1}
-            maxValue={10}
-            value={[preferences.spots.levels]}
-            onChange={([value]) => setPreferences("spots", "levels", value)}
-            getValueLabel={({ values }) => values[0].toString()}
-            label="Levels"
-          />
-          <SimpleSlider
-            minValue={0}
-            maxValue={100}
-            value={[preferences.spots.position]}
-            onChange={([value]) => setPreferences("spots", "position", value)}
-            getValueLabel={({ values }) => `${values[0]}%`}
-            label="Position"
-          />
-          <SimpleSlider
-            minValue={0}
-            maxValue={100}
-            value={[preferences.spots.verticalSpacing]}
-            onChange={([value]) =>
-              setPreferences("spots", "verticalSpacing", value)
-            }
-            getValueLabel={({ values }) => `${values[0]}%`}
-            label="Vertical Spacing"
-          />
-          <SimpleSlider
-            minValue={0}
-            maxValue={FONT_SIZES.length - 1}
-            value={[preferences.spots.fontSize]}
-            onChange={([value]) => setPreferences("spots", "fontSize", value)}
-            getValueLabel={({ values }) => FONT_SIZES[values[0]]}
-            label="Font Size"
-          />
-          <InfoItem
-            label="Total Spots"
-            value={Object.keys(state.status.spot).length}
-          />
-        </CardContent>
-        <CardFooter class="flex">
-          <Button>View All Spots</Button>
-          <div class="grow" />
-          <Button
-            variant="destructive"
-            onClick={() => props.radio.clearSpots()}
-          >
-            Clear All Spots
-          </Button>
-        </CardFooter>
-      </Card>
-    </div>
+    <>
+      <div class="flex flex-col gap-4">
+        <SimpleSwitch
+          checked={preferences.spots.enabled}
+          onChange={(isChecked) =>
+            setPreferences("spots", "enabled", isChecked)
+          }
+          label="Enable Spots"
+        />
+        <SimpleSlider
+          minValue={1}
+          maxValue={10}
+          value={[preferences.spots.levels]}
+          onChange={([value]) => setPreferences("spots", "levels", value)}
+          getValueLabel={({ values }) => values[0].toString()}
+          label="Levels"
+        />
+        <SimpleSlider
+          minValue={0}
+          maxValue={100}
+          value={[preferences.spots.position]}
+          onChange={([value]) => setPreferences("spots", "position", value)}
+          getValueLabel={({ values }) => `${values[0]}%`}
+          label="Position"
+        />
+        <SimpleSlider
+          minValue={0}
+          maxValue={100}
+          value={[preferences.spots.verticalSpacing]}
+          onChange={([value]) =>
+            setPreferences("spots", "verticalSpacing", value)
+          }
+          getValueLabel={({ values }) => `${values[0]}%`}
+          label="Vertical Spacing"
+        />
+        <SimpleSlider
+          minValue={0}
+          maxValue={FONT_SIZES.length - 1}
+          value={[preferences.spots.fontSize]}
+          onChange={([value]) => setPreferences("spots", "fontSize", value)}
+          getValueLabel={({ values }) => FONT_SIZES[values[0]]}
+          label="Font Size"
+        />
+        <InfoItem
+          label="Total Spots"
+          value={Object.keys(state.status.spot).length}
+        />
+      </div>
+      <DialogFooter class="gap-2">
+        <Button variant="destructive" onClick={() => props.radio.clearSpots()}>
+          Clear All Spots
+        </Button>
+      </DialogFooter>
+    </>
   );
 }
 
 export function SpotsSettings() {
   const { state, radio } = useFlexRadio();
   return (
-    <Show
-      when={state.clientHandle}
-      fallback={
-        <Card class="bg-transparent">
-          <CardHeader>
-            <CardTitle>Not Connected</CardTitle>
-          </CardHeader>
-        </Card>
-      }
-    >
-      <SpotsSettingsInner radio={radio()} />
-    </Show>
+    <DialogContent class="w-sm text-sm">
+      <DialogHeader>
+        <DialogTitle>Spots</DialogTitle>
+      </DialogHeader>
+      <Show
+        when={state.clientHandle}
+        fallback={<div class="text-sm w-sm">Not Connected</div>}
+      >
+        <SpotsSettingsInner radio={radio()} />
+      </Show>
+    </DialogContent>
   );
 }

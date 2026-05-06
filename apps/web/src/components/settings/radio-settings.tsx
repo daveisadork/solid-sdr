@@ -1272,17 +1272,27 @@ function RadioSettingsInner(props: { radio: Radio }) {
 export function RadioSettings() {
   const { state, radio } = useFlexRadio();
   return (
-    <Show
-      when={state.clientHandle}
-      fallback={
-        <Card class="bg-transparent">
-          <CardHeader>
-            <CardTitle>Not Connected</CardTitle>
-          </CardHeader>
-        </Card>
-      }
-    >
-      <RadioSettingsInner radio={radio()} />
-    </Show>
+    <DialogContent class="translate-y-0 top-1/12 flex flex-col max-h-10/12 overflow-hidden sm:max-w-10/12 sm:w-auto">
+      <DialogHeader>
+        <DialogTitle>Radio Settings</DialogTitle>
+      </DialogHeader>
+      <div
+        class="relative flex flex-col gap-4 text-sm overflow-y-auto shrink"
+        style={{ "scrollbar-width": "thin" }}
+      >
+        <Show
+          when={state.clientHandle}
+          fallback={
+            <Card class="bg-transparent">
+              <CardHeader>
+                <CardTitle>Not Connected</CardTitle>
+              </CardHeader>
+            </Card>
+          }
+        >
+          <RadioSettingsInner radio={radio()} />
+        </Show>
+      </div>
+    </DialogContent>
   );
 }

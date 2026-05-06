@@ -69,6 +69,12 @@ import { ConfirmButton } from "../ui/confirm-button";
 import { createStore } from "solid-js/store";
 import IcBaselinePlayCircleOutline from "~icons/ic/baseline-play-circle-outline";
 import { toneValues } from "../slice";
+import {
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../ui/dialog";
 
 const TextFieldCell = (
   props: TextFieldPrimitive.TextFieldRootProps & {
@@ -478,167 +484,160 @@ function MemorySettingsInner() {
   );
 
   return (
-    <div class="flex flex-col gap-4 text-sm text-x">
-      <Card class="bg-transparent">
-        <CardHeader>
-          <CardTitle>Memory Settings</CardTitle>
-        </CardHeader>
-        <CardContent class="flex flex-col gap-4">
-          <div class="flex items-center">
-            <DropdownMenu placement="bottom-end">
-              <DropdownMenuTrigger
-                as={Button<"button">}
-                variant="outline"
-                class="ml-auto"
+    <>
+      <div
+        class="relative flex flex-col gap-4 text-sm overflow-hidden shrink"
+        style={{ "scrollbar-width": "thin" }}
+      >
+        <div class="flex items-center">
+          <DropdownMenu placement="bottom-end">
+            <DropdownMenuTrigger
+              as={Button<"button">}
+              variant="outline"
+              class="ml-auto"
+            >
+              Columns <IconChevronDown />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <For
+                each={table()
+                  .getAllColumns()
+                  .filter((column) => column.getCanHide())}
               >
-                Columns <IconChevronDown />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <For
-                  each={table()
-                    .getAllColumns()
-                    .filter((column) => column.getCanHide())}
-                >
-                  {(column) => {
-                    return (
-                      <DropdownMenuCheckboxItem
-                        class="capitalize"
-                        checked={column.getIsVisible()}
-                        onChange={(value) => column.toggleVisibility(!!value)}
-                      >
-                        {column.columnDef.header.toString() ?? column.id}
-                      </DropdownMenuCheckboxItem>
-                    );
-                  }}
-                </For>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-          <div class="rounded-md border">
-            <Table>
-              <TableHeader>
-                <For each={table().getHeaderGroups()}>
-                  {(headerGroup) => (
-                    <TableRow>
-                      <For each={headerGroup.headers}>
-                        {(header) => {
-                          return (
-                            <TableHead>
-                              {header.isPlaceholder
-                                ? null
-                                : flexRender(
-                                    header.column.columnDef.header,
-                                    header.getContext(),
-                                  )}
-                            </TableHead>
-                          );
-                        }}
-                      </For>
-                    </TableRow>
-                  )}
-                </For>
-              </TableHeader>
-              <TableBody>
-                {table().getRowModel().rows?.length ? (
-                  table()
-                    .getRowModel()
-                    .rows.map((row) => (
-                      <TableRow data-state={row.getIsSelected() && "selected"}>
-                        <For each={row.getVisibleCells()}>
-                          {(cell) => (
-                            <TableCell>
-                              {flexRender(
-                                cell.column.columnDef.cell,
-                                cell.getContext(),
-                              )}
-                            </TableCell>
-                          )}
-                        </For>
-                      </TableRow>
-                    ))
-                ) : (
-                  <TableRow>
-                    <TableCell
-                      colSpan={columns.length}
-                      class="h-24 text-center"
+                {(column) => {
+                  return (
+                    <DropdownMenuCheckboxItem
+                      class="capitalize"
+                      checked={column.getIsVisible()}
+                      onChange={(value) => column.toggleVisibility(!!value)}
                     >
-                      No results.
-                    </TableCell>
+                      {column.columnDef.header.toString() ?? column.id}
+                    </DropdownMenuCheckboxItem>
+                  );
+                }}
+              </For>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+        <div class="relative rounded-md border shrink overflow-hidden flex flex-col">
+          <Table class="shrink">
+            <TableHeader>
+              <For each={table().getHeaderGroups()}>
+                {(headerGroup) => (
+                  <TableRow>
+                    <For each={headerGroup.headers}>
+                      {(header) => {
+                        return (
+                          <TableHead>
+                            {header.isPlaceholder
+                              ? null
+                              : flexRender(
+                                  header.column.columnDef.header,
+                                  header.getContext(),
+                                )}
+                          </TableHead>
+                        );
+                      }}
+                    </For>
                   </TableRow>
                 )}
-              </TableBody>
-            </Table>
-          </div>
-          <div class="flex items-center justify-end space-x-2">
-            <div class="flex-1 text-sm text-muted-foreground">
-              {table().getFilteredSelectedRowModel().rows.length} of{" "}
-              {table().getFilteredRowModel().rows.length} row(s) selected.
-            </div>
-            <div class="space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => table().previousPage()}
-                disabled={!table().getCanPreviousPage()}
-              >
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => table().nextPage()}
-                disabled={!table().getCanNextPage()}
-              >
-                Next
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-        <CardFooter class="flex">
-          <Button
-            onClick={() => {
-              console.log("Creating memory");
-              radio().createMemory().catch(console.error);
-            }}
-          >
-            Add New
-          </Button>
-          <div class="grow" />
-          <ConfirmButton
-            variant="destructive"
-            disabled={table().getSelectedRowModel().rows.length === 0}
-            onConfirm={() => {
-              Promise.all(
+              </For>
+            </TableHeader>
+            <TableBody>
+              {table().getRowModel().rows?.length ? (
                 table()
-                  .getSelectedRowModel()
-                  .flatRows.map((mem) =>
-                    radio().memory(mem.original.id).remove(),
-                  ),
-              ).then(() => table().setRowSelection({}));
-            }}
-          >
-            Delete Selected
-          </ConfirmButton>
-        </CardFooter>
-      </Card>
-    </div>
+                  .getRowModel()
+                  .rows.map((row) => (
+                    <TableRow data-state={row.getIsSelected() && "selected"}>
+                      <For each={row.getVisibleCells()}>
+                        {(cell) => (
+                          <TableCell>
+                            {flexRender(
+                              cell.column.columnDef.cell,
+                              cell.getContext(),
+                            )}
+                          </TableCell>
+                        )}
+                      </For>
+                    </TableRow>
+                  ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={columns.length} class="h-24 text-center">
+                    No results.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+        <div class="flex items-center justify-end space-x-2">
+          <div class="flex-1 text-sm text-muted-foreground">
+            {table().getFilteredSelectedRowModel().rows.length} of{" "}
+            {table().getFilteredRowModel().rows.length} row(s) selected.
+          </div>
+          <div class="space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table().previousPage()}
+              disabled={!table().getCanPreviousPage()}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table().nextPage()}
+              disabled={!table().getCanNextPage()}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      </div>
+      <DialogFooter class="flex gap-2">
+        <ConfirmButton
+          variant="destructive"
+          disabled={table().getSelectedRowModel().rows.length === 0}
+          onConfirm={() => {
+            Promise.all(
+              table()
+                .getSelectedRowModel()
+                .flatRows.map((mem) =>
+                  radio().memory(mem.original.id).remove(),
+                ),
+            ).then(() => table().setRowSelection({}));
+          }}
+        >
+          Delete Selected
+        </ConfirmButton>
+        <Button
+          onClick={() => {
+            console.log("Creating memory");
+            radio().createMemory().catch(console.error);
+          }}
+        >
+          Add New
+        </Button>
+      </DialogFooter>
+    </>
   );
 }
 
 export function MemorySettings() {
   const { state } = useFlexRadio();
   return (
-    <Show
-      when={state.clientHandle}
-      fallback={
-        <Card class="bg-transparent">
-          <CardHeader>
-            <CardTitle>Not Connected</CardTitle>
-          </CardHeader>
-        </Card>
-      }
-    >
-      <MemorySettingsInner />
-    </Show>
+    <DialogContent class="translate-y-0 top-1/12 flex flex-col max-h-10/12 overflow-hidden sm:max-w-10/12 sm:w-auto">
+      <DialogHeader>
+        <DialogTitle>Memory Settings</DialogTitle>
+      </DialogHeader>
+      <Show
+        when={state.clientHandle}
+        fallback={<div class="text-sm w-sm">Not Connected</div>}
+      >
+        <MemorySettingsInner />
+      </Show>
+    </DialogContent>
   );
 }

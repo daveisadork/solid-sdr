@@ -766,21 +766,25 @@ const AudioControls = (props: {
             getValueLabel={(params) => `${params.values[0]}%`}
             label="AGC Threshold"
           />
-          <SliderToggle
-            disabled={!props.slice.squelchEnabled}
-            minValue={0}
-            maxValue={100}
-            value={[props.slice.squelchLevel]}
-            onChange={([value]) => {
-              props.controller.setSquelchLevel(value);
-            }}
-            getValueLabel={(params) => `${params.values[0]}%`}
-            label="Squelch"
-            switchChecked={props.slice.squelchEnabled}
-            onSwitchChange={(isChecked) => {
-              props.controller.setSquelchEnabled(isChecked);
-            }}
-          />
+          <Show
+            when={!["DIGU", "DIGL", "CW", "RTTY"].includes(props.slice.mode)}
+          >
+            <SliderToggle
+              disabled={!props.slice.squelchEnabled}
+              minValue={0}
+              maxValue={100}
+              value={[props.slice.squelchLevel]}
+              onChange={([value]) => {
+                props.controller.setSquelchLevel(value);
+              }}
+              getValueLabel={(params) => `${params.values[0]}%`}
+              label="Squelch"
+              switchChecked={props.slice.squelchEnabled}
+              onSwitchChange={(isChecked) => {
+                props.controller.setSquelchEnabled(isChecked);
+              }}
+            />
+          </Show>
           <SimpleSwitch
             checked={props.slice.diversityEnabled}
             disabled={props.slice.diversityChild}

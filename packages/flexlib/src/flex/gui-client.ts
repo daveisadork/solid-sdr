@@ -3,7 +3,6 @@ export interface BaseGuiClientInfo {
   readonly program?: string;
   readonly station?: string;
   readonly isLocalPtt: boolean;
-  readonly isAvailable: boolean;
 }
 
 export type DiscoveredGuiClient = BaseGuiClientInfo;
@@ -37,7 +36,6 @@ export function parseDiscoveredGuiClients(
         program: normalizeToken(programs[index]),
         station: normalizeStation(stations[index]),
         isLocalPtt: false,
-        isAvailable: true,
       }),
     );
   }

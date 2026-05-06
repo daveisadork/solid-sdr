@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createRadioStateStore } from "../../src/flex/state/index.js";
+import { createGuiClientSnapshot } from "../../src/flex/state/gui-client.js";
 import {
   buildRadioListAttributes,
   parseRadioInfoReply,
@@ -594,6 +595,47 @@ describe("createRadioStateStore", () => {
 
     store.apply(makeStatus("S3|client 0x29DD2CDC disconnected forced=0"));
     expect(store.getGuiClient("0x29DD2CDC")).toBeUndefined();
+  });
+
+  it("logs unknown GUI client attributes instead of silently dropping them", () => {
+    const debugSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+
+    createGuiClientSnapshot(
+      "0x29DD2CDC",
+      {
+        client_id: "ABCD1234",
+        foo: "bar",
+        local_ptt: "1",
+      },
+      undefined,
+    );
+
+    expect(debugSpy).toHaveBeenCalledTimes(1);
+    debugSpy.mockRestore();
+  });
+
+  it("merges GUI client raw attributes across incremental updates", () => {
+    const { snapshot: previous } = createGuiClientSnapshot(
+      "0x29DD2CDC",
+      {
+        client_id: "ABCD1234",
+        program: "SmartSDR",
+      },
+      undefined,
+    );
+
+    const { snapshot } = createGuiClientSnapshot(
+      "0x29DD2CDC",
+      { station: "Home\u007fOffice" },
+      previous,
+    );
+
+    expect(snapshot.clientId).toBe("ABCD1234");
+    expect(snapshot.program).toBe("SmartSDR");
+    expect(snapshot.station).toBe("Home Office");
+    expect(snapshot.raw["client_id"]).toBe("ABCD1234");
+    expect(snapshot.raw["program"]).toBe("SmartSDR");
+    expect(snapshot.raw["station"]).toBe("Home\u007fOffice");
   });
 
   it("tracks log available levels and modules", () => {

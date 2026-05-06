@@ -225,7 +225,7 @@ export interface RadioEvents {
   readonly message: FlexWireMessage;
   readonly spotTriggered: SpotTriggeredEvent;
   readonly ready: undefined;
-  readonly disconnected: DisconnectedReason;
+  readonly disconnected: DisconnectedReason | undefined;
   readonly error: unknown;
 }
 

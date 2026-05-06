@@ -45,7 +45,12 @@ type SignalingMessage =
   | { type: "pong"; payload: null };
 
 export const RtcProvider: ParentComponent = (props) => {
-  const [rtcState, setRtcState] = createStore<RtcState>({});
+  const [rtcState, setRtcState] = createStore<RtcState>({
+    connectionState: "new",
+    signalingState: "stable",
+    iceGatheringState: "new",
+    iceConnectionState: "new",
+  });
   const [peerConnection, setPeerConnection] =
     createSignal<RTCPeerConnection | null>(null);
   const [audioTransceiver, setAudioTransceiver] =
@@ -64,6 +69,22 @@ export const RtcProvider: ParentComponent = (props) => {
     },
   );
   const signalingWsState = createWSState(signalingWs);
+
+  // createEffect(() => {
+  //   console.debug(
+  //     JSON.stringify(
+  //       {
+  //         wsState: ["CONNECTING", "OPEN", "CLOSING", "CLOSED"][
+  //           signalingWsState()
+  //         ],
+  //         rtcState: rtcState,
+  //         pc: !!peerConnection(),
+  //       },
+  //       null,
+  //       2,
+  //     ),
+  //   );
+  // });
 
   function onIceCandidate(ev: RTCPeerConnectionIceEvent) {
     if (ev.candidate) {

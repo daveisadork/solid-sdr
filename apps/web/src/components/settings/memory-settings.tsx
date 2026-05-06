@@ -336,7 +336,7 @@ function MemorySettingsInner() {
             <SelectItem item={props.item} class="font-mono">
               {toneValues
                 .find((v) => v.hz === props.item.rawValue)
-                ?.name.replace(" ", "\xA0") || "None"}
+                ?.name.replaceAll(" ", "\xA0") || "None"}
             </SelectItem>
           )}
         >

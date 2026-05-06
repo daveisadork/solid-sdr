@@ -434,4 +434,36 @@ describe("Radio", () => {
     await radio.command("radio gps uninstall");
     expect(connection.lastCommand()).toBe("radio gps uninstall");
   });
+
+  it("emits disconnected reason when another client forces us off", async () => {
+    const { radio, connection } = await createConnectedRadio();
+    const reasons: Array<string | undefined> = [];
+
+    radio.on("disconnected", (reason) => {
+      reasons.push(reason);
+    });
+
+    connection.emitStatus(
+      "S54188496|client 0x12345678 disconnected forced=1 wan_validation_failed=0 duplicate_client_id=0",
+    );
+    connection.emitClose();
+
+    expect(reasons).toEqual(["forced"]);
+  });
+
+  it("emits disconnected reason for duplicate client id disconnects", async () => {
+    const { radio, connection } = await createConnectedRadio();
+    const reasons: Array<string | undefined> = [];
+
+    radio.on("disconnected", (reason) => {
+      reasons.push(reason);
+    });
+
+    connection.emitStatus(
+      "S597D5352|client 0x12345678 disconnected forced=0 wan_validation_failed=0 duplicate_client_id=1",
+    );
+    connection.emitClose();
+
+    expect(reasons).toEqual(["duplicate_client_id"]);
+  });
 });

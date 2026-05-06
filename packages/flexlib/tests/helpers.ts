@@ -89,6 +89,7 @@ export class MockFlexConnection
 
   async close(): Promise<void> {
     this._closed = true;
+    this.emit("close", undefined);
   }
 
   // --- Test helpers ---
@@ -102,6 +103,12 @@ export class MockFlexConnection
   /** Emit a status message as raw TCP text. */
   emitStatus(raw: string): void {
     this.emitTcpLine(raw);
+  }
+
+  /** Simulate the TCP command channel closing unexpectedly. */
+  emitClose(): void {
+    this._closed = true;
+    this.emit("close", undefined);
   }
 
   /** Get the last command sent (without the C{seq}| prefix and trailing newline). */

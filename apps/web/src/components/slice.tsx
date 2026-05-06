@@ -898,7 +898,7 @@ const OptDspControls = (props: {
                   <SelectItem item={props.item} class="font-mono">
                     {toneValues
                       .find((v) => v.hz === props.item.rawValue)
-                      ?.name.replace(" ", "\xA0") || "None"}
+                      ?.name.replaceAll(" ", "\xA0") || "None"}
                   </SelectItem>
                 )}
               >
@@ -1321,7 +1321,7 @@ const RxAntennaSelect = (props: {
       }}
       itemComponent={(props) => (
         <SelectItem item={props.item}>
-          {props.item.rawValue.replace("_", " ")}
+          {props.item.rawValue.replaceAll("_", " ")}
         </SelectItem>
       )}
     >
@@ -1330,7 +1330,7 @@ const RxAntennaSelect = (props: {
         class="flex items-center text-blue-500 font-medium"
       >
         <SelectValue<string> class="textbox-trim-both textbox-edge-cap-alphabetic">
-          {(state) => state.selectedOption().replace("_", "\xA0")}
+          {(state) => state.selectedOption().replaceAll("_", "\xA0")}
         </SelectValue>
       </SelectTriggerPrimitive>
       <SelectContent />
@@ -1352,7 +1352,7 @@ const TxAntennaSelect = (props: {
       }}
       itemComponent={(props) => (
         <SelectItem item={props.item}>
-          {props.item.rawValue.replace("_", " ")}
+          {props.item.rawValue.replaceAll("_", " ")}
         </SelectItem>
       )}
     >
@@ -1361,7 +1361,7 @@ const TxAntennaSelect = (props: {
         class="flex items-center text-red-500 font-medium"
       >
         <SelectValue<string> class="textbox-trim-both textbox-edge-cap-alphabetic">
-          {(state) => state.selectedOption()?.replace("_", " ") ?? "????"}
+          {(state) => state.selectedOption()?.replaceAll("_", "\xA0") ?? "????"}
         </SelectValue>
       </SelectTriggerPrimitive>
       <SelectContent />

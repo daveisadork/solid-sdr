@@ -488,7 +488,7 @@ function AntennaSettings(props: {
         options={Array.from(props.panadapter.rxAntennas)}
         itemComponent={(props) => (
           <SelectItem item={props.item}>
-            {props.item.rawValue.replace("_", " ")}
+            {props.item.rawValue.replaceAll("_", " ")}
           </SelectItem>
         )}
       >

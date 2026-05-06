@@ -44,13 +44,6 @@ export class NodeConnection
   private udpSocket?: DgramSocket;
   private closed = false;
 
-  on<K extends keyof FlexConnectionEvents>(
-    event: K,
-    handler: (payload: FlexConnectionEvents[K]) => void,
-  ): Subscription {
-    return super.on(event, handler);
-  }
-
   async connectTcp(endpoint: RadioEndpoint): Promise<void> {
     if (this.closed) throw new Error("Connection is closed");
     if (this.tcpSocket) throw new Error("TCP already connected");

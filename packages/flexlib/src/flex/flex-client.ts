@@ -407,8 +407,11 @@ export class FlexClient {
         });
       });
 
-      await connection.connectTcp(endpoint);
-      await connection.sendTcp(`C${sequence}|${command}\n`);
+      connection.once("tcpData", async () => {
+        await connectPromise;
+        await connection.sendTcp(`C${sequence}|${command}\n`);
+      });
+      const connectPromise = connection.connectTcp(endpoint);
       return await replyPromise;
     } finally {
       await connection.close().catch((error) => {

@@ -44,6 +44,7 @@ import type {
   DisplayMarkerSnapshot,
   DisplayMarkerStateChange,
   FilterPresetSnapshot,
+  DisconnectedReason,
 } from "@repo/flexlib";
 import { createFlexClient } from "@repo/flexlib/bridge";
 import { useRtc } from "./rtc";
@@ -221,8 +222,10 @@ export const FlexRadioProvider: ParentComponent = (props) => {
   };
 
   const flexClient = createMemo(() => {
-    if (rtcState.connectionState !== "connected") return;
-    return createFlexClient(peerConnection());
+    const pc = peerConnection();
+    return pc && rtcState.connectionState === "connected"
+      ? createFlexClient(pc)
+      : null;
   });
 
   const updateDiscoveryRadio = (descriptor?: FlexRadioDescriptor) => {
@@ -253,7 +256,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     ];
 
     onCleanup(() => {
-      console.log("Cleaning up discovery subscriptions and session");
+      console.debug("Cleaning up discovery subscriptions and session");
       for (const sub of clientSubscriptions) sub.unsubscribe();
       client
         .stopDiscovery()
@@ -437,7 +440,14 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     }
   };
 
-  const disconnect = () => {
+  const disconnect = (reason: DisconnectedReason | undefined) => {
+    if (reason) {
+      showToast({
+        title: "Disconnected by another client",
+        description: `Reason: ${reason.replaceAll("_", " ")}`,
+        variant: "warning",
+      });
+    }
     teardownRadioConnection();
   };
 
@@ -516,7 +526,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
           isGui: true,
           program: "SolidSDR Web",
           guiClientId: preferences.guiClientId,
-          station: preferences.stationName,
+          station: preferences.stationName.replaceAll(/ /g, "\u007f"),
         },
       });
     } catch (error) {

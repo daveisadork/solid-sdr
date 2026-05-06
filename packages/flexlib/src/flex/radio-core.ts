@@ -42,6 +42,7 @@ import {
   parseRadioInfoReply,
   parseRadioVersionReply,
 } from "./radio-replies.js";
+import { parseBooleanFlag } from "../util/parsers.js";
 import {
   clampInteger,
   ensureFinite,
@@ -470,6 +471,7 @@ class RadioImpl {
   private decoder?: InstanceType<typeof TextDecoder>;
   private heartbeatTimer?: ReturnType<typeof setInterval>;
   private defaultCommandTimeoutMs = DEFAULT_COMMAND_TIMEOUT_MS;
+  private pendingDisconnectedReason?: DisconnectedReason;
 
   // Stream handler registries for UDP data routing
   private readonly streamHandlers = new Map<number, Set<StreamPacketHandler>>();
@@ -1038,6 +1040,7 @@ class RadioImpl {
   async connect(options?: RadioConnectOptions): Promise<void> {
     if (this._connectionState !== "disconnected") return;
 
+    this.pendingDisconnectedReason = undefined;
     this.defaultCommandTimeoutMs =
       options?.defaultCommandTimeoutMs ?? DEFAULT_COMMAND_TIMEOUT_MS;
     const pingIntervalMs = options?.pingIntervalMs ?? DEFAULT_PING_INTERVAL_MS;
@@ -1086,6 +1089,7 @@ class RadioImpl {
       this.rejectAllPending(error);
       this.rejectHandleWaiters(error);
       this.cleanupConnection();
+      this.pendingDisconnectedReason = undefined;
       this.setConnectionState("disconnected");
       throw error;
     }
@@ -1117,7 +1121,7 @@ class RadioImpl {
     }
 
     this.setConnectionState("disconnected");
-    this.events.emit("disconnected", undefined);
+    this.emitDisconnected(undefined);
   }
 
   // -----------------------------------------------------------------------
@@ -2440,6 +2444,7 @@ class RadioImpl {
 
     switch (parsed.kind) {
       case "status":
+        this.captureDisconnectedReason(parsed);
         this.events.emit("status", parsed);
         for (const change of this.store.apply(parsed)) {
           this.handleStateChange(change);
@@ -2704,7 +2709,7 @@ class RadioImpl {
     this.rejectHandleWaiters(new FlexClientClosedError());
     this.cleanupConnection();
     this.setConnectionState("disconnected");
-    this.events.emit("disconnected", undefined);
+    this.emitDisconnected(this.pendingDisconnectedReason);
   }
 
   private handleConnectionError(error: unknown): void {
@@ -2750,6 +2755,27 @@ class RadioImpl {
     this.tnfControllers.clear();
     this.memoryControllers.clear();
     this.spotControllers.clear();
+  }
+
+  private captureDisconnectedReason(message: FlexStatusMessage): void {
+    if (message.source !== "client") return;
+    if (message.positional[0]?.toLowerCase() !== "disconnected") return;
+
+    const localHandle = this._clientHandle
+      ? normalizeEntityId(this._clientHandle)
+      : undefined;
+    const messageHandle = message.identifier
+      ? normalizeEntityId(message.identifier)
+      : undefined;
+    if (!localHandle || !messageHandle || localHandle !== messageHandle) return;
+
+    this.pendingDisconnectedReason =
+      parseDisconnectedReason(message) ?? this.pendingDisconnectedReason;
+  }
+
+  private emitDisconnected(reason: DisconnectedReason | undefined): void {
+    this.pendingDisconnectedReason = undefined;
+    this.events.emit("disconnected", reason);
   }
 
   private setConnectionState(state: RadioConnectionState): void {
@@ -2809,4 +2835,13 @@ function normalizeEntityId(token: string): string {
   const upper = withoutPrefix.toUpperCase();
   const padded = upper.padStart(8, "0");
   return `0x${padded}`;
+}
+
+function parseDisconnectedReason(
+  message: FlexStatusMessage,
+): DisconnectedReason | undefined {
+  for (const [key, value] of Object.entries(message.attributes)) {
+    if (parseBooleanFlag(value)) return key as DisconnectedReason;
+  }
+  return undefined;
 }

@@ -619,7 +619,7 @@ function RadioSettingsInner(props: { radio: Radio }) {
                   {(mode) => (
                     <SegmentedControlItem value={mode}>
                       <SegmentedControlItemLabel class="capitalize">
-                        {mode.replace("_", " ")}
+                        {mode.replaceAll("_", " ")}
                       </SegmentedControlItemLabel>
                     </SegmentedControlItem>
                   )}
@@ -692,7 +692,7 @@ function RadioSettingsInner(props: { radio: Radio }) {
                   {(mode) => (
                     <SegmentedControlItem value={mode}>
                       <SegmentedControlItemLabel class="capitalize">
-                        Mode {mode.replace("_", " ")}
+                        Mode {mode.replaceAll("_", " ")}
                       </SegmentedControlItemLabel>
                     </SegmentedControlItem>
                   )}

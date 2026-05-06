@@ -95,13 +95,6 @@ export class BridgeConnection
     this.pc = pc;
   }
 
-  on<K extends keyof FlexConnectionEvents>(
-    event: K,
-    handler: (payload: FlexConnectionEvents[K]) => void,
-  ): Subscription {
-    return super.on(event, handler);
-  }
-
   async connectTcp(endpoint: RadioEndpoint): Promise<void> {
     if (this.closed) throw new Error("Connection is closed");
     if (this.tcpChannel) throw new Error("TCP already connected");

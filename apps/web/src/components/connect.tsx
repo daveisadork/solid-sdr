@@ -17,11 +17,7 @@ import {
 import { Skeleton } from "./ui/skeleton";
 import useFlexRadio, { ConnectionState } from "~/context/flexradio";
 import { ProgressCircle } from "./ui/progress-circle";
-import {
-  FlexRadioDescriptor,
-  getModelInfo,
-  KNOWN_RADIO_MODEL_NAMES,
-} from "@repo/flexlib";
+import { getModelInfo } from "@repo/flexlib";
 import { Badge } from "./ui/badge";
 import MaterialSymbolsPowerPlug from "~icons/material-symbols/power-plug";
 import MaterialSymbolsPowerPlugOff from "~icons/material-symbols/power-plug-off";
@@ -125,7 +121,7 @@ export default function Connect() {
                       />
                       <div class="min-w-20 flex justify-around">
                         <Badge variant={STATUS_MAP[radio.status] ?? "warning"}>
-                          {radio.status.replace("_", "\xa0")}
+                          {radio.status.replaceAll("_", "\xa0")}
                         </Badge>
                       </div>
                     </div>

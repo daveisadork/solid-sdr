@@ -120,6 +120,11 @@ export interface FlexConnection {
     handler: (payload: FlexConnectionEvents[K]) => void,
   ): Subscription;
 
+  once<K extends keyof FlexConnectionEvents>(
+    event: K,
+    handler: (payload: FlexConnectionEvents[K]) => void,
+  ): Subscription;
+
   /**
    * Open the TCP command channel to the radio.
    *

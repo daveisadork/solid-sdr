@@ -9,6 +9,9 @@ import { cn } from "~/lib/utils";
 const Combobox = ComboboxPrimitive.Root;
 const ComboboxItemLabel = ComboboxPrimitive.ItemLabel;
 const ComboboxHiddenSelect = ComboboxPrimitive.HiddenSelect;
+const ComboboxLabel = ComboboxPrimitive.Label;
+const ComboboxListbox = ComboboxPrimitive.Listbox;
+const ComboboxArrow = ComboboxPrimitive.Arrow;
 
 type ComboboxItemProps<T extends ValidComponent = "li"> =
   ComboboxPrimitive.ComboboxItemProps<T> & {
@@ -178,7 +181,7 @@ const ComboboxContent = <T extends ValidComponent = "div">(
     <ComboboxPrimitive.Portal>
       <ComboboxPrimitive.Content
         class={cn(
-          "relative z-50 min-w-32 overflow-hidden rounded-md border fancy-bg-popover text-popover-foreground shadow-md animate-in fade-in-80",
+          "relative z-50 min-w-32 overflow-hidden rounded-md border fancy-bg-popover text-popover-foreground shadow-md animate-in fade-in-80 max-h-(--kb-popper-content-available-height)",
           local.class,
         )}
         {...others}
@@ -200,4 +203,7 @@ export {
   ComboboxInput,
   ComboboxHiddenSelect,
   ComboboxContent,
+  ComboboxLabel,
+  ComboboxListbox,
+  ComboboxArrow,
 };

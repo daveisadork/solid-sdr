@@ -68,12 +68,25 @@ import {
   type ControlTarget,
   type SliceSelector,
   useControls,
+  ControlAction,
 } from "~/context/controls";
 import BaselineDelete from "~icons/ic/baseline-delete";
 import MdiRefresh from "~icons/mdi/refresh";
 import { MidiValueRing } from "../midi-value-ring";
 import { reconcile } from "solid-js/store";
 import useFlexRadio from "~/context/flexradio";
+import {
+  Combobox,
+  ComboboxControl,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxItemIndicator,
+  ComboboxItemLabel,
+  ComboboxLabel,
+  ComboboxSection,
+  ComboboxTrigger,
+  ComboboxContent,
+} from "../ui/combobox";
 
 type InputType = MidiMapping["input"];
 type Behavior = MidiMapping["behavior"];
@@ -278,6 +291,17 @@ function describeControl(mapping: MidiMapping) {
   return mapping.control.slice ? `${label} (${mapping.control.slice})` : label;
 }
 
+interface TargetOption {
+  value: ControlTarget;
+  label: string;
+  disabled: boolean;
+}
+
+interface TargetCategory {
+  label: string;
+  options: TargetOption[];
+}
+
 function describeBehavior(mapping: MidiMapping) {
   switch (mapping.behavior) {
     case "set-value":
@@ -321,7 +345,7 @@ function AddMappingDialog(props: { class?: string | undefined }) {
   );
   const [lastMessage, setLastMessage] = createSignal<ParsedMidiMessage>();
   const [inputType, setInputType] = createSignal<InputType>();
-  const [target, setTarget] = createSignal<ControlTarget | null>(null);
+  const [target, setTarget] = createSignal<TargetOption | null>(null);
   const [behavior, setBehavior] = createSignal<Behavior>();
   const [sliceOption, setSliceOption] = createSignal<SliceOption>("active");
   const [selectedChoiceKey, setSelectedChoiceKey] = createSignal<string>();
@@ -341,7 +365,7 @@ function AddMappingDialog(props: { class?: string | undefined }) {
 
   const control = createMemo(() => {
     const value = target();
-    return value ? CONTROL_REGISTRY[value] : undefined;
+    return value ? CONTROL_REGISTRY[value.value] : undefined;
   });
 
   const selectedSlice = createMemo(() => {
@@ -350,7 +374,7 @@ function AddMappingDialog(props: { class?: string | undefined }) {
   });
 
   const choiceOptions = createMemo<ChoiceOption[]>(() => {
-    const targetValue = target();
+    const targetValue = target()?.value;
     if (
       !targetValue ||
       CONTROL_REGISTRY[targetValue].editor.kind !== "choice"
@@ -370,25 +394,38 @@ function AddMappingDialog(props: { class?: string | undefined }) {
 
   const validTargets = createMemo(() => {
     const input = inputType();
-    if (!input) return [] as ControlTarget[];
+    if (!input) return [] as TargetCategory[];
 
-    return CONTROL_DEFINITIONS.filter((definition) =>
-      supportsInput(definition.target, input),
-    )
-      .map((definition) => definition.target)
-      .toSorted((a, b) =>
-        CONTROL_REGISTRY[a].label.localeCompare(CONTROL_REGISTRY[b].label),
-      );
+    const categories = new Map<string, TargetCategory>();
+
+    for (const control of CONTROL_DEFINITIONS.toSorted((a, b) =>
+      a.label.localeCompare(b.label),
+    )) {
+      const { target, label } = control;
+      const [category, _] = control.target.split(".");
+      if (!categories.has(category)) {
+        categories.set(category, {
+          label: `${category.charAt(0).toLocaleUpperCase() + category.slice(1)} Controls`,
+          options: [],
+        });
+      }
+      categories.get(category)!.options.push({
+        value: target,
+        label,
+        disabled: !supportsInput(target, input),
+      });
+    }
+    return categories.values().toArray();
   });
 
   const currentBehaviorOptions = createMemo(() =>
-    behaviorOptions(inputType(), target()),
+    behaviorOptions(inputType(), target()?.value),
   );
 
   const draftMapping = createMemo((): MidiMapping | null => {
     const midi = { ...capturedSource(), port: selectedPort() };
     const input = inputType();
-    const targetValue = target();
+    const targetValue = target()?.value;
     const chosenBehavior = behavior();
 
     if (!midi || !input || !targetValue || !chosenBehavior) return null;
@@ -609,8 +646,8 @@ function AddMappingDialog(props: { class?: string | undefined }) {
   });
 
   createEffect(() => {
-    const currentTarget = target();
-    if (currentTarget && !validTargets().includes(currentTarget)) {
+    const currentTarget = target()?.value;
+    if (currentTarget && !supportsInput(currentTarget, inputType())) {
       setTarget(null);
     }
   });
@@ -767,28 +804,37 @@ function AddMappingDialog(props: { class?: string | undefined }) {
                 title: "Target Control",
                 description: (
                   <div class="pt-2 flex flex-col gap-4">
-                    <Select<ControlTarget>
+                    <Combobox<TargetOption, TargetCategory>
                       class="flex flex-col gap-2"
                       value={target() ?? undefined}
                       onChange={setTarget}
                       options={validTargets()}
+                      optionValue="value"
+                      optionTextValue="label"
+                      optionLabel="label"
+                      optionDisabled="disabled"
+                      optionGroupChildren="options"
                       placeholder="Select control..."
                       itemComponent={(props) => (
-                        <SelectItem item={props.item}>
-                          {CONTROL_REGISTRY[props.item.rawValue].label}
-                        </SelectItem>
+                        <ComboboxItem item={props.item}>
+                          <ComboboxItemLabel>
+                            {props.item.rawValue.label}
+                          </ComboboxItemLabel>
+                          <ComboboxItemIndicator />
+                        </ComboboxItem>
+                      )}
+                      sectionComponent={(props) => (
+                        <ComboboxSection>
+                          {props.section.rawValue.label}
+                        </ComboboxSection>
                       )}
                     >
-                      <SelectLabel>What should it control?</SelectLabel>
-                      <SelectTrigger>
-                        <SelectValue<ControlTarget>>
-                          {(state) =>
-                            CONTROL_REGISTRY[state.selectedOption()]?.label
-                          }
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent />
-                    </Select>
+                      <ComboboxControl aria-label="Target Control">
+                        <ComboboxInput />
+                        <ComboboxTrigger />
+                      </ComboboxControl>
+                      <ComboboxContent class="overflow-auto" />
+                    </Combobox>
                     <Show when={controlNeedsSlice(control()?.target)}>
                       <Select<SliceOption>
                         class="flex flex-col gap-2"
@@ -805,7 +851,7 @@ function AddMappingDialog(props: { class?: string | undefined }) {
                       >
                         <SelectLabel>
                           Which{" "}
-                          {target()?.startsWith("panadapter")
+                          {target()?.value.startsWith("panadapter")
                             ? "slice's panadapter"
                             : "slice"}
                           ?

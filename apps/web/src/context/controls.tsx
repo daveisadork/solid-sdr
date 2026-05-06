@@ -193,6 +193,12 @@ function warnNotImplemented(action: { target: string }) {
   console.warn("not implemented:", action);
 }
 
+const SPEECH_PROCESSOR_LEVELS = ["Norm", "DX", "DX+"] as const;
+
+function isCwTransmitMode(mode?: string) {
+  return mode === "CW";
+}
+
 /**
  * Add new controls here.
  *
@@ -293,6 +299,19 @@ export const CONTROL_DEFINITIONS = [
 
       if (!value) return;
       slice.setMode(value);
+    },
+  }),
+
+  defineControl<CommandAction<"slice.cw.autoTune", SliceTargeted>>({
+    target: "slice.cw.autoTune",
+    label: "Slice CW Auto Tune",
+    scope: "slice",
+    ops: [],
+    editor: { kind: "command" },
+    execute(ctx, action) {
+      const slice = ctx.getSlice(action.slice);
+      if (!slice) return;
+      slice.cwAutoTune();
     },
   }),
 
@@ -642,8 +661,272 @@ export const CONTROL_DEFINITIONS = [
     scope: "slice",
     ops: ["adjust", "set"],
     editor: { kind: "normalized" },
-    execute(_ctx, action) {
-      warnNotImplemented(action);
+    execute(ctx, action) {
+      const slice = ctx.getSlice(action.slice);
+      if (!slice) return;
+
+      const value =
+        action.op === "adjust"
+          ? slice.agcThreshold + action.delta
+          : fromNormalized(action.value, 100);
+
+      slice.setAgcSettings({ threshold: value });
+    },
+  }),
+
+  defineControl<BooleanControlAction<"slice.wnb.enabled", SliceTargeted>>({
+    target: "slice.wnb.enabled",
+    label: "Slice WNB Enabled",
+    scope: "slice",
+    ops: ["toggle", "set"],
+    editor: { kind: "boolean" },
+    execute(ctx, action) {
+      const slice = ctx.getSlice(action.slice);
+      if (!slice) return;
+      slice.setWnbEnabled(resolveBooleanAction(action, slice.wnbEnabled));
+    },
+  }),
+
+  defineControl<NormalizedControlAction<"slice.wnb.level", SliceTargeted>>({
+    target: "slice.wnb.level",
+    label: "Slice WNB Level",
+    scope: "slice",
+    ops: ["adjust", "set"],
+    editor: { kind: "normalized" },
+    execute(ctx, action) {
+      const slice = ctx.getSlice(action.slice);
+      if (!slice) return;
+
+      const value =
+        action.op === "adjust"
+          ? slice.wnbLevel + action.delta
+          : fromNormalized(action.value, 100);
+
+      slice.setWnbLevel(value);
+    },
+  }),
+
+  defineControl<BooleanControlAction<"slice.nb.enabled", SliceTargeted>>({
+    target: "slice.nb.enabled",
+    label: "Slice NB Enabled",
+    scope: "slice",
+    ops: ["toggle", "set"],
+    editor: { kind: "boolean" },
+    execute(ctx, action) {
+      const slice = ctx.getSlice(action.slice);
+      if (!slice) return;
+      slice.setNbEnabled(resolveBooleanAction(action, slice.nbEnabled));
+    },
+  }),
+
+  defineControl<NormalizedControlAction<"slice.nb.level", SliceTargeted>>({
+    target: "slice.nb.level",
+    label: "Slice NB Level",
+    scope: "slice",
+    ops: ["adjust", "set"],
+    editor: { kind: "normalized" },
+    execute(ctx, action) {
+      const slice = ctx.getSlice(action.slice);
+      if (!slice) return;
+
+      const value =
+        action.op === "adjust"
+          ? slice.nbLevel + action.delta
+          : fromNormalized(action.value, 100);
+
+      slice.setNbLevel(value);
+    },
+  }),
+
+  defineControl<BooleanControlAction<"slice.anf.enabled", SliceTargeted>>({
+    target: "slice.anf.enabled",
+    label: "Slice ANF Enabled",
+    scope: "slice",
+    ops: ["toggle", "set"],
+    editor: { kind: "boolean" },
+    execute(ctx, action) {
+      const slice = ctx.getSlice(action.slice);
+      if (!slice) return;
+      slice.setAnfEnabled(resolveBooleanAction(action, slice.anfEnabled));
+    },
+  }),
+
+  defineControl<NormalizedControlAction<"slice.anf.level", SliceTargeted>>({
+    target: "slice.anf.level",
+    label: "Slice ANF Level",
+    scope: "slice",
+    ops: ["adjust", "set"],
+    editor: { kind: "normalized" },
+    execute(ctx, action) {
+      const slice = ctx.getSlice(action.slice);
+      if (!slice) return;
+
+      const value =
+        action.op === "adjust"
+          ? slice.anfLevel + action.delta
+          : fromNormalized(action.value, 100);
+
+      slice.setAnfLevel(value);
+    },
+  }),
+
+  defineControl<BooleanControlAction<"slice.apf.enabled", SliceTargeted>>({
+    target: "slice.apf.enabled",
+    label: "Slice APF Enabled",
+    scope: "slice",
+    ops: ["toggle", "set"],
+    editor: { kind: "boolean" },
+    execute(ctx, action) {
+      const slice = ctx.getSlice(action.slice);
+      if (!slice) return;
+      slice.setApfEnabled(resolveBooleanAction(action, slice.apfEnabled));
+    },
+  }),
+
+  defineControl<NormalizedControlAction<"slice.apf.level", SliceTargeted>>({
+    target: "slice.apf.level",
+    label: "Slice APF Level",
+    scope: "slice",
+    ops: ["adjust", "set"],
+    editor: { kind: "normalized" },
+    execute(ctx, action) {
+      const slice = ctx.getSlice(action.slice);
+      if (!slice) return;
+
+      const value =
+        action.op === "adjust"
+          ? slice.apfLevel + action.delta
+          : fromNormalized(action.value, 100);
+
+      slice.setApfLevel(value);
+    },
+  }),
+
+  defineControl<BooleanControlAction<"slice.nrl.enabled", SliceTargeted>>({
+    target: "slice.nrl.enabled",
+    label: "Slice NRL Enabled",
+    scope: "slice",
+    ops: ["toggle", "set"],
+    editor: { kind: "boolean" },
+    execute(ctx, action) {
+      const slice = ctx.getSlice(action.slice);
+      if (!slice) return;
+      slice.setNrlEnabled(resolveBooleanAction(action, slice.nrlEnabled));
+    },
+  }),
+
+  defineControl<NormalizedControlAction<"slice.nrl.level", SliceTargeted>>({
+    target: "slice.nrl.level",
+    label: "Slice NRL Level",
+    scope: "slice",
+    ops: ["adjust", "set"],
+    editor: { kind: "normalized" },
+    execute(ctx, action) {
+      const slice = ctx.getSlice(action.slice);
+      if (!slice) return;
+
+      const value =
+        action.op === "adjust"
+          ? slice.nrlLevel + action.delta
+          : fromNormalized(action.value, 100);
+
+      slice.setNrlLevel(value);
+    },
+  }),
+
+  defineControl<BooleanControlAction<"slice.anfl.enabled", SliceTargeted>>({
+    target: "slice.anfl.enabled",
+    label: "Slice ANFL Enabled",
+    scope: "slice",
+    ops: ["toggle", "set"],
+    editor: { kind: "boolean" },
+    execute(ctx, action) {
+      const slice = ctx.getSlice(action.slice);
+      if (!slice) return;
+      slice.setAnflEnabled(resolveBooleanAction(action, slice.anflEnabled));
+    },
+  }),
+
+  defineControl<NormalizedControlAction<"slice.anfl.level", SliceTargeted>>({
+    target: "slice.anfl.level",
+    label: "Slice ANFL Level",
+    scope: "slice",
+    ops: ["adjust", "set"],
+    editor: { kind: "normalized" },
+    execute(ctx, action) {
+      const slice = ctx.getSlice(action.slice);
+      if (!slice) return;
+
+      const value =
+        action.op === "adjust"
+          ? slice.anflLevel + action.delta
+          : fromNormalized(action.value, 100);
+
+      slice.setAnflLevel(value);
+    },
+  }),
+
+  defineControl<NormalizedControlAction<"slice.nrs.level", SliceTargeted>>({
+    target: "slice.nrs.level",
+    label: "Slice NRS Level",
+    scope: "slice",
+    ops: ["adjust", "set"],
+    editor: { kind: "normalized" },
+    execute(ctx, action) {
+      const slice = ctx.getSlice(action.slice);
+      if (!slice) return;
+
+      const value =
+        action.op === "adjust"
+          ? slice.nrsLevel + action.delta
+          : fromNormalized(action.value, 100);
+
+      slice.setNrsLevel(value);
+    },
+  }),
+
+  defineControl<BooleanControlAction<"slice.anft.enabled", SliceTargeted>>({
+    target: "slice.anft.enabled",
+    label: "Slice ANFT Enabled",
+    scope: "slice",
+    ops: ["toggle", "set"],
+    editor: { kind: "boolean" },
+    execute(ctx, action) {
+      const slice = ctx.getSlice(action.slice);
+      if (!slice) return;
+      slice.setAnftEnabled(resolveBooleanAction(action, slice.anftEnabled));
+    },
+  }),
+
+  defineControl<BooleanControlAction<"slice.nrf.enabled", SliceTargeted>>({
+    target: "slice.nrf.enabled",
+    label: "Slice NRF Enabled",
+    scope: "slice",
+    ops: ["toggle", "set"],
+    editor: { kind: "boolean" },
+    execute(ctx, action) {
+      const slice = ctx.getSlice(action.slice);
+      if (!slice) return;
+      slice.setNrfEnabled(resolveBooleanAction(action, slice.nrfEnabled));
+    },
+  }),
+
+  defineControl<NormalizedControlAction<"slice.nrf.level", SliceTargeted>>({
+    target: "slice.nrf.level",
+    label: "Slice NRF Level",
+    scope: "slice",
+    ops: ["adjust", "set"],
+    editor: { kind: "normalized" },
+    execute(ctx, action) {
+      const slice = ctx.getSlice(action.slice);
+      if (!slice) return;
+
+      const value =
+        action.op === "adjust"
+          ? slice.nrfLevel + action.delta
+          : fromNormalized(action.value, 100);
+
+      slice.setNrfLevel(value);
     },
   }),
 
@@ -702,6 +985,166 @@ export const CONTROL_DEFINITIONS = [
       const slice = ctx.getSlice(action.slice);
       if (!slice) return;
       slice.setRnnEnabled(resolveBooleanAction(action, slice.rnnEnabled));
+    },
+  }),
+
+  defineControl<ChoiceControlAction<"radio.profile.tx", string>>({
+    target: "radio.profile.tx",
+    label: "Radio TX Profile",
+    scope: "radio",
+    ops: ["cycle", "set"],
+    editor: {
+      kind: "choice",
+      getChoices(ctx) {
+        return ctx.state.status.radio.profileTxList;
+      },
+    },
+    execute(ctx, action) {
+      const radioController = ctx.radio();
+      if (!radioController) return;
+
+      const profiles = ctx.state.status.radio.profileTxList;
+      if (profiles.length === 0) return;
+
+      const value =
+        action.op === "cycle"
+          ? cycleListValue(
+              profiles,
+              ctx.state.status.radio.profileTxSelection ?? profiles[0],
+              action.delta,
+            )
+          : action.value;
+
+      if (!value) return;
+      radioController.loadTxProfile(value);
+    },
+  }),
+
+  defineControl<ChoiceControlAction<"radio.profile.mic", string>>({
+    target: "radio.profile.mic",
+    label: "Radio Mic Profile",
+    scope: "radio",
+    ops: ["cycle", "set"],
+    editor: {
+      kind: "choice",
+      getChoices(ctx) {
+        return ctx.state.status.radio.profileMicList;
+      },
+    },
+    execute(ctx, action) {
+      const radioController = ctx.radio();
+      if (!radioController) return;
+
+      const profiles = ctx.state.status.radio.profileMicList;
+      if (profiles.length === 0) return;
+
+      const value =
+        action.op === "cycle"
+          ? cycleListValue(
+              profiles,
+              ctx.state.status.radio.profileMicSelection ?? profiles[0],
+              action.delta,
+            )
+          : action.value;
+
+      if (!value) return;
+      radioController.loadMicProfile(value);
+    },
+  }),
+
+  defineControl<ChoiceControlAction<"radio.profile.display", string>>({
+    target: "radio.profile.display",
+    label: "Radio Display Profile",
+    scope: "radio",
+    ops: ["cycle", "set"],
+    editor: {
+      kind: "choice",
+      getChoices(ctx) {
+        return ctx.state.status.radio.profileDisplayList;
+      },
+    },
+    execute(ctx, action) {
+      const radioController = ctx.radio();
+      if (!radioController) return;
+
+      const profiles = ctx.state.status.radio.profileDisplayList;
+      if (profiles.length === 0) return;
+
+      const value =
+        action.op === "cycle"
+          ? cycleListValue(
+              profiles,
+              ctx.state.status.radio.profileDisplaySelection ?? profiles[0],
+              action.delta,
+            )
+          : action.value;
+
+      if (!value) return;
+      radioController.loadDisplayProfile(value);
+    },
+  }),
+
+  defineControl<ChoiceControlAction<"radio.profile.global", string>>({
+    target: "radio.profile.global",
+    label: "Radio Global Profile",
+    scope: "radio",
+    ops: ["cycle", "set"],
+    editor: {
+      kind: "choice",
+      getChoices(ctx) {
+        return ctx.state.status.radio.profileGlobalList;
+      },
+    },
+    execute(ctx, action) {
+      const radioController = ctx.radio();
+      if (!radioController) return;
+
+      const profiles = ctx.state.status.radio.profileGlobalList;
+      if (profiles.length === 0) return;
+
+      const value =
+        action.op === "cycle"
+          ? cycleListValue(
+              profiles,
+              ctx.state.status.radio.profileGlobalSelection ?? profiles[0],
+              action.delta,
+            )
+          : action.value;
+
+      if (!value) return;
+      radioController.loadGlobalProfile(value);
+    },
+  }),
+
+  defineControl<ChoiceControlAction<"radio.mic.input", string>>({
+    target: "radio.mic.input",
+    label: "Radio Mic Input",
+    scope: "radio",
+    ops: ["cycle", "set"],
+    editor: {
+      kind: "choice",
+      getChoices(ctx) {
+        return ctx.state.status.radio.micInputList;
+      },
+    },
+    execute(ctx, action) {
+      const radioController = ctx.radio();
+      if (!radioController) return;
+
+      const inputs = ctx.state.status.radio.micInputList;
+      if (inputs.length === 0) return;
+
+      const value =
+        action.op === "cycle"
+          ? cycleListValue(
+              inputs,
+              radioController.micSelection ?? inputs[0],
+              action.delta,
+            )
+          : action.value;
+
+      if (!value) return;
+      radioController.setMicSelection(value);
     },
   }),
 
@@ -781,6 +1224,277 @@ export const CONTROL_DEFINITIONS = [
       radioController.setTxTune(
         resolveBooleanAction(action, radioController.txTune),
       );
+    },
+  }),
+
+  defineControl<BooleanControlAction<"radio.mic.accessory">>({
+    target: "radio.mic.accessory",
+    label: "Radio Mic Accessory",
+    scope: "radio",
+    ops: ["toggle", "set"],
+    editor: { kind: "boolean" },
+    execute(ctx, action) {
+      const radioController = ctx.radio();
+      if (!radioController) return;
+      radioController.setMicAccessoryEnabled(
+        resolveBooleanAction(action, radioController.micAccessoryEnabled),
+      );
+    },
+  }),
+
+  defineControl<BooleanControlAction<"radio.dax">>({
+    target: "radio.dax",
+    label: "Radio DAX",
+    scope: "radio",
+    ops: ["toggle", "set"],
+    editor: { kind: "boolean" },
+    execute(ctx, action) {
+      const radioController = ctx.radio();
+      if (!radioController) return;
+      radioController.setDaxEnabled(
+        resolveBooleanAction(action, radioController.daxEnabled),
+      );
+    },
+  }),
+
+  defineControl<NormalizedControlAction<"radio.mic.level">>({
+    target: "radio.mic.level",
+    label: "Radio Mic Level",
+    scope: "radio",
+    ops: ["adjust", "set"],
+    editor: { kind: "normalized" },
+    execute(ctx, action) {
+      const radioController = ctx.radio();
+      if (!radioController) return;
+
+      const value =
+        action.op === "adjust"
+          ? (radioController.micLevel ?? 0) + action.delta
+          : fromNormalized(action.value, 100);
+
+      radioController.setMicLevel(value);
+    },
+  }),
+
+  defineControl<BooleanControlAction<"radio.mic.bias">>({
+    target: "radio.mic.bias",
+    label: "Radio Mic Bias",
+    scope: "radio",
+    ops: ["toggle", "set"],
+    editor: { kind: "boolean" },
+    execute(ctx, action) {
+      const radioController = ctx.radio();
+      if (!radioController) return;
+      radioController.setMicBias(
+        resolveBooleanAction(action, radioController.micBias),
+      );
+    },
+  }),
+
+  defineControl<BooleanControlAction<"radio.mic.boost">>({
+    target: "radio.mic.boost",
+    label: "Radio Mic Boost",
+    scope: "radio",
+    ops: ["toggle", "set"],
+    editor: { kind: "boolean" },
+    execute(ctx, action) {
+      const radioController = ctx.radio();
+      if (!radioController) return;
+      radioController.setMicBoost(
+        resolveBooleanAction(action, radioController.micBoost),
+      );
+    },
+  }),
+
+  defineControl<BooleanControlAction<"radio.meterInRx">>({
+    target: "radio.meterInRx",
+    label: "Radio Meter In RX",
+    scope: "radio",
+    ops: ["toggle", "set"],
+    editor: { kind: "boolean" },
+    execute(ctx, action) {
+      const radioController = ctx.radio();
+      if (!radioController) return;
+      radioController.setMeterInRxEnabled(
+        resolveBooleanAction(action, radioController.meterInRx),
+      );
+    },
+  }),
+
+  defineControl<BooleanControlAction<"radio.speechProcessor.enabled">>({
+    target: "radio.speechProcessor.enabled",
+    label: "Radio Speech Processor Enabled",
+    scope: "radio",
+    ops: ["toggle", "set"],
+    editor: { kind: "boolean" },
+    execute(ctx, action) {
+      const radioController = ctx.radio();
+      if (!radioController) return;
+      radioController.setSpeechProcessorEnabled(
+        resolveBooleanAction(action, radioController.speechProcessorEnabled),
+      );
+    },
+  }),
+
+  defineControl<ChoiceControlAction<"radio.speechProcessor.level", string>>({
+    target: "radio.speechProcessor.level",
+    label: "Radio Speech Processor Level",
+    scope: "radio",
+    ops: ["cycle", "set"],
+    editor: {
+      kind: "choice",
+      getChoices() {
+        return SPEECH_PROCESSOR_LEVELS;
+      },
+    },
+    execute(ctx, action) {
+      const radioController = ctx.radio();
+      if (!radioController) return;
+
+      const current =
+        SPEECH_PROCESSOR_LEVELS[radioController.speechProcessorLevel ?? 0] ??
+        SPEECH_PROCESSOR_LEVELS[0];
+      const value =
+        action.op === "cycle"
+          ? cycleListValue(SPEECH_PROCESSOR_LEVELS, current, action.delta)
+          : action.value;
+
+      if (!value) return;
+      radioController.setSpeechProcessorLevel(
+        SPEECH_PROCESSOR_LEVELS.indexOf(
+          value as (typeof SPEECH_PROCESSOR_LEVELS)[number],
+        ),
+      );
+    },
+  }),
+
+  defineControl<BooleanControlAction<"radio.txMonitor.enabled">>({
+    target: "radio.txMonitor.enabled",
+    label: "Radio TX Monitor Enabled",
+    scope: "radio",
+    ops: ["toggle", "set"],
+    editor: { kind: "boolean" },
+    execute(ctx, action) {
+      const radioController = ctx.radio();
+      if (!radioController) return;
+      radioController.setTxMonitorEnabled(
+        resolveBooleanAction(action, radioController.txMonitorEnabled),
+      );
+    },
+  }),
+
+  defineControl<NormalizedControlAction<"radio.txMonitor.level">>({
+    target: "radio.txMonitor.level",
+    label: "Radio TX Monitor Level",
+    scope: "radio",
+    ops: ["adjust", "set"],
+    editor: { kind: "normalized" },
+    execute(ctx, action) {
+      const radioController = ctx.radio();
+      if (!radioController) return;
+
+      const isCw = isCwTransmitMode(radioController.txMode);
+      const currentLevel = isCw
+        ? (radioController.txCwMonitorGain ?? 0)
+        : (radioController.txSbMonitorGain ?? 0);
+      const value =
+        action.op === "adjust"
+          ? currentLevel + action.delta
+          : fromNormalized(action.value, 100);
+
+      if (isCw) {
+        radioController.setTxCwMonitorGain(value);
+        return;
+      }
+
+      radioController.setTxSbMonitorGain(value);
+    },
+  }),
+
+  defineControl<BooleanControlAction<"radio.vox.enabled">>({
+    target: "radio.vox.enabled",
+    label: "Radio VOX Enabled",
+    scope: "radio",
+    ops: ["toggle", "set"],
+    editor: { kind: "boolean" },
+    execute(ctx, action) {
+      const radioController = ctx.radio();
+      if (!radioController) return;
+      radioController.setVoxEnabled(
+        resolveBooleanAction(action, radioController.voxEnabled),
+      );
+    },
+  }),
+
+  defineControl<NormalizedControlAction<"radio.vox.level">>({
+    target: "radio.vox.level",
+    label: "Radio VOX Level",
+    scope: "radio",
+    ops: ["adjust", "set"],
+    editor: { kind: "normalized" },
+    execute(ctx, action) {
+      const radioController = ctx.radio();
+      if (!radioController) return;
+
+      const value =
+        action.op === "adjust"
+          ? (radioController.voxLevel ?? 0) + action.delta
+          : fromNormalized(action.value, 100);
+
+      radioController.setVoxLevel(value);
+    },
+  }),
+
+  defineControl<NormalizedControlAction<"radio.vox.delay">>({
+    target: "radio.vox.delay",
+    label: "Radio VOX Delay",
+    scope: "radio",
+    ops: ["adjust", "set"],
+    editor: { kind: "normalized" },
+    execute(ctx, action) {
+      const radioController = ctx.radio();
+      if (!radioController) return;
+
+      const value =
+        action.op === "adjust"
+          ? (radioController.voxDelay ?? 0) + action.delta
+          : fromNormalized(action.value, 100);
+
+      radioController.setVoxDelay(value);
+    },
+  }),
+
+  defineControl<BooleanControlAction<"radio.compander.enabled">>({
+    target: "radio.compander.enabled",
+    label: "Radio Compander Enabled",
+    scope: "radio",
+    ops: ["toggle", "set"],
+    editor: { kind: "boolean" },
+    execute(ctx, action) {
+      const radioController = ctx.radio();
+      if (!radioController) return;
+      radioController.setCompanderEnabled(
+        resolveBooleanAction(action, radioController.companderEnabled),
+      );
+    },
+  }),
+
+  defineControl<NormalizedControlAction<"radio.compander.level">>({
+    target: "radio.compander.level",
+    label: "Radio Compander Level",
+    scope: "radio",
+    ops: ["adjust", "set"],
+    editor: { kind: "normalized" },
+    execute(ctx, action) {
+      const radioController = ctx.radio();
+      if (!radioController) return;
+
+      const value =
+        action.op === "adjust"
+          ? (radioController.companderLevel ?? 0) + action.delta
+          : fromNormalized(action.value, 100);
+
+      radioController.setCompanderLevel(value);
     },
   }),
 

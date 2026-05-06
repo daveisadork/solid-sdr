@@ -1037,12 +1037,20 @@ const OptDspControls = (props: {
                   props.controller.setNrEnabled(isChecked);
                 }}
               />
-              <SimpleSwitch
-                checked={props.slice.nrsEnabled}
-                onChange={(isChecked) => {
+              <SliderToggle
+                disabled={!props.slice.nrsEnabled}
+                minValue={0}
+                maxValue={50}
+                value={[props.slice.nrsLevel]}
+                onChange={([value]) => {
+                  props.controller.setNrsLevel(value);
+                }}
+                getValueLabel={(params) => `${params.values[0]}%`}
+                label="Spectral Subtraction (NRS)"
+                switchChecked={props.slice.nrsEnabled}
+                onSwitchChange={(isChecked) => {
                   props.controller.setNrsEnabled(isChecked);
                 }}
-                label="Spectral Subtraction (NRS)"
               />
               <SimpleSwitch
                 checked={props.slice.nrfEnabled}

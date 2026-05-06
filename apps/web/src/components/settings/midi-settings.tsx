@@ -309,7 +309,7 @@ function describeBehavior(mapping: MidiMapping) {
   }
 }
 
-function AddMappingDialog() {
+function AddMappingDialog(props: { class?: string | undefined }) {
   const { setPreferences } = usePreferences();
   const { inputs } = createMIDIPorts();
   const { getChoices } = useControls();
@@ -642,7 +642,9 @@ function AddMappingDialog() {
 
   return (
     <Dialog open={open()} onOpenChange={setOpen}>
-      <DialogTrigger as={Button}>New</DialogTrigger>
+      <DialogTrigger as={Button} class={props.class}>
+        New
+      </DialogTrigger>
       <DialogContent class="translate-y-0 flex flex-col top-1/12 max-h-10/12 overflow-hidden">
         <DialogHeader>
           <DialogTitle>Add Mapping</DialogTitle>
@@ -1168,11 +1170,8 @@ function MidiSettingsInner() {
   });
 
   return (
-    <Card class="bg-transparent flex flex-col gap-4 text-sm overflow-hidden">
-      <CardHeader>
-        <CardTitle>MIDI Controller Settings</CardTitle>
-      </CardHeader>
-      <CardContent class="flex flex-col gap-4 overflow-auto shrink">
+    <>
+      <div class="flex flex-col gap-4 overflow-auto shrink">
         <Table class="whitespace-nowrap">
           <TableHeader>
             <TableRow>
@@ -1213,29 +1212,30 @@ function MidiSettingsInner() {
             </For>
           </TableBody>
         </Table>
-      </CardContent>
-      <CardFooter class="flex gap-2">
-        <Button as="label">
-          <input
-            class="hidden"
-            type="file"
-            onChange={(event) => {
-              setImportFile(event.target.files.item(0));
-            }}
-          />
-          Import
-        </Button>
-        <Button
-          as="a"
-          href={downloadUrl()}
-          download="solid-sdr-midi-mappings.json"
-        >
-          Export
-        </Button>
-        <div class="grow" />
+      </div>
+      <DialogFooter>
+        <div class="sm:grow flex flex-col-reverse sm:flex-row gap-2">
+          <Button as="label">
+            <input
+              class="hidden"
+              type="file"
+              onChange={(event) => {
+                setImportFile(event.target.files.item(0));
+              }}
+            />
+            Import
+          </Button>
+          <Button
+            as="a"
+            href={downloadUrl()}
+            download="solid-sdr-midi-mappings.json"
+          >
+            Export
+          </Button>
+        </div>
         <AddMappingDialog />
-      </CardFooter>
-    </Card>
+      </DialogFooter>
+    </>
   );
 }
 
@@ -1243,7 +1243,7 @@ export function MidiSettings() {
   return (
     <DialogContent class="translate-y-0 top-1/12 flex flex-col max-h-10/12 overflow-hidden sm:max-w-10/12 sm:w-auto">
       <DialogHeader>
-        <DialogTitle>Controllers</DialogTitle>
+        <DialogTitle>MIDI Controllers</DialogTitle>
       </DialogHeader>
       <Show
         when={navigator.requestMIDIAccess}

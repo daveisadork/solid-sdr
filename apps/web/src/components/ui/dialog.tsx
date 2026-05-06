@@ -105,7 +105,7 @@ const DialogFooter: Component<ComponentProps<"div">> = (props) => {
   return (
     <div
       class={cn(
-        "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2",
+        "flex flex-col-reverse sm:flex-row sm:justify-end gap-2",
         props.class,
       )}
       {...rest}

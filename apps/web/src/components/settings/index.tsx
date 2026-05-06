@@ -94,7 +94,7 @@ const tabs = {
   radio: RadioSettings,
   memory: MemorySettings,
   spots: SpotsSettings,
-  controllers: MidiSettings,
+  midi: MidiSettings,
 };
 
 export function Settings() {
@@ -128,8 +128,8 @@ export function Settings() {
           <DropdownMenuItem onSelect={() => setActiveTab("spots")}>
             Spots
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => setActiveTab("controllers")}>
-            Controllers
+          <DropdownMenuItem onSelect={() => setActiveTab("midi")}>
+            MIDI Controllers
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

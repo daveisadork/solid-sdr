@@ -113,6 +113,9 @@ type SliceController = NonNullable<ReturnType<RadioController["slice"]>>;
 type PanadapterController = NonNullable<
   ReturnType<RadioController["panadapter"]>
 >;
+type WaterfallController = NonNullable<
+  ReturnType<RadioController["waterfall"]>
+>;
 
 type ControlScope = "slice" | "panadapter" | "radio";
 export type ControlOp = "toggle" | "set" | "adjust" | "cycle";
@@ -127,8 +130,10 @@ type ControlRuntime = {
   activePan: Accessor<PanadapterController | undefined>;
   getSlice: (selector?: SliceSelector) => SliceController | undefined;
   getPan: (selector?: SliceSelector) => PanadapterController | undefined;
+  getWaterfall: (selector?: SliceSelector) => WaterfallController | undefined;
   getBandList: () => readonly string[];
   getSelectableSlices: () => readonly SliceSelector[];
+  preferences: ReturnType<typeof usePreferences>["preferences"];
 };
 
 type ControlEditor<TAction extends { target: string }> =
@@ -654,6 +659,289 @@ export const CONTROL_DEFINITIONS = [
       pan.setBandwidth(bandwidth);
     },
   }),
+
+  defineControl<
+    ChoiceControlAction<"panadapter.rxAntenna", string, SliceTargeted>
+  >({
+    target: "panadapter.rxAntenna",
+    label: "Panadapter RX Antenna",
+    scope: "panadapter",
+    ops: ["cycle", "set"],
+    editor: {
+      kind: "choice",
+      getChoices(ctx, action) {
+        return ctx.getPan(action?.slice)?.rxAntennas ?? [];
+      },
+    },
+    execute(ctx, action) {
+      const pan = ctx.getPan(action.slice);
+      if (!pan) return;
+
+      const antennas = pan.rxAntennas;
+      if (antennas.length === 0) return;
+
+      const value =
+        action.op === "cycle"
+          ? cycleListValue(antennas, pan.rxAntenna, action.delta)
+          : action.value;
+
+      if (!value) return;
+      pan.setRxAntenna(value);
+    },
+  }),
+
+  defineControl<NormalizedControlAction<"panadapter.rfGain", SliceTargeted>>({
+    target: "panadapter.rfGain",
+    label: "Panadapter RF Gain",
+    scope: "panadapter",
+    ops: ["adjust", "set"],
+    editor: { kind: "normalized" },
+    execute(ctx, action) {
+      const pan = ctx.getPan(action.slice);
+      if (!pan) return;
+
+      const value =
+        action.op === "adjust"
+          ? pan.rfGain + action.delta
+          : fromNormalized(action.value, pan.rfGainHigh, pan.rfGainLow);
+
+      pan.setRfGain(value);
+    },
+  }),
+
+  defineControl<BooleanControlAction<"panadapter.wnb.enabled", SliceTargeted>>({
+    target: "panadapter.wnb.enabled",
+    label: "Panadapter WNB Enabled",
+    scope: "panadapter",
+    ops: ["toggle", "set"],
+    editor: { kind: "boolean" },
+    execute(ctx, action) {
+      const pan = ctx.getPan(action.slice);
+      if (!pan) return;
+      pan.setWnbEnabled(resolveBooleanAction(action, pan.wnbEnabled));
+    },
+  }),
+
+  defineControl<NormalizedControlAction<"panadapter.wnb.level", SliceTargeted>>(
+    {
+      target: "panadapter.wnb.level",
+      label: "Panadapter WNB Level",
+      scope: "panadapter",
+      ops: ["adjust", "set"],
+      editor: { kind: "normalized" },
+      execute(ctx, action) {
+        const pan = ctx.getPan(action.slice);
+        if (!pan) return;
+
+        const value =
+          action.op === "adjust"
+            ? pan.wnbLevel + action.delta
+            : fromNormalized(action.value, 100);
+
+        pan.setWnbLevel(value);
+      },
+    },
+  ),
+
+  defineControl<
+    BooleanControlAction<"panadapter.weightedAverage", SliceTargeted>
+  >({
+    target: "panadapter.weightedAverage",
+    label: "Panadapter Weighted Average",
+    scope: "panadapter",
+    ops: ["toggle", "set"],
+    editor: { kind: "boolean" },
+    execute(ctx, action) {
+      const pan = ctx.getPan(action.slice);
+      if (!pan) return;
+      pan.setWeightedAverage(
+        resolveBooleanAction(action, pan.weightedAverage),
+      );
+    },
+  }),
+
+  defineControl<
+    BooleanControlAction<"panadapter.noiseFloor.enabled", SliceTargeted>
+  >({
+    target: "panadapter.noiseFloor.enabled",
+    label: "Panadapter Noise Floor Enabled",
+    scope: "panadapter",
+    ops: ["toggle", "set"],
+    editor: { kind: "boolean" },
+    execute(ctx, action) {
+      const pan = ctx.getPan(action.slice);
+      if (!pan) return;
+      pan.setNoiseFloorPositionEnabled(
+        resolveBooleanAction(action, pan.noiseFloorPositionEnabled),
+      );
+    },
+  }),
+
+  defineControl<NormalizedControlAction<"panadapter.noiseFloor", SliceTargeted>>(
+    {
+      target: "panadapter.noiseFloor",
+      label: "Panadapter Noise Floor",
+      scope: "panadapter",
+      ops: ["adjust", "set"],
+      editor: { kind: "normalized" },
+      execute(ctx, action) {
+        const pan = ctx.getPan(action.slice);
+        if (!pan) return;
+
+        const currentValue = 100 - pan.noiseFloorPosition;
+        const nextValue =
+          action.op === "adjust"
+            ? currentValue + action.delta
+            : fromNormalized(action.value, 100);
+
+        pan.setNoiseFloorPosition(100 - nextValue);
+      },
+    },
+  ),
+
+  defineControl<NormalizedControlAction<"panadapter.average", SliceTargeted>>({
+    target: "panadapter.average",
+    label: "Panadapter Average",
+    scope: "panadapter",
+    ops: ["adjust", "set"],
+    editor: { kind: "normalized" },
+    execute(ctx, action) {
+      const pan = ctx.getPan(action.slice);
+      if (!pan) return;
+
+      const value =
+        action.op === "adjust"
+          ? pan.average + action.delta
+          : fromNormalized(action.value, 100);
+
+      pan.setAverage(value);
+    },
+  }),
+
+  defineControl<NormalizedControlAction<"panadapter.fps", SliceTargeted>>({
+    target: "panadapter.fps",
+    label: "Panadapter FPS",
+    scope: "panadapter",
+    ops: ["adjust", "set"],
+    editor: { kind: "normalized" },
+    execute(ctx, action) {
+      const pan = ctx.getPan(action.slice);
+      if (!pan) return;
+
+      const value =
+        action.op === "adjust"
+          ? pan.fps + action.delta
+          : fromNormalized(action.value, 60, 1);
+
+      pan.setFps(value);
+    },
+  }),
+
+  defineControl<NormalizedControlAction<"waterfall.lineSpeed", SliceTargeted>>({
+    target: "waterfall.lineSpeed",
+    label: "Waterfall Line Speed",
+    scope: "panadapter",
+    ops: ["adjust", "set"],
+    editor: { kind: "normalized" },
+    execute(ctx, action) {
+      const waterfall = ctx.getWaterfall(action.slice);
+      if (!waterfall) return;
+
+      const value =
+        action.op === "adjust"
+          ? (waterfall.lineSpeed ?? 0) + action.delta
+          : fromNormalized(action.value, 100);
+
+      waterfall.setLineSpeed(value);
+    },
+  }),
+
+  defineControl<NormalizedControlAction<"waterfall.colorGain", SliceTargeted>>({
+    target: "waterfall.colorGain",
+    label: "Waterfall Color Gain",
+    scope: "panadapter",
+    ops: ["adjust", "set"],
+    editor: { kind: "normalized" },
+    execute(ctx, action) {
+      const waterfall = ctx.getWaterfall(action.slice);
+      if (!waterfall) return;
+
+      const value =
+        action.op === "adjust"
+          ? waterfall.colorGain + action.delta
+          : fromNormalized(action.value, 100);
+
+      waterfall.setColorGain(value);
+    },
+  }),
+
+  defineControl<BooleanControlAction<"waterfall.autoBlackLevel", SliceTargeted>>(
+    {
+      target: "waterfall.autoBlackLevel",
+      label: "Waterfall Auto Black Level",
+      scope: "panadapter",
+      ops: ["toggle", "set"],
+      editor: { kind: "boolean" },
+      execute(ctx, action) {
+        const waterfall = ctx.getWaterfall(action.slice);
+        if (!waterfall) return;
+        waterfall.setAutoBlackLevelEnabled(
+          resolveBooleanAction(action, waterfall.autoBlackLevelEnabled),
+        );
+      },
+    },
+  ),
+
+  defineControl<NormalizedControlAction<"waterfall.blackLevel", SliceTargeted>>({
+    target: "waterfall.blackLevel",
+    label: "Waterfall Black Level",
+    scope: "panadapter",
+    ops: ["adjust", "set"],
+    editor: { kind: "normalized" },
+    execute(ctx, action) {
+      const waterfall = ctx.getWaterfall(action.slice);
+      if (!waterfall) return;
+
+      const value =
+        action.op === "adjust"
+          ? waterfall.blackLevel + action.delta
+          : fromNormalized(action.value, 100);
+
+      waterfall.setBlackLevel(value);
+    },
+  }),
+
+  defineControl<ChoiceControlAction<"waterfall.gradient", number, SliceTargeted>>(
+    {
+      target: "waterfall.gradient",
+      label: "Waterfall Gradient",
+      scope: "panadapter",
+      ops: ["cycle", "set"],
+      editor: {
+        kind: "choice",
+        getChoices(ctx) {
+          return ctx.preferences.palette.gradients.map((_, index) => index);
+        },
+      },
+      execute(ctx, action) {
+        const waterfall = ctx.getWaterfall(action.slice);
+        if (!waterfall) return;
+
+        const gradients = ctx.preferences.palette.gradients.map(
+          (_, index) => index,
+        );
+        if (gradients.length === 0) return;
+
+        const value =
+          action.op === "cycle"
+            ? cycleListValue(gradients, waterfall.gradientIndex, action.delta)
+            : action.value;
+
+        if (value === undefined) return;
+        waterfall.setGradientIndex(value);
+      },
+    },
+  ),
 
   defineControl<NormalizedControlAction<"slice.agc.threshold", SliceTargeted>>({
     target: "slice.agc.threshold",
@@ -1613,6 +1901,12 @@ export const ControlsProvider: ParentComponent = (props) => {
     return radio()?.panadapter(slice.panadapterStreamId);
   };
 
+  const getWaterfall = (selector?: SliceSelector) => {
+    const pan = getPan(selector);
+    if (!pan) return undefined;
+    return radio()?.waterfall(pan.waterfallStreamId);
+  };
+
   const getBandList = createMemo(() => bands.keys().toArray());
 
   const controlRuntime: ControlRuntime = {
@@ -1624,8 +1918,10 @@ export const ControlsProvider: ParentComponent = (props) => {
     activePan,
     getSlice,
     getPan,
+    getWaterfall,
     getBandList,
     getSelectableSlices,
+    preferences,
   };
 
   const getChoices = (target: ControlTarget, slice?: SliceSelector) => {

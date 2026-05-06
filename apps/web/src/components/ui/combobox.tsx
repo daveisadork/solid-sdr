@@ -5,11 +5,11 @@ import * as ComboboxPrimitive from "@kobalte/core/combobox";
 import type { PolymorphicProps } from "@kobalte/core/polymorphic";
 
 import { cn } from "~/lib/utils";
+import { cva } from "class-variance-authority";
 
 const Combobox = ComboboxPrimitive.Root;
 const ComboboxItemLabel = ComboboxPrimitive.ItemLabel;
 const ComboboxHiddenSelect = ComboboxPrimitive.HiddenSelect;
-const ComboboxLabel = ComboboxPrimitive.Label;
 const ComboboxListbox = ComboboxPrimitive.Listbox;
 const ComboboxArrow = ComboboxPrimitive.Arrow;
 
@@ -102,7 +102,10 @@ const ComboboxControl = <T, U extends ValidComponent = "div">(
   ]);
   return (
     <ComboboxPrimitive.Control
-      class={cn("flex h-10 items-center rounded-md border px-3", local.class)}
+      class={cn(
+        "flex h-10 items-center rounded-md border border-input px-3",
+        local.class,
+      )}
       {...others}
     />
   );
@@ -189,6 +192,39 @@ const ComboboxContent = <T extends ValidComponent = "div">(
         <ComboboxPrimitive.Listbox class="m-0 p-1" />
       </ComboboxPrimitive.Content>
     </ComboboxPrimitive.Portal>
+  );
+};
+
+const labelVariants = cva(
+  "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
+  {
+    variants: {
+      variant: {
+        label: "data-[invalid]:text-destructive",
+        description: "font-normal text-muted-foreground",
+        error: "text-xs text-destructive",
+      },
+    },
+    defaultVariants: {
+      variant: "label",
+    },
+  },
+);
+
+type ComboboxLabelProps<T extends ValidComponent = "label"> =
+  ComboboxPrimitive.ComboboxLabelProps<T> & {
+    class?: string | undefined;
+  };
+
+const ComboboxLabel = <T extends ValidComponent = "label">(
+  props: PolymorphicProps<T, ComboboxLabelProps<T>>,
+) => {
+  const [local, others] = splitProps(props as ComboboxLabelProps, ["class"]);
+  return (
+    <ComboboxPrimitive.Label
+      class={cn(labelVariants(), local.class)}
+      {...others}
+    />
   );
 };
 

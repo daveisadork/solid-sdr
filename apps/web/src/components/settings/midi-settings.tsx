@@ -807,6 +807,7 @@ function AddMappingDialog(props: { class?: string | undefined }) {
                     <Combobox<TargetOption, TargetCategory>
                       class="flex flex-col gap-2"
                       value={target() ?? undefined}
+                      disabled={validTargets().length === 0}
                       onChange={setTarget}
                       options={validTargets()}
                       optionValue="value"
@@ -815,6 +816,7 @@ function AddMappingDialog(props: { class?: string | undefined }) {
                       optionDisabled="disabled"
                       optionGroupChildren="options"
                       placeholder="Select control..."
+                      triggerMode="focus"
                       itemComponent={(props) => (
                         <ComboboxItem item={props.item}>
                           <ComboboxItemLabel>
@@ -829,6 +831,7 @@ function AddMappingDialog(props: { class?: string | undefined }) {
                         </ComboboxSection>
                       )}
                     >
+                      <ComboboxLabel>What should it control?</ComboboxLabel>
                       <ComboboxControl aria-label="Target Control">
                         <ComboboxInput />
                         <ComboboxTrigger />
@@ -853,7 +856,9 @@ function AddMappingDialog(props: { class?: string | undefined }) {
                           Which{" "}
                           {target()?.value.startsWith("panadapter")
                             ? "slice's panadapter"
-                            : "slice"}
+                            : target()?.value.startsWith("waterfall")
+                              ? "slice's waterfall"
+                              : "slice"}
                           ?
                         </SelectLabel>
                         <SelectTrigger>

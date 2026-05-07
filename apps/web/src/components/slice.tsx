@@ -22,7 +22,7 @@ import {
   PopoverArrow,
 } from "~/components/ui/popover";
 
-import type { Component, ComponentProps, JSX } from "solid-js";
+import type { Component, ComponentProps, JSX, ValidComponent } from "solid-js";
 import { createPointerListeners } from "@solid-primitives/pointer";
 import { createElementBounds } from "@solid-primitives/bounds";
 import BaselineChevronLeft from "~icons/ic/baseline-chevron-left";
@@ -31,15 +31,14 @@ import BaselineVolumeUp from "~icons/ic/baseline-volume-up";
 import BaselineVolumeOff from "~icons/ic/baseline-volume-off";
 import SplitIcon from "~icons/material-symbols/split-scene-left-outline";
 import SwapIcon from "~icons/material-symbols/swap-horiz";
-import MdiUnlocked from "~icons/mdi/unlocked-outline";
-import MdiLock from "~icons/mdi/lock-outline";
-import MdiPlay from "~icons/mdi/play";
-import MdiRecord from "~icons/mdi/record";
-import MdiStop from "~icons/mdi/stop";
+import MdiLock from "~icons/material-symbols/lock-open-circle-outline";
+import MdiPlay from "~icons/mdi/play-circle-outline";
+import MdiRecord from "~icons/mdi/record-circle-outline";
+import MdiStop from "~icons/mdi/stop-circle-outline";
 import MdiClose from "~icons/mdi/close-circle-outline";
 import MdiSettings from "~icons/mdi/settings";
 import { Button } from "./ui/button";
-import { Portal } from "solid-js/web";
+import { Dynamic, Portal } from "solid-js/web";
 import {
   Select,
   SelectContent,
@@ -91,6 +90,7 @@ import { SliceTxMeter, usePreferences } from "~/context/preferences";
 import { useRuntime } from "~/context/runtime";
 import { SliceSelector, useControls } from "~/context/controls";
 import { TxMeter } from "./ui/tx-meter";
+import { PolymorphicProps } from "@kobalte/core";
 
 const FILTER_MAX_HZ = 12_000;
 const FILTER_MIN_HZ = -FILTER_MAX_HZ;
@@ -604,7 +604,7 @@ export function FilterControls(props: {
         step={25}
         value={[props.slice.filterLowHz, props.slice.filterHighHz]}
         onChange={([low, high]) => props.controller.setFilter(low, high)}
-        class="space-y-3"
+        class="gap-3"
       >
         <SliderTrack>
           <SliderFill />
@@ -644,7 +644,7 @@ const SliceFilter = (props: {
       </PopoverTrigger>
       <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 fancy-bg-popover">
         <PopoverArrow />
-        <div class="p-4 flex flex-col space-y-4 max-h-(--kb-popper-content-available-height) overflow-x-auto">
+        <div class="p-4 flex flex-col gap-4 max-h-(--kb-popper-content-available-height) overflow-x-auto">
           <FilterControls slice={props.slice} controller={props.controller} />
         </div>
       </PopoverContent>
@@ -672,7 +672,7 @@ const AudioControls = (props: {
       </PopoverTrigger>
       <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 fancy-bg-popover">
         <PopoverArrow />
-        <div class="p-4 flex flex-col space-y-4 max-h-(--kb-popper-content-available-height) overflow-x-auto">
+        <div class="p-4 flex flex-col gap-4 max-h-(--kb-popper-content-available-height) overflow-x-auto">
           <SimpleSwitch
             checked={props.slice.isMuted}
             onChange={(isChecked) => {
@@ -702,7 +702,7 @@ const AudioControls = (props: {
               if (value === 0) return "Center";
               return value < 0 ? `L${-value}` : `R${value}`;
             }}
-            class="space-y-3"
+            class="gap-3"
           >
             <div class="flex w-full justify-between">
               <SliderLabel>Audio Pan</SliderLabel>
@@ -859,7 +859,7 @@ const OptDspControls = (props: {
           </PopoverTrigger>
           <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 fancy-bg-popover">
             <PopoverArrow />
-            <div class="elative p-4 flex flex-col space-y-4 max-h-(--kb-popper-content-available-height) overflow-x-auto">
+            <div class="elative p-4 flex flex-col gap-4 max-h-(--kb-popper-content-available-height) overflow-x-auto">
               <SegmentedControl
                 value={props.slice.fmToneMode}
                 onChange={(value) => {
@@ -991,7 +991,7 @@ const OptDspControls = (props: {
           </PopoverTrigger>
           <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 fancy-bg-popover">
             <PopoverArrow />
-            <div class="elative p-4 flex flex-col space-y-4 max-h-(--kb-popper-content-available-height) overflow-x-auto">
+            <div class="elative p-4 flex flex-col gap-4 max-h-(--kb-popper-content-available-height) overflow-x-auto">
               <SliderToggle
                 disabled={!props.slice.wnbEnabled}
                 minValue={0}
@@ -1158,7 +1158,7 @@ const RitControls = (props: {
       </PopoverTrigger>
       <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 fancy-bg-popover">
         <PopoverArrow />
-        <div class="relative p-4 flex flex-col space-y-4 max-h-(--kb-popper-content-available-height) overflow-x-auto">
+        <div class="relative p-4 flex flex-col gap-4 max-h-(--kb-popper-content-available-height) overflow-x-auto">
           <SliderToggle
             disabled={!props.slice.ritEnabled}
             minValue={-100}
@@ -1242,7 +1242,7 @@ const SliceSettings = (props: {
       </PopoverTrigger>
       <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 fancy-bg-popover">
         <PopoverArrow />
-        <div class="relative p-4 flex flex-col space-y-4 max-h-(--kb-popper-content-available-height) overflow-x-auto">
+        <div class="relative p-4 flex flex-col gap-4 max-h-(--kb-popper-content-available-height) overflow-x-auto">
           <NumberField
             class="flex flex-col gap-2 select-none"
             rawValue={props.slice.tuneStepHz}
@@ -1401,7 +1401,7 @@ const ModeControls = (props: {
       </PopoverTrigger>
       <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 fancy-bg-popover">
         <PopoverArrow />
-        <div class="p-4 flex flex-col space-y-4 max-h-(--kb-popper-content-available-height) overflow-x-auto">
+        <div class="p-4 flex flex-col gap-4 max-h-(--kb-popper-content-available-height) overflow-x-auto">
           <ToggleGroup
             value={props.slice.mode}
             onChange={(mode: string) => {
@@ -1470,6 +1470,57 @@ const ModeControls = (props: {
         </div>
       </PopoverContent>
     </Popover>
+  );
+};
+
+const ExtraSliceControls = <T extends ValidComponent = "div">(
+  props: PolymorphicProps<
+    T,
+    {
+      slice: SliceState;
+      controller: SliceController;
+      class?: string | undefined;
+    }
+  >,
+) => {
+  const [local, others] = splitProps(props, ["slice", "controller", "class"]);
+
+  return (
+    <div
+      class={cn(
+        "grid gap-1 py-1 opacity-75 [&_svg]:pointer-events-none [&_svg]:size-full *:aspect-square",
+        local.class,
+      )}
+      {...others}
+    >
+      <ToggleButton onChange={() => local.controller.close()}>
+        <MdiClose />
+      </ToggleButton>
+      <ToggleButton
+        class="data-pressed:text-yellow-500"
+        pressed={props.slice.isLocked}
+        onChange={(pressed) => local.controller.setLocked(pressed)}
+      >
+        <MdiLock />
+      </ToggleButton>
+      <ToggleButton
+        class="data-pressed:text-red-500"
+        pressed={local.slice.recordingEnabled}
+        onChange={(pressed) => local.controller.setRecordingEnabled(pressed)}
+      >
+        <Dynamic
+          component={local.slice.recordingEnabled ? MdiStop : MdiRecord}
+        />
+      </ToggleButton>
+      <ToggleButton
+        class="data-pressed:text-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+        pressed={local.slice.playbackEnabled}
+        disabled={!local.slice.playbackAvailable}
+        onChange={(pressed) => local.controller.setPlaybackEnabled(pressed)}
+      >
+        <Dynamic component={local.slice.playbackEnabled ? MdiStop : MdiPlay} />
+      </ToggleButton>
+    </div>
   );
 };
 
@@ -1828,57 +1879,10 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
                     class="flex gap-0.5 pointer-events-auto"
                     classList={{ "flex-row-reverse": flagSide() === "right" }}
                   >
-                    <div class="flex flex-col justify-between items-center py-1.5 opacity-75">
-                      <ToggleButton
-                        class="aspect-square"
-                        onChange={() => sliceController().close()}
-                      >
-                        <MdiClose class="size-4" />
-                      </ToggleButton>
-                      <ToggleButton
-                        class="aspect-square data-pressed:text-yellow-500"
-                        pressed={props.slice.isLocked}
-                        onChange={(pressed) =>
-                          sliceController().setLocked(pressed)
-                        }
-                      >
-                        <Show
-                          when={props.slice.isLocked}
-                          fallback={<MdiUnlocked class="size-4" />}
-                        >
-                          <MdiLock class="size-4" />
-                        </Show>
-                      </ToggleButton>
-                      <ToggleButton
-                        class="aspect-square data-pressed:text-red-500"
-                        pressed={props.slice.recordingEnabled}
-                        onChange={(pressed) =>
-                          sliceController().setRecordingEnabled(pressed)
-                        }
-                      >
-                        <Show
-                          when={props.slice.recordingEnabled}
-                          fallback={<MdiRecord class="size-4" />}
-                        >
-                          <MdiStop class="size-4" />
-                        </Show>
-                      </ToggleButton>
-                      <ToggleButton
-                        class="aspect-square not-disabled:text-green-500"
-                        pressed={props.slice.playbackEnabled}
-                        disabled={!props.slice.playbackAvailable}
-                        onChange={(pressed) =>
-                          sliceController().setPlaybackEnabled(pressed)
-                        }
-                      >
-                        <Show
-                          when={props.slice.playbackEnabled}
-                          fallback={<MdiPlay class="size-4" />}
-                        >
-                          <MdiStop class="size-4" />
-                        </Show>
-                      </ToggleButton>
-                    </div>
+                    <ExtraSliceControls
+                      slice={props.slice}
+                      controller={sliceController()}
+                    />
                     <div
                       class="border rounded-md overflow-hidden flex flex-col p-1.5 gap-1 pointer-events-auto text-sm font-mono drop-shadow-black fancy-bg-background"
                       classList={{

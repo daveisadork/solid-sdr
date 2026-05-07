@@ -8,13 +8,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "../ui/dialog";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "../ui/card";
+import { Card, CardHeader, CardTitle } from "../ui/card";
 import {
   createEffect,
   createMemo,
@@ -815,7 +809,7 @@ function AddMappingDialog(props: { class?: string | undefined }) {
                       optionLabel="label"
                       optionDisabled="disabled"
                       optionGroupChildren="options"
-                      placeholder="Select control..."
+                      placeholder="Type to search controls..."
                       triggerMode="focus"
                       itemComponent={(props) => (
                         <ComboboxItem item={props.item}>

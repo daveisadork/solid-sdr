@@ -71,8 +71,8 @@ import {
 import { ToggleGroup, ToggleGroupItem } from "../ui/toggle-group";
 import { ToggleButton } from "@kobalte/core/toggle-button";
 import { showToast } from "../ui/toast";
-import { DismissableLayer } from "@kobalte/core/src/dismissable-layer/dismissable-layer.jsx";
 import { ConfirmButton } from "../ui/confirm-button";
+import { DismissableLayer } from "@kobalte/core/src/dismissable-layer/index.js";
 
 export const BANDS: { id: string; label: string }[] = [
   { id: "160", label: "160m" },
@@ -805,13 +805,18 @@ export function PanSettings() {
         </ToggleGroup>
       </div>
       <div>
-        <Show when={open() && openSection()}>
-          <DismissableLayer
-            class="flex flex-col max-h-full"
-            onFocusOutside={(e) => e.preventDefault()}
-            onDismiss={() => setOpen(false)}
-            excludedElements={[menuRef]}
-          >
+        <DismissableLayer
+          class="flex flex-col max-h-full"
+          onFocusOutside={(e) => e.preventDefault()}
+          onDismiss={() => setOpen(false)}
+          excludedElements={[
+            menuRef,
+            // this is a hack so interacting with a select box doesn't close the whole menu
+            () => document.querySelector("[data-popper-positioner]"),
+          ]}
+          bypassTopMostLayerCheck
+        >
+          <Show when={open() && openSection()}>
             <Card
               class="rounded-tl-none w-64 fancy-bg-card! pointer-events-auto overflow-auto shadow-black"
               style={{
@@ -844,8 +849,8 @@ export function PanSettings() {
                 </Switch>
               </CardContent>
             </Card>
-          </DismissableLayer>
-        </Show>
+          </Show>
+        </DismissableLayer>
       </div>
     </div>
   );

@@ -24,7 +24,7 @@ import { DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 export function AppSettings() {
   const { preferences, setPreferences } = usePreferences();
   const { setColorMode } = useColorMode();
-  const { radio, state } = useFlexRadio();
+  const { radio } = useFlexRadio();
 
   createEffect(() => {
     setColorMode(preferences.theme);
@@ -39,17 +39,6 @@ export function AppSettings() {
     media.addEventListener("change", sync);
     onCleanup(() => media.removeEventListener("change", sync));
   });
-
-  const radioClientStationName = () => {
-    const descriptor = Object.values(state.discoveredRadios).find(
-      (disc) => disc.serial === state.status.radio.serial,
-    );
-    if (!descriptor) return;
-    const index = descriptor.guiClientHandles.indexOf(
-      `0x${state.clientHandle}`,
-    );
-    return descriptor.guiClientHosts[index];
-  };
 
   createEffect(() => {
     radio()?.setClientStationName(preferences.stationName);

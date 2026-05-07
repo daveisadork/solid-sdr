@@ -7,8 +7,25 @@ import * as SwitchPrimitive from "@kobalte/core/switch";
 import { cn } from "~/lib/utils";
 
 const Switch = SwitchPrimitive.Root;
-const SwitchDescription = SwitchPrimitive.Description;
 const SwitchErrorMessage = SwitchPrimitive.ErrorMessage;
+
+type SwitchDescriptionProps = SwitchPrimitive.SwitchDescriptionProps & {
+  class?: string | undefined;
+};
+
+const SwitchDescription = <T extends ValidComponent = "div">(
+  props: PolymorphicProps<T, SwitchDescriptionProps>,
+) => {
+  const [local, others] = splitProps(props as SwitchDescriptionProps, [
+    "class",
+  ]);
+  return (
+    <SwitchPrimitive.Description
+      class={cn("text-muted-foreground text-xs", local.class)}
+      {...others}
+    />
+  );
+};
 
 type SwitchControlProps = SwitchPrimitive.SwitchControlProps & {
   class?: string | undefined;

@@ -9,6 +9,7 @@ import { createStore, produce, SetStoreFunction } from "solid-js/store";
 import useFlexRadio from "./flexradio";
 import { usePreferences } from "./preferences";
 import { createPageVisibility } from "@solid-primitives/page-visibility";
+import { ReactiveMap } from "@solid-primitives/map";
 
 export interface SliceSplitState {
   parent: string | null;
@@ -22,6 +23,7 @@ export interface RuntimeState {
 
 const RuntimeContext = createContext<{
   runtime: RuntimeState;
+  audioStreams: ReactiveMap<string, MediaStream>;
   setRuntime: SetStoreFunction<RuntimeState>;
 }>();
 
@@ -42,6 +44,7 @@ export const RuntimeProvider: ParentComponent = (props) => {
   const visible = createPageVisibility();
 
   const [wakeLock, setWakeLock] = createSignal<WakeLockSentinel>();
+  const audioStreams = new ReactiveMap<string, MediaStream>();
 
   createEffect(() => {
     const isVisible = visible();
@@ -67,7 +70,7 @@ export const RuntimeProvider: ParentComponent = (props) => {
   });
 
   return (
-    <RuntimeContext.Provider value={{ runtime, setRuntime }}>
+    <RuntimeContext.Provider value={{ audioStreams, runtime, setRuntime }}>
       {props.children}
     </RuntimeContext.Provider>
   );

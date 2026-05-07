@@ -48,6 +48,7 @@ import {
   SegmentedControlItemsList,
   SegmentedControlLabel,
 } from "./ui/segmented-control";
+import { useRuntime } from "~/context/runtime";
 
 function DaxAudioChannel(props: {
   controller: AudioStreamController;
@@ -103,6 +104,7 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
   const { remoteAudioRxStream, setRemoteAudioTxTrack } = useRtc();
   const { state, radio } = useFlexRadio();
   const { preferences, setPreferences } = usePreferences();
+  const { audioStreams } = useRuntime();
   const [remoteAudioRxStreamId, setRemoteAudioRxStreamId] = createSignal<
     string | undefined
   >();
@@ -135,12 +137,15 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
   });
 
   const preferredDaxInputDevice = createMemo(() => {
-    const constraints: MediaStreamConstraints["audio"] = {
-      autoGainControl: { exact: false },
-      echoCancellation: { exact: false },
-      noiseSuppression: { exact: false },
+    const constraints = {
       deviceId: preferences.daxTxConfig.inputDeviceId,
-    };
+      autoGainControl: preferences.daxTxConfig.autoGainControl,
+      echoCancellation: preferences.daxTxConfig.echoCancellation,
+      noiseSuppression: preferences.daxTxConfig.noiseSuppression,
+      voiceIsolation: preferences.daxTxConfig.voiceIsolation,
+      latency: 0,
+      channelCount: 2,
+    } as MediaTrackConstraints;
     const device = inputs().find((d) => d.deviceId === constraints.deviceId);
     if (device) {
       constraints.deviceId = { exact: device.deviceId };
@@ -238,16 +243,21 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
     );
   });
 
-  createEffect(() => {
+  createEffect((lastCleanupPromise: Promise<void>) => {
     const controller = daxTxController();
-    if (!controller) return;
+    if (!controller) return Promise.resolve();
     const reducedBandwidth = preferences.daxTxConfig.reducedBandwidth;
-
-    const streamPromise = navigator.mediaDevices.getUserMedia({
+    const constraints = {
       audio: { ...preferredDaxInputDevice() },
-    });
+    };
+
+    const streamPromise = lastCleanupPromise.then(() =>
+      navigator.mediaDevices.getUserMedia(constraints),
+    );
 
     const daxPromise = streamPromise.then(async (stream) => {
+      audioStreams.set(controller.streamId, stream);
+
       const tx = new DaxAudioTx(
         controller,
         reducedBandwidth,
@@ -256,15 +266,6 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
       );
       await tx.start();
       setDaxTxInstance(tx);
-      const trackSettings = stream.getAudioTracks()[0].getSettings();
-      const device = inputs().find(
-        (d) => d.deviceId === trackSettings.deviceId,
-      );
-      showToast({
-        title: "DAX TX Started",
-        description: `Using device ${device?.label || trackSettings.deviceId}`,
-        variant: "success",
-      });
       return tx;
     });
 
@@ -280,14 +281,23 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
       });
     });
 
+    const streamId = controller.streamId;
+    const { promise: cleanupPromise, resolve } = Promise.withResolvers<void>();
+
     onCleanup(() => {
       setDaxTxInstance(undefined);
       daxPromise.then((tx) => tx?.close().catch(console.error));
-      streamPromise.then((stream) =>
-        stream.getTracks().forEach((track) => track.stop()),
-      );
+      streamPromise.then((stream) => {
+        for (const track of stream.getTracks()) {
+          track.stop();
+        }
+        audioStreams.delete(streamId);
+        resolve();
+      });
     });
-  });
+
+    return cleanupPromise;
+  }, Promise.resolve());
 
   createEffect(() => {
     const tx = daxTxInstance();
@@ -402,184 +412,6 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
                 </Select>
               </div>
             </div>
-
-            <div>
-              <SimpleSwitch
-                checked={preferences.daxTxConfig.enabled}
-                onChange={(checked) =>
-                  setPreferences("daxTxConfig", "enabled", checked)
-                }
-                label="DAX TX"
-              />
-              <Show when={daxTxInstance()}>
-                <SimpleMeter
-                  value={Math.max(daxTxLevel(), DAX_LEVEL_METER.low)}
-                  peakValue={Math.max(daxTxPeak(), DAX_LEVEL_METER.low)}
-                  meter={DAX_LEVEL_METER}
-                  label="DAX TX Level"
-                  showTicks
-                  showTickLabels
-                  containTickLabels
-                  tickLabelFilter={({ index }) => index % 2 === 0}
-                />
-              </Show>
-              <SimpleSwitch
-                checked={preferences.daxTxConfig.reducedBandwidth}
-                onChange={(checked) =>
-                  setPreferences("daxTxConfig", "reducedBandwidth", checked)
-                }
-                label="Reduced Bandwidth"
-              />
-              <Select
-                value={preferences.daxTxConfig.inputDeviceId}
-                onChange={(value: string) => {
-                  if (!value) return;
-                  setPreferences("daxTxConfig", "inputDeviceId", value);
-                }}
-                options={inputs().map((d) => d.deviceId)}
-                itemComponent={(props) => {
-                  return (
-                    <SelectItem item={props.item}>
-                      {
-                        inputs().find((d) => d.deviceId === props.item.rawValue)
-                          ?.label
-                      }
-                    </SelectItem>
-                  );
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue class="overflow-hidden text-ellipsis whitespace-nowrap">
-                    {(state) =>
-                      inputs().find(
-                        (d) => d.deviceId === state.selectedOption(),
-                      )?.label || "Select Audio Input"
-                    }
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent />
-              </Select>
-              <SegmentedControl
-                value={preferences.daxTxConfig.channelMode}
-                onChange={(mode: DaxChannelMode) =>
-                  setPreferences("daxTxConfig", "channelMode", mode)
-                }
-              >
-                <SegmentedControlLabel>Channel Mode</SegmentedControlLabel>
-                <SegmentedControlGroup>
-                  <SegmentedControlIndicator />
-                  <SegmentedControlItemsList>
-                    <For each={["left", "both", "right"]}>
-                      {(mode) => (
-                        <SegmentedControlItem value={mode}>
-                          <SegmentedControlItemLabel class="capitalize">
-                            {mode}
-                          </SegmentedControlItemLabel>
-                        </SegmentedControlItem>
-                      )}
-                    </For>
-                  </SegmentedControlItemsList>
-                </SegmentedControlGroup>
-              </SegmentedControl>
-            </div>
-            <For
-              each={Array.from(
-                { length: state.status.radio.sliceCount },
-                (_, i) => i + 1,
-              )}
-            >
-              {(channel) => (
-                <div>
-                  <SimpleSwitch
-                    checked={preferences.daxRxConfig[channel].enabled}
-                    onChange={(checked) =>
-                      setPreferences("daxRxConfig", channel, "enabled", checked)
-                    }
-                    label={`DAX RX Channel ${channel}`}
-                  />
-                  <Show when={daxRxMeters[channel] !== undefined}>
-                    <SimpleMeter
-                      value={Math.max(
-                        daxRxMeters[channel]!.level,
-                        DAX_LEVEL_METER.low,
-                      )}
-                      peakValue={Math.max(
-                        daxRxMeters[channel]!.peak,
-                        DAX_LEVEL_METER.low,
-                      )}
-                      meter={DAX_LEVEL_METER}
-                      label={`DAX RX ${channel} Level`}
-                      showTicks
-                      showTickLabels
-                      containTickLabels
-                      tickLabelFilter={({ index }) => index % 2 === 0}
-                    />
-                  </Show>
-                  <Select
-                    value={preferences.daxRxConfig[channel].outputDeviceId}
-                    onChange={(value: string) => {
-                      if (!value) return;
-                      setPreferences(
-                        "daxRxConfig",
-                        channel,
-                        "outputDeviceId",
-                        value,
-                      );
-                    }}
-                    options={outputs().map((d) => d.deviceId)}
-                    itemComponent={(props) => {
-                      return (
-                        <SelectItem item={props.item}>
-                          {
-                            outputs().find(
-                              (d) => d.deviceId === props.item.rawValue,
-                            )?.label
-                          }
-                        </SelectItem>
-                      );
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue class="overflow-hidden text-ellipsis whitespace-nowrap">
-                        {(state) =>
-                          outputs().find(
-                            (d) => d.deviceId === state.selectedOption(),
-                          )?.label || "Select Audio Output"
-                        }
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent />
-                  </Select>
-                  <SegmentedControl
-                    value={preferences.daxRxConfig[channel].channelMode}
-                    onChange={(mode: DaxChannelMode) =>
-                      setPreferences(
-                        "daxRxConfig",
-                        channel,
-                        "channelMode",
-                        mode,
-                      )
-                    }
-                  >
-                    <SegmentedControlLabel>Channel Mode</SegmentedControlLabel>
-                    <SegmentedControlGroup>
-                      <SegmentedControlIndicator />
-                      <SegmentedControlItemsList>
-                        <For each={["left", "both", "right"]}>
-                          {(mode) => (
-                            <SegmentedControlItem value={mode}>
-                              <SegmentedControlItemLabel class="capitalize">
-                                {mode}
-                              </SegmentedControlItemLabel>
-                            </SegmentedControlItem>
-                          )}
-                        </For>
-                      </SegmentedControlItemsList>
-                    </SegmentedControlGroup>
-                  </SegmentedControl>
-                </div>
-              )}
-            </For>
           </div>
         </PopoverContent>
       </Popover>

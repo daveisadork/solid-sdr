@@ -76,6 +76,10 @@ export interface Preferences {
     inputDeviceId: string;
     reducedBandwidth: boolean;
     channelMode: DaxChannelMode;
+    autoGainControl: boolean;
+    echoCancellation: boolean;
+    noiseSuppression: boolean;
+    voiceIsolation: boolean;
   };
 }
 
@@ -138,6 +142,10 @@ const getDefaults = (): Preferences => ({
     inputDeviceId: "default",
     reducedBandwidth: true,
     channelMode: "both",
+    autoGainControl: false,
+    echoCancellation: false,
+    noiseSuppression: false,
+    voiceIsolation: false,
   },
   palette: {
     gradients: [

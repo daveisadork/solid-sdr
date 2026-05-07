@@ -32,6 +32,7 @@ import {
 } from "../ui/dropdown-menu";
 import { createSignal } from "solid-js";
 import { Dynamic } from "solid-js/web";
+import { DaxSettings } from "./dax-settings";
 
 export function OldSettings() {
   return (
@@ -95,6 +96,7 @@ const tabs = {
   memory: MemorySettings,
   spots: SpotsSettings,
   midi: MidiSettings,
+  dax: DaxSettings,
 };
 
 export function Settings() {
@@ -130,6 +132,9 @@ export function Settings() {
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => setActiveTab("midi")}>
             MIDI Controllers
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => setActiveTab("dax")}>
+            DAX Settings
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

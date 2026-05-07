@@ -271,30 +271,30 @@ function TxSection() {
           {/*     </SegmentedControlItemsList> */}
           {/*   </SegmentedControlGroup> */}
           {/* </SegmentedControl> */}
-          <div class="flex flex-col">
-            <SimpleSwitch
-              checked={
-                state.status.radio.atuTuneStatus.endsWith("_OK") ||
-                state.status.radio.atuTuneStatus.endsWith("_SUCCESSFUL") ||
-                state.status.radio.atuTuneStatus.endsWith("_IN_PROGRESS")
+          <SimpleSwitch
+            checked={
+              state.status.radio.atuTuneStatus.endsWith("_OK") ||
+              state.status.radio.atuTuneStatus.endsWith("_SUCCESSFUL") ||
+              state.status.radio.atuTuneStatus.endsWith("_IN_PROGRESS")
+            }
+            disabled={!state.status.radio.atuEnabled}
+            onChange={(isChecked) => {
+              if (isChecked) {
+                radio()?.startAtuTune();
+              } else {
+                radio()?.bypassAtu();
               }
-              disabled={!state.status.radio.atuEnabled}
-              onChange={(isChecked) => {
-                if (isChecked) {
-                  radio()?.startAtuTune();
-                } else {
-                  radio()?.bypassAtu();
-                }
-              }}
-              label="ATU"
-              // tooltip="Bypass or engage the Automatic Tuning Unit (ATU)"
-            />
-            <span class="text-muted-foreground text-xs capitalize">
-              {state.status.radio.atuTuneStatus
-                .replaceAll("_", " ")
-                .toLowerCase()}
-            </span>
-          </div>
+            }}
+            label="ATU"
+            description={
+              <span class="capitalize">
+                {state.status.radio.atuTuneStatus
+                  .replaceAll("_", " ")
+                  .toLowerCase()}
+              </span>
+            }
+            // tooltip="Bypass or engage the Automatic Tuning Unit (ATU)"
+          />
           <SimpleSwitch
             checked={state.status.radio.atuMemoriesEnabled}
             onChange={(isChecked) => {
@@ -303,24 +303,22 @@ function TxSection() {
             label="ATU Memory"
             // tooltip="Enable memories for the ATU."
           />
-          <div class="flex flex-col">
-            <SimpleSwitch
-              checked={state.status.apd.enabled}
-              disabled={!state.status.apd.configurable}
-              onChange={(isChecked) => {
-                radio()?.apd().setEnabled(isChecked);
-              }}
-              label="APD"
-              // tooltip="Toggle SmartSignal (Adaptive Pre-Distortion)"
-            />
-            <span class="text-muted-foreground text-xs capitalize">
-              {state.status.apd.enabled
+          <SimpleSwitch
+            checked={state.status.apd.enabled}
+            disabled={!state.status.apd.configurable}
+            onChange={(isChecked) => {
+              radio()?.apd().setEnabled(isChecked);
+            }}
+            label="APD"
+            description={
+              state.status.apd.enabled
                 ? state.status.apd.equalizerActive
                   ? "Active"
                   : "Calibrating"
-                : ""}
-            </span>
-          </div>
+                : null
+            }
+            // tooltip="Toggle SmartSignal (Adaptive Pre-Distortion)"
+          />
         </div>
       </AccordionContent>
     </AccordionItem>

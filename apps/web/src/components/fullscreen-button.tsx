@@ -1,8 +1,6 @@
 import {
-  ComponentProps,
+  createEffect,
   createSignal,
-  JSX,
-  Show,
   splitProps,
   ValidComponent,
 } from "solid-js";
@@ -12,38 +10,47 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import Fullscreen from "~icons/mdi/fullscreen";
 import FullscreenExit from "~icons/mdi/fullscreen-exit";
 import { createFullscreen } from "@solid-primitives/fullscreen";
-import { Button } from "@kobalte/core/button";
+import { Dynamic } from "solid-js/web";
+import { TooltipTriggerProps } from "@kobalte/core/tooltip";
+import { ToggleButton } from "@kobalte/core/toggle-button";
+import { PolymorphicProps } from "@kobalte/core";
 
-type FullscreenButtonProps<T extends ValidComponent = "button"> = Omit<
-  ComponentProps<typeof TooltipTrigger<T>> & ComponentProps<typeof Button<T>>,
-  "onClick" | "aria-label" | "children"
-> & {
-  class?: JSX.ElementClass;
-};
+type FullscreenButtonProps<T extends ValidComponent = "button"> =
+  PolymorphicProps<T, TooltipTriggerProps<T>> & {
+    class?: string | undefined;
+  };
 
 export function FullscreenButton(props: FullscreenButtonProps) {
   const [local, others] = splitProps(props, ["class"]);
   const [fs, setFullscreen] = createSignal(false);
-  const fullscreen = createFullscreen(() => document.documentElement, fs);
+  const fullscreen = createFullscreen(document.documentElement, fs, {
+    navigationUI: "hide",
+  });
+
+  // If fullscreen state changes outside of this component, keep the signal in sync.
+  createEffect(() => setFullscreen(fullscreen()));
+
+  const label = () => (fullscreen() ? "Exit Fullscreen" : "Enter Fullscreen");
+
   return (
     <Tooltip>
       <TooltipTrigger
-        as={Button}
+        as={ToggleButton<"button">}
         class={cn(
           "aspect-square size-10 not-pointer-coarse:size-5 ",
           local.class,
         )}
-        onClick={() => setFullscreen(!fullscreen())}
-        aria-label={fullscreen() ? "Exit fullscreen" : "Enter fullscreen"}
+        aria-label={label()}
+        pressed={fullscreen()}
+        onChange={setFullscreen}
         {...others}
       >
-        <Show when={fullscreen()} fallback={<Fullscreen class="size-full" />}>
-          <FullscreenExit class="size-full" />
-        </Show>
+        <Dynamic
+          component={fullscreen() ? FullscreenExit : Fullscreen}
+          class="size-full"
+        />
       </TooltipTrigger>
-      <TooltipContent>
-        {fullscreen() ? "Exit" : "Enter"} Fullscreen
-      </TooltipContent>
+      <TooltipContent>{label()}</TooltipContent>
     </Tooltip>
   );
 }

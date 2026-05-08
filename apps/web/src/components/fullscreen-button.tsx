@@ -1,6 +1,7 @@
 import {
   createEffect,
   createSignal,
+  Show,
   splitProps,
   ValidComponent,
 } from "solid-js";
@@ -33,24 +34,26 @@ export function FullscreenButton(props: FullscreenButtonProps) {
   const label = () => (fullscreen() ? "Exit Fullscreen" : "Enter Fullscreen");
 
   return (
-    <Tooltip>
-      <TooltipTrigger
-        as={ToggleButton<"button">}
-        class={cn(
-          "aspect-square size-10 not-pointer-coarse:size-5 ",
-          local.class,
-        )}
-        aria-label={label()}
-        pressed={fullscreen()}
-        onChange={setFullscreen}
-        {...others}
-      >
-        <Dynamic
-          component={fullscreen() ? FullscreenExit : Fullscreen}
-          class="size-full"
-        />
-      </TooltipTrigger>
-      <TooltipContent>{label()}</TooltipContent>
-    </Tooltip>
+    <Show when={document.fullscreenEnabled}>
+      <Tooltip>
+        <TooltipTrigger
+          as={ToggleButton<"button">}
+          class={cn(
+            "aspect-square size-10 not-pointer-coarse:size-5 ",
+            local.class,
+          )}
+          aria-label={label()}
+          pressed={fullscreen()}
+          onChange={setFullscreen}
+          {...others}
+        >
+          <Dynamic
+            component={fullscreen() ? FullscreenExit : Fullscreen}
+            class="size-full"
+          />
+        </TooltipTrigger>
+        <TooltipContent>{label()}</TooltipContent>
+      </Tooltip>
+    </Show>
   );
 }

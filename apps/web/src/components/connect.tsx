@@ -19,8 +19,10 @@ import useFlexRadio, { ConnectionState } from "~/context/flexradio";
 import { ProgressCircle } from "./ui/progress-circle";
 import { getModelInfo } from "@repo/flexlib";
 import { Badge } from "./ui/badge";
-import MaterialSymbolsPowerPlug from "~icons/material-symbols/power-plug";
-import MaterialSymbolsPowerPlugOff from "~icons/material-symbols/power-plug-off";
+import MdiCheckNetworkOutline from "~icons/mdi/check-network-outline";
+import MdiCloseNetworkOutline from "~icons/mdi/close-network-outline";
+import MdiPlusNetworkOutline from "~icons/mdi/plus-network-outline";
+import MdiMinusNetworkOutline from "~icons/mdi/minus-network-outline";
 import * as ButtonPrimitive from "@kobalte/core/button";
 import {
   DropdownMenu,
@@ -32,6 +34,7 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { Key } from "@solid-primitives/keyed";
+import { Dynamic } from "solid-js/web";
 
 const STATUS_MAP: Record<string, ComponentProps<typeof Badge>["variant"]> = {
   Available: "success",
@@ -82,12 +85,12 @@ export default function Connect() {
         class="size-8 not-pointer-coarse:size-5 aspect-square"
         title={state.clientHandle ? "Disconnect" : "Connect"}
       >
-        <Show
-          when={state.clientHandle}
-          fallback={<MaterialSymbolsPowerPlug class="size-full" />}
-        >
-          <MaterialSymbolsPowerPlugOff class="size-full" />
-        </Show>
+        <Dynamic
+          component={
+            state.clientHandle ? MdiCheckNetworkOutline : MdiCloseNetworkOutline
+          }
+          class="size-full"
+        />
       </DialogTrigger>
       <DialogContent class="flex flex-col sm:max-w-md data-closed:slide-out-to-left data-closed:slide-out-to-bottom data-expanded:slide-in-from-left data-expanded:slide-in-from-bottom overflow-hidden">
         <DialogHeader>
@@ -147,9 +150,9 @@ export default function Connect() {
                               as={Button<"button">}
                               variant="destructive"
                               size="icon"
-                              class="bg-warning text-warning-foreground"
+                              class="bg-warning text-warning-foreground [&_svg]:size-full p-2"
                             >
-                              <MaterialSymbolsPowerPlugOff class="size-full" />
+                              <MdiMinusNetworkOutline />
                             </DropdownMenuTrigger>
                             <DropdownMenuContent class="overflow-visible">
                               <DropdownMenuArrow />
@@ -175,8 +178,12 @@ export default function Connect() {
                                         .catch(console.error);
                                     }}
                                   >
-                                    Disconnect {guiClient().program} (
-                                    {guiClient().station})
+                                    Disconnect{" "}
+                                    {guiClient().program ?? "Unknown"} (
+                                    {guiClient().station ??
+                                      guiClient().host ??
+                                      guiClient().ip}
+                                    )
                                   </DropdownMenuItem>
                                 )}
                               </Key>
@@ -186,45 +193,43 @@ export default function Connect() {
                       )}
                     </Show>
                     <div>
-                      <Show
-                        when={
+                      <Button
+                        size="icon"
+                        classList={{
+                          "bg-success text-success-foreground":
+                            radio.availableClients > 0,
+                          "bg-warning text-warning-foreground":
+                            !radio.availableClients,
+                        }}
+                        class="[&_svg]:size-full p-2"
+                        disabled={
                           state.connectModal.status ===
-                            ConnectionState.connecting &&
-                          state.connectModal.selectedRadio === radio.host
+                            ConnectionState.connecting ||
+                          radio.status !== "Available"
                         }
-                        fallback={
-                          <Button
-                            size="icon"
-                            classList={{
-                              "bg-success text-success-foreground":
-                                radio.availableClients > 0,
-                              "bg-warning text-warning-foreground":
-                                !radio.availableClients,
-                            }}
-                            class="bg-success text-success-foreground"
-                            disabled={
-                              state.connectModal.status ===
-                                ConnectionState.connecting ||
-                              radio.status !== "Available"
-                            }
-                            onClick={() => {
-                              if (
-                                state.connectModal.status !==
-                                ConnectionState.disconnected
-                              )
-                                return;
-                              connect({ host: radio.host, port: radio.port });
-                            }}
-                          >
-                            <MaterialSymbolsPowerPlug class="size-full" />
-                          </Button>
-                        }
+                        onClick={() => {
+                          if (
+                            state.connectModal.status !==
+                            ConnectionState.disconnected
+                          )
+                            return;
+                          connect({ host: radio.host, port: radio.port });
+                        }}
                       >
-                        <ProgressCircle
-                          size="xs"
-                          value={state.connectModal.stage * 33.33}
-                        />
-                      </Show>
+                        <Show
+                          when={
+                            state.connectModal.status ===
+                              ConnectionState.connecting &&
+                            state.connectModal.selectedRadio === radio.host
+                          }
+                          fallback={<MdiPlusNetworkOutline />}
+                        >
+                          <ProgressCircle
+                            size="xs"
+                            value={state.connectModal.stage * 33.33}
+                          />
+                        </Show>
+                      </Button>
                     </div>
                   </li>
                 );

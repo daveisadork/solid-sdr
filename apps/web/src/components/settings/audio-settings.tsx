@@ -31,11 +31,20 @@ import MaterialSymbolsMic from "~icons/material-symbols/mic";
 import MaterialSymbolsSpeaker from "~icons/material-symbols/speaker";
 import { Callout, CalloutContent, CalloutTitle } from "../ui/callout";
 import { createPermission } from "~/lib/permission";
+import { ToggleButton } from "@kobalte/core/toggle-button";
+import { SimpleSlider } from "../ui/simple-slider";
+import { Button } from "../ui/button";
+import MdiSpeaker from "~icons/mdi/speaker";
+import MdiSpeakerOff from "~icons/mdi/speaker-off";
+import MdiHeadphones from "~icons/mdi/headphones";
+import MdiHeadphonesOff from "~icons/mdi/headphones-off";
+import { Dynamic } from "solid-js/web";
+import { ToggleGroupItem } from "../ui/toggle-group";
 
 function InnerAudioSettings() {
   const { audioStreams } = useRuntime();
   const { preferences, setPreferences } = usePreferences();
-  const { state } = useFlexRadio();
+  const { radio, state } = useFlexRadio();
   const [caps, setCaps] = createSignal<string[]>([]);
 
   const outputs = createSpeakers();
@@ -80,6 +89,59 @@ function InnerAudioSettings() {
       class="relative flex flex-col gap-4 text-sm overflow-y-auto shrink"
       style={{ "scrollbar-width": "thin" }}
     >
+      <Card class="bg-transparent">
+        <CardHeader>
+          <CardTitle>Radio Audio</CardTitle>
+        </CardHeader>
+        <CardContent class="flex flex-col gap-4">
+          <div class="flex gap-1 items-center">
+            <ToggleButton
+              class="aspect-square size-10 inline-flex items-center p-1 rounded-md transition-colors hover:bg-accent"
+              pressed={state.status.radio.lineoutMute}
+              onChange={(pressed) => radio().setLineoutMute(pressed)}
+            >
+              <Dynamic
+                component={
+                  state.status.radio.lineoutMute ? MdiSpeakerOff : MdiSpeaker
+                }
+                class="size-full"
+              />
+            </ToggleButton>
+            <SimpleSlider
+              value={[state.status.radio.lineoutGain]}
+              onChange={([value]) => radio().setLineoutGain(value)}
+              minValue={0}
+              maxValue={100}
+              label="Line-Out Level"
+              getValueLabel={({ values: [value] }) => `${value}%`}
+            />
+          </div>
+          <div class="flex gap-1 items-center">
+            <ToggleButton
+              class="aspect-square size-10 inline-flex items-center p-1 rounded-md transition-colors hover:bg-accent"
+              pressed={state.status.radio.headphoneMute}
+              onChange={(pressed) => radio().setHeadphoneMute(pressed)}
+            >
+              <Dynamic
+                component={
+                  state.status.radio.headphoneMute
+                    ? MdiHeadphonesOff
+                    : MdiHeadphones
+                }
+                class="size-full"
+              />
+            </ToggleButton>
+            <SimpleSlider
+              value={[state.status.radio.headphoneGain]}
+              onChange={([value]) => radio().setHeadphoneGain(value)}
+              minValue={0}
+              maxValue={100}
+              label="Headphone Level"
+              getValueLabel={({ values: [value] }) => `${value}%`}
+            />
+          </div>
+        </CardContent>
+      </Card>
       <Card class="bg-transparent">
         <CardHeader>
           <SwitchRoot

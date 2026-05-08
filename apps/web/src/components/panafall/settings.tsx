@@ -711,7 +711,6 @@ export function PanSettings() {
             "rounded-r-none border-r-0": Boolean(openSection()) && open(),
           }}
           style={{
-            "scrollbar-gutter": "stable both-edges",
             "scrollbar-width": "thin",
           }}
           value={openSection()}

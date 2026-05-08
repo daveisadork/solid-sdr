@@ -301,6 +301,11 @@ function TxSection() {
               radio()?.setAtuMemoriesEnabled(isChecked);
             }}
             label="ATU Memory"
+            description={
+              state.status.radio.atuUsingMemory
+                ? "Using Memory"
+                : "Not Using Memory"
+            }
             // tooltip="Enable memories for the ATU."
           />
           <SimpleSwitch

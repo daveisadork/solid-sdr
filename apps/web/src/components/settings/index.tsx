@@ -34,62 +34,7 @@ import { createSignal } from "solid-js";
 import { Dynamic } from "solid-js/web";
 import { DaxSettings } from "./dax-settings";
 import { AudioSettings } from "./audio-settings";
-
-export function OldSettings() {
-  return (
-    <Dialog modal={false}>
-      <DialogTrigger
-        as={Button<"button">}
-        class="size-8 not-pointer-coarse:size-5 aspect-square"
-      >
-        <MdiSettings class="size-full" />
-      </DialogTrigger>
-      <DialogContent class="translate-y-0 top-1/12 flex flex-col max-h-10/12 overflow-hidden sm:max-w-10/12 sm:w-auto">
-        <DialogHeader>
-          <DialogTitle>Settings</DialogTitle>
-        </DialogHeader>
-        <Tabs
-          defaultValue="app"
-          class="w-full relative flex flex-col gap-2 shrink overflow-hidden"
-        >
-          <div class="flex justify-between">
-            <div />
-            <TabsList class="m-auto grid grid-cols-5">
-              <TabsTrigger value="app">SolidSDR</TabsTrigger>
-              <TabsTrigger value="radio">Radio</TabsTrigger>
-              <TabsTrigger value="memory">Memory</TabsTrigger>
-              <TabsTrigger value="spots">Spots</TabsTrigger>
-              <TabsTrigger value="midi">MIDI</TabsTrigger>
-            </TabsList>
-            <div />
-          </div>
-          <div
-            class="relative overflow-y-auto shrink pb-2"
-            style={{
-              "scrollbar-width": "thin",
-            }}
-          >
-            <TabsContent value="app">
-              <AppSettings />
-            </TabsContent>
-            <TabsContent value="radio">
-              <RadioSettings />
-            </TabsContent>
-            <TabsContent value="memory">
-              <MemorySettings />
-            </TabsContent>
-            <TabsContent value="spots">
-              <SpotsSettings />
-            </TabsContent>
-            <TabsContent value="midi">
-              <MidiSettings />
-            </TabsContent>
-          </div>
-        </Tabs>
-      </DialogContent>
-    </Dialog>
-  );
-}
+import { MultiflexSettings } from "./multiflex-settings";
 
 const tabs = {
   app: AppSettings,
@@ -99,6 +44,7 @@ const tabs = {
   midi: MidiSettings,
   dax: DaxSettings,
   audio: AudioSettings,
+  multiflex: MultiflexSettings,
 };
 
 export function Settings() {
@@ -140,6 +86,9 @@ export function Settings() {
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => setActiveTab("audio")}>
             Audio Settings
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => setActiveTab("multiflex")}>
+            multiFLEX
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

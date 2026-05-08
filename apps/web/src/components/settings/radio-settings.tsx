@@ -234,6 +234,8 @@ function RadioSettingsInner(props: { radio: Radio }) {
     Mutable<FilterPresetEntry>[]
   >([]);
 
+  const [calibrationEnabled, setCalibrationEnabled] = createSignal(true);
+
   createEffect(() => {
     setFilterPresets(
       state.status.filterPreset[filterModeGroup()].map((p) => ({ ...p })),
@@ -243,6 +245,9 @@ function RadioSettingsInner(props: { radio: Radio }) {
   createEffect(() => setNickname(state.status.radio.nickname));
   createEffect(() => setCallsign(state.status.radio.callsign));
   createEffect(() => setTxProfiles(state?.status?.radio?.profileTxList ?? []));
+  createEffect(() => {
+    if (state.status.radio.pllDone) setCalibrationEnabled(true);
+  });
 
   const oscillatorSources = createMemo<Record<RadioOscillatorSetting, string>>(
     () => ({
@@ -781,7 +786,7 @@ function RadioSettingsInner(props: { radio: Radio }) {
           <CardContent class="flex flex-col gap-4">
             <NumberField
               class="flex flex-col gap-2 select-none"
-              disabled={!state.status.radio.pllDone}
+              disabled={!calibrationEnabled()}
               rawValue={state.status.radio.calibrationFrequencyMhz}
               format={false}
               minValue={0}
@@ -803,7 +808,7 @@ function RadioSettingsInner(props: { radio: Radio }) {
             </NumberField>
             <NumberField
               class="flex flex-col gap-2 select-none"
-              disabled={!state.status.radio.pllDone}
+              disabled={!calibrationEnabled()}
               rawValue={state.status.radio.frequencyErrorPpb}
               format={false}
               onRawValueChange={(value) => {
@@ -823,13 +828,13 @@ function RadioSettingsInner(props: { radio: Radio }) {
           </CardContent>
           <CardFooter>
             <Button
-              onClick={() => props.radio.startOffsetCalibration()}
-              disabled={!state.status.radio.pllDone}
+              onClick={() => {
+                setCalibrationEnabled(false);
+                props.radio.startOffsetCalibration();
+              }}
+              disabled={!calibrationEnabled()}
             >
-              <Show
-                when={!state.status.radio.pllDone}
-                fallback="Start Calibration"
-              >
+              <Show when={!calibrationEnabled()} fallback="Start Calibration">
                 <MaterialSymbolsProgressActivity class="animate-spin" />
                 Calibrating
               </Show>

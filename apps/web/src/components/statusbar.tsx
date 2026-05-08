@@ -16,6 +16,8 @@ import { Button } from "@kobalte/core/button";
 import { ToggleButton } from "@kobalte/core/toggle-button";
 import MaterialSymbolsVolumeUp from "~icons/material-symbols/volume-up";
 import MaterialSymbolsVolumeOff from "~icons/material-symbols/volume-off";
+import MaterialSymbolsElectricBolt from "~icons/material-symbols/electric-bolt";
+import MaterialSymbolsDeviceThermostat from "~icons/material-symbols/device-thermostat";
 import { Dynamic } from "solid-js/web";
 import { createPermission } from "~/lib/permission";
 
@@ -105,12 +107,16 @@ export function StatusBar() {
       </Show>
       <div class="flex items-center justify-around h-full not-pointer-coarse:gap-4 not-sm:hidden pointer-coarse:flex-col shrink-0">
         <Show when={voltage() !== undefined}>
-          <span class="textbox-trim-both textbox-edge-cap-alphabetic">
+          <span class="textbox-trim-both textbox-edge-cap-alphabetic flex gap-1 items-center">
+            <MaterialSymbolsElectricBolt />
             {voltage()?.toFixed(2)}V
           </span>
         </Show>
         <Show when={tempMeter() && temp() !== undefined}>
-          <span class="textbox-trim-both textbox-edge-cap-alphabetic">{`${temp()?.toFixed(1)}${tempMeter().units?.replace("deg", "°")}`}</span>
+          <span class="textbox-trim-both textbox-edge-cap-alphabetic flex gap-1 items-center">
+            <MaterialSymbolsDeviceThermostat />
+            {`${temp()?.toFixed(1)}${tempMeter().units?.replace("deg", "°")}`}
+          </span>
         </Show>
       </div>
       <div class="grow not-sm:hidden" />

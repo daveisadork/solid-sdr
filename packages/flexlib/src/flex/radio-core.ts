@@ -1735,6 +1735,10 @@ class RadioImpl {
     );
   }
 
+  async setLocalPttEnabled(enabled: boolean): Promise<void> {
+    await this.command(`client set local_ptt=${formatBooleanFlag(enabled)}`);
+  }
+
   async setProfileAutoSave(enabled: boolean): Promise<void> {
     await this.commandAndPatch(`profile autosave ${enabled ? "on" : "off"}`, {
       auto_save: formatBooleanFlag(enabled),
@@ -2152,7 +2156,6 @@ class RadioImpl {
   }
 
   async startOffsetCalibration(): Promise<void> {
-    if (!this.snapshot()?.pllDone) return;
     await this.commandAndPatch("radio pll_start", {
       pll_done: "0",
     });

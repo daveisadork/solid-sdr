@@ -1,19 +1,11 @@
 import { usePreferences } from "../../context/preferences";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "../ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { SimpleSwitch } from "../ui/simple-switch";
 import {
   createEffect,
   createMemo,
   createSignal,
-  For,
   Match,
-  onMount,
   Show,
   Switch,
 } from "solid-js";
@@ -27,12 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
-import { remoteAudioChannelMode } from "~/lib/remoteAudio-audio-sink/types";
 import { createMicrophones, createSpeakers } from "@solid-primitives/devices";
-import { Dynamic } from "solid-js/web";
-import Left from "~icons/qlementine-icons/stereo-left-16";
-import Right from "~icons/qlementine-icons/stereo-right-16";
-import Stereo from "~icons/qlementine-icons/stereo-16";
 import {
   Switch as SwitchRoot,
   SwitchControl,
@@ -42,8 +29,8 @@ import {
 import { useRuntime } from "~/context/runtime";
 import MaterialSymbolsMic from "~icons/material-symbols/mic";
 import MaterialSymbolsSpeaker from "~icons/material-symbols/speaker";
-import { createPermission } from "@solid-primitives/permission";
 import { Callout, CalloutContent, CalloutTitle } from "../ui/callout";
+import { createPermission } from "~/lib/permission";
 
 function InnerAudioSettings() {
   const { audioStreams } = useRuntime();

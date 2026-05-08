@@ -23,7 +23,7 @@ import type { DaxChannelMode } from "~/lib/dax-audio-sink/types";
 import type { MeterState } from "~/context/flexradio";
 import { showToast } from "./ui/toast";
 import { useRuntime } from "~/context/runtime";
-import { createPermission } from "@solid-primitives/permission";
+import { createPermission } from "~/lib/permission";
 
 function DaxAudioChannel(props: {
   controller: AudioStreamController;

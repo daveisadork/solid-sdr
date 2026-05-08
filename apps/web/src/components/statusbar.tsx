@@ -17,7 +17,7 @@ import { ToggleButton } from "@kobalte/core/toggle-button";
 import MaterialSymbolsVolumeUp from "~icons/material-symbols/volume-up";
 import MaterialSymbolsVolumeOff from "~icons/material-symbols/volume-off";
 import { Dynamic } from "solid-js/web";
-import { createPermission } from "@solid-primitives/permission";
+import { createPermission } from "~/lib/permission";
 
 function RemoteAudioToggle() {
   const { preferences, setPreferences } = usePreferences();

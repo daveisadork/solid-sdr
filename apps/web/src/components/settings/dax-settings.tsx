@@ -33,8 +33,8 @@ import {
   SwitchThumb,
 } from "../ui/switch";
 import { useRuntime } from "~/context/runtime";
-import { createPermission } from "@solid-primitives/permission";
 import { Callout, CalloutContent, CalloutTitle } from "../ui/callout";
+import { createPermission } from "~/lib/permission";
 
 const CHANNEL_MODE_ICONS = {
   left: Left,

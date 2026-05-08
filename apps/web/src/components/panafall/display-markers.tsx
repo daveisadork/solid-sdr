@@ -41,7 +41,7 @@ function DisplayMarker(props: {
 
   return (
     <div
-      class="absolute h-full top-0 left-0 translate-x-(--marker-offset) w-(--marker-width) bg-(--marker-color) flex justify-center items-center overflow-hidden"
+      class="absolute h-full top-0 left-0 translate-x-(--marker-offset) w-(--marker-width) bg-linear-to-b from-(--marker-color) to-transparent flex justify-center items-center overflow-hidden"
       style={{
         "--marker-offset": `${getMarkerOffset(props.marker)}px`,
         "--marker-width": `${getMarkerWidth(props.marker)}px`,
@@ -71,7 +71,7 @@ function InnerDisplayMarkers() {
   );
 
   return (
-    <div class="absolute inset-x-0 top-0 h-4 text-[0.5em]  text-shadow-black text-shadow-xs bg-background/35">
+    <div class="absolute inset-x-0 top-0 h-4 text-foreground/75 text-[0.5em]  text-shadow-background text-shadow-xs ">
       <div class="absolute inset-0 translate-x-(--drag-offset)">
         <Key each={markers()} by="id">
           {(marker) => <DisplayMarker marker={marker()} freqToX={freqToX} />}

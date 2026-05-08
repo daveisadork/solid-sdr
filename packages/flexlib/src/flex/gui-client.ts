@@ -1,16 +1,21 @@
 export interface BaseGuiClientInfo {
-  readonly clientHandle: number;
+  readonly clientHandle: string;
+  readonly clientHandleInt: number;
+  readonly host?: string;
+  readonly ip?: string;
+  readonly isLocalPtt: boolean;
   readonly program?: string;
   readonly station?: string;
-  readonly isLocalPtt: boolean;
 }
 
 export type DiscoveredGuiClient = BaseGuiClientInfo;
 
 export interface ParseGuiClientLists {
+  readonly handles?: readonly string[];
+  readonly hosts?: readonly string[];
+  readonly ips?: readonly string[];
   readonly programs?: readonly string[];
   readonly stations?: readonly string[];
-  readonly handles?: readonly string[];
 }
 
 export function parseDiscoveredGuiClients(
@@ -19,22 +24,21 @@ export function parseDiscoveredGuiClients(
   const programs = lists.programs ?? [];
   const stations = lists.stations ?? [];
   const handles = lists.handles ?? [];
-  if (
-    programs.length === 0 ||
-    programs.length !== stations.length ||
-    programs.length !== handles.length
-  ) {
-    return [];
-  }
+  const hosts = lists.hosts ?? [];
+  const ips = lists.ips ?? [];
   const clients: DiscoveredGuiClient[] = [];
-  for (let index = 0; index < programs.length; index += 1) {
-    const clientHandle = parseClientHandle(handles[index]);
-    if (clientHandle === undefined) continue;
+  for (let index = 0; index < handles.length; index += 1) {
+    const clientHandle = handles[index];
+    const clientHandleInt = parseClientHandle(clientHandle);
+    if (clientHandleInt === undefined) continue;
     clients.push(
       Object.freeze({
         clientHandle,
+        clientHandleInt,
         program: normalizeToken(programs[index]),
         station: normalizeStation(stations[index]),
+        host: normalizeStation(hosts[index]),
+        ip: normalizeStation(ips[index]),
         isLocalPtt: false,
       }),
     );

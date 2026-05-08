@@ -1038,7 +1038,7 @@ export function createRadioStateStore(
         ];
       }
       guiClients.delete(id);
-      guiClientsByHandle.delete(existing.clientHandle);
+      guiClientsByHandle.delete(existing.clientHandleInt);
       return [
         {
           entity: "guiClient",
@@ -1068,9 +1068,9 @@ export function createRadioStateStore(
         { localClientHandle },
       );
       guiClients.set(id, snapshot);
-      if (!previous || previous.clientHandle !== snapshot.clientHandle) {
-        if (previous) guiClientsByHandle.delete(previous.clientHandle);
-        guiClientsByHandle.set(snapshot.clientHandle, id);
+      if (!previous || previous.clientHandleInt !== snapshot.clientHandleInt) {
+        if (previous) guiClientsByHandle.delete(previous.clientHandleInt);
+        guiClientsByHandle.set(snapshot.clientHandleInt, id);
       }
       const changes: RadioStateChange[] = [
         {
@@ -1081,7 +1081,7 @@ export function createRadioStateStore(
         },
       ];
       const transmitChange = updateGuiClientTransmitSlice(
-        snapshot.clientHandle,
+        snapshot.clientHandleInt,
       );
       if (transmitChange) changes.push(transmitChange);
       return changes;
@@ -2006,7 +2006,7 @@ export function createRadioStateStore(
     const changes: RadioStateChange[] = [];
     for (const [id, client] of guiClients) {
       const isThisClient =
-        normalized !== undefined && client.clientHandle === normalized;
+        normalized !== undefined && client.clientHandleInt === normalized;
       if (client.isThisClient === isThisClient) continue;
       const updated = Object.freeze({
         ...client,

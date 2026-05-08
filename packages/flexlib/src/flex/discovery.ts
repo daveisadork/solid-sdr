@@ -16,7 +16,10 @@ export function parseDiscoveryPayload(payload: string): Map<string, string> {
     const eq = pair.indexOf("=");
     if (eq <= 0) continue;
     const key = pair.slice(0, eq).trim().toLowerCase();
-    const value = pair.slice(eq + 1).replace(/\0+$/g, "").trim();
+    const value = pair
+      .slice(eq + 1)
+      .replace(/\0+$/g, "")
+      .trim();
     if (!key) continue;
     map.set(key, value);
   }
@@ -65,6 +68,8 @@ export function decodeDiscoveryPayload(
     programs: guiClientPrograms,
     stations: guiClientStations,
     handles: guiClientHandles,
+    hosts: guiClientHosts,
+    ips: guiClientIps,
   });
 
   const fpcMacRaw = valueOrUndefined(fields.get("fpc_mac"));
@@ -88,19 +93,14 @@ export function decodeDiscoveryPayload(
     discoveryProtocolVersion: valueOrUndefined(
       fields.get("discovery_protocol_version"),
     ),
-    maxLicensedVersion: valueOrUndefined(
-      fields.get("max_licensed_version"),
-    ),
+    maxLicensedVersion: valueOrUndefined(fields.get("max_licensed_version")),
     radioLicenseId: valueOrUndefined(fields.get("radio_license_id")),
-    minSoftwareVersion: valueOrUndefined(
-      fields.get("min_software_version"),
-    ),
+    minSoftwareVersion: valueOrUndefined(fields.get("min_software_version")),
     hasUnknownRadioLicense:
       parseBooleanFlag(fields.get("license_is_unknown")) ?? undefined,
     requiresAdditionalLicense:
       parseBooleanFlag(fields.get("requires_additional_license")) ?? undefined,
-    wanConnected:
-      parseBooleanFlag(fields.get("wan_connected")) ?? undefined,
+    wanConnected: parseBooleanFlag(fields.get("wan_connected")) ?? undefined,
     externalPortLink:
       parseBooleanFlag(fields.get("external_port_link")) ?? undefined,
     licensedClients: parseInteger(

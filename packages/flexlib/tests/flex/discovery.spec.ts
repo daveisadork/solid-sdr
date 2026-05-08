@@ -21,9 +21,7 @@ function parseDescriptorFromPacket(data: Uint8Array): FlexRadioDescriptor {
 }
 
 const SAMPLE_PACKET = loadPacket("flex-8600-available.bin");
-const SAMPLE_PACKET_IN_USE = loadPacket(
-  "flex-8600-in-use-multi-client.bin",
-);
+const SAMPLE_PACKET_IN_USE = loadPacket("flex-8600-in-use-multi-client.bin");
 const SAMPLE_PACKET_ONE_CLIENT = loadPacket(
   "flex-8600-available-single-client.bin",
 );
@@ -80,10 +78,7 @@ describe("decodeDiscoveryPayload", () => {
       "MacBook-Pro.localdomain",
       "LAPTOP-9V8U8FDA.localdomain",
     ]);
-    expect(descriptor.inUseIps).toEqual([
-      "10.16.83.154",
-      "10.16.83.60",
-    ]);
+    expect(descriptor.inUseIps).toEqual(["10.16.83.154", "10.16.83.60"]);
     expect(descriptor.guiClientPrograms).toEqual([
       "SmartSDR-Mac",
       "SmartSDR-Win",
@@ -96,20 +91,17 @@ describe("decodeDiscoveryPayload", () => {
       "MacBook Pro",
       "LAPTOP-9V8U8FDA",
     ]);
-    expect(descriptor.guiClientHandles).toEqual([
-      "0x29DD2CDC",
-      "0x7D2D0108",
-    ]);
+    expect(descriptor.guiClientHandles).toEqual(["0x29DD2CDC", "0x7D2D0108"]);
 
     // and parsed GUI client objects are available
     expect(descriptor.guiClients).toEqual([
       expect.objectContaining({
-        clientHandle: 0x29dd2cdc,
+        clientHandleInt: 0x29dd2cdc,
         program: "SmartSDR-Mac",
         station: "MacBook Pro",
       }),
       expect.objectContaining({
-        clientHandle: 0x7d2d0108,
+        clientHandleInt: 0x7d2d0108,
         program: "SmartSDR-Win",
         station: "LAPTOP-9V8U8FDA",
       }),

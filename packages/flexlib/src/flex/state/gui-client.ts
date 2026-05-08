@@ -30,7 +30,7 @@ const createIntitialSnapshot = (
   }
   return {
     id,
-    clientHandle,
+    clientHandleInt: clientHandle,
     isThisClient:
       clientHandle !== undefined && clientHandle === localClientHandle,
   };

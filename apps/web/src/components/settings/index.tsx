@@ -33,6 +33,7 @@ import {
 import { createSignal } from "solid-js";
 import { Dynamic } from "solid-js/web";
 import { DaxSettings } from "./dax-settings";
+import { AudioSettings } from "./audio-settings";
 
 export function OldSettings() {
   return (
@@ -97,6 +98,7 @@ const tabs = {
   spots: SpotsSettings,
   midi: MidiSettings,
   dax: DaxSettings,
+  audio: AudioSettings,
 };
 
 export function Settings() {
@@ -112,7 +114,7 @@ export function Settings() {
       <DropdownMenu>
         <DropdownMenuTrigger
           as={Button<"button">}
-          class="size-8 not-pointer-coarse:size-5 aspect-square"
+          class="size-10 not-pointer-coarse:size-5 aspect-square"
         >
           <MdiSettings class="size-full" />
         </DropdownMenuTrigger>
@@ -135,6 +137,9 @@ export function Settings() {
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => setActiveTab("dax")}>
             DAX Settings
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => setActiveTab("audio")}>
+            Audio Settings
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

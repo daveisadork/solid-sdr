@@ -9,46 +9,21 @@ import {
 } from "solid-js";
 import { createStore } from "solid-js/store";
 import { useRtc } from "../context/rtc";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "./ui/select";
-import { createMicrophones, createSpeakers } from "@solid-primitives/devices";
+import { createMicrophones } from "@solid-primitives/devices";
 import useFlexRadio from "~/context/flexradio";
 import { usePreferences } from "~/context/preferences";
-import MaterialSymbolsMic from "~icons/material-symbols/mic";
-import MaterialSymbolsSpeaker from "~icons/material-symbols/speaker";
 import {
   type AudioStreamTxController,
   type RemoteAudioTxStreamController,
   type AudioStreamController,
 } from "@repo/flexlib";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-  PopoverArrow,
-} from "~/components/ui/popover";
 import { DaxAudioSink } from "~/lib/dax-audio-sink";
 import { DaxAudioTx } from "~/lib/dax-audio-tx";
 import type { DaxChannelMode } from "~/lib/dax-audio-sink/types";
-import { SimpleMeter } from "~/components/ui/simple-meter";
 import type { MeterState } from "~/context/flexradio";
-import { SimpleSwitch } from "./ui/simple-switch";
 import { showToast } from "./ui/toast";
-import {
-  SegmentedControl,
-  SegmentedControlGroup,
-  SegmentedControlIndicator,
-  SegmentedControlItem,
-  SegmentedControlItemLabel,
-  SegmentedControlItemsList,
-  SegmentedControlLabel,
-} from "./ui/segmented-control";
 import { useRuntime } from "~/context/runtime";
+import { createPermission } from "@solid-primitives/permission";
 
 function DaxAudioChannel(props: {
   controller: AudioStreamController;
@@ -100,10 +75,10 @@ const DAX_LEVEL_METER: MeterState = {
   description: "",
 };
 
-function InnerRtcAudio(props: { defaultOpen?: boolean }) {
+function InnerRtcAudio() {
   const { remoteAudioRxStream, setRemoteAudioTxTrack } = useRtc();
   const { state, radio } = useFlexRadio();
-  const { preferences, setPreferences } = usePreferences();
+  const { preferences } = usePreferences();
   const { audioStreams } = useRuntime();
   const [remoteAudioRxStreamId, setRemoteAudioRxStreamId] = createSignal<
     string | undefined
@@ -122,27 +97,31 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
 
   const [daxTxController, setDaxTxController] =
     createSignal<AudioStreamTxController>();
-  const outputs = createSpeakers();
   const inputs = createMicrophones();
 
   const preferredInputDevice = createMemo(() => {
-    const device = inputs().find(
-      (d) => d.deviceId === preferences.inputDeviceId,
-    );
-    if (!device) return true;
-    return {
-      deviceId: { exact: device.deviceId },
-      groupId: { exact: device.groupId },
-    } as MediaStreamConstraints["audio"];
+    const constraints = {
+      deviceId: preferences.remoteAudio.tx.inputDeviceId,
+      autoGainControl: preferences.remoteAudio.tx.autoGainControl,
+      echoCancellation: preferences.remoteAudio.tx.echoCancellation,
+      noiseSuppression: preferences.remoteAudio.tx.noiseSuppression,
+      voiceIsolation: preferences.remoteAudio.tx.voiceIsolation,
+    } as MediaTrackConstraints;
+    const device = inputs().find((d) => d.deviceId === constraints.deviceId);
+    if (device) {
+      constraints.deviceId = { exact: device.deviceId };
+      constraints.groupId = { exact: device.groupId };
+    }
+    return constraints;
   });
 
   const preferredDaxInputDevice = createMemo(() => {
     const constraints = {
-      deviceId: preferences.daxTxConfig.inputDeviceId,
-      autoGainControl: preferences.daxTxConfig.autoGainControl,
-      echoCancellation: preferences.daxTxConfig.echoCancellation,
-      noiseSuppression: preferences.daxTxConfig.noiseSuppression,
-      voiceIsolation: preferences.daxTxConfig.voiceIsolation,
+      deviceId: preferences.dax.tx.inputDeviceId,
+      autoGainControl: preferences.dax.tx.autoGainControl,
+      echoCancellation: preferences.dax.tx.echoCancellation,
+      noiseSuppression: preferences.dax.tx.noiseSuppression,
+      voiceIsolation: preferences.dax.tx.voiceIsolation,
       latency: 0,
       channelCount: 2,
     } as MediaTrackConstraints;
@@ -174,7 +153,7 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
   );
 
   createEffect((promise?: Promise<AudioStreamController>) => {
-    if (!state.clientHandle || !preferences.enableRemoteAudio) return;
+    if (!state.clientHandle || !preferences.remoteAudio.rx.enabled) return;
     return remoteAudioRxStreamId()
       ? onCleanup(() =>
           promise?.then((stream) => radio()?.audioStream(stream.id)?.close()),
@@ -185,7 +164,12 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
   });
 
   createEffect((promise?: Promise<RemoteAudioTxStreamController>) => {
-    if (!state.clientHandle || !preferences.enableRemoteAudio) return;
+    if (
+      !state.clientHandle ||
+      !preferences.remoteAudio.rx.enabled ||
+      !preferences.remoteAudio.tx.enabled
+    )
+      return;
     return remoteAudioTxStreamId()
       ? onCleanup(() =>
           promise?.then((stream) => radio()?.audioStream(stream.id)?.close()),
@@ -198,7 +182,7 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
   for (let channel = 1; channel <= 16; channel++) {
     const daxChannel = channel; // capture for closure
     createEffect(() => {
-      if (!state.clientHandle || !preferences.daxRxConfig[daxChannel]?.enabled)
+      if (!state.clientHandle || !preferences.dax.rx[daxChannel]?.enabled)
         return;
       const promise = radio()?.createDaxRxAudioStream({ daxChannel });
       onCleanup(() =>
@@ -208,7 +192,7 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
   }
 
   createEffect(() => {
-    if (!state.clientHandle || !preferences.daxTxConfig.enabled) return;
+    if (!state.clientHandle || !preferences.dax.tx.enabled) return;
     const promise = radio()?.createDaxTxAudioStream();
     promise?.then(setDaxTxController);
     onCleanup(() => {
@@ -246,7 +230,7 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
   createEffect((lastCleanupPromise: Promise<void>) => {
     const controller = daxTxController();
     if (!controller) return Promise.resolve();
-    const reducedBandwidth = preferences.daxTxConfig.reducedBandwidth;
+    const reducedBandwidth = preferences.dax.tx.reducedBandwidth;
     const constraints = {
       audio: { ...preferredDaxInputDevice() },
     };
@@ -262,7 +246,7 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
         controller,
         reducedBandwidth,
         stream,
-        preferences.daxTxConfig.channelMode,
+        preferences.dax.tx.channelMode,
       );
       await tx.start();
       setDaxTxInstance(tx);
@@ -302,7 +286,7 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
   createEffect(() => {
     const tx = daxTxInstance();
     if (!tx) return;
-    tx.setChannelMode(preferences.daxTxConfig.channelMode);
+    tx.setChannelMode(preferences.dax.tx.channelMode);
   });
 
   createEffect(() => {
@@ -324,102 +308,11 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
 
   return (
     <>
-      <div
-        class="size-4 rounded-full border"
-        classList={{
-          "bg-foreground": Boolean(
-            remoteAudioRxStreamId() && remoteAudioTxStreamId(),
-          ),
-          "bg-foreground/50":
-            preferences.enableRemoteAudio &&
-            !Boolean(remoteAudioRxStreamId() && remoteAudioTxStreamId()),
-        }}
-        onClick={() => setPreferences("enableRemoteAudio", (v) => !v)}
-      />
-
-      <Popover defaultOpen={props.defaultOpen}>
-        <PopoverTrigger class="text-sm textbox-trim-both textbox-edge-cap-alphabetic">
-          Audio Settings
-        </PopoverTrigger>
-        <PopoverContent class="shadow-black/75 shadow-lg p-0 fancy-bg-popover overflow-x-visible w-auto max-w-[90vw]">
-          <PopoverArrow />
-          <div class="p-4 flex flex-col space-y-4 max-h-(--kb-popper-content-available-height) overflow-y-auto">
-            <div class="flex gap-2 items-center">
-              <MaterialSymbolsMic class="size-10 shrink-0" />
-              <Select
-                class="shrink grow overflow-hidden p-1"
-                value={preferences.inputDeviceId}
-                onChange={(value: string) => {
-                  if (!value) return;
-                  setPreferences("inputDeviceId", value);
-                }}
-                options={inputs().map((d) => d.deviceId)}
-                itemComponent={(props) => {
-                  return (
-                    <SelectItem item={props.item}>
-                      {
-                        inputs().find((d) => d.deviceId === props.item.rawValue)
-                          ?.label
-                      }
-                    </SelectItem>
-                  );
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue class="overflow-hidden text-ellipsis whitespace-nowrap">
-                    {(state) =>
-                      inputs().find(
-                        (d) => d.deviceId === state.selectedOption(),
-                      )?.label || "Select Audio Input"
-                    }
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent />
-              </Select>
-            </div>
-            <div class="flex gap-2 items-center">
-              <MaterialSymbolsSpeaker class="size-10 shrink-0" />
-              <div class="shrink grow overflow-hidden p-1">
-                <Select
-                  value={preferences.outputDeviceId}
-                  onChange={(value: string) => {
-                    if (!value) return;
-                    setPreferences("outputDeviceId", value);
-                  }}
-                  options={outputs().map((d) => d.deviceId)}
-                  itemComponent={(props) => {
-                    return (
-                      <SelectItem item={props.item}>
-                        {
-                          outputs().find(
-                            (d) => d.deviceId === props.item.rawValue,
-                          )?.label
-                        }
-                      </SelectItem>
-                    );
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue class="overflow-hidden text-ellipsis whitespace-nowrap">
-                      {(state) =>
-                        outputs().find(
-                          (d) => d.deviceId === state.selectedOption(),
-                        )?.label || "Select Audio Output"
-                      }
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent />
-                </Select>
-              </div>
-            </div>
-          </div>
-        </PopoverContent>
-      </Popover>
       <Show when={remoteAudioRxStream()}>
         <div class="sr-only" aria-hidden="true">
           <AudioSink
             stream={remoteAudioRxStream()}
-            output={preferences.outputDeviceId}
+            output={preferences.remoteAudio.rx.outputDeviceId}
           />
         </div>
       </Show>
@@ -434,12 +327,11 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
             <DaxAudioChannel
               controller={radio()?.audioStream(stream.id)}
               output={
-                preferences.daxRxConfig[stream.daxChannel]?.outputDeviceId ??
+                preferences.dax.rx[stream.daxChannel]?.outputDeviceId ??
                 "default"
               }
               channelMode={
-                preferences.daxRxConfig[stream.daxChannel]?.channelMode ??
-                "both"
+                preferences.dax.rx[stream.daxChannel]?.channelMode ?? "both"
               }
               onMeter={(level, peak) =>
                 setDaxRxMeters(stream.daxChannel, { level, peak })
@@ -453,64 +345,31 @@ function InnerRtcAudio(props: { defaultOpen?: boolean }) {
 }
 
 export default function RtcAudio() {
-  const { preferences, setPreferences } = usePreferences();
-  const [audioAllowed, setAudioAllowed] = createSignal(false);
-  const [defaultOpen, setDefaultOpen] = createSignal(false);
+  const { preferences } = usePreferences();
+  const audioPermission = createPermission("microphone");
 
   const checkAudioPermission = () => {
-    if (audioAllowed()) {
-      console.log("No audio enabled, skipping permissions");
-      return;
-    }
+    if (audioPermission() !== "unknown") return;
     console.log("Requesting audio...");
-    navigator.mediaDevices
-      .getUserMedia({ audio: true })
-      .then((stream) => {
-        stream.getTracks().forEach((track) => track.stop());
-        setAudioAllowed(true);
-      })
-      .catch(() => setAudioAllowed(false));
+    navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+      stream.getTracks().forEach((track) => track.stop());
+    });
   };
 
   createEffect(() => {
     const audioEnabled =
-      preferences.enableRemoteAudio ||
-      preferences.daxTxConfig.enabled ||
-      Object.values(preferences.daxRxConfig).some((config) => config.enabled);
+      preferences.remoteAudio.rx.enabled ||
+      preferences.dax.tx.enabled ||
+      Object.values(preferences.dax.rx).some((config) => config.enabled);
 
-    if (!audioEnabled || audioAllowed()) return;
+    if (!audioEnabled) return;
     checkAudioPermission();
   });
 
   return (
-    <div class="absolute not-pointer-fine:bottom-16 pointer-fine:bottom-0 left-1/2 -translate-x-1/2 flex items-center gap-2 not-pointer-fine:border rounded-md not-pointer-fine:fancy-bg-background h-10 px-3">
-      <Show
-        when={audioAllowed()}
-        fallback={
-          <>
-            <div
-              class="size-4 rounded-full border"
-              classList={{
-                "bg-foreground/50": preferences.enableRemoteAudio,
-              }}
-              onClick={() => setPreferences("enableRemoteAudio", (v) => !v)}
-            />
-
-            <button
-              class="text-sm textbox-trim-both textbox-edge-cap-alphabetic"
-              onClick={() => {
-                setDefaultOpen(true);
-                checkAudioPermission();
-              }}
-            >
-              Audio Settings
-            </button>
-          </>
-        }
-      >
-        <InnerRtcAudio defaultOpen={defaultOpen()} />
-      </Show>
-    </div>
+    <Show when={audioPermission() === "granted"}>
+      <InnerRtcAudio />
+    </Show>
   );
 }
 

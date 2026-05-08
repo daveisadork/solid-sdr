@@ -25,10 +25,11 @@ import {
 import type { Component, ComponentProps, JSX, ValidComponent } from "solid-js";
 import { createPointerListeners } from "@solid-primitives/pointer";
 import { createElementBounds } from "@solid-primitives/bounds";
-import BaselineChevronLeft from "~icons/ic/baseline-chevron-left";
-import BaselineChevronRight from "~icons/ic/baseline-chevron-right";
-import BaselineVolumeUp from "~icons/ic/baseline-volume-up";
-import BaselineVolumeOff from "~icons/ic/baseline-volume-off";
+import MaterialSymbolsChevronLeft from "~icons/material-symbols/chevron-left";
+import MaterialSymbolsChevronRight from "~icons/material-symbols/chevron-right";
+import MaterialSymbolsVolumeUp from "~icons/material-symbols/volume-up";
+import MaterialSymbolsVolumeOff from "~icons/material-symbols/volume-off";
+
 import SplitIcon from "~icons/material-symbols/split-scene-left-outline";
 import SwapIcon from "~icons/material-symbols/swap-horiz";
 import MdiLock from "~icons/material-symbols/lock-open-circle-outline";
@@ -336,9 +337,9 @@ export function DetachedSlice(props: {
       <div class="flex w-3.5 max-w-3.5 justify-center">
         <Show
           when={props.slice.frequencyMHz < props.pan.centerFrequencyMHz}
-          fallback={<BaselineChevronRight />}
+          fallback={<MaterialSymbolsChevronRight />}
         >
-          <BaselineChevronLeft />
+          <MaterialSymbolsChevronLeft />
         </Show>
       </div>
       <div class="flex flex-col items-center gap-0">
@@ -666,8 +667,8 @@ const AudioControls = (props: {
           props.controller.setMute(!props.slice.isMuted);
         }}
       >
-        <Show when={props.slice.isMuted} fallback={<BaselineVolumeUp />}>
-          <BaselineVolumeOff />
+        <Show when={props.slice.isMuted} fallback={<MaterialSymbolsVolumeUp />}>
+          <MaterialSymbolsVolumeOff />
         </Show>
       </PopoverTrigger>
       <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 fancy-bg-popover">
@@ -1266,7 +1267,7 @@ const SliceSettings = (props: {
                   );
                 }}
               >
-                <BaselineChevronLeft />
+                <MaterialSymbolsChevronLeft />
               </Button>
               <NumberFieldGroup class="select-none">
                 <NumberFieldInput />
@@ -1282,7 +1283,7 @@ const SliceSettings = (props: {
                   );
                 }}
               >
-                <BaselineChevronRight />
+                <MaterialSymbolsChevronRight />
               </Button>
             </div>
           </NumberField>

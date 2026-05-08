@@ -25,9 +25,26 @@ export interface PaletteSettings {
   gradients: Gradient[];
 }
 
-export interface DaxRxConfig {
+export interface TxAudioConfig {
+  enabled: boolean;
+  inputDeviceId: string;
+  autoGainControl: boolean;
+  echoCancellation: boolean;
+  noiseSuppression: boolean;
+  voiceIsolation: boolean;
+}
+
+export interface RxAudioConfig {
   enabled: boolean;
   outputDeviceId: string;
+}
+
+export interface DaxTxConfig extends TxAudioConfig {
+  reducedBandwidth: boolean;
+  channelMode: DaxChannelMode;
+}
+
+export interface DaxRxConfig extends RxAudioConfig {
   channelMode: DaxChannelMode;
 }
 
@@ -61,26 +78,20 @@ export interface Preferences {
   showTuningGuide: boolean;
   preventScreenSleep: boolean;
   palette: PaletteSettings;
-  enableRemoteAudio: boolean;
-  inputDeviceId: string;
-  outputDeviceId: string;
+  remoteAudio: {
+    tx: TxAudioConfig;
+    rx: RxAudioConfig;
+  };
+  dax: {
+    tx: DaxTxConfig;
+    rx: Record<number, DaxRxConfig>;
+  };
   panadapterSizes: number[][];
   panadapterSettingsOpen: boolean[];
   panadapterSettingsStyle: PanadapterSettingsStyle;
   radioPanelOpen: boolean;
   sidebarPanels: string[];
-  daxRxConfig: Record<number, DaxRxConfig>;
   guiClientId: string | null;
-  daxTxConfig: {
-    enabled: boolean;
-    inputDeviceId: string;
-    reducedBandwidth: boolean;
-    channelMode: DaxChannelMode;
-    autoGainControl: boolean;
-    echoCancellation: boolean;
-    noiseSuppression: boolean;
-    voiceIsolation: boolean;
-  };
 }
 
 const PreferencesContext = createContext<{
@@ -88,7 +99,7 @@ const PreferencesContext = createContext<{
   setPreferences: SetStoreFunction<Preferences>;
 }>();
 
-const defaultDaxConfig = () => {
+const defaultDaxRxConfig = () => {
   const config: Record<number, DaxRxConfig> = {};
   for (let i = 1; i <= 8; i++) {
     config[i] = {
@@ -130,22 +141,35 @@ const getDefaults = (): Preferences => ({
   preventScreenSleep: false,
   panadapterSettingsStyle: "floating",
   panadapterSizes: [],
-  enableRemoteAudio: true,
-  inputDeviceId: "default",
-  outputDeviceId: "default",
   radioPanelOpen: true,
   sidebarPanels: ["tx", "p-cw", "phone", "rx", "eq"],
   panadapterSettingsOpen: [false, false, false, false],
-  daxRxConfig: defaultDaxConfig(),
-  daxTxConfig: {
-    enabled: false,
-    inputDeviceId: "default",
-    reducedBandwidth: true,
-    channelMode: "both",
-    autoGainControl: false,
-    echoCancellation: false,
-    noiseSuppression: false,
-    voiceIsolation: false,
+  dax: {
+    rx: defaultDaxRxConfig(),
+    tx: {
+      enabled: false,
+      inputDeviceId: "default",
+      reducedBandwidth: true,
+      channelMode: "both",
+      autoGainControl: false,
+      echoCancellation: false,
+      noiseSuppression: false,
+      voiceIsolation: false,
+    },
+  },
+  remoteAudio: {
+    rx: {
+      enabled: true,
+      outputDeviceId: "default",
+    },
+    tx: {
+      enabled: true,
+      inputDeviceId: "default",
+      autoGainControl: true,
+      echoCancellation: true,
+      noiseSuppression: true,
+      voiceIsolation: true,
+    },
   },
   palette: {
     gradients: [

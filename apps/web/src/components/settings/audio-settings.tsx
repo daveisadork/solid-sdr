@@ -1,0 +1,279 @@
+import { usePreferences } from "../../context/preferences";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../ui/card";
+import { SimpleSwitch } from "../ui/simple-switch";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  Match,
+  onMount,
+  Show,
+  Switch,
+} from "solid-js";
+import useFlexRadio from "~/context/flexradio";
+import { DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
+import { remoteAudioChannelMode } from "~/lib/remoteAudio-audio-sink/types";
+import { createMicrophones, createSpeakers } from "@solid-primitives/devices";
+import { Dynamic } from "solid-js/web";
+import Left from "~icons/qlementine-icons/stereo-left-16";
+import Right from "~icons/qlementine-icons/stereo-right-16";
+import Stereo from "~icons/qlementine-icons/stereo-16";
+import {
+  Switch as SwitchRoot,
+  SwitchControl,
+  SwitchLabel,
+  SwitchThumb,
+} from "../ui/switch";
+import { useRuntime } from "~/context/runtime";
+import MaterialSymbolsMic from "~icons/material-symbols/mic";
+import MaterialSymbolsSpeaker from "~icons/material-symbols/speaker";
+import { createPermission } from "@solid-primitives/permission";
+import { Callout, CalloutContent, CalloutTitle } from "../ui/callout";
+
+function InnerAudioSettings() {
+  const { audioStreams } = useRuntime();
+  const { preferences, setPreferences } = usePreferences();
+  const { state } = useFlexRadio();
+  const [caps, setCaps] = createSignal<string[]>([]);
+
+  const outputs = createSpeakers();
+  const inputs = createMicrophones();
+
+  const remoteAudioTxDevice = createMemo(() =>
+    inputs().find(
+      (d) => d.deviceId === preferences.remoteAudio.tx.inputDeviceId,
+    ),
+  );
+
+  const remoteAudioTxStream = createMemo(() => {
+    return audioStreams.get(
+      Object.values(state.status.audioStream).find(
+        (s) =>
+          s.clientHandle === state.clientHandleInt &&
+          s.type === "remoteAudio_tx",
+      )?.id,
+    );
+  });
+
+  createEffect(() => {
+    navigator.mediaDevices
+      .getUserMedia({
+        audio: {
+          deviceId: preferences.remoteAudio.tx.inputDeviceId,
+        },
+      })
+      .then((stream) => {
+        for (const track of stream.getTracks()) {
+          setCaps(Object.keys(track.getCapabilities()));
+          track.stop();
+        }
+      })
+      .catch((reason) =>
+        console.error("Failed get device capabilities:", reason),
+      );
+  });
+
+  return (
+    <div
+      class="relative flex flex-col gap-4 text-sm overflow-y-auto shrink"
+      style={{ "scrollbar-width": "thin" }}
+    >
+      <Card class="bg-transparent">
+        <CardHeader>
+          <SwitchRoot
+            class="flex"
+            checked={preferences.remoteAudio.rx.enabled}
+            onChange={(checked) =>
+              setPreferences("remoteAudio", "rx", "enabled", checked)
+            }
+          >
+            <SwitchLabel class="grow flex items-center">
+              <CardTitle>Remote Audio</CardTitle>
+            </SwitchLabel>
+            <SwitchControl>
+              <SwitchThumb />
+            </SwitchControl>
+          </SwitchRoot>
+        </CardHeader>
+        <CardContent class="flex flex-col gap-4">
+          <SimpleSwitch
+            checked={!preferences.remoteAudio.tx.enabled}
+            onChange={(checked) =>
+              setPreferences("remoteAudio", "tx", "enabled", !checked)
+            }
+            label="RX Only"
+          />
+          <Select
+            class="flex flex-col gap-2 grow shrink overflow-hidden"
+            value={preferences.remoteAudio.rx.outputDeviceId}
+            onChange={(value: string) => {
+              if (!value) return;
+              setPreferences("remoteAudio", "rx", "outputDeviceId", value);
+            }}
+            options={outputs().map((d) => d.deviceId)}
+            itemComponent={(props) => {
+              return (
+                <SelectItem item={props.item}>
+                  {
+                    outputs().find((d) => d.deviceId === props.item.rawValue)
+                      ?.label
+                  }
+                </SelectItem>
+              );
+            }}
+          >
+            <SelectLabel class="flex items-center gap-1">
+              <MaterialSymbolsSpeaker />
+              Output Device
+            </SelectLabel>
+            <SelectTrigger>
+              <SelectValue class="overflow-hidden text-ellipsis whitespace-nowrap">
+                {(state) =>
+                  outputs().find((d) => d.deviceId === state.selectedOption())
+                    ?.label || "Select Audio Output"
+                }
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent />
+          </Select>
+          <Select
+            class="flex flex-col gap-2 grow shrink overflow-hidden"
+            value={preferences.remoteAudio.tx.inputDeviceId}
+            onChange={(value: string) => {
+              if (!value) return;
+              setPreferences("remoteAudio", "tx", "inputDeviceId", value);
+            }}
+            options={inputs().map((d) => d.deviceId)}
+            itemComponent={(props) => (
+              <SelectItem item={props.item}>
+                {inputs().find((d) => d.deviceId === props.item.rawValue)
+                  ?.label ?? "Default"}
+              </SelectItem>
+            )}
+          >
+            <SelectLabel class="flex items-center gap-1">
+              <MaterialSymbolsMic />
+              Input Device
+            </SelectLabel>
+            <SelectTrigger>
+              <SelectValue class="overflow-hidden text-ellipsis whitespace-nowrap">
+                {(state) =>
+                  inputs().find((d) => d.deviceId === state.selectedOption())
+                    ?.label || "Select Audio Input"
+                }
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent />
+          </Select>
+          <Show when={caps().length} fallback="Checking capabilities...">
+            <Show when={caps().includes("autoGainControl")}>
+              <SimpleSwitch
+                checked={preferences.remoteAudio.tx.autoGainControl}
+                onChange={(checked) =>
+                  setPreferences(
+                    "remoteAudio",
+                    "tx",
+                    "autoGainControl",
+                    checked,
+                  )
+                }
+                label="Auto Gain Control"
+              />
+            </Show>
+            <Show when={caps().includes("echoCancellation")}>
+              <SimpleSwitch
+                checked={preferences.remoteAudio.tx.echoCancellation}
+                onChange={(checked) =>
+                  setPreferences(
+                    "remoteAudio",
+                    "tx",
+                    "echoCancellation",
+                    checked,
+                  )
+                }
+                label="Echo Cancellation"
+              />
+            </Show>
+            <Show when={caps().includes("noiseSuppression")}>
+              <SimpleSwitch
+                checked={preferences.remoteAudio.tx.noiseSuppression}
+                onChange={(checked) =>
+                  setPreferences(
+                    "remoteAudio",
+                    "tx",
+                    "noiseSuppression",
+                    checked,
+                  )
+                }
+                label="Noise Suppression"
+              />
+            </Show>
+            <Show when={caps().includes("voiceIsolation")}>
+              <SimpleSwitch
+                checked={preferences.remoteAudio.tx.voiceIsolation}
+                onChange={(checked) =>
+                  setPreferences("remoteAudio", "tx", "voiceIsolation", checked)
+                }
+                label="Voice Isolation"
+              />
+            </Show>
+          </Show>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+export function AudioSettings() {
+  const audioPermission = createPermission("microphone");
+
+  createEffect(() => {
+    if (audioPermission() === "unknown")
+      navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+        stream.getTracks().forEach((track) => track.stop());
+      });
+  });
+
+  return (
+    <DialogContent class="translate-y-0 top-1/12 flex flex-col max-h-10/12 overflow-hidden">
+      <DialogHeader>
+        <DialogTitle>Audio Settings</DialogTitle>
+      </DialogHeader>
+      <Switch
+        fallback={
+          <Callout>
+            <CalloutTitle>Audio Permissions Required</CalloutTitle>
+            <CalloutContent>Waiting for Audio Permissions...</CalloutContent>
+          </Callout>
+        }
+      >
+        <Match when={audioPermission() === "granted"}>
+          <InnerAudioSettings />
+        </Match>
+        <Match when={audioPermission() === "denied"}>
+          <Callout variant="error">
+            <CalloutTitle>Audio Permissions Denied</CalloutTitle>
+            <CalloutContent>
+              You must grant audio permissions to use audio features.
+            </CalloutContent>
+          </Callout>
+        </Match>
+      </Switch>
+    </DialogContent>
+  );
+}

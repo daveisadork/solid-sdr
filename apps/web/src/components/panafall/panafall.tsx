@@ -57,7 +57,7 @@ export function PanafallButton(props: PanafallButtonProps) {
         size="icon"
         variant="ghost"
         class={cn(
-          "aspect-square fancy-bg-background not-pointer-coarse:size-5 pointer-coarse:border",
+          "aspect-square fancy-bg-background not-pointer-coarse:size-5 pointer-coarse:border pointer-coarse:[&_svg]:size-6",
           local.class,
         )}
         {...others}
@@ -84,7 +84,7 @@ export function PanafallToggleButton(props: PanafallToggleButtonProps) {
         size="icon"
         variant="ghost"
         class={cn(
-          "aspect-square not-pointer-coarse:size-5 pointer-coarse:border fancy-bg-background data-pressed:fancy-bg-primary data-pressed:text-primary-foreground",
+          "aspect-square not-pointer-coarse:size-5 pointer-coarse:border fancy-bg-background data-pressed:fancy-bg-primary data-pressed:text-primary-foreground pointer-coarse:text-xl",
           local.class,
         )}
         {...others}
@@ -467,11 +467,15 @@ export function Panafall(props: { index: number }) {
                     S
                   </PanafallToggleButton>
                   <PanafallButton
-                    onClick={() =>
-                      panadapterController()?.setBandwidth(
-                        pan().bandwidthMHz * 2,
-                      )
-                    }
+                    disabled={pan().bandwidthMHz >= pan().maxBandwidthMHz}
+                    onClick={() => {
+                      const ctrl = panadapterController();
+                      const newBandwidth = Math.min(
+                        ctrl.bandwidthMHz * 2,
+                        ctrl.maxBandwidthMHz,
+                      );
+                      ctrl.setBandwidth(newBandwidth);
+                    }}
                     onContextMenu={(e) => {
                       e.preventDefault();
                       fitPanadapterToPanafallBounds();
@@ -479,18 +483,28 @@ export function Panafall(props: { index: number }) {
                     tooltip={
                       <>
                         Zoom Out (from {frequencyToLabel(pan().bandwidthMHz)} to{" "}
-                        {frequencyToLabel(pan().bandwidthMHz * 2)})
+                        {frequencyToLabel(
+                          Math.min(
+                            pan().bandwidthMHz * 2,
+                            pan().maxBandwidthMHz,
+                          ),
+                        )}
+                        )
                       </>
                     }
                   >
                     <ArrowCollapseHorizontal />
                   </PanafallButton>
                   <PanafallButton
-                    onClick={() =>
-                      panadapterController()?.setBandwidth(
-                        pan().bandwidthMHz / 2,
-                      )
-                    }
+                    disabled={pan().bandwidthMHz <= pan().minBandwidthMHz}
+                    onClick={() => {
+                      const ctrl = panadapterController();
+                      const newBandwidth = Math.max(
+                        ctrl.bandwidthMHz / 2,
+                        ctrl.minBandwidthMHz,
+                      );
+                      ctrl.setBandwidth(newBandwidth);
+                    }}
                     onContextMenu={(e) => {
                       e.preventDefault();
                       expandPanafallBoundsToFullPanadapter();
@@ -498,7 +512,13 @@ export function Panafall(props: { index: number }) {
                     tooltip={
                       <>
                         Zoom In (from {frequencyToLabel(pan().bandwidthMHz)} to{" "}
-                        {frequencyToLabel(pan().bandwidthMHz / 2)})
+                        {frequencyToLabel(
+                          Math.max(
+                            pan().bandwidthMHz / 2,
+                            pan().minBandwidthMHz,
+                          ),
+                        )}
+                        )
                       </>
                     }
                   >

@@ -7,8 +7,8 @@ import {
 import { cn } from "~/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
-import Fullscreen from "~icons/mdi/fullscreen";
-import FullscreenExit from "~icons/mdi/fullscreen-exit";
+import Fullscreen from "~icons/material-symbols/fullscreen";
+import FullscreenExit from "~icons/material-symbols/fullscreen-exit";
 import { createFullscreen } from "@solid-primitives/fullscreen";
 import { Dynamic } from "solid-js/web";
 import { TooltipTriggerProps } from "@kobalte/core/tooltip";

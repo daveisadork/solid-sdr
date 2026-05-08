@@ -11,6 +11,7 @@ import {
   NumberFieldInput,
 } from "./ui/number-field";
 import BaselineGpsFixed from "~icons/ic/baseline-gps-fixed";
+import MaterialSymbolsSatelliteAlt from "~icons/material-symbols/satellite-alt";
 import ClipboardOutline from "~icons/mdi/clipboard-text-outline";
 import { writeClipboard } from "@solid-primitives/clipboard";
 import { Button } from "./ui/button";
@@ -72,7 +73,7 @@ export function GpsStatus(props: { class?: string }) {
             as={"div"}
             class="flex gap-1 items-center font-mono"
           >
-            <BaselineGpsFixed />
+            <MaterialSymbolsSatelliteAlt />
             <span class="textbox-trim-both textbox-edge-cap-alphabetic">
               {radio().gpsGrid}
             </span>

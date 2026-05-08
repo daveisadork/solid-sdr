@@ -297,7 +297,7 @@ function DisplaySettings(props: {
         class="flex flex-col gap-2 select-none"
         value={props.waterfall.gradientIndex}
         onChange={(value: number) => {
-          if (value !== props.waterfall.gradientIndex)
+          if (Number.isFinite(value) && value !== props.waterfall.gradientIndex)
             props.waterfallController.setGradientIndex(value);
         }}
         options={preferences.palette.gradients.map((_, index) => index)}

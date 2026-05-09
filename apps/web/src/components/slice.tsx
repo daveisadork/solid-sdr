@@ -1489,7 +1489,7 @@ const ExtraSliceControls = <T extends ValidComponent = "div">(
   return (
     <div
       class={cn(
-        "grid gap-1 py-1 opacity-75 [&_svg]:pointer-events-none [&_svg]:size-full *:aspect-square",
+        "grid grid-rows-4 gap-1 py-1 opacity-75 [&_svg]:pointer-events-none [&_svg]:size-full *:aspect-square",
         local.class,
       )}
       {...others}
@@ -1880,12 +1880,14 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
                     class="flex gap-0.5 pointer-events-auto"
                     classList={{ "flex-row-reverse": flagSide() === "right" }}
                   >
-                    <ExtraSliceControls
-                      slice={props.slice}
-                      controller={sliceController()}
-                    />
+                    <Show when={!props.slice.diversityChild}>
+                      <ExtraSliceControls
+                        slice={props.slice}
+                        controller={sliceController()}
+                      />
+                    </Show>
                     <div
-                      class="border rounded-md overflow-hidden flex flex-col p-1.5 gap-1 pointer-events-auto text-sm font-mono drop-shadow-black fancy-bg-background"
+                      class="h-fit border rounded-md overflow-hidden flex flex-col p-1.5 gap-1 pointer-events-auto text-sm font-mono drop-shadow-black fancy-bg-background"
                       classList={{
                         "drop-shadow-lg": isActive(),
                         "drop-shadow-md": !isActive(),

@@ -185,7 +185,7 @@ const FlexRadioContext = createContext<{
   radio: () => Radio | null;
   client: Accessor<FlexClient>;
   connect: (addr: { host: string; port: number }) => void;
-  disconnect: () => void;
+  disconnect: (reason?: DisconnectedReason) => void;
   sendCommand: (command: string) => Promise<{
     response: number;
     message: string;
@@ -440,7 +440,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     }
   };
 
-  const disconnect = (reason: DisconnectedReason | undefined) => {
+  const disconnect = (reason?: DisconnectedReason) => {
     if (reason) {
       showToast({
         title: "Disconnected by another client",

@@ -129,3 +129,10 @@ export const synchronizeMaps = <K, V>(
     target.set(key, value);
   }
 };
+
+export const formatKbps = (value: number | null | undefined) => {
+  const normalized = value ?? 0;
+  return normalized < 1000
+    ? `${normalized.toPrecision(3)} kbps`
+    : `${(normalized / 1000).toPrecision(3)} Mbps`;
+};

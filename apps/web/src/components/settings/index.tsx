@@ -35,6 +35,7 @@ import { Dynamic } from "solid-js/web";
 import { DaxSettings } from "./dax-settings";
 import { AudioSettings } from "./audio-settings";
 import { MultiflexSettings } from "./multiflex-settings";
+import { NetworkStats } from "./network-stats";
 
 const tabs = {
   app: AppSettings,
@@ -45,6 +46,7 @@ const tabs = {
   dax: DaxSettings,
   audio: AudioSettings,
   multiflex: MultiflexSettings,
+  network: NetworkStats,
 };
 
 export function Settings() {
@@ -89,6 +91,9 @@ export function Settings() {
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => setActiveTab("multiflex")}>
             multiFLEX
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => setActiveTab("network")}>
+            Network Stats
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

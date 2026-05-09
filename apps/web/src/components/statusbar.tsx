@@ -3,8 +3,10 @@ import {
   createEffect,
   createMemo,
   createSignal,
+  JSXElement,
   onCleanup,
   Show,
+  ValidComponent,
 } from "solid-js";
 import Connect from "./connect";
 import { GpsStatus } from "./gps-status";
@@ -18,8 +20,17 @@ import MaterialSymbolsVolumeUp from "~icons/material-symbols/volume-up";
 import MaterialSymbolsVolumeOff from "~icons/material-symbols/volume-off";
 import MaterialSymbolsElectricBolt from "~icons/material-symbols/electric-bolt";
 import MaterialSymbolsDeviceThermostat from "~icons/material-symbols/device-thermostat";
+import MaterialSymbolsSignalWifi0Bar from "~icons/material-symbols/signal-wifi-0-bar";
+import MaterialSymbolsSignalWifi1Bar from "~icons/material-symbols/network-wifi-1-bar";
+import MaterialSymbolsSignalWifi2Bar from "~icons/material-symbols/network-wifi-2-bar";
+import MaterialSymbolsSignalWifi3Bar from "~icons/material-symbols/network-wifi-3-bar";
+import MaterialSymbolsSignalWifi4Bar from "~icons/material-symbols/signal-wifi-4-bar";
+import MaterialSymbolsSignalWifiBadOutline from "~icons/material-symbols/signal-wifi-bad-outline";
 import { Dynamic } from "solid-js/web";
 import { createPermission } from "~/lib/permission";
+import { NetworkQuality, useRuntime } from "~/context/runtime";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "./ui/hover-card";
+import { formatKbps } from "~/lib/utils";
 
 function RemoteAudioToggle() {
   const { preferences, setPreferences } = usePreferences();
@@ -32,7 +43,9 @@ function RemoteAudioToggle() {
         "text-error-foreground": audioPermission() === "denied",
         "text-warning-foreground": audioPermission() === "prompt",
       }}
-      pressed={preferences.remoteAudio.rx.enabled}
+      pressed={
+        preferences.remoteAudio.rx.enabled && audioPermission() === "granted"
+      }
       onChange={(pressed) =>
         setPreferences("remoteAudio", "rx", "enabled", pressed)
       }
@@ -43,9 +56,68 @@ function RemoteAudioToggle() {
             ? MaterialSymbolsVolumeUp
             : MaterialSymbolsVolumeOff
         }
-        class="size-full"
+        class="size-full pointer-events-none"
       />
     </ToggleButton>
+  );
+}
+
+const qualityIcons: Record<NetworkQuality, ValidComponent> = {
+  excellent: MaterialSymbolsSignalWifi4Bar,
+  veryGood: MaterialSymbolsSignalWifi3Bar,
+  good: MaterialSymbolsSignalWifi2Bar,
+  fair: MaterialSymbolsSignalWifi1Bar,
+  poor: MaterialSymbolsSignalWifi0Bar,
+  off: MaterialSymbolsSignalWifiBadOutline,
+};
+
+const InfoItem = (props: { label: JSXElement; value: JSXElement }) => (
+  <>
+    <span class="font-medium">{props.label}:</span>
+    <span class="text-right">{props.value}</span>
+  </>
+);
+
+function NetworkStatus() {
+  const { runtime } = useRuntime();
+  return (
+    <HoverCard>
+      <HoverCardTrigger as={"div"} class="flex gap-1 items-center font-mono">
+        <Dynamic
+          component={qualityIcons[runtime.network.overall.quality]}
+          class="size-10 not-pointer-coarse:size-5"
+          classList={{
+            "text-yellow-500": runtime.network.overall.quality === "good",
+            "text-orange-500": runtime.network.overall.quality === "fair",
+            "text-red-500": runtime.network.overall.quality === "poor",
+          }}
+        />
+      </HoverCardTrigger>
+      <HoverCardContent class="w-auto fancy-bg-background text-sm">
+        <div class="grid grid-cols-2 gap-1 font-mono">
+          <InfoItem
+            label="Latency (RTT)"
+            value={`${Math.round(runtime.network.endToEnd.currentMs)} ms`}
+          />
+          <InfoItem
+            label="Packets Total"
+            value={runtime.network.overall.totalPackets.toLocaleString()}
+          />
+          <InfoItem
+            label="Packets Lost"
+            value={runtime.network.overall.lostPackets.toLocaleString()}
+          />
+          <InfoItem
+            label="RX Rate"
+            value={formatKbps(runtime.network.browserToServer.rxKbps)}
+          />
+          <InfoItem
+            label="TX Rate"
+            value={formatKbps(runtime.network.browserToServer.txKbps)}
+          />
+        </div>
+      </HoverCardContent>
+    </HoverCard>
   );
 }
 
@@ -123,6 +195,7 @@ export function StatusBar() {
       <RemoteAudioToggle />
       <Settings />
       <FullscreenButton />
+      <NetworkStatus />
       <GpsStatus class="not-sm:hidden" />
     </div>
   );

@@ -24,9 +24,7 @@ type FullscreenButtonProps<T extends ValidComponent = "button"> =
 export function FullscreenButton(props: FullscreenButtonProps) {
   const [local, others] = splitProps(props, ["class"]);
   const [fs, setFullscreen] = createSignal(false);
-  const fullscreen = createFullscreen(document.documentElement, fs, {
-    navigationUI: "hide",
-  });
+  const fullscreen = createFullscreen(document.documentElement, fs);
 
   // If fullscreen state changes outside of this component, keep the signal in sync.
   createEffect(() => setFullscreen(fullscreen()));
@@ -34,7 +32,7 @@ export function FullscreenButton(props: FullscreenButtonProps) {
   const label = () => (fullscreen() ? "Exit Fullscreen" : "Enter Fullscreen");
 
   return (
-    <Show when={document.fullscreenEnabled}>
+    <Show when={document.fullscreenEnabled !== false}>
       <Tooltip>
         <TooltipTrigger
           as={ToggleButton<"button">}

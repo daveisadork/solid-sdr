@@ -129,6 +129,10 @@ import type {
 } from "./state/index.js";
 import { parseVitaPacket, type VitaParsedPacket } from "../vita/parser.js";
 import { getModelInfo, type RadioModelInfo } from "./model-info.js";
+import {
+  RadioNetworkDiagnosticsTracker,
+  type RadioNetworkDiagnosticsSnapshot,
+} from "./network-diagnostics.js";
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -220,6 +224,7 @@ export interface RadioEvents {
   readonly connectionStateChange: RadioConnectionState;
   readonly connectingProgress: ConnectionProgressDetail;
   readonly change: RadioStateChange;
+  readonly networkDiagnostics: RadioNetworkDiagnosticsSnapshot;
   readonly status: FlexStatusMessage;
   readonly reply: FlexReplyMessage;
   readonly notice: FlexNoticeMessage;
@@ -472,6 +477,9 @@ class RadioImpl {
   private heartbeatTimer?: ReturnType<typeof setInterval>;
   private defaultCommandTimeoutMs = DEFAULT_COMMAND_TIMEOUT_MS;
   private pendingDisconnectedReason?: DisconnectedReason;
+  private readonly networkDiagnosticsTracker =
+    new RadioNetworkDiagnosticsTracker();
+  private lastNetworkDiagnosticsNotify = 0;
 
   // Stream handler registries for UDP data routing
   private readonly streamHandlers = new Map<number, Set<StreamPacketHandler>>();
@@ -596,6 +604,11 @@ class RadioImpl {
   /** Full state snapshot including all entities. */
   stateSnapshot(): RadioStateSnapshot {
     return this.store.snapshot();
+  }
+
+  /** Aggregated packet-loss telemetry for the radio UDP data path. */
+  networkDiagnosticsSnapshot(): RadioNetworkDiagnosticsSnapshot {
+    return this.networkDiagnosticsTracker.snapshot();
   }
 
   // -----------------------------------------------------------------------
@@ -2519,6 +2532,8 @@ class RadioImpl {
     }
 
     if (parsed.kind === "meter") {
+      this.recordNetworkDiagnostics("meter", parsed);
+
       // Meter packets carry multiple meter IDs per packet.
       // Dispatch individual values to registered meter handlers.
       const meterPacket = parsed.packet;
@@ -2534,6 +2549,8 @@ class RadioImpl {
       }
       return;
     }
+
+    this.recordNetworkDiagnostics("stream", parsed);
 
     // All other stream types: route by VITA stream ID.
     const handlers = this.streamHandlers.get(parsed.streamId);
@@ -2744,6 +2761,8 @@ class RadioImpl {
     this.tcpBuffer = "";
     this.decoder = undefined;
     this.nextSequence = 1;
+    this.lastNetworkDiagnosticsNotify = 0;
+    this.networkDiagnosticsTracker.reset();
     this.store.reset();
     this.streamHandlers.clear();
     this.meterHandlers.clear();
@@ -2779,6 +2798,32 @@ class RadioImpl {
   private emitDisconnected(reason: DisconnectedReason | undefined): void {
     this.pendingDisconnectedReason = undefined;
     this.events.emit("disconnected", reason);
+  }
+
+  private recordNetworkDiagnostics(
+    source: "meter" | "stream",
+    packet: VitaParsedPacket,
+  ): void {
+    const now = Date.now();
+    const packetCount = packet.header.packetCount;
+    const lost =
+      source === "meter"
+        ? this.networkDiagnosticsTracker.recordMeterPacket(packetCount, now)
+        : this.networkDiagnosticsTracker.recordStreamPacket(
+            packet.streamId,
+            packetCount,
+            now,
+          );
+
+    const snapshot = this.networkDiagnosticsTracker.snapshot();
+    if (
+      lost ||
+      snapshot.totalPackets === 1 ||
+      snapshot.totalPackets - this.lastNetworkDiagnosticsNotify >= 128
+    ) {
+      this.lastNetworkDiagnosticsNotify = snapshot.totalPackets;
+      this.events.emit("networkDiagnostics", snapshot);
+    }
   }
 
   private setConnectionState(state: RadioConnectionState): void {

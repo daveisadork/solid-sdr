@@ -16,12 +16,13 @@ import (
 )
 
 const (
-	typeOffer  = "offer"
-	typeAnswer = "answer"
-	typeICE    = "ice"
-	typeError  = "error"
-	typePing   = "ping"
-	typePong   = "pong"
+	typeOffer              = "offer"
+	typeAnswer             = "answer"
+	typeICE                = "ice"
+	typeError              = "error"
+	typeNetworkDiagnostics = "networkDiagnostics"
+	typePing               = "ping"
+	typePong               = "pong"
 )
 
 type message struct {
@@ -131,6 +132,12 @@ func (cs *clientSession) dispatch(ctx context.Context, msg message) {
 	default:
 		log.Printf("[rtc] unknown message type: %q", msg.Type)
 	}
+}
+
+func (cs *clientSession) reportServerToRadioDiagnostics(
+	diagnostics serverRadioNetworkDiagnostics,
+) {
+	cs.trySend(mustEncode(typeNetworkDiagnostics, diagnostics))
 }
 
 func (cs *clientSession) handleOffer(ctx context.Context, raw json.RawMessage) {
@@ -287,7 +294,7 @@ func (cs *clientSession) serveDiscovery(ctx context.Context, dc *webrtc.DataChan
 }
 
 func (cs *clientSession) openTCP(dc *webrtc.DataChannel) {
-	rc, err := newRadioConn(dc, dc.Label())
+	rc, err := newRadioConn(dc, dc.Label(), cs.reportServerToRadioDiagnostics)
 	if err != nil {
 		log.Printf("[rtc] tcp dial %q: %v", dc.Label(), err)
 		_ = dc.Close()
@@ -307,15 +314,11 @@ func (cs *clientSession) openTCP(dc *webrtc.DataChannel) {
 			return
 		}
 
-		r.mu.RLock()
-		tcp := r.tcpConn
-		r.mu.RUnlock()
-
-		if tcp == nil || len(msg.Data) == 0 {
+		if len(msg.Data) == 0 {
 			return
 		}
 
-		if _, err := tcp.Write(msg.Data); err != nil {
+		if err := r.writeTCP(msg.Data); err != nil {
 			log.Printf("[rtc] tcp write: %v", err)
 
 			_ = dc.Close()

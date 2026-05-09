@@ -2,8 +2,8 @@ package rtc
 
 import (
 	"bufio"
+	"context"
 	"fmt"
-	"io"
 	"log"
 	"net"
 	"strconv"
@@ -14,20 +14,34 @@ import (
 	"github.com/pion/webrtc/v4"
 )
 
+const internalPingSequence = 2147483647
+
 type radioConn struct {
 	mu sync.RWMutex
 
 	handleHex string
 	handleU32 uint32
 
-	tcpConn net.Conn
-	udpConn *net.UDPConn
-	tcpDC   *webrtc.DataChannel
-	udpDC   *webrtc.DataChannel
+	tcpConn    net.Conn
+	udpConn    *net.UDPConn
+	tcpDC      *webrtc.DataChannel
+	udpDC      *webrtc.DataChannel
+	tcpWriteMu sync.Mutex
 
 	activeRXStream uint32
 	activeTXStream uint32
 	txPacketCount  uint8
+
+	pingCancel           context.CancelFunc
+	internalPingSentAt   time.Time
+	serverToRadioRTTMax  time.Duration
+	onNetworkDiagnostics func(serverRadioNetworkDiagnostics)
+}
+
+type serverRadioNetworkDiagnostics struct {
+	ServerToRadioRttMs    *int64 `json:"serverToRadioRttMs"`
+	ServerToRadioRttMaxMs *int64 `json:"serverToRadioRttMaxMs"`
+	SampledAt             int64  `json:"sampledAt"`
 }
 
 // sendTCPLine sends a line to the "tcp" data channel if it is open.
@@ -41,6 +55,27 @@ func (rc *radioConn) sendTCPLine(line string) {
 	}
 
 	_ = dc.SendText(line)
+}
+
+func (rc *radioConn) writeTCP(data []byte) error {
+	rc.mu.RLock()
+	tcp := rc.tcpConn
+	rc.mu.RUnlock()
+
+	if tcp == nil {
+		return net.ErrClosed
+	}
+
+	rc.tcpWriteMu.Lock()
+	defer rc.tcpWriteMu.Unlock()
+
+	_, err := tcp.Write(data)
+
+	return err
+}
+
+func (rc *radioConn) writeTCPString(line string) error {
+	return rc.writeTCP([]byte(line))
 }
 
 // nextTXPacket returns the stream ID and packet count for the next TX packet.
@@ -104,7 +139,11 @@ func (rc *radioConn) noteStreamRemoved(streamID uint32) {
 
 // newRadioConn dials TCP to addr, reads the 2-line radio handshake, and starts
 // the TCP forwarder goroutine. dc must be the "tcp" data channel.
-func newRadioConn(dc *webrtc.DataChannel, addr string) (*radioConn, error) {
+func newRadioConn(
+	dc *webrtc.DataChannel,
+	addr string,
+	onNetworkDiagnostics func(serverRadioNetworkDiagnostics),
+) (*radioConn, error) {
 	tcp, err := net.DialTimeout("tcp", addr, 10*time.Second)
 	if err != nil {
 		return nil, err
@@ -138,20 +177,25 @@ func newRadioConn(dc *webrtc.DataChannel, addr string) (*radioConn, error) {
 
 	handleHex := strings.ToUpper(strings.TrimPrefix(handleLine, "H"))
 	handleU32, _ := strconv.ParseUint(handleHex, 16, 32)
+	pingCtx, pingCancel := context.WithCancel(context.Background())
 
 	rc := &radioConn{
-		handleHex: handleHex,
-		handleU32: uint32(handleU32),
-		tcpConn:   tcp,
-		tcpDC:     dc,
+		handleHex:            handleHex,
+		handleU32:            uint32(handleU32),
+		tcpConn:              tcp,
+		tcpDC:                dc,
+		pingCancel:           pingCancel,
+		onNetworkDiagnostics: onNetworkDiagnostics,
 	}
 
 	rc.sendTCPLine(line1)
 	rc.sendTCPLine(line2)
+	rc.reportServerToRadioRTT(nil, nil, time.Now())
 
 	log.Printf("[rtc] radio connected handle=0x%s", handleHex)
 
 	go rc.tcpForwarder(rd)
+	go rc.internalPingLoop(pingCtx)
 
 	return rc, nil
 }
@@ -174,7 +218,7 @@ func (rc *radioConn) openUDP(dc *webrtc.DataChannel, addr string) error {
 	rc.mu.Unlock()
 
 	if ua, ok := u.LocalAddr().(*net.UDPAddr); ok {
-		_, _ = io.WriteString(rc.tcpConn, fmt.Sprintf("C0|client udpport %d\n", ua.Port))
+		_ = rc.writeTCPString(fmt.Sprintf("C0|client udpport %d\n", ua.Port))
 	}
 
 	return nil
@@ -190,6 +234,11 @@ func (rc *radioConn) close() {
 		rc.tcpConn = nil
 	}
 
+	if rc.pingCancel != nil {
+		rc.pingCancel()
+		rc.pingCancel = nil
+	}
+
 	if rc.udpConn != nil {
 		_ = rc.udpConn.Close()
 		rc.udpConn = nil
@@ -203,6 +252,10 @@ func (rc *radioConn) tcpForwarder(rd *bufio.Reader) {
 		b, err := rd.ReadString('\n')
 		if err != nil {
 			return
+		}
+
+		if rc.consumeInternalPingReply(strings.TrimSpace(b), time.Now()) {
+			continue
 		}
 
 		rc.sendTCPLine(b)
@@ -226,4 +279,83 @@ func (rc *radioConn) tcpForwarder(rd *bufio.Reader) {
 			rc.noteStreamCreated(stream.StreamID, stream.Type, stream.Compression)
 		}
 	}
+}
+
+func (rc *radioConn) internalPingLoop(ctx context.Context) {
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
+	rc.sendInternalPing(time.Now())
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case tick := <-ticker.C:
+			rc.sendInternalPing(tick)
+		}
+	}
+}
+
+func (rc *radioConn) sendInternalPing(now time.Time) {
+	rc.mu.RLock()
+	sentAt := rc.internalPingSentAt
+	rc.mu.RUnlock()
+
+	if !sentAt.IsZero() && now.Sub(sentAt) < 5*time.Second {
+		return
+	}
+
+	if err := rc.writeTCPString(
+		fmt.Sprintf("C%d|ping ms_timestamp=%d\n", internalPingSequence, now.UnixMilli()),
+	); err != nil {
+		return
+	}
+
+	rc.mu.Lock()
+	rc.internalPingSentAt = now
+	rc.mu.Unlock()
+}
+
+func (rc *radioConn) consumeInternalPingReply(line string, now time.Time) bool {
+	if !strings.HasPrefix(line, fmt.Sprintf("R%d|", internalPingSequence)) {
+		return false
+	}
+
+	rc.mu.Lock()
+	sentAt := rc.internalPingSentAt
+	if sentAt.IsZero() {
+		rc.mu.Unlock()
+		return false
+	}
+
+	rc.internalPingSentAt = time.Time{}
+	rtt := now.Sub(sentAt)
+	if rtt > rc.serverToRadioRTTMax {
+		rc.serverToRadioRTTMax = rtt
+	}
+
+	currentMs := int64(rtt / time.Millisecond)
+	maxMs := int64(rc.serverToRadioRTTMax / time.Millisecond)
+	rc.mu.Unlock()
+
+	rc.reportServerToRadioRTT(&currentMs, &maxMs, now)
+
+	return true
+}
+
+func (rc *radioConn) reportServerToRadioRTT(
+	currentMs *int64,
+	maxMs *int64,
+	now time.Time,
+) {
+	if rc.onNetworkDiagnostics == nil {
+		return
+	}
+
+	rc.onNetworkDiagnostics(serverRadioNetworkDiagnostics{
+		ServerToRadioRttMs:    currentMs,
+		ServerToRadioRttMaxMs: maxMs,
+		SampledAt:             now.UnixMilli(),
+	})
 }

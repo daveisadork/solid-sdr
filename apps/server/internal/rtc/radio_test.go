@@ -1,6 +1,9 @@
 package rtc
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestNextTXPacket_NoStream(t *testing.T) {
 	rc := &radioConn{}
@@ -112,5 +115,52 @@ func TestNoteStreamRemoved_WrongID(t *testing.T) {
 
 	if rc.activeRXStream != 0x100 {
 		t.Error("activeRXStream should be unchanged for wrong ID")
+	}
+}
+
+func TestConsumeInternalPingReply_ReportsRTT(t *testing.T) {
+	var got serverRadioNetworkDiagnostics
+	rc := &radioConn{
+		onNetworkDiagnostics: func(d serverRadioNetworkDiagnostics) {
+			got = d
+		},
+		internalPingSentAt: time.Unix(0, 0),
+	}
+
+	now := time.Unix(0, int64(25*time.Millisecond))
+	handled := rc.consumeInternalPingReply("R2147483647|00000000|", now)
+	if !handled {
+		t.Fatal("expected internal ping reply to be handled")
+	}
+
+	if rc.internalPingSentAt != (time.Time{}) {
+		t.Fatal("expected pending ping timestamp to be cleared")
+	}
+
+	if got.ServerToRadioRttMs == nil || *got.ServerToRadioRttMs != 25 {
+		t.Fatalf("current RTT got %v want 25", got.ServerToRadioRttMs)
+	}
+
+	if got.ServerToRadioRttMaxMs == nil || *got.ServerToRadioRttMaxMs != 25 {
+		t.Fatalf("max RTT got %v want 25", got.ServerToRadioRttMaxMs)
+	}
+}
+
+func TestConsumeInternalPingReply_IgnoresNonInternalReply(t *testing.T) {
+	called := false
+	rc := &radioConn{
+		onNetworkDiagnostics: func(serverRadioNetworkDiagnostics) {
+			called = true
+		},
+		internalPingSentAt: time.Unix(0, 0),
+	}
+
+	handled := rc.consumeInternalPingReply("R1|00000000|", time.Now())
+	if handled {
+		t.Fatal("expected non-sequence-zero reply to be ignored")
+	}
+
+	if called {
+		t.Fatal("unexpected diagnostics callback for non-internal reply")
 	}
 }

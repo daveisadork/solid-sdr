@@ -162,21 +162,13 @@ export function StatusBar() {
       }}
     >
       <Connect />
-      <Show when={radio()}>
-        {(radio) => {
-          return (
-            <Button
-              disabled={!state.status.radio?.availablePanadapters}
-              onClick={() =>
-                radio().createPanadapter({ x: 200 }).catch(console.log)
-              }
-              class="size-10 not-pointer-coarse:size-5 aspect-square"
-            >
-              <MaterialSymbolsAddChartOutline class="size-full" />
-            </Button>
-          );
-        }}
-      </Show>
+      <Button
+        disabled={!state.status.radio?.availablePanadapters}
+        onClick={() => radio().createPanadapter({ x: 200 }).catch(console.log)}
+        class="size-10 not-pointer-coarse:size-5 aspect-square disabled:opacity-50"
+      >
+        <MaterialSymbolsAddChartOutline class="size-full" />
+      </Button>
       <div class="flex items-center justify-around h-full not-pointer-coarse:gap-4 not-sm:hidden pointer-coarse:flex-col shrink-0">
         <Show when={voltage() !== undefined}>
           <span class="textbox-trim-both textbox-edge-cap-alphabetic flex gap-1 items-center">

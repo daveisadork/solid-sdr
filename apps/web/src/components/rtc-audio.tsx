@@ -349,8 +349,7 @@ export default function RtcAudio() {
   const audioPermission = createPermission("microphone");
 
   const checkAudioPermission = () => {
-    if (audioPermission() !== "unknown") return;
-    console.log("Requesting audio...");
+    if (audioPermission() === "granted") return;
     navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
       stream.getTracks().forEach((track) => track.stop());
     });

@@ -1,4 +1,4 @@
-import { FlexRadioProvider } from "./context/flexradio";
+import useFlexRadio, { FlexRadioProvider } from "./context/flexradio";
 import { StatusBar } from "./components/statusbar";
 import { SidebarProvider, SidebarTrigger } from "./components/ui/sidebar";
 
@@ -22,6 +22,7 @@ import { ControlsProvider } from "./context/controls";
 
 function AppInner() {
   const { preferences, setPreferences } = usePreferences();
+  const { radio } = useFlexRadio();
   return (
     <div class="absolute inset-0 flex flex-col items-stretch">
       <SidebarProvider
@@ -31,9 +32,11 @@ function AppInner() {
       >
         <Panafalls />
         <RightSidebar />
-        <SidebarTrigger class="z-50 absolute right-4 top-4 select-none aspect-square fancy-bg-background size-10 not-pointer-coarse:size-5 pointer-coarse:border pointer-coarse:right-2 pointer-coarse:top-2">
-          <BaselineViewSidebar />
-        </SidebarTrigger>
+        <Show when={radio()}>
+          <SidebarTrigger class="z-50 absolute right-4 top-4 select-none aspect-square fancy-bg-background size-10 not-pointer-coarse:size-5 pointer-coarse:border pointer-coarse:right-2 pointer-coarse:top-2">
+            <BaselineViewSidebar />
+          </SidebarTrigger>
+        </Show>
       </SidebarProvider>
       <StatusBar />
       <Show when={preferences.showFps}>

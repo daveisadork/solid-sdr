@@ -44,10 +44,22 @@ archives:
   - formats:
       - tar.gz
     format_overrides:
+      - goos: darwin
+        formats:
+          - zip
       - goos: windows
         formats:
           - zip
-    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{- if eq .Os "darwin" -}}
+      macos_{{- if eq .Arch "arm64" -}}apple-silicon{{- else if eq .Arch "amd64" -}}intel{{- else -}}{{ .Arch }}{{- end -}}
+      {{- else if eq .Os "windows" -}}
+      windows_{{- if eq .Arch "386" -}}32-bit{{- else if eq .Arch "amd64" -}}64-bit{{- else if eq .Arch "arm64" -}}arm{{- else -}}{{ .Arch }}{{- end -}}
+      {{- else if eq .Os "linux" -}}
+      linux_{{- if eq .Arch "amd64" -}}amd64{{- else if eq .Arch "arm64" -}}arm64{{- else if and (eq .Arch "arm") (eq .Arm "7") -}}armv7{{- else -}}{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}{{- end -}}
+      {{- else -}}
+      {{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}
+      {{- end }}
     files:
       - solid-sdr-server.example.yaml
 

@@ -1782,7 +1782,7 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
               class="absolute inset-y-0 pointer-coarse:w-10 -translate-x-1/2"
               classList={{
                 "cursor-grab": !dragState.dragging,
-                "cursor-grabbing bg-yellow-500/25": dragState.dragging,
+                "cursor-grabbing": dragState.dragging,
               }}
               onPointerDown={(event) => {
                 setDragState({

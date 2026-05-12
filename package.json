@@ -1,6 +1,8 @@
 {
-  "name": "with-solid",
+  "name": "solid-sdr",
   "private": true,
+  "author": "Dave Hayes <dwhayes@gmail.com>",
+  "license": "MIT",
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",

@@ -1,18 +1,18 @@
 {
   "name": "@repo/flexlib",
   "version": "0.0.0",
-  "description": "TypeScript client utilities for FlexRadio devices.",
+  "description": "FlexRadio protocol and client utilities used by SolidSDR.",
   "type": "module",
   "license": "MIT",
-  "homepage": "https://github.com/author/library#readme",
+  "homepage": "https://github.com/daveisadork/solid-sdr#readme",
   "bugs": {
-    "url": "https://github.com/author/library/issues"
+    "url": "https://github.com/daveisadork/solid-sdr/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/author/library.git"
+    "url": "git+https://github.com/daveisadork/solid-sdr.git"
   },
-  "author": "Author Name <author.name@mail.com>",
+  "author": "Dave Hayes <dwhayes@gmail.com>",
   "files": [
     "dist",
     "README.md"

@@ -1,20 +1,14 @@
 {
   "name": "@repo/eslint-config",
   "version": "1.0.0",
-  "description": "This is the eslint config package.",
+  "description": "Shared ESLint config for the SolidSDR workspace.",
+  "private": true,
+  "author": "Dave Hayes <dwhayes@gmail.com>",
   "type": "module",
   "main": "index.js",
   "exports": {
     ".": "./index.js"
   },
-  "publishConfig": {
-    "access": "public"
-  },
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
   "license": "MIT",
   "packageManager": "pnpm@10.18.3",
   "peerDependencies": {

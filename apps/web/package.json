@@ -1,7 +1,8 @@
 {
   "name": "web",
   "version": "0.0.0",
-  "description": "",
+  "description": "SolidSDR web client.",
+  "author": "Dave Hayes <dwhayes@gmail.com>",
   "type": "module",
   "scripts": {
     "start": "vite",

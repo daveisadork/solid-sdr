@@ -2,6 +2,7 @@
   "name": "@repo/server",
   "private": true,
   "description": "solid-sdr-server (Go) - HTTP/WS/WebRTC server",
+  "author": "Dave Hayes <dwhayes@gmail.com>",
   "scripts": {
     "dev": "air -c ./.air.toml",
     "dev:web": "pnpm -s run dev",

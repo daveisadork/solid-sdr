@@ -227,6 +227,7 @@ function RadioSettingsInner(props: { radio: Radio }) {
   const { state } = useFlexRadio();
   const [nickname, setNickname] = createSignal(state.status.radio.nickname);
   const [callsign, setCallsign] = createSignal(state.status.radio.callsign);
+  const { preferences, setPreferences } = usePreferences();
   const [txProfiles, setTxProfiles] = createStore<string[]>([]);
   const [filterModeGroup, setFilterModeGroup] =
     createSignal<keyof FilterPresetState>("ssb");
@@ -638,6 +639,13 @@ function RadioSettingsInner(props: { radio: Radio }) {
               props.radio.setShowTxInWaterfall(isChecked);
             }}
             label="Show TX in Waterfall"
+          />
+          <SimpleSwitch
+            checked={preferences.showTxFilterInPan}
+            onChange={(isChecked) =>
+              setPreferences("showTxFilterInPan", isChecked)
+            }
+            label="Show TX Filter in Pan"
           />
         </CardContent>
       </Card>

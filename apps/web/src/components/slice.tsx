@@ -1527,7 +1527,7 @@ const ExtraSliceControls = <T extends ValidComponent = "div">(
 
 export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
   const { radio, state, setState } = useFlexRadio();
-  const { panafallBounds, pxToMHz, panadapterController, freqToX } =
+  const { panafallBounds, pxToMHz, panadapterController, freqToX, mhzToPx } =
     usePanafall();
   const sliceController = createMemo(() => radio()?.slice(props.slice.id));
   const [offset, setOffset] = createSignal(0);
@@ -1535,6 +1535,8 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
   const [flag, setFlag] = createSignal<HTMLElement>();
   const [filterWidth, setFilterWidth] = createSignal(0);
   const [filterOffset, setFilterOffset] = createSignal(0);
+  const [txFilterWidth, setTxFilterWidth] = createSignal(0);
+  const [txFilterOffset, setTxFilterOffset] = createSignal(0);
   const [flagSide, setFlagSide] = createSignal<"left" | "right">("left");
   const [dragState, setDragState] = createStore({
     dragging: false,
@@ -1680,26 +1682,37 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
   });
 
   createEffect(() => {
-    const width = preferences.enableTransparencyEffects
-      ? windowSize.width
-      : panafallBounds.left + panafallBounds.width;
-    if (!width) return;
-    const leftFreq = props.pan.centerFrequencyMHz - props.pan.bandwidthMHz / 2;
-    const offsetMhz =
-      (diversityParent() ?? props.slice).frequencyMHz - leftFreq;
-    const offsetPixels = (offsetMhz / props.pan.bandwidthMHz) * width;
-    const filterWidthMhz =
-      (props.slice.filterHighHz - props.slice.filterLowHz) / 1e6; // Convert Hz to MHz
+    const txFilterLow =
+      props.slice.mode === "CW"
+        ? -50
+        : ["USB", "DIGU"].includes(props.slice.mode)
+          ? state.status.radio.txFilterLowHz
+          : -state.status.radio.txFilterHighHz;
+    const txFilterHigh =
+      props.slice.mode === "CW"
+        ? 50
+        : ["LSB", "DIGL", "RTTY"].includes(props.slice.mode)
+          ? -state.status.radio.txFilterLowHz
+          : state.status.radio.txFilterHighHz;
+
     batch(() => {
-      const fWidth = roundToDevicePixels(
-        (filterWidthMhz / props.pan.bandwidthMHz) * width,
+      setFilterWidth(
+        mhzToPx((props.slice.filterHighHz - props.slice.filterLowHz) / 1e6),
       );
-      setFilterWidth(fWidth);
-      setFilterOffset(
-        (props.slice.filterLowHz / 1e6 / props.pan.bandwidthMHz) * width,
+      setFilterOffset(mhzToPx(props.slice.filterLowHz / 1e6));
+      setTxFilterWidth(mhzToPx((txFilterHigh - txFilterLow) / 1e6));
+      setTxFilterOffset(
+        mhzToPx(
+          (props.slice.mode === "RTTY"
+            ? props.slice.rttyMarkHz + txFilterLow
+            : txFilterLow) / 1e6,
+        ),
       );
-      // panadapter display is off by 2 pixels, so adjust
-      setOffset(roundToDevicePixels(offsetPixels) - 2);
+      setOffset(
+        roundToDevicePixels(
+          freqToX((diversityParent() ?? props.slice).frequencyMHz),
+        ) - 2,
+      );
     });
   });
 
@@ -1754,7 +1767,7 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
     <>
       <Show when={!props.slice.isDetached}>
         <div
-          class="absolute inset-y-0 translate-x-(--slice-offset) cursor-ew-resize z-10"
+          class="absolute inset-y-0 translate-x-(--slice-offset) z-10"
           classList={{
             "translate-z-1": isActive(),
             "pointer-events-auto": !props.slice.diversityChild,
@@ -1764,30 +1777,54 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
           }}
           onClick={makeActive}
         >
+          <Show when={!props.slice.diversityChild}>
+            <div
+              class="absolute inset-y-0 pointer-coarse:w-10 -translate-x-1/2"
+              classList={{
+                "cursor-grab": !dragState.dragging,
+                "cursor-grabbing bg-yellow-500/25": dragState.dragging,
+              }}
+              onPointerDown={(event) => {
+                setDragState({
+                  dragging: true,
+                  originX: event.clientX,
+                  originFreq: props.slice.frequencyMHz,
+                  offset: 0,
+                });
+                makeActive();
+              }}
+            >
+              <div class="absolute inset-y-0 left-1/2">
+                <Show
+                  when={
+                    preferences.showTxFilterInPan &&
+                    props.slice.isTransmitEnabled
+                  }
+                >
+                  <div
+                    class="absolute inset-y-0 translate-x-(--tx-filter-offset) w-(--tx-filter-width) bg-radial from-red-500/25 to-red-500/20"
+                    style={{
+                      "--tx-filter-width": `${txFilterWidth()}px`,
+                      "--tx-filter-offset": `${txFilterOffset()}px`,
+                    }}
+                  >
+                    <div class="size-full border-x border-x-background/50" />
+                  </div>
+                </Show>
+                <div
+                  class="absolute inset-y-0 translate-x-(--filter-offset) w-(--filter-width) bg-radial from-sky-500/35 to-sky-500/25"
+                  style={{
+                    "--filter-width": `${filterWidth()}px`,
+                    "--filter-offset": `${filterOffset()}px`,
+                  }}
+                >
+                  <div class="size-full border-x border-x-background/50" />
+                </div>
+              </div>
+            </div>
+          </Show>
           <div
-            class="absolute inset-y-0 translate-x-(--filter-offset) w-(--filter-width)"
-            classList={{
-              "bg-radial-[ellipse_at_bottom] from-foreground/5 to-foreground/20":
-                !props.slice.diversityChild,
-              "cursor-grab": !dragState.dragging,
-              "cursor-grabbing": dragState.dragging,
-            }}
-            style={{
-              "--filter-width": `${filterWidth()}px`,
-              "--filter-offset": `${filterOffset()}px`,
-            }}
-            onPointerDown={(event) => {
-              setDragState({
-                dragging: true,
-                originX: event.clientX,
-                originFreq: props.slice.frequencyMHz,
-                offset: 0,
-              });
-              makeActive();
-            }}
-          />
-          <div
-            class="absolute inset-y-0 max-w-px w-px flex flex-col items-center m-auto top-0"
+            class="absolute inset-y-0 max-w-px w-px flex flex-col items-center m-auto top-0 pointer-events-none"
             classList={{
               "bg-yellow-300 z-10": props.slice.isActive,
               "bg-red-500 -z-10":

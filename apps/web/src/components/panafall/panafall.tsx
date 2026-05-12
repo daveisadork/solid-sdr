@@ -441,6 +441,14 @@ export function Panafall(props: { index: number }) {
                             Show Band Plan
                           </ContextMenuCheckboxItem>
                         </Show>
+                        <ContextMenuCheckboxItem
+                          checked={preferences.showTxFilterInPan}
+                          onChange={(checked) => {
+                            setPreferences("showTxFilterInPan", checked);
+                          }}
+                        >
+                          Show TX Filter
+                        </ContextMenuCheckboxItem>
                       </ContextMenuGroup>
                     </ContextMenuContent>
                   </ContextMenuPortal>

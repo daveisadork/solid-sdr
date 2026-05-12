@@ -76,6 +76,7 @@ export interface Preferences {
   showFps: boolean;
   sMeterEnabled: boolean;
   showTuningGuide: boolean;
+  showTxFilterInPan: boolean;
   preventScreenSleep: boolean;
   palette: PaletteSettings;
   remoteAudio: {
@@ -144,6 +145,7 @@ const getDefaults = (): Preferences => ({
   radioPanelOpen: true,
   sidebarPanels: ["tx", "p-cw", "phone", "rx", "eq"],
   panadapterSettingsOpen: [false, false, false, false],
+  showTxFilterInPan: true,
   dax: {
     rx: defaultDaxRxConfig(),
     tx: {

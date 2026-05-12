@@ -785,6 +785,7 @@ function PhoneSection() {
             minValue={0}
             maxValue={10_000}
             step={25}
+            disabled={!state.status.radio.txFilterChangesAllowed}
             value={[
               state.status.radio.txFilterLowHz,
               state.status.radio.txFilterHighHz,

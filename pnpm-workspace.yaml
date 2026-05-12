@@ -1,9 +1,10 @@
 packages:
-  - "apps/*"
-  - "packages/*"
+  - apps/*
+  - packages/*
 
 onlyBuiltDependencies:
-  - "@swc/core"
-  - "@tailwindcss/oxide"
-  - esbuild
+  - '@swc/core'
+  - '@tailwindcss/oxide'
+  - bufferutil
   - electron
+  - esbuild

@@ -1,9 +1,8 @@
-# solid-sdr-server
+# SolidSDR - Web-based FlexRadio Client
 
-WebRTC signaling server and web UI for FlexRadio SDR receivers.
+<img width="3086" height="1736" alt="image" src="https://github.com/user-attachments/assets/40bd5075-33df-4872-a00b-9f43bf92bdfe" />
 
-The server and web interface are distributed as a single self-contained binary —
-no installation required beyond downloading and running it.
+SolidSDR is a web-based FlexRadio client. 
 
 ## Quick start
 

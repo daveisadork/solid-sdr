@@ -36,6 +36,7 @@ import { DaxSettings } from "./dax-settings";
 import { AudioSettings } from "./audio-settings";
 import { MultiflexSettings } from "./multiflex-settings";
 import { NetworkStats } from "./network-stats";
+import { WaveformSettings } from "./waveform-settings";
 
 const tabs = {
   app: AppSettings,
@@ -47,6 +48,7 @@ const tabs = {
   audio: AudioSettings,
   multiflex: MultiflexSettings,
   network: NetworkStats,
+  waveform: WaveformSettings,
 };
 
 export function Settings() {
@@ -94,6 +96,9 @@ export function Settings() {
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => setActiveTab("network")}>
             Network Stats
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => setActiveTab("waveform")}>
+            Waveforms
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

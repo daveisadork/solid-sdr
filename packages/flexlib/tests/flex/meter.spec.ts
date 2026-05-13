@@ -47,7 +47,7 @@ describe("Meter controller", () => {
     expect(changes).toHaveLength(1);
 
     // when a meter removal status arrives
-    connection.emitStatus("S3|meter 10 removed=1");
+    connection.emitStatus("S3|meter 10 removed");
 
     // then the meter is no longer accessible and snapshot throws
     expect(radio.meter("10")).toBeUndefined();

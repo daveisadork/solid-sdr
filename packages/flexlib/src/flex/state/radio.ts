@@ -247,7 +247,9 @@ export interface RadioSnapshot {
   readonly cwBreakInDelayMs?: number;
   readonly logLevels: readonly string[];
   readonly logModules: readonly RadioLogModule[];
-  readonly installedWaveforms: readonly string[];
+  readonly wfpPowered?: boolean;
+  readonly wfpReady?: boolean;
+  readonly wfpIpAddress?: string;
   readonly txFreqMhz: number;
   readonly txMode: string;
   readonly txAntenna: string;
@@ -609,19 +611,20 @@ function applyWaveformAttributes(
   partial: Mutable<Partial<RadioSnapshot>>,
   previous?: RadioSnapshot,
 ): void {
+  void previous;
   for (const [key, value] of Object.entries(attributes)) {
     switch (key) {
-      case "installed_list": {
-        // Comma-separated list; ASCII 0x7F is used as space placeholder
-        const items = value
-          .split(",")
-          .map((s) => s.replace(/\x7f/g, " "))
-          .filter((s) => s !== "");
-        if (!arraysShallowEqual(previous?.installedWaveforms, items)) {
-          partial.installedWaveforms = Object.freeze(items);
-        }
+      case "installed_list":
         break;
-      }
+      case "power":
+        partial.wfpPowered = value.toLowerCase() === "on";
+        break;
+      case "ready":
+        partial.wfpReady = value.toLowerCase() === "true";
+        break;
+      case "ipaddr":
+        partial.wfpIpAddress = value;
+        break;
       default:
         logUnknownAttribute("waveform", key, value);
         break;
@@ -1379,7 +1382,8 @@ type RadioContextKind =
   | "profile"
   | "log"
   | "atu"
-  | "waveform";
+  | "waveform"
+  | "file";
 
 function resolveRadioContext(context?: RadioStatusContext): RadioContextKind {
   const identifier = context?.identifier?.toLowerCase();
@@ -1396,6 +1400,7 @@ function resolveRadioContext(context?: RadioStatusContext): RadioContextKind {
   if (source === "log") return "log";
   if (source === "atu") return "atu";
   if (source === "waveform") return "waveform";
+  if (source === "file") return "file";
 
   return "radio";
 }

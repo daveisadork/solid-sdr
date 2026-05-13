@@ -43,6 +43,20 @@ export interface RadioEndpoint {
   readonly port: number;
 }
 
+/**
+ * Returned by {@link FlexConnection.prepareDownload}. The caller must:
+ * 1. Call {@link accept} immediately after receiving the port from the radio's reply.
+ * 2. Await {@link result} to receive the complete file bytes.
+ *
+ * For Node transport, `accept` binds the TCP listener to the radio's chosen port.
+ * For Bridge transport, the server handles listening via command interception and
+ * `accept` is a no-op.
+ */
+export interface FileDownloadReceiver {
+  accept(port: number): void;
+  result(): Promise<Uint8Array>;
+}
+
 // ---------------------------------------------------------------------------
 // FlexTransport — client-level, long-lived
 // ---------------------------------------------------------------------------
@@ -149,6 +163,27 @@ export interface FlexConnection {
 
   /** Send a binary payload over the UDP data channel. */
   sendUdp(data: Uint8Array): Promise<void>;
+
+  /**
+   * Open a raw byte connection to the radio's upload port and stream `data` to it.
+   *
+   * Resolves when all bytes have been written and the upload connection is closed.
+   * The caller must have already sent the `file upload` command and received the port
+   * number before calling this.
+   */
+  openUpload(endpoint: RadioEndpoint, data: AsyncIterable<Uint8Array>): Promise<void>;
+
+  /**
+   * Prepare to receive a file download from the radio.
+   *
+   * Must be called **before** sending the `file download` command so that the
+   * transport can set up the necessary infrastructure (Node: preallocates a listener;
+   * Bridge: opens a data channel so the server can intercept the reply and bind first).
+   *
+   * Returns a {@link FileDownloadReceiver}. After the `file download` reply arrives,
+   * call `receiver.accept(port)` immediately, then await `receiver.result()`.
+   */
+  prepareDownload(endpoint: RadioEndpoint): Promise<FileDownloadReceiver>;
 
   /** Close both TCP and UDP channels and release all resources. */
   close(): Promise<void>;

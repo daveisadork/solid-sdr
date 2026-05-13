@@ -2,7 +2,6 @@ import type { FlexStatusMessage } from "../protocol.js";
 import type { RfGainInfo } from "../rf-gain.js";
 import type { Logger } from "../adapters.js";
 import {
-  isTruthy,
   parseInteger,
   parseIntegerHex,
   setRadioStateLogger,
@@ -63,6 +62,12 @@ import {
   type FilterPresetModeGroup,
   type FilterPresetSnapshot,
 } from "./filter-preset.js";
+import {
+  createWaveformId,
+  createWaveformSnapshot,
+  parseLegacyWaveformList,
+  type WaveformSnapshot,
+} from "./waveform.js";
 
 export type { SnapshotDiff } from "./common.js";
 export { FILTER_PRESET_COUNT } from "./filter-preset.js";
@@ -107,6 +112,7 @@ export type {
 } from "./radio.js";
 export { KNOWN_METER_UNITS } from "./meter.js";
 export type { GuiClientSnapshot } from "./gui-client.js";
+export type { WaveformSnapshot } from "./waveform.js";
 
 type ChangeMetadata<TSnapshot> = {
   readonly diff?: SnapshotDiff<TSnapshot>;
@@ -142,6 +148,7 @@ export type RadioStateChange =
   | DisplayMarkerStateChange
   | ({ entity: "tnf"; id: string } & ChangeMetadata<TnfSnapshot>)
   | ({ entity: "memory"; id: string } & ChangeMetadata<MemorySnapshot>)
+  | ({ entity: "waveform"; id: string } & ChangeMetadata<WaveformSnapshot>)
   | ({ entity: "radio" } & ChangeMetadata<RadioSnapshot>)
   | ({ entity: "featureLicense" } & ChangeMetadata<FeatureLicenseSnapshot>)
   | ({ entity: "filterPreset" } & ChangeMetadata<FilterPresetSnapshot>)
@@ -192,6 +199,10 @@ export type CwxStateChange = Extract<RadioStateChange, { entity: "cwx" }>;
 export type DvkStateChange = Extract<RadioStateChange, { entity: "dvk" }>;
 export type TnfStateChange = Extract<RadioStateChange, { entity: "tnf" }>;
 export type MemoryStateChange = Extract<RadioStateChange, { entity: "memory" }>;
+export type WaveformStateChange = Extract<
+  RadioStateChange,
+  { entity: "waveform" }
+>;
 
 export interface RadioStateSnapshot {
   readonly slices: readonly SliceSnapshot[];
@@ -207,6 +218,7 @@ export interface RadioStateSnapshot {
   readonly displayMarkers: readonly DisplayMarkerSnapshot[];
   readonly tnfs: readonly TnfSnapshot[];
   readonly memories: readonly MemorySnapshot[];
+  readonly waveforms: readonly WaveformSnapshot[];
   readonly radio: RadioSnapshot;
   readonly featureLicense?: FeatureLicenseSnapshot;
   readonly filterPresets?: FilterPresetSnapshot;
@@ -245,6 +257,8 @@ export interface RadioStateStore {
   getTnfs(): readonly TnfSnapshot[];
   getMemory(id: string): MemorySnapshot | undefined;
   getMemories(): readonly MemorySnapshot[];
+  getWaveform(id: string): WaveformSnapshot | undefined;
+  getWaveforms(): readonly WaveformSnapshot[];
   patchMemory(
     id: string,
     attributes: Record<string, string>,
@@ -355,6 +369,7 @@ export function createRadioStateStore(
   const displayMarkers = new Map<string, Map<string, DisplayMarkerSnapshot>>();
   const tnfs = new Map<string, TnfSnapshot>();
   const memories = new Map<string, MemorySnapshot>();
+  const waveforms = new Map<string, WaveformSnapshot>();
   let radio: RadioSnapshot;
   let featureLicense: FeatureLicenseSnapshot | undefined;
   let filterPresets: FilterPresetSnapshot | undefined;
@@ -396,6 +411,7 @@ export function createRadioStateStore(
     displayMarkers.clear();
     tnfs.clear();
     memories.clear();
+    waveforms.clear();
     radio = undefined as unknown as RadioSnapshot;
     featureLicense = undefined;
     filterPresets = undefined;
@@ -465,7 +481,7 @@ export function createRadioStateStore(
           return [];
         }
         case "waveform":
-          return [handleRadio(message)];
+          return handleWaveform(message);
         case "apd": {
           const change = handleApd(message);
           if (change) return [change];
@@ -524,6 +540,7 @@ export function createRadioStateStore(
         displayMarkers: flattenDisplayMarkers(),
         tnfs: Array.from(tnfs.values()),
         memories: Array.from(memories.values()),
+        waveforms: Array.from(waveforms.values()),
         radio,
         featureLicense,
         filterPresets,
@@ -597,6 +614,12 @@ export function createRadioStateStore(
     },
     getMemories() {
       return Array.from(memories.values());
+    },
+    getWaveform(id) {
+      return waveforms.get(id);
+    },
+    getWaveforms() {
+      return Array.from(waveforms.values());
     },
     patchMemory(id, attributes) {
       return patchMemory(id, attributes);
@@ -834,7 +857,6 @@ export function createRadioStateStore(
     attributes: Record<string, string>,
     context?: RadioStatusContext,
   ): RadioStateChange | undefined {
-    if (Object.keys(attributes).length === 0) return undefined;
     const { snapshot, diff } = createRadioSnapshot(attributes, radio, context);
     const diffKeys = Object.keys(diff as Record<string, unknown>);
     if (diffKeys.length === 0) {
@@ -907,11 +929,7 @@ export function createRadioStateStore(
       };
     }
 
-    const removed =
-      message.positional.some(
-        (token) => token === "removed" || token === "deleted",
-      ) || isMarkedDeleted(message);
-    if (removed) {
+    if (isMarkedDeleted(message)) {
       audioStreams.delete(id);
       return {
         entity: "audioStream",
@@ -1843,6 +1861,116 @@ export function createRadioStateStore(
     return { entity: "memory", id, diff, removed: false };
   }
 
+  function handleWaveform(message: FlexStatusMessage): RadioStateChange[] {
+    if (message.identifier === "container") {
+      return handleContainerWaveform(message);
+    }
+
+    if ("installed_list" in message.attributes) {
+      return replaceLegacyWaveforms(message.attributes["installed_list"]);
+    }
+
+    const radioChange = patchRadio(message.attributes, {
+      source: message.source,
+      identifier: message.identifier,
+      positional: message.positional,
+    });
+    return radioChange ? [radioChange] : [];
+  }
+
+  function handleContainerWaveform(
+    message: FlexStatusMessage,
+  ): RadioStateChange[] {
+    const name = message.attributes["name"]?.replace(/\u007f/g, " ").trim();
+    if (!name) {
+      return [
+        {
+          entity: "unknown",
+          source: message.source,
+          id: message.identifier,
+          attributes: message.attributes,
+        },
+      ];
+    }
+
+    const version =
+      message.attributes["version"]?.replace(/\u007f/g, " ").trim() ?? "";
+    const id = createWaveformId(name, version, true);
+    const changes: RadioStateChange[] = [];
+    const removed = isMarkedDeleted(message);
+
+    if (removed) {
+      if (waveforms.delete(id)) {
+        changes.push({
+          entity: "waveform",
+          id,
+          removed: true,
+        });
+      }
+    } else {
+      const previous = waveforms.get(id);
+      const { snapshot, diff } = createWaveformSnapshot(
+        id,
+        {
+          ...message.attributes,
+          name,
+          version,
+          is_container: "1",
+        },
+        previous,
+      );
+      waveforms.set(id, snapshot);
+      changes.push({
+        entity: "waveform",
+        id,
+        diff,
+        removed: false,
+      });
+    }
+
+    return changes;
+  }
+
+  function replaceLegacyWaveforms(
+    installedList: string | undefined,
+  ): RadioStateChange[] {
+    const entries = parseLegacyWaveformList(installedList);
+    const nextIds = new Set(entries.map((entry) => entry.id));
+    const changes: RadioStateChange[] = [];
+
+    for (const [id, snapshot] of waveforms) {
+      if (snapshot.isContainer || nextIds.has(id)) continue;
+      waveforms.delete(id);
+      changes.push({
+        entity: "waveform",
+        id,
+        removed: true,
+      });
+    }
+
+    for (const entry of entries) {
+      const previous = waveforms.get(entry.id);
+      const { snapshot, diff } = createWaveformSnapshot(
+        entry.id,
+        {
+          name: entry.name,
+          version: entry.version,
+          is_container: "0",
+        },
+        previous,
+      );
+      waveforms.set(entry.id, snapshot);
+      changes.push({
+        entity: "waveform",
+        id: entry.id,
+        diff,
+        removed: false,
+      });
+    }
+
+    return changes;
+  }
+
   function patchMemory(
     id: string,
     attributes: Record<string, string>,
@@ -2094,9 +2222,11 @@ function resolveDisplayMarkerIdentity(
 function isMarkedDeleted(message: FlexStatusMessage): boolean {
   return (
     message.positional.includes("removed") ||
-    message.positional.includes("deleted") ||
-    isTruthy(message.attributes.removed) ||
-    isTruthy(message.attributes.deleted) ||
-    ("in_use" in message.attributes && !isTruthy(message.attributes.in_use))
+    // sometimes "removed" is at the end of a status like this
+    // "waveform container name=freedv-flex version=2.3.0 removed"
+    // which causes it to be in attributes instead of positional
+    "removed" in message.attributes ||
+    // at least slice and xvrt statuses do this, maybe others
+    message.attributes.in_use === "0"
   );
 }

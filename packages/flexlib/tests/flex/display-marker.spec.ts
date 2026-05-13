@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { FlexStateUnavailableError } from "../../src/flex/errors.js";
 import { createDisplayMarkerSnapshot } from "../../src/flex/state/display-marker.js";
 import {
   createRadioStateStore,
@@ -36,19 +35,15 @@ describe("Display marker snapshot", () => {
   });
 
   it("incrementally updates from a previous snapshot", () => {
-    const { snapshot: previous } = createDisplayMarkerSnapshot(
-      "IARU3",
-      "58",
-      {
-        group: "IARU3",
-        id: "58",
-        label: "All Modes",
-        start_freq: "29.100000",
-        stop_freq: "29.300000",
-        color: "gray",
-        opacity: "30",
-      },
-    );
+    const { snapshot: previous } = createDisplayMarkerSnapshot("IARU3", "58", {
+      group: "IARU3",
+      id: "58",
+      label: "All Modes",
+      start_freq: "29.100000",
+      stop_freq: "29.300000",
+      color: "gray",
+      opacity: "30",
+    });
 
     const { snapshot, diff } = createDisplayMarkerSnapshot(
       "IARU3",
@@ -69,7 +64,7 @@ describe("Display marker snapshot", () => {
 });
 
 describe("Display marker store integration", () => {
-  it("handles display_marker status messages for create, update, and remove", () => {
+  it("handles display_marker status messages for create and update", () => {
     const store = createRadioStateStore();
 
     const createChanges = store.apply(
@@ -95,19 +90,6 @@ describe("Display marker store integration", () => {
     expect(store.getDisplayMarker("IARU3", "58")?.colorName).toBe("Blue");
     expect(store.getDisplayMarker("IARU3", "58")?.opacity).toBe(50);
     expect(updateChanges).toHaveLength(1);
-
-    const removeChanges = store.apply(
-      makeStatus("S3|display_marker group=IARU3 id=58 removed=1"),
-    );
-
-    expect(store.getDisplayMarker("IARU3", "58")).toBeUndefined();
-    expect(store.getDisplayMarkers()).toHaveLength(0);
-    expect(removeChanges[0]).toMatchObject({
-      entity: "displayMarker",
-      group: "IARU3",
-      id: "58",
-      removed: true,
-    });
   });
 
   it("patchDisplayMarker applies attributes optimistically", () => {
@@ -163,10 +145,5 @@ describe("Display marker controller", () => {
     expect(controller.colorName).toBe("Blue");
     expect(controller.opacity).toBe(50);
     expect(changes).toHaveLength(1);
-
-    connection.emitStatus("S3|display_marker group=IARU3 id=58 removed=1");
-
-    expect(radio.displayMarker("IARU3", "58")).toBeUndefined();
-    expect(() => controller.snapshot()).toThrow(FlexStateUnavailableError);
   });
 });

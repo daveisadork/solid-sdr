@@ -363,12 +363,11 @@ export function Panafall(props: { index: number }) {
                       if (dragState.dragging) return;
                       setDragState("originX", 0);
                       const slice = activeSlice();
-                      const offset =
-                        slice?.mode === "DIGU"
-                          ? slice.diguOffsetHz
-                          : slice?.mode === "DIGL"
-                            ? slice.diglOffsetHz
-                            : 0;
+                      const offset = ["DIGU", "FDVU"].includes(slice?.mode)
+                        ? slice.diguOffsetHz
+                        : ["DIGL", "FDVL"].includes(slice?.mode)
+                          ? slice.diglOffsetHz
+                          : 0;
                       const freq = roundToDecimals(xToFreq(e.clientX), 3);
                       panadapterController()?.clickTune(
                         freq + offset / 1_000_000,

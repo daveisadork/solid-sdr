@@ -69,7 +69,9 @@ export function isTruthy(value: string | undefined): boolean {
   const normalized = value.trim().toLowerCase();
   return (
     normalized === "1" ||
+    // AFAIK, gps status is the only one that might do this
     normalized === "true" ||
+    // never actually observed these
     normalized === "on" ||
     normalized === "yes"
   );

@@ -12,6 +12,7 @@
 import type { Subscription } from "../util/events.js";
 import { TypedEventEmitter } from "../util/events.js";
 import type {
+  FileDownloadReceiver,
   FlexConnection,
   FlexConnectionEvents,
   FlexTransport,
@@ -49,12 +50,15 @@ interface DataChannelEventMap {
   close: BridgeEvent;
   error: BridgeEvent;
   message: BridgeMessageEvent;
+  bufferedamountlow: BridgeEvent;
 }
 
 /** Minimal subset of `RTCDataChannel` used by this module. @internal */
 export interface BridgeDataChannel {
   binaryType: string;
   readonly readyState: string;
+  readonly bufferedAmount: number;
+  bufferedAmountLowThreshold: number;
   send(data: string | ArrayBuffer | ArrayBufferView): void;
   close(): void;
   addEventListener<K extends keyof DataChannelEventMap>(
@@ -186,6 +190,181 @@ export class BridgeConnection
       throw new Error("UDP data channel is not connected");
     }
     dc.send(data);
+  }
+
+  async openUpload(
+    endpoint: RadioEndpoint,
+    data: AsyncIterable<Uint8Array>,
+  ): Promise<void> {
+    if (this.closed) throw new Error("Connection is closed");
+
+    const label = `${endpoint.host}:${endpoint.port}`;
+    const dc = this.pc.createDataChannel(label, {
+      ordered: true,
+      protocol: "upload",
+    });
+    dc.binaryType = "arraybuffer";
+
+    // Resolve when server sends ready byte; reject on error frame or DC error.
+    let readyResolve!: () => void;
+    let readyReject!: (err: unknown) => void;
+    const readyPromise = new Promise<void>((resolve, reject) => {
+      readyResolve = resolve;
+      readyReject = reject;
+    });
+
+    // Attach handlers BEFORE waiting for open — handler-before-connect contract.
+    dc.addEventListener("message", (ev: BridgeMessageEvent) => {
+      if (ev.data instanceof ArrayBuffer) {
+        const buf = new Uint8Array(ev.data);
+        if (buf.length === 1 && buf[0] === 0) {
+          readyResolve();
+        } else {
+          const text = new TextDecoder().decode(buf);
+          readyReject(
+            new Error(text.startsWith("error:") ? text.slice(6) : text),
+          );
+        }
+      } else {
+        // text message — server sent an error string
+        const text = String(ev.data);
+        readyReject(
+          new Error(text.startsWith("error:") ? text.slice(6) : text),
+        );
+      }
+    });
+    dc.addEventListener("error", (ev: BridgeEvent) => {
+      readyReject(new Error("Upload data channel error", { cause: ev }));
+    });
+    // If Pion closes the DC (e.g. DCEP failure, TCP error), reject rather than hang.
+    dc.addEventListener("close", () => {
+      readyReject(new Error("Upload data channel closed before ready"));
+    });
+
+    await new Promise<void>((resolve, reject) => {
+      dc.addEventListener("open", () => resolve(), { once: true });
+      dc.addEventListener(
+        "error",
+        (ev: BridgeEvent) =>
+          reject(new Error("Upload DC failed to open", { cause: ev })),
+        { once: true },
+      );
+      dc.addEventListener(
+        "close",
+        () => reject(new Error("Upload DC closed before open")),
+        { once: true },
+      );
+    });
+
+    await readyPromise;
+
+    // Stream data with send-buffer backpressure.
+    const CHUNK_SIZE = 16 * 1024;
+    const HIGH_WATER = 128 * 1024;
+    const LOW_WATER = 64 * 1024;
+    dc.bufferedAmountLowThreshold = LOW_WATER;
+    dc.addEventListener("error", console.log);
+
+    for await (const chunk of data) {
+      if (dc.readyState !== "open") {
+        console.error("DC closed unexpectedly");
+        throw new Error("Upload data channel closed during transfer");
+      }
+      if (dc.bufferedAmount > HIGH_WATER) {
+        await new Promise<void>((resolve, reject) => {
+          dc.addEventListener("bufferedamountlow", () => resolve(), {
+            once: true,
+          });
+          dc.addEventListener(
+            "close",
+            () => reject(new Error("Upload DC closed during transfer")),
+            { once: true },
+          );
+          dc.addEventListener(
+            "error",
+            () => reject(new Error("Upload DC error during transfer")),
+            { once: true },
+          );
+        });
+      }
+      for (let offset = 0; offset < chunk.byteLength; offset += CHUNK_SIZE) {
+        dc.send(chunk.subarray(offset, offset + CHUNK_SIZE));
+      }
+    }
+
+    dc.close();
+  }
+
+  async prepareDownload(
+    _endpoint: RadioEndpoint,
+  ): Promise<FileDownloadReceiver> {
+    if (this.closed) throw new Error("Connection is closed");
+
+    const dc = this.pc.createDataChannel("download", {
+      ordered: true,
+      protocol: "download",
+    });
+    dc.binaryType = "arraybuffer";
+
+    const chunks: Uint8Array[] = [];
+    let settled = false;
+    let eofResolve!: (data: Uint8Array) => void;
+    let eofReject!: (err: Error) => void;
+    const resultPromise = new Promise<Uint8Array>((resolve, reject) => {
+      eofResolve = (data) => {
+        if (settled) return;
+        settled = true;
+        resolve(data);
+      };
+      eofReject = (err) => {
+        if (settled) return;
+        settled = true;
+        reject(err);
+      };
+    });
+
+    // Attach message handler BEFORE waiting for open.
+    dc.addEventListener("message", (ev: BridgeMessageEvent) => {
+      const buf = new Uint8Array(ev.data as ArrayBuffer);
+      if (buf.byteLength === 0) {
+        // EOF signal from server
+        const total = chunks.reduce((n, c) => n + c.byteLength, 0);
+        const out = new Uint8Array(total);
+        let offset = 0;
+        for (const chunk of chunks) {
+          out.set(chunk, offset);
+          offset += chunk.byteLength;
+        }
+        eofResolve(out);
+      } else {
+        chunks.push(buf);
+      }
+    });
+    dc.addEventListener("error", (ev: BridgeEvent) => {
+      eofReject(new Error("Download data channel error", { cause: ev }));
+    });
+    dc.addEventListener("close", () => {
+      eofReject(new Error("Download channel closed before EOF"));
+    });
+
+    await new Promise<void>((resolve, reject) => {
+      dc.addEventListener("open", () => resolve(), { once: true });
+      dc.addEventListener(
+        "error",
+        (ev: BridgeEvent) =>
+          reject(new Error("Download DC failed to open", { cause: ev })),
+        { once: true },
+      );
+    });
+
+    return {
+      accept(_port: number): void {
+        // Server handles listening via command interception; nothing to do here.
+      },
+      result(): Promise<Uint8Array> {
+        return resultPromise;
+      },
+    };
   }
 
   async close(): Promise<void> {

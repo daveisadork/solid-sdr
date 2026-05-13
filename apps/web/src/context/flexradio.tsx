@@ -41,6 +41,7 @@ import type {
   TxBandSettingSnapshot,
   WaterfallSnapshot,
   XvtrSnapshot,
+  WaveformSnapshot,
   DisplayMarkerSnapshot,
   DisplayMarkerStateChange,
   FilterPresetSnapshot,
@@ -100,6 +101,7 @@ export type DvkState = Omit<MutableProps<DvkSnapshot>, "raw">;
 export type SpotState = Omit<MutableProps<SpotSnapshot>, "raw">;
 export type TnfState = Omit<MutableProps<TnfSnapshot>, "raw">;
 export type MemoryState = Omit<MutableProps<MemorySnapshot>, "raw">;
+export type WaveformState = Omit<MutableProps<WaveformSnapshot>, "raw">;
 export type DisplayMarkerState = Omit<
   MutableProps<DisplayMarkerSnapshot>,
   "raw"
@@ -128,6 +130,7 @@ export interface StatusState {
   tnf: Record<string, TnfState>;
   memory: Record<string, MemoryState>;
   xvtr: Record<string, XvtrState>;
+  waveform: Record<string, WaveformState>;
   cwx: CwxState;
   dvk: DvkState;
   displayMarker: Record<string, Record<string, DisplayMarkerState>>;
@@ -174,6 +177,7 @@ export const initialState = () =>
       memory: {},
       displayMarker: {},
       filterPreset: {},
+      waveform: {},
     },
   }) as AppState;
 

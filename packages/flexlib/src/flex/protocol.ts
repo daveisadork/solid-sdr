@@ -304,9 +304,6 @@ function parseAttributes(
         parseSpaceSeparatedAttributes(segment, attributes);
       }
     }
-    if (!segment && positionalTokens.includes("removed")) {
-      attributes["removed"] = "1";
-    }
     if (!meterId && positionalTokens.length > 0) {
       meterId = positionalTokens[0];
     }

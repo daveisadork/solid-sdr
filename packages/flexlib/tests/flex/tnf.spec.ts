@@ -92,7 +92,7 @@ describe("TNF store integration", () => {
     expect(updateChanges).toHaveLength(1);
 
     // when a removal status arrives
-    const removeChanges = store.apply(makeStatus("S3|tnf 1 removed=1"));
+    const removeChanges = store.apply(makeStatus("S3|tnf 1 removed"));
 
     // then the tnf is gone
     expect(store.getTnf("1")).toBeUndefined();
@@ -192,7 +192,7 @@ describe("TNF controller", () => {
     expect(changes).toHaveLength(1);
 
     // when a removal status arrives
-    connection.emitStatus("S3|tnf 1 removed=1");
+    connection.emitStatus("S3|tnf 1 removed");
 
     // then the controller is no longer accessible and snapshot throws
     expect(radio.tnf("1")).toBeUndefined();

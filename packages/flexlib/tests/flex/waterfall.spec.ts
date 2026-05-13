@@ -79,12 +79,10 @@ describe("Waterfall controller", () => {
 
     // when close() is called
     await controller!.close();
-    expect(connection.lastCommand()).toBe(
-      "display panafall remove 0x50000000",
-    );
+    expect(connection.lastCommand()).toBe("display panafall remove 0x50000000");
 
     // when a removal status arrives, the controller is gone
-    connection.emitStatus("S2|display waterfall 0x50000000 removed=1");
+    connection.emitStatus("S2|display waterfall 0x50000000 removed");
     expect(radio.waterfall("0x50000000")).toBeUndefined();
   });
 });

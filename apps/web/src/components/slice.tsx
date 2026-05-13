@@ -153,6 +153,26 @@ export const filterPresets: Record<string, FilterPreset[]> = {
     { name: "3.0k", lowCut: -1500, highCut: 1500 },
     { name: "6.0k", lowCut: -3000, highCut: 3000 },
   ],
+  FDVU: [
+    { name: "100", lowCut: -50, highCut: 50 },
+    { name: "300", lowCut: -150, highCut: 150 },
+    { name: "600", lowCut: -300, highCut: 300 },
+    { name: "1.0k", lowCut: -500, highCut: 500 },
+    { name: "1.5k", lowCut: -750, highCut: 750 },
+    { name: "2.0k", lowCut: -1000, highCut: 1000 },
+    { name: "3.0k", lowCut: -1500, highCut: 1500 },
+    { name: "6.0k", lowCut: -3000, highCut: 3000 },
+  ],
+  FDVL: [
+    { name: "100", lowCut: -50, highCut: 50 },
+    { name: "300", lowCut: -150, highCut: 150 },
+    { name: "600", lowCut: -300, highCut: 300 },
+    { name: "1.0k", lowCut: -500, highCut: 500 },
+    { name: "1.5k", lowCut: -750, highCut: 750 },
+    { name: "2.0k", lowCut: -1000, highCut: 1000 },
+    { name: "3.0k", lowCut: -1500, highCut: 1500 },
+    { name: "6.0k", lowCut: -3000, highCut: 3000 },
+  ],
   // DIGU: [
   //   { name: "100", lowCut: 1450, highCut: 1550 },
   //   { name: "300", lowCut: 1350, highCut: 1650 },
@@ -292,6 +312,8 @@ const filterConstraints: Record<string, FilterConstraint> = {
   LSB: { low: -10_000, high: 0 },
   DIGU: { low: 0, high: 12_000 },
   DIGL: { low: -12_000, high: 0 },
+  FDVU: { low: 0, high: 12_000 },
+  FDVL: { low: -12_000, high: 0 },
   RTTY: { low: -1_500, high: 1_500 },
   CW: { low: -1_500, high: 1_500 },
   NFM: { low: -5_500, high: 5_500 },
@@ -394,10 +416,16 @@ export function FilterControls(props: {
   slice: SliceState;
   controller: SliceController;
 }) {
-  const [rawDiglOffset, setRawDiglOffset] = createSignal(2210);
-  const [rawDiguOffset, setRawDiguOffset] = createSignal(1500);
-  const [rawFilterLow, setRawFilterLow] = createSignal(0);
-  const [rawFilterHigh, setRawFilterHigh] = createSignal(0);
+  const [rawDiglOffset, setRawDiglOffset] = createSignal(
+    props.slice.diglOffsetHz,
+  );
+  const [rawDiguOffset, setRawDiguOffset] = createSignal(
+    props.slice.diguOffsetHz,
+  );
+  const [rawFilterLow, setRawFilterLow] = createSignal(props.slice.filterLowHz);
+  const [rawFilterHigh, setRawFilterHigh] = createSignal(
+    props.slice.filterHighHz,
+  );
 
   createEffect(() => setRawDiglOffset(props.slice.diglOffsetHz));
   createEffect(() => setRawDiguOffset(props.slice.diguOffsetHz));
@@ -408,13 +436,13 @@ export function FilterControls(props: {
     const halfWidth = Math.floor(
       (props.slice.filterHighHz - props.slice.filterLowHz) / 2,
     );
-    if (mode === "DIGU") {
+    if (mode === "DIGU" || mode === "FDVU") {
       const clamp = Math.max(offset, halfWidth) - offset;
       props.controller.setFilter(
         -halfWidth + clamp + offset,
         halfWidth + clamp + offset,
       );
-    } else if (mode === "DIGL") {
+    } else if (mode === "DIGL" || mode == "FDVL") {
       const clamp = Math.max(offset, halfWidth) - offset;
       props.controller.setFilter(
         -halfWidth - clamp - offset,
@@ -450,28 +478,14 @@ export function FilterControls(props: {
     highCut: number,
   ): [number, number] => {
     const mode = props.slice.mode;
-    if (mode === "DIGU" || mode === "FDV") {
+    if (mode === "DIGU" || mode === "FDVU") {
       const offset = props.slice.diguOffsetHz;
       const clamp = Math.max(offset, -lowCut) - offset;
-      console.log("Applying preset offset for mode", mode, {
-        offset,
-        clamp,
-        lowCut,
-        highCut,
-        resolved: [lowCut + clamp + offset, highCut + clamp + offset],
-      });
       return [lowCut + clamp + offset, highCut + clamp + offset];
     }
-    if (mode === "DIGL") {
+    if (mode === "DIGL" || mode == "FDVL") {
       const offset = props.slice.diglOffsetHz;
       const clamp = Math.max(offset, highCut) - offset;
-      console.log("Applying preset offset for mode", mode, {
-        offset,
-        clamp,
-        lowCut,
-        highCut,
-        resolved: [lowCut - clamp - offset, highCut - clamp - offset],
-      });
       return [lowCut - clamp - offset, highCut - clamp - offset];
     }
     return [lowCut, highCut];
@@ -768,7 +782,11 @@ const AudioControls = (props: {
             label="AGC Threshold"
           />
           <Show
-            when={!["DIGU", "DIGL", "CW", "RTTY"].includes(props.slice.mode)}
+            when={
+              !["DIGU", "DIGL", "CW", "RTTY", "FDVL", "FDVU"].includes(
+                props.slice.mode,
+              )
+            }
           >
             <SliderToggle
               disabled={!props.slice.squelchEnabled}
@@ -1685,13 +1703,13 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
     const txFilterLow =
       props.slice.mode === "CW"
         ? -50
-        : ["USB", "DIGU"].includes(props.slice.mode)
+        : ["USB", "DIGU", "FDVU"].includes(props.slice.mode)
           ? state.status.radio.txFilterLowHz
           : -state.status.radio.txFilterHighHz;
     const txFilterHigh =
       props.slice.mode === "CW"
         ? 50
-        : ["LSB", "DIGL", "RTTY"].includes(props.slice.mode)
+        : ["LSB", "DIGL", "FDVL", "RTTY"].includes(props.slice.mode)
           ? -state.status.radio.txFilterLowHz
           : state.status.radio.txFilterHighHz;
 
@@ -1711,7 +1729,7 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
       setOffset(
         roundToDevicePixels(
           freqToX((diversityParent() ?? props.slice).frequencyMHz),
-        ) - 2,
+        ),
       );
     });
   });
@@ -1802,23 +1820,23 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
                   }
                 >
                   <div
-                    class="absolute inset-y-0 translate-x-(--tx-filter-offset) w-(--tx-filter-width) bg-radial from-red-500/25 to-red-500/20"
+                    class="absolute inset-y-0 overflow-clip translate-x-(--tx-filter-offset) w-(--tx-filter-width) bg-radial from-red-500/25 to-red-500/20"
                     style={{
                       "--tx-filter-width": `${txFilterWidth()}px`,
                       "--tx-filter-offset": `${txFilterOffset()}px`,
                     }}
                   >
-                    <div class="size-full border-x border-x-background/50" />
+                    <div class="absolute inset-0 border-x border-x-background/40" />
                   </div>
                 </Show>
                 <div
-                  class="absolute inset-y-0 translate-x-(--filter-offset) w-(--filter-width) bg-radial from-sky-500/35 to-sky-500/25"
+                  class="absolute inset-y-0 overflow-clip translate-x-(--filter-offset) w-(--filter-width) bg-radial from-sky-500/35 to-sky-500/25"
                   style={{
                     "--filter-width": `${filterWidth()}px`,
                     "--filter-offset": `${filterOffset()}px`,
                   }}
                 >
-                  <div class="size-full border-x border-x-background/50" />
+                  <div class="absolute inset-0 border-x border-x-background/40" />
                 </div>
               </div>
             </div>

@@ -83,9 +83,7 @@ describe("Panadapter controller", () => {
 
     // when WNB controls are used
     await controller!.setWnbEnabled(true);
-    expect(connection.lastCommand()).toBe(
-      "display pan set 0x40000000 wnb=1",
-    );
+    expect(connection.lastCommand()).toBe("display pan set 0x40000000 wnb=1");
     expect(controller!.wnbEnabled).toBe(true);
 
     await controller!.setWnbLevel(30);
@@ -128,11 +126,11 @@ describe("Panadapter controller", () => {
     expect(controller!.isSegmentZoomOn).toBe(true);
 
     // when refreshRfGainInfo is called with a prepared response
-    connection.prepareResponse("display pan rfgain_info", { message: "0,90,5,10,20,30" });
+    connection.prepareResponse("display pan rfgain_info", {
+      message: "0,90,5,10,20,30",
+    });
     await controller!.refreshRfGainInfo();
-    expect(connection.lastCommand()).toBe(
-      "display pan rfgain_info 0x40000000",
-    );
+    expect(connection.lastCommand()).toBe("display pan rfgain_info 0x40000000");
     expect(controller!.rfGainLow).toBe(0);
     expect(controller!.rfGainHigh).toBe(90);
     expect(controller!.rfGainStep).toBe(5);
@@ -140,9 +138,7 @@ describe("Panadapter controller", () => {
 
     // when clickTune is called
     await controller!.clickTune(14.2);
-    expect(connection.lastCommand()).toBe(
-      "slice m 14.200000 pan=0x40000000",
-    );
+    expect(connection.lastCommand()).toBe("slice m 14.200000 pan=0x40000000");
 
     // when setWidth/setHeight are called
     await controller!.setWidth(1024);
@@ -175,12 +171,10 @@ describe("Panadapter controller", () => {
 
     // when close() is called
     await controller!.close();
-    expect(connection.lastCommand()).toBe(
-      "display pan remove 0x40000000",
-    );
+    expect(connection.lastCommand()).toBe("display pan remove 0x40000000");
 
     // when a removal status arrives, the controller is gone
-    connection.emitStatus("S2|display pan 0x40000000 removed=1");
+    connection.emitStatus("S2|display pan 0x40000000 removed");
     expect(radio.panadapter("0x40000000")).toBeUndefined();
   });
 
@@ -192,7 +186,9 @@ describe("Panadapter controller", () => {
     connection.emitStatus(
       "S3|display pan 0x50000000 stream_id=0x50000000 center=14.050000 bandwidth=0.002000 rxant=ANT2",
     );
-    connection.prepareResponse("display panafall create", { message: "0x50000000,0x52000000" });
+    connection.prepareResponse("display panafall create", {
+      message: "0x50000000,0x52000000",
+    });
 
     // when createPanadapter is called
     const controller = await radio.createPanadapter({
@@ -205,10 +201,9 @@ describe("Panadapter controller", () => {
       "display panafall create x=200 y=150",
     );
     expect(controller.id).toBe("0x50000000");
-    expect(radio.panadapter("0x50000000")?.snapshot()?.bandwidthMHz).toBeCloseTo(
-      0.002,
-      6,
-    );
+    expect(
+      radio.panadapter("0x50000000")?.snapshot()?.bandwidthMHz,
+    ).toBeCloseTo(0.002, 6);
   });
 
   it("rejects pending panadapter creation when the session closes", async () => {
@@ -216,7 +211,9 @@ describe("Panadapter controller", () => {
     const { radio, connection } = await createConnectedRadio();
 
     // given a custom response is prepared but no status will arrive
-    connection.prepareResponse("display panafall create", { message: "0x50000001,0x52000001" });
+    connection.prepareResponse("display panafall create", {
+      message: "0x50000001,0x52000001",
+    });
 
     // when createPanadapter is called and the radio disconnects before status arrives
     const creation = radio.createPanadapter();

@@ -81,7 +81,9 @@ describe("XVTR store integration", () => {
 
     // when a new xvtr status arrives
     const createChanges = store.apply(
-      makeStatus("S1|xvtr 0 name=2M rf_freq=144.000000 if_freq=28.000000 order=0 is_valid=1"),
+      makeStatus(
+        "S1|xvtr 0 name=2M rf_freq=144.000000 if_freq=28.000000 order=0 is_valid=1",
+      ),
     );
 
     // then the store contains the xvtr
@@ -106,7 +108,7 @@ describe("XVTR store integration", () => {
     expect(updateChanges).toHaveLength(1);
 
     // when a removal status arrives
-    const removeChanges = store.apply(makeStatus("S3|xvtr 0 removed=1"));
+    const removeChanges = store.apply(makeStatus("S3|xvtr 0 in_use=0"));
 
     // then the xvtr is gone
     expect(store.getXvtr("0")).toBeUndefined();
@@ -221,7 +223,7 @@ describe("XVTR controller", () => {
     expect(changes).toHaveLength(1);
 
     // when a removal status arrives
-    connection.emitStatus("S3|xvtr 0 removed=1");
+    connection.emitStatus("S3|xvtr 0 in_use=0");
 
     // then the controller is no longer accessible and snapshot throws
     expect(radio.xvtr("0")).toBeUndefined();

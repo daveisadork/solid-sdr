@@ -10,7 +10,7 @@ import { lineSpeedToDurationMs } from "../../src/flex/waterfall-line-speed.js";
 import { makeStatus } from "../helpers.js";
 
 const SLICE_STATUS =
-  "S3A5E996B|slice 0 in_use=1 sample_rate=24000 RF_frequency=15.000000 client_handle=0x68AE2A9B index_letter=A rit_on=0 rit_freq=0 xit_on=0 xit_freq=0 rxant=ANT1 mode=USB wide=1 filter_lo=100 filter_hi=2800 step=100 step_list=1,10,50,100,500,1000,2000,3000 agc_mode=fast agc_threshold=60 agc_off_level=0 pan=0x40000000 txant=ANT1 loopa=0 loopb=0 qsk=0 dax_iq_channel=0 dax=1 dax_clients=0 lock=0 tx=0 active=0 audio_level=49 audio_pan=50 audio_mute=0 record=0 play=disabled record_time=0.0 anf=0 anf_level=0 nr=0 nr_level=0 nr_wlen=256 nr_delay=25 nr_adapt_mode=2 nr_isdft_mode=1 nb=1 nb_level=50 wnb=1 wnb_level=90 nrl=1 nrl_level=35 nrl_filter_size=128 nrl_delay=16 nrl_leakage_level=50 anfl=1 anfl_level=45 anfl_filter_size=128 anfl_delay=16 anfl_leakage_level=50 nrs=1 nrs_level=20 rnn=1 anft=1 nrf=1 nrf_level=55 nrf_winc=256 nrf_wlen=2048 esc=on esc_gain=0.750000 esc_phase_shift=15.5 apf=0 apf_level=0 squelch=0 squelch_level=20 diversity=0 diversity_parent=0 diversity_child=0 diversity_index=1342177293 ant_list=ANT1,ANT2,RX_A,RX_B,XVTA,XVTB mode_list=LSB,USB,AM,CW,DIGL,DIGU,SAM,FM,NFM,DFM,RTTY fm_tone_mode=OFF fm_tone_value=67.0 fm_repeater_offset_freq=0.000000 tx_offset_freq=0.000000 repeater_offset_dir=SIMPLEX fm_tone_burst=0 fm_deviation=5000 dfm_pre_de_emphasis=0 post_demod_low=300 post_demod_high=3300 rtty_mark=2125 rtty_shift=170 digl_offset=2210 digu_offset=1500 post_demod_bypass=0 rfgain=8 tx_ant_list=ANT1,ANT2,XVTA,XVTB rx_error_mHz=-31.677248";
+  "S3A5E996B|slice 0 in_use=1 sample_rate=24000 RF_frequency=15.000000 client_handle=0x68AE2A9B index_letter=A rit_on=0 rit_freq=0 xit_on=0 xit_freq=0 rxant=ANT1 mode=USB wide=1 filter_lo=100 filter_hi=2800 step=100 step_list=1,10,50,100,500,1000,2000,3000 agc_mode=fast agc_threshold=60 agc_off_level=0 pan=0x40000000 txant=ANT1 loopa=0 loopb=0 qsk=0 dax_iq_channel=0 dax=1 dax_clients=0 lock=0 tx=0 active=0 audio_level=49 audio_pan=50 audio_mute=0 record=0 play=disabled record_time=0.0 anf=0 anf_level=0 nr=0 nr_level=0 nr_wlen=256 nr_delay=25 nr_adapt_mode=2 nr_isdft_mode=1 nb=1 nb_level=50 wnb=1 wnb_level=90 nrl=1 nrl_level=35 nrl_filter_size=128 nrl_delay=16 nrl_leakage_level=50 anfl=1 anfl_level=45 anfl_filter_size=128 anfl_delay=16 anfl_leakage_level=50 nrs=1 nrs_level=20 rnn=1 anft=1 nrf=1 nrf_level=55 nrf_winc=256 nrf_wlen=2048 esc=1 esc_gain=0.750000 esc_phase_shift=15.5 apf=0 apf_level=0 squelch=0 squelch_level=20 diversity=0 diversity_parent=0 diversity_child=0 diversity_index=1342177293 ant_list=ANT1,ANT2,RX_A,RX_B,XVTA,XVTB mode_list=LSB,USB,AM,CW,DIGL,DIGU,SAM,FM,NFM,DFM,RTTY fm_tone_mode=OFF fm_tone_value=67.0 fm_repeater_offset_freq=0.000000 tx_offset_freq=0.000000 repeater_offset_dir=SIMPLEX fm_tone_burst=0 fm_deviation=5000 dfm_pre_de_emphasis=0 post_demod_low=300 post_demod_high=3300 rtty_mark=2125 rtty_shift=170 digl_offset=2210 digu_offset=1500 post_demod_bypass=0 rfgain=8 tx_ant_list=ANT1,ANT2,XVTA,XVTB rx_error_mHz=-31.677248";
 
 const PAN_STATUS =
   "S3A411681|display pan 0x40000000 client_handle=0x3A411681 wnb=0 wnb_level=90 wnb_updating=0 band_zoom=0 segment_zoom=0 x_pixels=50 y_pixels=20 center=14.100000 bandwidth=0.200000 min_dbm=-125.00 max_dbm=-40.00 fps=25 average=0 weighted_average=0 rfgain=8 rxant=ANT1 wide=0 loopa=0 loopb=0 band=20 daxiq_channel=0 waterfall=0x42000000 min_bw=0.001230 max_bw=14.745601 xvtr= pre=+8dB ant_list=ANT1,ANT2,RX_A,RX_B,XVTA,XVTB";
@@ -243,9 +243,7 @@ describe("createRadioStateStore", () => {
       ),
     );
     store.apply(
-      makeStatus(
-        "S1|license feature name=auto_tune enabled=0 reason=plus",
-      ),
+      makeStatus("S1|license feature name=auto_tune enabled=0 reason=plus"),
     );
     store.apply(
       makeStatus(
@@ -408,12 +406,10 @@ describe("createRadioStateStore", () => {
     const store = createRadioStateStore();
     const filterVoice =
       "S5FE02338|radio filter_sharpness VOICE level=2 auto_level=1";
-    const filterCw =
-      "S5FE02338|radio filter_sharpness CW level=2 auto_level=1";
+    const filterCw = "S5FE02338|radio filter_sharpness CW level=2 auto_level=1";
     const filterDigital =
       "S5FE02338|radio filter_sharpness DIGITAL level=2 auto_level=1";
-    const staticNet =
-      "S5FE02338|radio static_net_params ip= gateway= netmask=";
+    const staticNet = "S5FE02338|radio static_net_params ip= gateway= netmask=";
     const oscillator =
       "S5FE02338|radio oscillator state=gpsdo setting=auto locked=1 ext_present=0 gnss_present=0 gpsdo_present=1 tcxo_present=1";
 
@@ -496,6 +492,56 @@ describe("createRadioStateStore", () => {
     expect(radio?.atuUsingMemory).toBe(false);
   });
 
+  it("tracks legacy and container waveform statuses", () => {
+    const store = createRadioStateStore();
+
+    const changes = store.apply(
+      makeStatus("S1|waveform installed_list=NAVTEX\u007f1.0,RapidM\u007f2.1"),
+    );
+
+    expect(store.getWaveforms()).toHaveLength(2);
+    expect(
+      store.getWaveforms().map((waveform) => waveform.displayName),
+    ).toEqual(["NAVTEX 1.0", "RapidM 2.1"]);
+    expect(changes.map((change) => change.entity)).toEqual([
+      "waveform",
+      "waveform",
+    ]);
+
+    store.apply(makeStatus("S2|waveform container name=FT8 version=0.9"));
+    expect(store.getWaveforms()).toHaveLength(3);
+
+    store.apply(makeStatus("S3|waveform installed_list=RapidM\u007f2.1"));
+    expect(
+      store.getWaveforms().map((waveform) => waveform.displayName),
+    ).toEqual(["RapidM 2.1", "FT8 0.9"]);
+
+    store.apply(
+      makeStatus("S4|waveform container name=FT8 version=0.9 removed"),
+    );
+    expect(
+      store.getWaveforms().map((waveform) => waveform.displayName),
+    ).toEqual(["RapidM 2.1"]);
+  });
+
+  it("tracks waveform processor status without logging unknown attributes", () => {
+    const store = createRadioStateStore();
+
+    store.apply(
+      makeStatus(
+        "S5|waveform wfp_status power=on ipaddr=10.16.83.234 ready=true",
+      ),
+    );
+
+    const radio = store.getRadio();
+    expect(radio?.wfpPowered).toBe(true);
+    expect(radio?.wfpReady).toBe(true);
+    expect(radio?.wfpIpAddress).toBe("10.16.83.234");
+    expect(radio?.raw["power"]).toBe("on");
+    expect(radio?.raw["ready"]).toBe("true");
+    expect(radio?.raw["ipaddr"]).toBe("10.16.83.234");
+  });
+
   it("applies info, version, and list replies to radio properties", () => {
     const store = createRadioStateStore();
     const infoMessage =
@@ -543,10 +589,7 @@ describe("createRadioStateStore", () => {
     expect(radio?.fpgaVersion).toBe("0x85d60e8c");
 
     store.patchRadio(
-      buildRadioListAttributes(
-        "rx_ant_list",
-        "ANT1,ANT2,RX_A,RX_B,XVTA,XVTB",
-      ),
+      buildRadioListAttributes("rx_ant_list", "ANT1,ANT2,RX_A,RX_B,XVTA,XVTB"),
     );
     store.patchRadio(
       buildRadioListAttributes("mic_list", "MIC,BAL,LINE,ACC,PC"),
@@ -646,14 +689,10 @@ describe("createRadioStateStore", () => {
 
     store.apply(makeStatus("S1|log module=amp level=WARN"));
     radio = store.getRadio();
-    expect(radio?.logModules).toEqual([
-      { name: "amp", level: "WARN" },
-    ]);
+    expect(radio?.logModules).toEqual([{ name: "amp", level: "WARN" }]);
 
     store.apply(makeStatus("S1|log module=amp level=INFO"));
     radio = store.getRadio();
-    expect(radio?.logModules).toEqual([
-      { name: "amp", level: "INFO" },
-    ]);
+    expect(radio?.logModules).toEqual([{ name: "amp", level: "INFO" }]);
   });
 });

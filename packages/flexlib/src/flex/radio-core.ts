@@ -109,6 +109,7 @@ import {
   type FilterPresetController,
   FilterPresetControllerImpl,
 } from "./filter-preset.js";
+import { type WaveformController, WaveformControllerImpl } from "./waveform.js";
 import {
   type FeatureLicenseController,
   FeatureLicenseControllerImpl,
@@ -126,6 +127,7 @@ import type {
   CwxStateChange,
   DvkStateChange,
   FilterPresetStateChange,
+  WaveformStateChange,
 } from "./state/index.js";
 import { parseVitaPacket, type VitaParsedPacket } from "../vita/parser.js";
 import { getModelInfo, type RadioModelInfo } from "./model-info.js";
@@ -350,6 +352,7 @@ const DEFAULT_HANDSHAKE_COMMANDS: readonly string[] = [
   "sub radio all",
   "sub apd all",
   "sub dvk all",
+  "sub waveform all",
   "keepalive enable",
 ];
 
@@ -515,6 +518,10 @@ class RadioImpl {
   private readonly tnfControllers = new Map<string, TnfControllerImpl>();
   private readonly memoryControllers = new Map<string, MemoryControllerImpl>();
   private readonly spotControllers = new Map<string, SpotControllerImpl>();
+  private readonly waveformControllers = new Map<
+    string,
+    WaveformControllerImpl
+  >();
   private readonly _apdController: ApdControllerImpl;
   private readonly _cwxController: CwxControllerImpl;
   private readonly _dvkController: DvkControllerImpl;
@@ -853,6 +860,22 @@ class RadioImpl {
   /** Removes all spots from the radio. */
   async clearSpots(): Promise<void> {
     await this.command("spot clear");
+  }
+
+  waveforms(): WaveformController[] {
+    return Array.from(this.waveformControllers.values());
+  }
+
+  waveform(id: string): WaveformController | undefined {
+    return this.getOrCreateController(
+      "waveform",
+      id,
+      this.waveformControllers,
+      () => {
+        if (!this.store.getWaveform(id)) return undefined;
+        return new WaveformControllerImpl(this, id);
+      },
+    );
   }
 
   cwx(): CwxController {
@@ -1360,6 +1383,17 @@ class RadioImpl {
           () => {
             if (!this.store.getSpot(change.id)) return undefined;
             return new SpotControllerImpl(this, change.id);
+          },
+        );
+        break;
+      case "waveform":
+        this.updateController(
+          change as Extract<RadioStateChange, { id: string }> &
+            WaveformStateChange,
+          this.waveformControllers,
+          () => {
+            if (!this.store.getWaveform(change.id)) return undefined;
+            return new WaveformControllerImpl(this, change.id);
           },
         );
         break;

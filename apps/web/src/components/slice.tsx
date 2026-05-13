@@ -792,7 +792,11 @@ const AudioControls = (props: {
             label="AGC Threshold"
           />
           <Show
-            when={!["DIGU", "DIGL", "CW", "RTTY"].includes(props.slice.mode)}
+            when={
+              !["DIGU", "DIGL", "CW", "RTTY", "FDVL", "FDVU"].includes(
+                props.slice.mode,
+              )
+            }
           >
             <SliderToggle
               disabled={!props.slice.squelchEnabled}

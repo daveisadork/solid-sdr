@@ -35,6 +35,9 @@ export * from "./waterfall-line-speed.js";
 // State/snapshot types
 export * from "./state/index.js";
 
+// File transfer
+export * from "./file-transfer.js";
+
 // Protocol and errors
 export * from "./errors.js";
 export * from "./protocol.js";

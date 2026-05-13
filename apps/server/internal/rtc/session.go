@@ -261,6 +261,18 @@ func (cs *clientSession) setupPeerConnection(ctx context.Context) {
 			dc.OnOpen(func() { cs.openTCP(dc) })
 		case "udp":
 			dc.OnOpen(func() { cs.openUDP(dc) })
+		case "upload":
+			dc.OnOpen(func() { go cs.openUploadProxy(dc) })
+		case "download":
+			dc.OnOpen(func() {
+				cs.mu.Lock()
+				rc := cs.radio
+				cs.mu.Unlock()
+
+				if rc != nil {
+					rc.setDownloadDC(dc)
+				}
+			})
 		default:
 			log.Printf("[rtc] unknown data channel protocol %q label %q", dc.Protocol(), dc.Label())
 		}
@@ -317,6 +329,8 @@ func (cs *clientSession) openTCP(dc *webrtc.DataChannel) {
 		if len(msg.Data) == 0 {
 			return
 		}
+
+		r.noteOutgoingCommand(msg.Data)
 
 		if err := r.writeTCP(msg.Data); err != nil {
 			log.Printf("[rtc] tcp write: %v", err)
@@ -410,6 +424,63 @@ func (cs *clientSession) handleTXTrack(track *webrtc.TrackRemote) {
 		pkt := buildTXOpusPacket(streamID, count, packet.Payload)
 		if _, err := u.Write(pkt); err != nil {
 			return
+		}
+	}
+}
+
+// openUploadProxy dials the radio's upload TCP port, signals the client when
+// ready, and forwards incoming data channel messages to the TCP connection.
+func (cs *clientSession) openUploadProxy(dc *webrtc.DataChannel) {
+	addr := dc.Label()
+
+	tcp, err := net.DialTimeout("tcp", addr, 10*time.Second)
+	if err != nil {
+		log.Printf("[rtc] upload dial %q: %v", addr, err)
+		_ = dc.SendText("error:" + err.Error())
+		_ = dc.Close()
+
+		return
+	}
+
+	data := make(chan []byte, 256)
+
+	// Set up OnMessage BEFORE sending ready so no chunks are missed.
+	dc.OnMessage(func(msg webrtc.DataChannelMessage) {
+		if len(msg.Data) == 0 {
+			return
+		}
+
+		data <- msg.Data
+	})
+
+	dc.OnClose(func() {
+		close(data)
+	})
+
+	dc.OnError(func(err error) {
+		log.Printf("[rtc] upload dc err: %v", err)
+	})
+
+	// Single null byte signals the client that the TCP connection is open.
+	if err := dc.Send([]byte{0}); err != nil {
+		log.Printf("[rtc] upload ready signal: %v", err)
+
+		_ = tcp.Close()
+		_ = dc.Close()
+	}
+
+	defer func() {
+		log.Printf("[rtc] closing upload tcp")
+
+		_ = tcp.Close()
+	}()
+
+	for chunk := range data {
+		_, writeErr := tcp.Write(chunk)
+		if writeErr != nil {
+			log.Printf("[rtc] upload tcp write: %v", writeErr)
+
+			break
 		}
 	}
 }

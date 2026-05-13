@@ -111,6 +111,15 @@ import {
 } from "./filter-preset.js";
 import { type WaveformController, WaveformControllerImpl } from "./waveform.js";
 import {
+  type FileUpload,
+  type FileDownload,
+  type UploadFileOptions,
+  FileUploadImpl,
+  FileDownloadImpl,
+  toAsyncIterable,
+  resolveTotalBytes,
+} from "./file-transfer.js";
+import {
   type FeatureLicenseController,
   FeatureLicenseControllerImpl,
 } from "./feature-license.js";
@@ -483,6 +492,7 @@ class RadioImpl {
   private readonly networkDiagnosticsTracker =
     new RadioNetworkDiagnosticsTracker();
   private lastNetworkDiagnosticsNotify = 0;
+  private activeUpload?: FileUploadImpl;
 
   // Stream handler registries for UDP data routing
   private readonly streamHandlers = new Map<number, Set<StreamPacketHandler>>();
@@ -876,6 +886,109 @@ class RadioImpl {
         return new WaveformControllerImpl(this, id);
       },
     );
+  }
+
+  // -----------------------------------------------------------------------
+  // File transfer
+  // -----------------------------------------------------------------------
+
+  /**
+   * Upload a file to the radio.
+   *
+   * Sends `file filename <name>` (when `filename` is provided) and
+   * `file upload <bytes> <target>`, then streams data to the port the radio
+   * replies with. Returns a {@link FileUpload} that emits `progress`, `failed`,
+   * and `done` events as the radio sends `file update` status messages.
+   *
+   * The upload starts in the background immediately after the method resolves —
+   * attach event listeners on the returned object right away.
+   */
+  async uploadFile(opts: UploadFileOptions): Promise<FileUpload> {
+    if (this.activeUpload) {
+      throw new Error("An upload is already in progress");
+    }
+    if (
+      this._connectionState !== "connecting" &&
+      this._connectionState !== "connected"
+    ) {
+      throw new FlexClientClosedError();
+    }
+    const conn = this.connection;
+    if (!conn) throw new FlexClientClosedError();
+
+    const totalBytes = resolveTotalBytes(opts);
+    const stream = toAsyncIterable(opts.data);
+
+    // The `new_waveform` target uses a separate `file filename` pre-command;
+    // all other targets (e.g. `waveform_docker_image`) take the filename inline.
+    let uploadCmd: string;
+    if (opts.target === "new_waveform") {
+      if (opts.filename) {
+        await this.command(`file filename ${opts.filename}`);
+      }
+      uploadCmd = `file upload ${totalBytes} ${opts.target}`;
+    } else {
+      uploadCmd = opts.filename
+        ? `file upload ${totalBytes} ${opts.target} ${opts.filename}`
+        : `file upload ${totalBytes} ${opts.target}`;
+    }
+
+    const response = await this.command(uploadCmd);
+    const port = parseInt(response.message ?? "", 10);
+    if (!Number.isFinite(port) || port <= 0) {
+      throw new Error(
+        `Radio did not return a valid upload port: ${JSON.stringify(response.message)}`,
+      );
+    }
+
+    const upload = new FileUploadImpl();
+    this.activeUpload = upload;
+
+    conn
+      .openUpload({ host: this._endpoint.host, port }, stream)
+      .then(() => {
+        if (this.activeUpload === upload) this.activeUpload = undefined;
+        upload.receiveDone();
+      })
+      .catch((err: unknown) => {
+        if (this.activeUpload === upload) this.activeUpload = undefined;
+        upload.receiveFailed(err instanceof Error ? err.message : String(err));
+      });
+
+    return upload;
+  }
+
+  /**
+   * Prepare a file download from the radio.
+   *
+   * Returns a {@link FileDownload} synchronously. Attach any listeners, then
+   * call {@link FileDownload.start} to initiate. `start()` resolves with the
+   * complete file bytes when the transfer is done.
+   */
+  createDownload(target: string): FileDownload {
+    return new FileDownloadImpl(async () => {
+      if (
+        this._connectionState !== "connecting" &&
+        this._connectionState !== "connected"
+      ) {
+        throw new FlexClientClosedError();
+      }
+      const conn = this.connection;
+      if (!conn) throw new FlexClientClosedError();
+
+      const receiver = await conn.prepareDownload(this._endpoint);
+
+      const response = await this.command(`file download ${target}`);
+      const port = parseInt(response.message ?? "", 10);
+      if (!Number.isFinite(port) || port <= 0) {
+        throw new Error(
+          `Radio did not return a valid download port: ${JSON.stringify(response.message)}`,
+        );
+      }
+
+      receiver.accept(port);
+      return receiver.result();
+    });
   }
 
   cwx(): CwxController {
@@ -2496,10 +2609,13 @@ class RadioImpl {
       case "status":
         this.captureDisconnectedReason(parsed);
         this.events.emit("status", parsed);
-        for (const change of this.store.apply(parsed)) {
-          this.handleStateChange(change);
+        if (parsed.source !== "file") {
+          for (const change of this.store.apply(parsed)) {
+            this.handleStateChange(change);
+          }
         }
         this.handleSpotTriggered(parsed);
+        this.handleFileUpdate(parsed);
         break;
       case "reply":
         this.events.emit("reply", parsed);
@@ -2525,6 +2641,25 @@ class RadioImpl {
 
     // Emit on the radio for global listeners
     this.events.emit("spotTriggered", event);
+  }
+
+  private handleFileUpdate(msg: FlexStatusMessage): void {
+    if (msg.source !== "file" || msg.identifier !== "update") return;
+    const upload = this.activeUpload;
+    if (!upload) return;
+
+    const transfer = msg.attributes["transfer"];
+    const failed = msg.attributes["failed"];
+    const reason = msg.attributes["reason"];
+
+    if (transfer !== undefined) {
+      const pct = parseFloat(transfer);
+      if (Number.isFinite(pct)) upload.receiveProgress(pct);
+    }
+    if (failed === "1") {
+      this.activeUpload = undefined;
+      upload.receiveFailed(reason);
+    }
   }
 
   private handleReply(reply: FlexReplyMessage): void {

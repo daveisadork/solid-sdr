@@ -1,4 +1,5 @@
 import type {
+  FileDownloadReceiver,
   FlexConnection,
   FlexConnectionEvents,
   FlexTransport,
@@ -85,6 +86,29 @@ export class MockFlexConnection
 
   async sendUdp(data: Uint8Array): Promise<void> {
     this.sentUdp.push(data);
+  }
+
+  // Upload chunks captured for test assertions
+  readonly uploadedChunks: Uint8Array[] = [];
+  // If set, prepareDownload resolves with this receiver
+  downloadReceiver?: FileDownloadReceiver;
+
+  async openUpload(
+    _endpoint: RadioEndpoint,
+    data: AsyncIterable<Uint8Array>,
+  ): Promise<void> {
+    for await (const chunk of data) {
+      this.uploadedChunks.push(chunk);
+    }
+  }
+
+  async prepareDownload(_endpoint: RadioEndpoint): Promise<FileDownloadReceiver> {
+    if (this.downloadReceiver) return this.downloadReceiver;
+    // Default stub: accept is a no-op; result never resolves (tests must supply a receiver)
+    return {
+      accept: () => {},
+      result: () => new Promise<Uint8Array>(() => {}),
+    };
   }
 
   async close(): Promise<void> {

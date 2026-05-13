@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -36,6 +37,10 @@ type radioConn struct {
 	internalPingSentAt   time.Time
 	serverToRadioRTTMax  time.Duration
 	onNetworkDiagnostics func(serverRadioNetworkDiagnostics)
+
+	downloadDC          *webrtc.DataChannel
+	pendingDownloadSeq  uint32
+	pendingDownloadSeqOk bool
 }
 
 type serverRadioNetworkDiagnostics struct {
@@ -245,6 +250,74 @@ func (rc *radioConn) close() {
 	}
 }
 
+func (rc *radioConn) setDownloadDC(dc *webrtc.DataChannel) {
+	rc.mu.Lock()
+	rc.downloadDC = dc
+	rc.mu.Unlock()
+}
+
+var (
+	reFileDownloadCmd   = regexp.MustCompile(`^C(\d+)\|file download `)
+	reFileDownloadReply = regexp.MustCompile(`^R(\d+)\|00000000\|(\d+)\s*$`)
+)
+
+// noteOutgoingCommand inspects data the client is about to send to the radio
+// and records the sequence number of any `file download` command.
+func (rc *radioConn) noteOutgoingCommand(data []byte) {
+	line := strings.TrimRight(string(data), "\r\n")
+	m := reFileDownloadCmd.FindStringSubmatch(line)
+	if m == nil {
+		return
+	}
+	seq, err := strconv.ParseUint(m[1], 10, 32)
+	if err != nil {
+		return
+	}
+	rc.mu.Lock()
+	rc.pendingDownloadSeq = uint32(seq)
+	rc.pendingDownloadSeqOk = true
+	rc.mu.Unlock()
+}
+
+// serveDownload listens on port, accepts one connection from the radio, and
+// relays the received bytes to the client's download data channel in chunks.
+// An empty Send signals EOF.
+func (rc *radioConn) serveDownload(port int, dc *webrtc.DataChannel) {
+	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		log.Printf("[rtc] download listen :%d: %v", port, err)
+		_ = dc.Send([]byte("error:" + err.Error()))
+		return
+	}
+	defer ln.Close()
+
+	conn, err := ln.Accept()
+	if err != nil {
+		log.Printf("[rtc] download accept: %v", err)
+		return
+	}
+	defer conn.Close()
+
+	buf := make([]byte, 32*1024)
+	for {
+		n, readErr := conn.Read(buf)
+		if n > 0 {
+			chunk := make([]byte, n)
+			copy(chunk, buf[:n])
+			if sendErr := dc.Send(chunk); sendErr != nil {
+				log.Printf("[rtc] download dc send: %v", sendErr)
+				return
+			}
+		}
+		if readErr != nil {
+			break
+		}
+	}
+
+	// EOF signal — zero-length frame.
+	_ = dc.Send([]byte{})
+}
+
 // tcpForwarder reads lines from the radio, forwards to the TCP data channel,
 // and watches for stream announcements.
 func (rc *radioConn) tcpForwarder(rd *bufio.Reader) {
@@ -254,8 +327,30 @@ func (rc *radioConn) tcpForwarder(rd *bufio.Reader) {
 			return
 		}
 
-		if rc.consumeInternalPingReply(strings.TrimSpace(b), time.Now()) {
+		trimmed := strings.TrimSpace(b)
+
+		if rc.consumeInternalPingReply(trimmed, time.Now()) {
 			continue
+		}
+
+		// Intercept file download replies: start the TCP listener BEFORE
+		// forwarding the reply to the client so the radio never connects to
+		// a port we haven't opened yet.
+		if m := reFileDownloadReply.FindStringSubmatch(trimmed); m != nil {
+			seq, _ := strconv.ParseUint(m[1], 10, 32)
+			port, _ := strconv.Atoi(m[2])
+
+			rc.mu.Lock()
+			match := rc.pendingDownloadSeqOk && rc.pendingDownloadSeq == uint32(seq)
+			dc := rc.downloadDC
+			if match {
+				rc.pendingDownloadSeqOk = false
+			}
+			rc.mu.Unlock()
+
+			if match && dc != nil && port > 0 {
+				go rc.serveDownload(port, dc)
+			}
 		}
 
 		rc.sendTCPLine(b)

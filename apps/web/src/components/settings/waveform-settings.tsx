@@ -1,4 +1,4 @@
-import { createSignal, For, Show } from "solid-js";
+import { createEffect, createSignal, For, Show } from "solid-js";
 
 import {
   Table,
@@ -9,7 +9,12 @@ import {
   TableRow,
 } from "../ui/table";
 import useFlexRadio from "~/context/flexradio";
-import { DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
+import {
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Badge } from "../ui/badge";
 import BaselineDelete from "~icons/ic/baseline-delete";
@@ -18,6 +23,9 @@ import SvgSpinners180Ring from "~icons/svg-spinners/180-ring";
 import { Button } from "../ui/button";
 import { WaveformController } from "@repo/flexlib";
 import { Dynamic } from "solid-js/web";
+import { showToast } from "../ui/toast";
+import { ProgressCircle } from "../ui/progress-circle";
+import { Progress, ProgressLabel, ProgressValueLabel } from "../ui/progress";
 
 const UninstallButton = (props: { ctrl: WaveformController }) => {
   const [working, setWorking] = createSignal(false);
@@ -58,6 +66,45 @@ const RestartButton = (props: { ctrl: WaveformController }) => {
 
 export function WaveformSettings() {
   const { radio, state } = useFlexRadio();
+  const [uploadProgress, setUploadProgress] = createSignal(0);
+  const [uploadFile, setUploadFile] = createSignal<File>();
+  const [target, setTarget] = createSignal("waveform_docker_image");
+
+  createEffect(() => {
+    setUploadProgress(0);
+    const file = uploadFile();
+    if (!file) return;
+
+    radio()
+      .uploadFile({
+        filename: file.name,
+        target: target(),
+        data: file.stream().values(),
+        totalBytes: file.size,
+      })
+      .then((upload) => {
+        upload.on("progress", (p) => {
+          setUploadProgress(Math.round(p * 100));
+        });
+        upload.on("done", () => setUploadFile());
+        upload.on("failed", (f) => {
+          showToast({
+            title: "Upload Failed",
+            variant: "error",
+            description: f.reason ?? "unknown error",
+          });
+          setUploadFile();
+        });
+      })
+      .catch((err: unknown) => {
+        showToast({
+          title: "Upload Failed",
+          variant: "error",
+          description: err instanceof Error ? err.message : String(err),
+        });
+        setUploadFile();
+      });
+  });
 
   return (
     <DialogContent class="translate-y-0 top-1/12 flex flex-col max-h-10/12 overflow-hidden">
@@ -127,7 +174,47 @@ export function WaveformSettings() {
             </For>
           </TableBody>
         </Table>
+        <Show when={uploadFile()}>
+          <Progress
+            value={uploadProgress()}
+            minValue={0}
+            maxValue={100}
+            getValueLabel={({ value }) => `${value}%`}
+            class="flex flex-col gap-2"
+          >
+            <div class="flex justify-between">
+              <ProgressLabel>Uploading {uploadFile()?.name}</ProgressLabel>
+              <ProgressValueLabel />
+            </div>
+          </Progress>
+        </Show>
       </div>
+      <DialogFooter class="flex flex-col gap-2 items-stretch sm:items-center">
+        <Button as="label" disabled={Boolean(uploadFile())}>
+          <input
+            class="hidden"
+            type="file"
+            value={""}
+            onChange={(event) => {
+              setTarget("new_waveform");
+              setUploadFile(event.target.files?.item(0));
+            }}
+          />
+          Install Legacy
+        </Button>
+        <Button as="label" disabled={Boolean(uploadFile())}>
+          <input
+            class="hidden"
+            type="file"
+            value={""}
+            onChange={(event) => {
+              setTarget("waveform_docker_image");
+              setUploadFile(event.target.files?.item(0));
+            }}
+          />
+          Install Container
+        </Button>
+      </DialogFooter>
     </DialogContent>
   );
 }

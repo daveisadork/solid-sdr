@@ -70,8 +70,7 @@ export function Settings() {
         >
           <MdiSettings class="size-full" />
         </DropdownMenuTrigger>
-        <DropdownMenuContent class="overflow-auto">
-          <DropdownMenuArrow />
+        <DropdownMenuContent>
           <DropdownMenuItem onSelect={() => setActiveTab("app")}>
             App Settings
           </DropdownMenuItem>

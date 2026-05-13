@@ -5,7 +5,7 @@
  * @module
  */
 
-import { Socket } from "node:net";
+import { Socket, createServer, type Server } from "node:net";
 import {
   createSocket,
   type Socket as DgramSocket,
@@ -14,6 +14,7 @@ import {
 import type { Subscription } from "../util/events.js";
 import { TypedEventEmitter } from "../util/events.js";
 import type {
+  FileDownloadReceiver,
   FlexConnection,
   FlexConnectionEvents,
   FlexTransport,
@@ -125,6 +126,69 @@ export class NodeConnection
     return new Promise<void>((resolve, reject) => {
       socket.send(data, (err) => (err ? reject(err) : resolve()));
     });
+  }
+
+  async openUpload(
+    endpoint: RadioEndpoint,
+    data: AsyncIterable<Uint8Array>,
+  ): Promise<void> {
+    if (this.closed) throw new Error("Connection is closed");
+
+    const socket = new Socket();
+
+    await new Promise<void>((resolve, reject) => {
+      socket.once("error", reject);
+      socket.connect(endpoint.port, endpoint.host, () => {
+        socket.removeListener("error", reject);
+        resolve();
+      });
+    });
+
+    try {
+      for await (const chunk of data) {
+        await new Promise<void>((resolve, reject) => {
+          socket.write(chunk, (err) => (err ? reject(err) : resolve()));
+        });
+      }
+    } finally {
+      await new Promise<void>((resolve) => {
+        socket.once("close", resolve);
+        socket.end();
+      });
+    }
+  }
+
+  async prepareDownload(_endpoint: RadioEndpoint): Promise<FileDownloadReceiver> {
+    if (this.closed) throw new Error("Connection is closed");
+
+    let resolveData!: (data: Uint8Array) => void;
+    let rejectData!: (err: Error) => void;
+    const dataPromise = new Promise<Uint8Array>((resolve, reject) => {
+      resolveData = resolve;
+      rejectData = reject;
+    });
+
+    let server: Server | undefined;
+
+    return {
+      accept: (port: number): void => {
+        server = createServer((socket) => {
+          const chunks: Buffer[] = [];
+          socket.on("data", (chunk: Buffer) => chunks.push(chunk));
+          socket.on("end", () => {
+            resolveData(new Uint8Array(Buffer.concat(chunks)));
+            server?.close();
+          });
+          socket.on("error", (err: Error) => {
+            rejectData(err);
+            server?.close();
+          });
+        });
+        server.on("error", (err: Error) => rejectData(err));
+        server.listen(port);
+      },
+      result: () => dataPromise,
+    };
   }
 
   async close(): Promise<void> {

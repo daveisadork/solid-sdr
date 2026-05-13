@@ -416,8 +416,12 @@ export function FilterControls(props: {
   slice: SliceState;
   controller: SliceController;
 }) {
-  const [rawDiglOffset, setRawDiglOffset] = createSignal(2210);
-  const [rawDiguOffset, setRawDiguOffset] = createSignal(1500);
+  const [rawDiglOffset, setRawDiglOffset] = createSignal(
+    props.slice.diglOffsetHz,
+  );
+  const [rawDiguOffset, setRawDiguOffset] = createSignal(
+    props.slice.diguOffsetHz,
+  );
   const [rawFilterLow, setRawFilterLow] = createSignal(props.slice.filterLowHz);
   const [rawFilterHigh, setRawFilterHigh] = createSignal(
     props.slice.filterHighHz,
@@ -477,25 +481,11 @@ export function FilterControls(props: {
     if (mode === "DIGU" || mode === "FDVU") {
       const offset = props.slice.diguOffsetHz;
       const clamp = Math.max(offset, -lowCut) - offset;
-      console.log("Applying preset offset for mode", mode, {
-        offset,
-        clamp,
-        lowCut,
-        highCut,
-        resolved: [lowCut + clamp + offset, highCut + clamp + offset],
-      });
       return [lowCut + clamp + offset, highCut + clamp + offset];
     }
     if (mode === "DIGL" || mode == "FDVL") {
       const offset = props.slice.diglOffsetHz;
       const clamp = Math.max(offset, highCut) - offset;
-      console.log("Applying preset offset for mode", mode, {
-        offset,
-        clamp,
-        lowCut,
-        highCut,
-        resolved: [lowCut - clamp - offset, highCut - clamp - offset],
-      });
       return [lowCut - clamp - offset, highCut - clamp - offset];
     }
     return [lowCut, highCut];

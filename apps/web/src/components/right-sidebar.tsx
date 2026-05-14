@@ -58,16 +58,24 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { EqualizerBand } from "@repo/flexlib/flex/state/equalizer";
 import { Button } from "./ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
+import MaterialSymbolsMoreVert from "~icons/material-symbols/more-vert";
+import { CreateProfileDialog } from "./settings/profile-settings";
 
 const PROCESSOR_LEVELS = ["Norm", "DX", "DX+"];
 const VOICE_MODES = new Set(["USB", "LSB", "AM", "SAM", "FM", "NFM"]);
 
 function TxSection() {
   const { state, radio } = useFlexRadio();
-  const [txProfiles, setTxProfiles] = createStore<string[]>([]);
   const [rawRfPower, setRawRfPower] = createSignal(0);
   const [fwdPwrWatts, setFwdPwrWatts] = createSignal(0);
   const [refPwrWatts, setRefPwrWatts] = createSignal(0);
+  const [createProfile, setCreateProfile] = createSignal(false);
 
   const setRfPower = (value: number) => {
     if (value !== state.status.radio.rfPower) {
@@ -117,10 +125,14 @@ function TxSection() {
     return (1 + x) / (1 - x);
   });
 
-  createEffect(() => setTxProfiles(state?.status?.radio?.profileTxList ?? []));
-
   return (
     <AccordionItem value="tx">
+      <CreateProfileDialog
+        open={createProfile()}
+        onOpenChange={setCreateProfile}
+        radio={radio()}
+        kind="tx"
+      />
       <AccordionTrigger>Transmit</AccordionTrigger>
       <AccordionContent>
         <div class="text-sm flex flex-col gap-3 overflow-visible">
@@ -210,13 +222,14 @@ function TxSection() {
             label="Tune Power"
           />
           <Select
-            class="flex flex-col gap-2 select-none"
+            class="flex flex-col gap-2 select-none relative"
             value={state.status.radio.profileTxSelection}
             onChange={(value: string) => {
-              if (!value) return;
+              if (!value || value === state.status.radio.profileTxSelection)
+                return;
               radio()?.loadTxProfile(value);
             }}
-            options={txProfiles}
+            options={Array.from(state.status.radio.profileTxList)}
             itemComponent={(props) => {
               return (
                 <SelectItem item={props.item}>{props.item.rawValue}</SelectItem>
@@ -224,11 +237,68 @@ function TxSection() {
             }}
           >
             <SelectLabel>TX Profile</SelectLabel>
-            <SelectTrigger>
-              <SelectValue<string>>
-                {(state) => state.selectedOption()}
+            <SelectTrigger class="w-auto mr-12">
+              <SelectValue<string> class="overflow-hidden">
+                {({ selectedOption }) => (
+                  <div class="flex gap-3 items-center">
+                    <Show when={state.status.radio.profileUnsavedChangesTx}>
+                      <div class="rounded-full size-2 bg-warning-foreground shrink-0" />
+                    </Show>
+                    <div class="overflow-hidden whitespace-nowrap text-ellipsis">
+                      {selectedOption()}
+                    </div>
+                  </div>
+                )}
               </SelectValue>
             </SelectTrigger>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                as={Button}
+                size="icon"
+                class="absolute right-0 bottom-0"
+              >
+                <MaterialSymbolsMoreVert />
+              </DropdownMenuTrigger>
+
+              <DropdownMenuContent>
+                <DropdownMenuItem
+                  disabled={
+                    !state.status.radio.profileTxSelection ||
+                    !state.status.radio.profileUnsavedChangesTx
+                  }
+                  onSelect={() =>
+                    radio().createTxProfile(
+                      state.status.radio.profileTxSelection,
+                    )
+                  }
+                >
+                  Save
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setCreateProfile(true)}>
+                  Save As...
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={!state.status.radio.profileTxSelection}
+                  onSelect={() =>
+                    radio().resetTxProfile(
+                      state.status.radio.profileTxSelection,
+                    )
+                  }
+                >
+                  Reset
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={!state.status.radio.profileTxSelection}
+                  onSelect={() =>
+                    radio().deleteTxProfile(
+                      state.status.radio.profileTxSelection,
+                    )
+                  }
+                >
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <SelectContent />
           </Select>
           <SimpleSwitch
@@ -332,15 +402,9 @@ function TxSection() {
 
 function MicSection() {
   const { state, radio } = useFlexRadio();
-  const [micInputList, setMicInputList] = createStore<string[]>([]);
-  const [micProfileList, setMicProfileList] = createStore<string[]>([]);
   const [micPeakValue, setMicPeakValue] = createSignal(-150);
   const [compPeakValue, setCompPeakValue] = createSignal(-150);
-
-  createEffect(() => setMicInputList(state?.status?.radio?.micInputList ?? []));
-  createEffect(() =>
-    setMicProfileList(state?.status?.radio?.profileMicList ?? []),
-  );
+  const [createProfile, setCreateProfile] = createSignal(false);
 
   const micMeter = createMemo(() =>
     Object.values(state.status.meter).find((meter) => meter.name === "MIC"),
@@ -381,6 +445,12 @@ function MicSection() {
 
   return (
     <div class="flex flex-col gap-3">
+      <CreateProfileDialog
+        open={createProfile()}
+        onOpenChange={setCreateProfile}
+        radio={radio()}
+        kind="mic"
+      />
       <Show when={micMeter()}>
         {(acc) => {
           const meter = acc();
@@ -437,13 +507,14 @@ function MicSection() {
         }}
       </Show>
       <Select
-        class="flex flex-col gap-2 select-none"
+        class="flex flex-col gap-2 select-none relative"
         value={state.status.radio.profileMicSelection}
         onChange={(value: string) => {
-          if (!value) return;
+          if (!value || value === state.status.radio.profileMicSelection)
+            return;
           radio()?.loadMicProfile(value);
         }}
-        options={micProfileList}
+        options={Array.from(state.status.radio.profileMicList)}
         itemComponent={(props) => {
           return (
             <SelectItem item={props.item}>{props.item.rawValue}</SelectItem>
@@ -451,19 +522,72 @@ function MicSection() {
         }}
       >
         <SelectLabel>Mic Profile</SelectLabel>
-        <SelectTrigger>
-          <SelectValue<string>>{(state) => state.selectedOption()}</SelectValue>
+        <SelectTrigger class="w-auto mr-12">
+          <SelectValue<string> class="overflow-hidden">
+            {({ selectedOption }) => (
+              <div class="flex gap-3 items-center">
+                <Show when={state.status.radio.profileUnsavedChangesMic}>
+                  <div class="rounded-full size-2 bg-warning-foreground shrink-0" />
+                </Show>
+                <div class="overflow-hidden whitespace-nowrap text-ellipsis">
+                  {selectedOption()}
+                </div>
+              </div>
+            )}
+          </SelectValue>
         </SelectTrigger>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            as={Button}
+            size="icon"
+            class="absolute right-0 bottom-0"
+          >
+            <MaterialSymbolsMoreVert />
+          </DropdownMenuTrigger>
+
+          <DropdownMenuContent>
+            <DropdownMenuItem
+              disabled={
+                !state.status.radio.profileMicSelection ||
+                !state.status.radio.profileUnsavedChangesMic
+              }
+              onSelect={() =>
+                radio().createMicProfile(state.status.radio.profileMicSelection)
+              }
+            >
+              Save
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setCreateProfile(true)}>
+              Save As...
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={!state.status.radio.profileMicSelection}
+              onSelect={() =>
+                radio().resetMicProfile(state.status.radio.profileMicSelection)
+              }
+            >
+              Reset
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={!state.status.radio.profileMicSelection}
+              onSelect={() =>
+                radio().deleteMicProfile(state.status.radio.profileMicSelection)
+              }
+            >
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <SelectContent />
       </Select>
       <Select
         class="flex flex-col gap-2 select-none"
         value={state.status.radio.micSelection}
         onChange={(value: string) => {
-          if (!value) return;
+          if (!value || value === state.status.radio.micSelection) return;
           radio()?.setMicSelection(value);
         }}
-        options={micInputList}
+        options={Array.from(state.status.radio.micInputList)}
         itemComponent={(props) => {
           return (
             <SelectItem item={props.item}>{props.item.rawValue}</SelectItem>

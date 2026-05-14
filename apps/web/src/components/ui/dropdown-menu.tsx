@@ -12,6 +12,7 @@ const DropdownMenuSub = DropdownMenuPrimitive.Sub;
 const DropdownMenuGroup = DropdownMenuPrimitive.Group;
 const DropdownMenuRadioGroup = DropdownMenuPrimitive.RadioGroup;
 const DropdownMenuArrow = DropdownMenuPrimitive.Arrow;
+const DropdownMenuIcon = DropdownMenuPrimitive.Icon;
 
 const DropdownMenu: Component<DropdownMenuPrimitive.DropdownMenuRootProps> = (
   props,
@@ -281,4 +282,5 @@ export {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuArrow,
+  DropdownMenuIcon,
 };

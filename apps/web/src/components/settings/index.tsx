@@ -38,6 +38,7 @@ import { MultiflexSettings } from "./multiflex-settings";
 import { NetworkStats } from "./network-stats";
 import { WaveformSettings } from "./waveform-settings";
 import { Meters } from "./meters";
+import { ProfileSettings } from "./profile-settings";
 
 const tabs = {
   app: AppSettings,
@@ -51,6 +52,7 @@ const tabs = {
   network: NetworkStats,
   waveform: WaveformSettings,
   meters: Meters,
+  profiles: ProfileSettings,
 };
 
 export function Settings() {
@@ -103,6 +105,9 @@ export function Settings() {
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => setActiveTab("meters")}>
             Meters
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => setActiveTab("profiles")}>
+            Profiles
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

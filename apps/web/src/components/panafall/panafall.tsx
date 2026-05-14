@@ -9,6 +9,7 @@ import {
   ComponentProps,
   splitProps,
   ValidComponent,
+  For,
 } from "solid-js";
 import { Panadapter } from "./panadapter";
 import { Waterfall } from "./waterfall";
@@ -33,12 +34,18 @@ import {
   ContextMenuCheckboxItem,
   ContextMenuGroup,
   ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubTrigger,
+  ContextMenuSubContent,
+  ContextMenuRadioGroup,
+  ContextMenuRadioItem,
 } from "../ui/context-menu";
 import { usePanafall } from "~/context/panafall";
 import { createWindowSize } from "@solid-primitives/resize-observer";
 import { usePreferences } from "~/context/preferences";
 import { Toggle } from "../ui/toggle";
 import { PanafallControl } from "./controls";
+import { CreateProfileDialog } from "../settings/profile-settings";
 
 type PanafallButtonProps<T extends ValidComponent = "button"> = ComponentProps<
   typeof TooltipTrigger<T>
@@ -100,6 +107,7 @@ export function Panafall(props: { index: number }) {
   const { preferences, setPreferences } = usePreferences();
   const { radio, state } = useFlexRadio();
   const [clickRef, setClickRef] = createSignal<HTMLElement>();
+  const [createProfile, setCreateProfile] = createSignal(false);
 
   const [dragState, setDragState] = createStore({
     down: false,
@@ -323,6 +331,12 @@ export function Panafall(props: { index: number }) {
         <Show when={panadapter()}>
           {(pan) => (
             <>
+              <CreateProfileDialog
+                radio={radio()}
+                kind="global"
+                open={createProfile()}
+                onOpenChange={setCreateProfile}
+              />
               <div class="relative size-full overflow-visible select-none">
                 <Resizable
                   class="size-full overflow-visible select-none"
@@ -406,6 +420,72 @@ export function Panafall(props: { index: number }) {
                           </div>
                           {`Create TNF at ${Math.round(xToFreq(pos.x) * 1_000_000).toLocaleString("de-DE")} Hz`}
                         </ContextMenuItem>
+                      </ContextMenuGroup>
+                      <ContextMenuSeparator />
+                      <ContextMenuGroup>
+                        <ContextMenuSub overlap>
+                          <ContextMenuSubTrigger>Profile</ContextMenuSubTrigger>
+                          <ContextMenuPortal>
+                            <ContextMenuSubContent>
+                              <ContextMenuGroup>
+                                <Show
+                                  when={state.status.radio.profileGlobalList.find(
+                                    (profile) =>
+                                      profile ===
+                                      state.status.radio.profileGlobalSelection,
+                                  )}
+                                >
+                                  {(profile) => (
+                                    <ContextMenuItem
+                                      onSelect={() =>
+                                        radio().saveGlobalProfile(profile())
+                                      }
+                                    >
+                                      {`Save ${profile()}`}
+                                    </ContextMenuItem>
+                                  )}
+                                </Show>
+                                <ContextMenuItem
+                                  onSelect={() => setCreateProfile(true)}
+                                >
+                                  Create New...
+                                </ContextMenuItem>
+                              </ContextMenuGroup>
+                              <ContextMenuSeparator />
+                              <ContextMenuGroup>
+                                <ContextMenuCheckboxItem
+                                  checked={state.status.radio.profileAutoSave}
+                                  onChange={(checked) => {
+                                    radio().setProfileAutoSave(checked);
+                                  }}
+                                >
+                                  Enable Profile Auto-Save
+                                </ContextMenuCheckboxItem>
+                              </ContextMenuGroup>
+                              <ContextMenuSeparator />
+                              <ContextMenuRadioGroup
+                                value={
+                                  state.status.radio.profileGlobalSelection
+                                }
+                                onChange={(profile) =>
+                                  radio().loadGlobalProfile(profile)
+                                }
+                              >
+                                <For
+                                  each={Array.from(
+                                    state.status.radio.profileGlobalList,
+                                  )}
+                                >
+                                  {(profile) => (
+                                    <ContextMenuRadioItem value={profile}>
+                                      {profile}
+                                    </ContextMenuRadioItem>
+                                  )}
+                                </For>
+                              </ContextMenuRadioGroup>
+                            </ContextMenuSubContent>
+                          </ContextMenuPortal>
+                        </ContextMenuSub>
                       </ContextMenuGroup>
                       <ContextMenuSeparator />
                       <ContextMenuGroup>

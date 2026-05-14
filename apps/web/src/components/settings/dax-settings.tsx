@@ -135,7 +135,7 @@ function InnerDaxSettings() {
           {/* </Show> */}
           <div class="flex gap-2">
             <Select
-              class="flex flex-col gap-2 grow shrink overflow-hidden"
+              class="flex flex-col gap-2 grow shrink"
               value={preferences.dax.tx.inputDeviceId}
               onChange={(value: string) => {
                 if (!value) return;
@@ -150,14 +150,17 @@ function InnerDaxSettings() {
               )}
             >
               <SelectLabel>Input Device</SelectLabel>
-              <SelectTrigger>
-                <SelectValue class="overflow-hidden text-ellipsis whitespace-nowrap">
-                  {(state) =>
-                    inputs().find((d) => d.deviceId === state.selectedOption())
-                      ?.label || "Select Audio Input"
-                  }
-                </SelectValue>
-              </SelectTrigger>
+              <div class="relative h-10">
+                <SelectTrigger class="absolute">
+                  <SelectValue class="shrink overflow-hidden text-ellipsis whitespace-nowrap">
+                    {(state) =>
+                      inputs().find(
+                        (d) => d.deviceId === state.selectedOption(),
+                      )?.label || "Select Audio Input"
+                    }
+                  </SelectValue>
+                </SelectTrigger>
+              </div>
               <SelectContent />
             </Select>
             <Select<DaxChannelMode>
@@ -266,7 +269,7 @@ function InnerDaxSettings() {
             <CardContent class="flex flex-col gap-4">
               <div class="flex gap-2">
                 <Select
-                  class="flex flex-col gap-2 grow shrink overflow-hidden"
+                  class="flex flex-col gap-2 grow shrink"
                   value={preferences.dax.rx[channel].outputDeviceId}
                   onChange={(value: string) => {
                     if (!value) return;
@@ -292,15 +295,17 @@ function InnerDaxSettings() {
                   }}
                 >
                   <SelectLabel>Output Device</SelectLabel>
-                  <SelectTrigger>
-                    <SelectValue class="overflow-hidden text-ellipsis whitespace-nowrap">
-                      {(state) =>
-                        outputs().find(
-                          (d) => d.deviceId === state.selectedOption(),
-                        )?.label || "Select Audio Output"
-                      }
-                    </SelectValue>
-                  </SelectTrigger>
+                  <div class="w-full h-10 relative">
+                    <SelectTrigger class="absolute">
+                      <SelectValue class="overflow-hidden text-ellipsis whitespace-nowrap">
+                        {(state) =>
+                          outputs().find(
+                            (d) => d.deviceId === state.selectedOption(),
+                          )?.label || "Select Audio Output"
+                        }
+                      </SelectValue>
+                    </SelectTrigger>
+                  </div>
                   <SelectContent />
                 </Select>
                 <Select<DaxChannelMode>

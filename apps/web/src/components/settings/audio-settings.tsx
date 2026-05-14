@@ -33,13 +33,11 @@ import { Callout, CalloutContent, CalloutTitle } from "../ui/callout";
 import { createPermission } from "~/lib/permission";
 import { ToggleButton } from "@kobalte/core/toggle-button";
 import { SimpleSlider } from "../ui/simple-slider";
-import { Button } from "../ui/button";
 import MdiSpeaker from "~icons/mdi/speaker";
 import MdiSpeakerOff from "~icons/mdi/speaker-off";
 import MdiHeadphones from "~icons/mdi/headphones";
 import MdiHeadphonesOff from "~icons/mdi/headphones-off";
 import { Dynamic } from "solid-js/web";
-import { ToggleGroupItem } from "../ui/toggle-group";
 
 function InnerAudioSettings() {
   const { audioStreams } = useRuntime();
@@ -111,7 +109,7 @@ function InnerAudioSettings() {
           label="RX Only"
         />
         <Select
-          class="flex flex-col gap-2 grow shrink overflow-hidden"
+          class="flex flex-col gap-2 grow shrink"
           value={preferences.remoteAudio.rx.outputDeviceId}
           onChange={(value: string) => {
             if (!value) return;
@@ -144,7 +142,7 @@ function InnerAudioSettings() {
           <SelectContent />
         </Select>
         <Select
-          class="flex flex-col gap-2 grow shrink overflow-hidden"
+          class="flex flex-col gap-2 grow shrink"
           value={preferences.remoteAudio.tx.inputDeviceId}
           onChange={(value: string) => {
             if (!value) return;

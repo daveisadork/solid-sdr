@@ -428,15 +428,23 @@ export function Panafall(props: { index: number }) {
                           <ContextMenuPortal>
                             <ContextMenuSubContent>
                               <ContextMenuGroup>
-                                <ContextMenuItem
-                                  onSelect={() =>
-                                    radio().saveGlobalProfile(
+                                <Show
+                                  when={state.status.radio.profileGlobalList.find(
+                                    (profile) =>
+                                      profile ===
                                       state.status.radio.profileGlobalSelection,
-                                    )
-                                  }
+                                  )}
                                 >
-                                  {`Save ${state.status.radio.profileGlobalSelection}`}
-                                </ContextMenuItem>
+                                  {(profile) => (
+                                    <ContextMenuItem
+                                      onSelect={() =>
+                                        radio().saveGlobalProfile(profile())
+                                      }
+                                    >
+                                      {`Save ${profile()}`}
+                                    </ContextMenuItem>
+                                  )}
+                                </Show>
                                 <ContextMenuItem
                                   onSelect={() => setCreateProfile(true)}
                                 >

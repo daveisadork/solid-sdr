@@ -152,7 +152,7 @@ function InnerDaxSettings() {
               <SelectLabel>Input Device</SelectLabel>
               <div class="relative h-10">
                 <SelectTrigger class="absolute">
-                  <SelectValue class="shrink overflow-hidden text-ellipsis whitespace-nowrap">
+                  <SelectValue class="shrink truncate">
                     {(state) =>
                       inputs().find(
                         (d) => d.deviceId === state.selectedOption(),
@@ -184,7 +184,7 @@ function InnerDaxSettings() {
             >
               <SelectLabel>Channel</SelectLabel>
               <SelectTrigger>
-                <SelectValue<DaxChannelMode> class="overflow-hidden text-ellipsis whitespace-nowrap">
+                <SelectValue<DaxChannelMode> class="truncate">
                   {(state) => (
                     <Dynamic
                       component={CHANNEL_MODE_ICONS[state.selectedOption()]}
@@ -297,7 +297,7 @@ function InnerDaxSettings() {
                   <SelectLabel>Output Device</SelectLabel>
                   <div class="w-full h-10 relative">
                     <SelectTrigger class="absolute">
-                      <SelectValue class="overflow-hidden text-ellipsis whitespace-nowrap">
+                      <SelectValue class="truncate">
                         {(state) =>
                           outputs().find(
                             (d) => d.deviceId === state.selectedOption(),
@@ -329,7 +329,7 @@ function InnerDaxSettings() {
                 >
                   <SelectLabel>Channel</SelectLabel>
                   <SelectTrigger>
-                    <SelectValue<DaxChannelMode> class="overflow-hidden text-ellipsis whitespace-nowrap">
+                    <SelectValue<DaxChannelMode> class="truncate">
                       {(state) => (
                         <Dynamic
                           component={CHANNEL_MODE_ICONS[state.selectedOption()]}

@@ -244,9 +244,7 @@ function TxSection() {
                     <Show when={state.status.radio.profileUnsavedChangesTx}>
                       <div class="rounded-full size-2 bg-warning-foreground shrink-0" />
                     </Show>
-                    <div class="overflow-hidden whitespace-nowrap text-ellipsis">
-                      {selectedOption()}
-                    </div>
+                    <div class="truncate">{selectedOption()}</div>
                   </div>
                 )}
               </SelectValue>
@@ -529,9 +527,7 @@ function MicSection() {
                 <Show when={state.status.radio.profileUnsavedChangesMic}>
                   <div class="rounded-full size-2 bg-warning-foreground shrink-0" />
                 </Show>
-                <div class="overflow-hidden whitespace-nowrap text-ellipsis">
-                  {selectedOption()}
-                </div>
+                <div class="truncate">{selectedOption()}</div>
               </div>
             )}
           </SelectValue>

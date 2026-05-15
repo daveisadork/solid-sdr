@@ -451,7 +451,7 @@ function ImportExportInner(props: { radio: Radio }) {
       );
       const a = document.createElement("a");
       a.href = url;
-      a.download = "flexradio-backup.zip";
+      a.download = `SSDR_Config_${new Date().toISOString().replaceAll(":", ".")}_v${props.radio.version}.ssdr_cfg`;
       a.click();
       URL.revokeObjectURL(url);
     } finally {

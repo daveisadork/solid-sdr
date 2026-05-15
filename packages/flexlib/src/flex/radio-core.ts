@@ -978,7 +978,9 @@ class RadioImpl {
 
       const receiver = await conn.prepareDownload(this._endpoint);
 
-      const response = await this.command(`file download ${target}`);
+      const response = await this.command(`file download ${target}`, {
+        timeoutMs: 30_000,
+      });
       const port = parseInt(response.message ?? "", 10);
       if (!Number.isFinite(port) || port <= 0) {
         throw new Error(

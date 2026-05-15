@@ -38,13 +38,6 @@ import {
 } from "~/components/ui/table";
 import { TextField, TextFieldInput } from "~/components/ui/text-field";
 import useFlexRadio, { SpotState } from "~/context/flexradio";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "../ui/card";
 import { Radio } from "@repo/flexlib";
 import { SimpleSwitch } from "../ui/simple-switch";
 import { usePreferences } from "~/context/preferences";

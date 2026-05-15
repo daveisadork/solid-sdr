@@ -24,7 +24,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import { createStore } from "solid-js/store";
 import { SimpleSwitch } from "./ui/simple-switch";
 import { dbmToWatts, roundToDecimals } from "~/lib/utils";
 import { debounce } from "@solid-primitives/scheduled";
@@ -244,9 +243,7 @@ function TxSection() {
                     <Show when={state.status.radio.profileUnsavedChangesTx}>
                       <div class="rounded-full size-2 bg-warning-foreground shrink-0" />
                     </Show>
-                    <div class="overflow-hidden whitespace-nowrap text-ellipsis">
-                      {selectedOption()}
-                    </div>
+                    <div class="truncate">{selectedOption()}</div>
                   </div>
                 )}
               </SelectValue>
@@ -529,9 +526,7 @@ function MicSection() {
                 <Show when={state.status.radio.profileUnsavedChangesMic}>
                   <div class="rounded-full size-2 bg-warning-foreground shrink-0" />
                 </Show>
-                <div class="overflow-hidden whitespace-nowrap text-ellipsis">
-                  {selectedOption()}
-                </div>
+                <div class="truncate">{selectedOption()}</div>
               </div>
             )}
           </SelectValue>
@@ -692,10 +687,6 @@ function CwSection() {
     rawPitch() !== state.status.radio.cwPitchHz
       ? radio()?.setCwPitchHz(rawPitch())
       : null;
-
-  const alcMeter = createMemo(() =>
-    Object.values(state.status.meter).find((meter) => meter.name === "ALC"),
-  );
 
   return (
     <div class="flex flex-col gap-3">

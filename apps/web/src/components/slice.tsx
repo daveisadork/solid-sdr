@@ -4,7 +4,6 @@ import useFlexRadio, {
   PanadapterState,
   SliceState,
 } from "~/context/flexradio";
-import { createWindowSize } from "@solid-primitives/resize-observer";
 import {
   batch,
   createEffect,
@@ -1563,7 +1562,6 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
     offset: 0,
     contain: 0,
   });
-  const windowSize = createWindowSize();
   const sentinelBounds = createElementBounds(sentinel);
   const flagBounds = createElementBounds(flag);
   const { preferences } = usePreferences();

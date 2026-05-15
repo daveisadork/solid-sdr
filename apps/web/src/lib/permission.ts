@@ -23,7 +23,7 @@ export const createPermission = (
     "unknown",
   );
   const [status, setStatus] = createSignal<PermissionStatus>();
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+   
   if (navigator) {
     navigator.permissions
       .query(typeof name === "string" ? { name } : name)

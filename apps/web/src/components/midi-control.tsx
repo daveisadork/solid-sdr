@@ -246,49 +246,6 @@ export function MidiControl() {
     };
   });
 
-  function oldOnMessage(this: MIDIInput, message: MIDIMessageEvent) {
-    const parsed = parseMidiMessage(message);
-    switch (parsed.key) {
-      case "11:0:100":
-        dispatch({
-          target: "slice.frequency",
-          op: "adjust",
-          delta: parsed.value - 64,
-        });
-        break;
-      case "11:0:101":
-        dispatch({
-          target: "slice.audio.level",
-          op: "set",
-          value: parsed.value / 127,
-        });
-        break;
-
-      case "8:0:1":
-      case "9:0:1":
-        dispatch({
-          target: "slice.rnn.enabled",
-          op: "set",
-          value: parsed.command === MIDICommand.NoteOn && parsed.value > 0,
-        });
-        break;
-      case "8:0:3":
-        dispatch({
-          target: "panadapter.bandZoom",
-          op: "toggle",
-        });
-        break;
-      case "8:0:4":
-        dispatch({
-          target: "panadapter.segmentZoom",
-          op: "toggle",
-        });
-        break;
-      default:
-        console.log(parsed);
-    }
-  }
-
   createEffect(() => {
     const handler = onMessage();
     inputs.forEach((input) => input.addEventListener("midimessage", handler));

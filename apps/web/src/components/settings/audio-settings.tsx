@@ -132,7 +132,7 @@ function InnerAudioSettings() {
             Output Device
           </SelectLabel>
           <SelectTrigger>
-            <SelectValue class="overflow-hidden text-ellipsis whitespace-nowrap">
+            <SelectValue class="truncate">
               {(state) =>
                 outputs().find((d) => d.deviceId === state.selectedOption())
                   ?.label || "Select Audio Output"
@@ -161,7 +161,7 @@ function InnerAudioSettings() {
             Input Device
           </SelectLabel>
           <SelectTrigger>
-            <SelectValue class="overflow-hidden text-ellipsis whitespace-nowrap">
+            <SelectValue class="truncate">
               {(state) =>
                 inputs().find((d) => d.deviceId === state.selectedOption())
                   ?.label || "Select Audio Input"

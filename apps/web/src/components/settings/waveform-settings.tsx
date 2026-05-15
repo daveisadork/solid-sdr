@@ -24,7 +24,6 @@ import { Button } from "../ui/button";
 import { WaveformController } from "@repo/flexlib";
 import { Dynamic } from "solid-js/web";
 import { showToast } from "../ui/toast";
-import { ProgressCircle } from "../ui/progress-circle";
 import { Progress, ProgressLabel, ProgressValueLabel } from "../ui/progress";
 
 const UninstallButton = (props: { ctrl: WaveformController }) => {

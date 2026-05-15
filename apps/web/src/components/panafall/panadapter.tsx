@@ -22,13 +22,6 @@ import { parseColor } from "@kobalte/core/colors";
 import type { PanadapterController, VitaParsedPacket } from "@repo/flexlib";
 import { usePanafall } from "~/context/panafall";
 import { usePreferences } from "~/context/preferences";
-import { PanafallControl } from "./controls";
-import {
-  Tooltip,
-  TooltipArrow,
-  TooltipContent,
-  TooltipTrigger,
-} from "../ui/tooltip";
 import { Spots } from "./spots";
 import { Tnf } from "./tnf";
 import { useRuntime } from "~/context/runtime";
@@ -53,7 +46,7 @@ export function Panadapter(props: {
   const [levelTicks, setLevelTicks] = createSignal<LinearScaleTick[]>([]);
 
   const frameTimes: number[] = [];
-  const { runtime, setRuntime } = useRuntime();
+  const { setRuntime } = useRuntime();
 
   const frequencyTicks = createMemo<FrequencyGridTick[]>(() => {
     const width = wrapperSize.width;

@@ -6,8 +6,6 @@ import {
   useContext,
   type Accessor,
   createSignal,
-  createEffect,
-  onCleanup,
 } from "solid-js";
 import useFlexRadio, {
   type SpotState,
@@ -21,7 +19,6 @@ import {
 } from "@repo/flexlib";
 import { createElementBounds } from "@solid-primitives/bounds";
 import { usePreferences } from "./preferences";
-import { debounce } from "@solid-primitives/scheduled";
 import { roundToDecimals } from "~/lib/utils";
 
 export type PanafallSpot = SpotState & {

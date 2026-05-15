@@ -128,10 +128,10 @@ export default function Connect() {
                         </Badge>
                       </div>
                     </div>
-                    <div class="flex text-sm flex-col grow justify-center overflow-hidden text-ellipsis">
+                    <div class="flex text-sm flex-col grow justify-center">
                       <span class="font-semibold">{radio.model}</span>
                       <div class="inline-flex gap-1">
-                        <span class="text-ellipsis overflow-hidden">
+                        <span class="truncate">
                           {[
                             radio.nickname?.replaceAll("_", "\xa0"),
                             radio.callsign,

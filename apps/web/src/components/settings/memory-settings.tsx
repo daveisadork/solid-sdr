@@ -1,13 +1,4 @@
-import {
-  createEffect,
-  createMemo,
-  createSignal,
-  For,
-  JSX,
-  Show,
-  splitProps,
-  ValidComponent,
-} from "solid-js";
+import { createMemo, createSignal, For, JSX, Show, splitProps } from "solid-js";
 
 import type {
   ColumnFiltersState,
@@ -23,18 +14,13 @@ import {
   getSortedRowModel,
   type ColumnDef,
 } from "@tanstack/solid-table";
-import IconDots from "~icons/mdi/dots-horizontal";
 import IconChevronDown from "~icons/mdi/chevron-down";
-import IconSelector from "~icons/mdi/chevron-up-down";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
 import {
@@ -45,20 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
-import { TextField, TextFieldInput } from "~/components/ui/text-field";
-import useFlexRadio, { MemoryState, SpotState } from "~/context/flexradio";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "../ui/card";
-import { Radio } from "@repo/flexlib";
-import { SimpleSwitch } from "../ui/simple-switch";
-import { usePreferences } from "~/context/preferences";
-import { InfoItem } from "./common";
-import { SimpleSlider } from "../ui/simple-slider";
+import useFlexRadio, { MemoryState } from "~/context/flexradio";
 
 import * as TextFieldPrimitive from "@kobalte/core/text-field";
 import * as NumberFieldPrimitive from "@kobalte/core/number-field";
@@ -66,7 +39,6 @@ import * as SelectPrimitive from "@kobalte/core/select";
 import { cn } from "~/lib/utils";
 import { SelectContent, SelectItem } from "../ui/select";
 import { ConfirmButton } from "../ui/confirm-button";
-import { createStore } from "solid-js/store";
 import IcBaselinePlayCircleOutline from "~icons/ic/baseline-play-circle-outline";
 import { toneValues } from "../slice";
 import {
@@ -596,7 +568,7 @@ function MemorySettingsInner() {
           </div>
         </div>
       </div>
-      <DialogFooter class="flex gap-2">
+      <DialogFooter>
         <ConfirmButton
           variant="destructive"
           disabled={table().getSelectedRowModel().rows.length === 0}

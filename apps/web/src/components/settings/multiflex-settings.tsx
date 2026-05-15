@@ -1,5 +1,5 @@
 import { SimpleSwitch } from "../ui/simple-switch";
-import { createEffect, For, onCleanup } from "solid-js";
+import { For } from "solid-js";
 
 import {
   Table,
@@ -14,7 +14,7 @@ import { DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Checkbox } from "../ui/checkbox";
 
 export function MultiflexSettings() {
-  const { client, radio, state } = useFlexRadio();
+  const { radio, state } = useFlexRadio();
 
   return (
     <DialogContent class="translate-y-0 top-1/12 flex flex-col max-h-10/12 overflow-hidden">

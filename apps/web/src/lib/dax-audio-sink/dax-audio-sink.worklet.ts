@@ -57,7 +57,7 @@ class DaxSabSinkProcessor extends AudioWorkletProcessor {
     }
 
     const need = output[0].length | 0;
-    let r = Atomics.load(this.idx, 0) | 0;
+    const r = Atomics.load(this.idx, 0) | 0;
     const w = Atomics.load(this.idx, 1) | 0;
     const cap = this.framesCap | 0;
     const avail = Math.max(0, Math.min(cap, (w - r) | 0));

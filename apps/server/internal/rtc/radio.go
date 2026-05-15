@@ -38,8 +38,8 @@ type radioConn struct {
 	serverToRadioRTTMax  time.Duration
 	onNetworkDiagnostics func(serverRadioNetworkDiagnostics)
 
-	downloadDC          *webrtc.DataChannel
-	pendingDownloadSeq  uint32
+	downloadDC           *webrtc.DataChannel
+	pendingDownloadSeq   uint32
 	pendingDownloadSeqOk bool
 }
 
@@ -258,7 +258,7 @@ func (rc *radioConn) setDownloadDC(dc *webrtc.DataChannel) {
 
 var (
 	reFileDownloadCmd   = regexp.MustCompile(`^C(\d+)\|file download `)
-	reFileDownloadReply = regexp.MustCompile(`^R(\d+)\|00000000\|(\d+)\s*$`)
+	reFileDownloadReply = regexp.MustCompile(`^R(\d+)\|0\|(\d+)\s*$`)
 )
 
 // noteOutgoingCommand inspects data the client is about to send to the radio

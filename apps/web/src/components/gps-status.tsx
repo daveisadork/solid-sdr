@@ -10,7 +10,6 @@ import {
   NumberFieldLabel,
   NumberFieldInput,
 } from "./ui/number-field";
-import BaselineGpsFixed from "~icons/ic/baseline-gps-fixed";
 import MaterialSymbolsSatelliteAlt from "~icons/material-symbols/satellite-alt";
 import ClipboardOutline from "~icons/mdi/clipboard-text-outline";
 import { writeClipboard } from "@solid-primitives/clipboard";

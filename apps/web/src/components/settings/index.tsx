@@ -1,21 +1,7 @@
-import { usePreferences } from "../../context/preferences";
 import {
   Dialog,
-  DialogTitle,
-  DialogHeader,
-  DialogContent,
-  DialogTrigger,
 } from "../ui/dialog";
 import MdiSettings from "~icons/mdi/settings";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "../ui/card";
 import { AppSettings } from "./app-settings";
 import { RadioSettings } from "./radio-settings";
 import { Button } from "@kobalte/core/button";
@@ -24,10 +10,8 @@ import { MemorySettings } from "./memory-settings";
 import { MidiSettings } from "./midi-settings";
 import {
   DropdownMenu,
-  DropdownMenuArrow,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 import { createSignal } from "solid-js";
@@ -39,6 +23,7 @@ import { NetworkStats } from "./network-stats";
 import { WaveformSettings } from "./waveform-settings";
 import { Meters } from "./meters";
 import { ProfileSettings } from "./profile-settings";
+import { ImportExport } from "./import-export";
 
 const tabs = {
   app: AppSettings,
@@ -53,6 +38,7 @@ const tabs = {
   waveform: WaveformSettings,
   meters: Meters,
   profiles: ProfileSettings,
+  "import/export": ImportExport,
 };
 
 export function Settings() {
@@ -108,6 +94,9 @@ export function Settings() {
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => setActiveTab("profiles")}>
             Profiles
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => setActiveTab("import/export")}>
+            Import/Export
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

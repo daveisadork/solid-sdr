@@ -39,6 +39,7 @@ import { NetworkStats } from "./network-stats";
 import { WaveformSettings } from "./waveform-settings";
 import { Meters } from "./meters";
 import { ProfileSettings } from "./profile-settings";
+import { ImportExport } from "./import-export";
 
 const tabs = {
   app: AppSettings,
@@ -53,6 +54,7 @@ const tabs = {
   waveform: WaveformSettings,
   meters: Meters,
   profiles: ProfileSettings,
+  "import/export": ImportExport,
 };
 
 export function Settings() {
@@ -108,6 +110,9 @@ export function Settings() {
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => setActiveTab("profiles")}>
             Profiles
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => setActiveTab("import/export")}>
+            Import/Export
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

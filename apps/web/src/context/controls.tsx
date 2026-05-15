@@ -9,7 +9,6 @@ import {
 } from "solid-js";
 import { produce } from "solid-js/store";
 import { MidiControl } from "~/components/midi-control";
-import { BANDS } from "~/components/panafall/settings";
 import useFlexRadio from "./flexradio";
 import { useRuntime } from "./runtime";
 import { usePreferences } from "./preferences";
@@ -192,10 +191,6 @@ function fromNormalized(value: Normalized, max: number, min = 0) {
 
 function fromSignedNormalized(value: SignedNormalized, maxAbsValue: number) {
   return Math.round(value * maxAbsValue);
-}
-
-function warnNotImplemented(action: { target: string }) {
-  console.warn("not implemented:", action);
 }
 
 const SPEECH_PROCESSOR_LEVELS = ["Norm", "DX", "DX+"] as const;
@@ -754,9 +749,7 @@ export const CONTROL_DEFINITIONS = [
     execute(ctx, action) {
       const pan = ctx.getPan(action.slice);
       if (!pan) return;
-      pan.setWeightedAverage(
-        resolveBooleanAction(action, pan.weightedAverage),
-      );
+      pan.setWeightedAverage(resolveBooleanAction(action, pan.weightedAverage));
     },
   }),
 
@@ -777,27 +770,27 @@ export const CONTROL_DEFINITIONS = [
     },
   }),
 
-  defineControl<NormalizedControlAction<"panadapter.noiseFloor", SliceTargeted>>(
-    {
-      target: "panadapter.noiseFloor",
-      label: "Panadapter Noise Floor",
-      scope: "panadapter",
-      ops: ["adjust", "set"],
-      editor: { kind: "normalized" },
-      execute(ctx, action) {
-        const pan = ctx.getPan(action.slice);
-        if (!pan) return;
+  defineControl<
+    NormalizedControlAction<"panadapter.noiseFloor", SliceTargeted>
+  >({
+    target: "panadapter.noiseFloor",
+    label: "Panadapter Noise Floor",
+    scope: "panadapter",
+    ops: ["adjust", "set"],
+    editor: { kind: "normalized" },
+    execute(ctx, action) {
+      const pan = ctx.getPan(action.slice);
+      if (!pan) return;
 
-        const currentValue = 100 - pan.noiseFloorPosition;
-        const nextValue =
-          action.op === "adjust"
-            ? currentValue + action.delta
-            : fromNormalized(action.value, 100);
+      const currentValue = 100 - pan.noiseFloorPosition;
+      const nextValue =
+        action.op === "adjust"
+          ? currentValue + action.delta
+          : fromNormalized(action.value, 100);
 
-        pan.setNoiseFloorPosition(100 - nextValue);
-      },
+      pan.setNoiseFloorPosition(100 - nextValue);
     },
-  ),
+  }),
 
   defineControl<NormalizedControlAction<"panadapter.average", SliceTargeted>>({
     target: "panadapter.average",
@@ -875,73 +868,75 @@ export const CONTROL_DEFINITIONS = [
     },
   }),
 
-  defineControl<BooleanControlAction<"waterfall.autoBlackLevel", SliceTargeted>>(
+  defineControl<
+    BooleanControlAction<"waterfall.autoBlackLevel", SliceTargeted>
+  >({
+    target: "waterfall.autoBlackLevel",
+    label: "Waterfall Auto Black Level",
+    scope: "panadapter",
+    ops: ["toggle", "set"],
+    editor: { kind: "boolean" },
+    execute(ctx, action) {
+      const waterfall = ctx.getWaterfall(action.slice);
+      if (!waterfall) return;
+      waterfall.setAutoBlackLevelEnabled(
+        resolveBooleanAction(action, waterfall.autoBlackLevelEnabled),
+      );
+    },
+  }),
+
+  defineControl<NormalizedControlAction<"waterfall.blackLevel", SliceTargeted>>(
     {
-      target: "waterfall.autoBlackLevel",
-      label: "Waterfall Auto Black Level",
+      target: "waterfall.blackLevel",
+      label: "Waterfall Black Level",
       scope: "panadapter",
-      ops: ["toggle", "set"],
-      editor: { kind: "boolean" },
+      ops: ["adjust", "set"],
+      editor: { kind: "normalized" },
       execute(ctx, action) {
         const waterfall = ctx.getWaterfall(action.slice);
         if (!waterfall) return;
-        waterfall.setAutoBlackLevelEnabled(
-          resolveBooleanAction(action, waterfall.autoBlackLevelEnabled),
-        );
+
+        const value =
+          action.op === "adjust"
+            ? waterfall.blackLevel + action.delta
+            : fromNormalized(action.value, 100);
+
+        waterfall.setBlackLevel(value);
       },
     },
   ),
 
-  defineControl<NormalizedControlAction<"waterfall.blackLevel", SliceTargeted>>({
-    target: "waterfall.blackLevel",
-    label: "Waterfall Black Level",
+  defineControl<
+    ChoiceControlAction<"waterfall.gradient", number, SliceTargeted>
+  >({
+    target: "waterfall.gradient",
+    label: "Waterfall Gradient",
     scope: "panadapter",
-    ops: ["adjust", "set"],
-    editor: { kind: "normalized" },
+    ops: ["cycle", "set"],
+    editor: {
+      kind: "choice",
+      getChoices(ctx) {
+        return ctx.preferences.palette.gradients.map((_, index) => index);
+      },
+    },
     execute(ctx, action) {
       const waterfall = ctx.getWaterfall(action.slice);
       if (!waterfall) return;
 
-      const value =
-        action.op === "adjust"
-          ? waterfall.blackLevel + action.delta
-          : fromNormalized(action.value, 100);
+      const gradients = ctx.preferences.palette.gradients.map(
+        (_, index) => index,
+      );
+      if (gradients.length === 0) return;
 
-      waterfall.setBlackLevel(value);
+      const value =
+        action.op === "cycle"
+          ? cycleListValue(gradients, waterfall.gradientIndex, action.delta)
+          : action.value;
+
+      if (value === undefined) return;
+      waterfall.setGradientIndex(value);
     },
   }),
-
-  defineControl<ChoiceControlAction<"waterfall.gradient", number, SliceTargeted>>(
-    {
-      target: "waterfall.gradient",
-      label: "Waterfall Gradient",
-      scope: "panadapter",
-      ops: ["cycle", "set"],
-      editor: {
-        kind: "choice",
-        getChoices(ctx) {
-          return ctx.preferences.palette.gradients.map((_, index) => index);
-        },
-      },
-      execute(ctx, action) {
-        const waterfall = ctx.getWaterfall(action.slice);
-        if (!waterfall) return;
-
-        const gradients = ctx.preferences.palette.gradients.map(
-          (_, index) => index,
-        );
-        if (gradients.length === 0) return;
-
-        const value =
-          action.op === "cycle"
-            ? cycleListValue(gradients, waterfall.gradientIndex, action.delta)
-            : action.value;
-
-        if (value === undefined) return;
-        waterfall.setGradientIndex(value);
-      },
-    },
-  ),
 
   defineControl<NormalizedControlAction<"slice.agc.threshold", SliceTargeted>>({
     target: "slice.agc.threshold",

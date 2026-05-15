@@ -24,7 +24,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import { createStore } from "solid-js/store";
 import { SimpleSwitch } from "./ui/simple-switch";
 import { dbmToWatts, roundToDecimals } from "~/lib/utils";
 import { debounce } from "@solid-primitives/scheduled";
@@ -688,10 +687,6 @@ function CwSection() {
     rawPitch() !== state.status.radio.cwPitchHz
       ? radio()?.setCwPitchHz(rawPitch())
       : null;
-
-  const alcMeter = createMemo(() =>
-    Object.values(state.status.meter).find((meter) => meter.name === "ALC"),
-  );
 
   return (
     <div class="flex flex-col gap-3">

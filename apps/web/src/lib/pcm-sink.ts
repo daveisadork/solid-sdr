@@ -457,14 +457,14 @@ export class PcmSink {
     // Ensure space for this write (drop oldest frames if needed)
     w = Atomics.load(this.idx, 1) | 0;
     const free = Math.max(0, cap - ((w - r) | 0));
-    let writeFrames = frames;
+    const writeFrames = frames;
     if (writeFrames > free) {
       const drop = writeFrames - free;
       Atomics.store(this.idx, 0, r + drop);
       r += drop;
     }
 
-    let pos = ((w % cap) + cap) % cap;
+    const pos = ((w % cap) + cap) % cap;
     const first = Math.min(writeFrames, cap - pos);
     for (let c = 0; c < this.channels; c++) {
       this.planes[c].set(planes[c].subarray(0, first), pos);
@@ -581,7 +581,7 @@ function opusDurationFromPacket(
   const frameCode = toc & 0x03;
   const durIdx = config & 0x03; // 0:2.5, 1:5, 2:10, 3:20 ms
   const durMs = [2.5, 5, 10, 20][durIdx];
-  let frames = frameCode === 1 ? 2 : 1;
+  const frames = frameCode === 1 ? 2 : 1;
   const samples = Math.round(frames * (durMs / 1000) * sampleRate);
   const durationUs = Math.round((samples / sampleRate) * 1_000_000);
   return { samples, durationUs };

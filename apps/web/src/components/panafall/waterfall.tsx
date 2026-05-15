@@ -7,15 +7,11 @@ import {
   onCleanup,
   Show,
 } from "solid-js";
-import useFlexRadio, {
-  type PanadapterState,
-  type WaterfallState,
-} from "~/context/flexradio";
+import { type PanadapterState, type WaterfallState } from "~/context/flexradio";
 import { LinearScale } from "../linear-scale";
 import type { VitaParsedPacket, WaterfallController } from "@repo/flexlib";
 import { usePreferences } from "~/context/preferences";
 import { usePanafall } from "~/context/panafall";
-import { PanafallControl } from "./controls";
 import { roundToDevicePixels } from "~/lib/utils";
 import { useRuntime } from "~/context/runtime";
 
@@ -24,7 +20,7 @@ export function Waterfall(props: {
   pan: PanadapterState;
   controller: WaterfallController;
 }) {
-  const { runtime, setRuntime } = useRuntime();
+  const { setRuntime } = useRuntime();
   const { preferences } = usePreferences();
   const { mhzToPx } = usePanafall();
 

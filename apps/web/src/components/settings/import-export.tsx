@@ -5,7 +5,6 @@ import {
   createSignal,
   For,
   JSX,
-  onCleanup,
   Show,
 } from "solid-js";
 import type { SetStoreFunction } from "solid-js/store";
@@ -34,15 +33,11 @@ import { showToast } from "../ui/toast";
 import {
   FileField,
   FileFieldHiddenInput,
-  FileFieldLabel,
   FileFieldDropzone,
-  FileFieldTrigger,
   FileFieldItemList,
   FileFieldItem,
   FileFieldItemSize,
-  FileFieldItemDeleteTrigger,
   FileFieldItemName,
-  FileFieldItemPreview,
 } from "../ui/file-field";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Callout, CalloutContent, CalloutTitle } from "../ui/callout";

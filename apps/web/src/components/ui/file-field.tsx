@@ -16,7 +16,7 @@ type FileFieldProps<T extends ValidComponent = "div"> =
       | ((context: FileFieldPrimitive.FileFieldContextValue) => JSX.Element);
   };
 
-interface FileFieldChildProps extends Pick<FileFieldProps, "children"> {}
+type FileFieldChildProps = Pick<FileFieldProps, "children">;
 
 const FileFieldChild = (props: FileFieldChildProps) => {
   const context = FileFieldPrimitive.useFileFieldContext();

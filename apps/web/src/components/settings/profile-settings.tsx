@@ -5,13 +5,9 @@ import {
   JSX,
   Show,
   splitProps,
-  ValidComponent,
 } from "solid-js";
 
 import useFlexRadio from "~/context/flexradio";
-import { networkQualityLabel } from "~/lib/network-telemetry";
-import { Badge } from "../ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import {
   Dialog,
   DialogContent,

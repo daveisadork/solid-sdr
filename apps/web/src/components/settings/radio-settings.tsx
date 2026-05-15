@@ -6,14 +6,10 @@ import {
   DialogHeader,
   DialogContent,
   DialogTrigger,
-  DialogFooter,
 } from "../ui/dialog";
-import MdiSettings from "~icons/mdi/settings";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
@@ -33,7 +29,6 @@ import {
   createMemo,
   createSignal,
   For,
-  JSXElement,
   Show,
 } from "solid-js";
 import useFlexRadio, { FilterPresetState } from "~/context/flexradio";
@@ -60,7 +55,6 @@ import {
 import {
   Table,
   TableBody,
-  TableCaption,
   TableCell,
   TableHead,
   TableHeader,

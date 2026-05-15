@@ -62,7 +62,6 @@ import {
   type ControlTarget,
   type SliceSelector,
   useControls,
-  ControlAction,
 } from "~/context/controls";
 import BaselineDelete from "~icons/ic/baseline-delete";
 import MdiRefresh from "~icons/mdi/refresh";
@@ -1172,25 +1171,7 @@ function AddMappingDialog(props: { class?: string | undefined }) {
 function MidiSettingsInner() {
   const { preferences, setPreferences } = usePreferences();
   const { inputs } = createMIDIPorts();
-  const [lastCommand, setLastCommand] = createSignal("");
   const [importFile, setImportFile] = createSignal<File>();
-
-  function onMessage(this: MIDIInput, message: MIDIMessageEvent) {
-    const source = eventToSource(message);
-    if (!source) return;
-
-    const parsed = parseMidiMessage(message);
-    setLastCommand(`${sourceToString(source)} = ${parsed.value}`);
-  }
-
-  createEffect(() => {
-    inputs.forEach((input) => input.addEventListener("midimessage", onMessage));
-    onCleanup(() => {
-      inputs.forEach((input) =>
-        input.removeEventListener("midimessage", onMessage),
-      );
-    });
-  });
 
   const downloadUrl = createMemo(() => {
     const blob = new Blob([JSON.stringify(preferences.midiMappings, null, 2)], {

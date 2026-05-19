@@ -56,6 +56,7 @@ export function Panadapter(props: {
       centerFrequencyMHz,
       bandwidthMHz,
       width,
+      alignmentOffset: preferences.panadapterOffset,
       minPixelSpacing: 72,
     });
   });

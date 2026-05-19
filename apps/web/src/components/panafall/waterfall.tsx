@@ -26,7 +26,6 @@ export function Waterfall(props: {
 
   const [canvasWidth, setCanvasWidth] = createSignal(1);
   const [canvasHeight, setCanvasHeight] = createSignal(1);
-  const [widthMultiplier, setWidthMultiplier] = createSignal(1.0);
   const [binBandwidth, setBinBandwidth] = createSignal(1);
   const [canvasRef, setCanvasRef] = createSignal<HTMLCanvasElement>();
   const [wrapper, setWrapper] = createSignal<HTMLDivElement>();
@@ -122,12 +121,11 @@ export function Waterfall(props: {
     //   .catch(console.error);
   });
 
-  createEffect(() => {
-    setWidthMultiplier(
+  const widthMultiplier = createMemo(
+    () =>
       (binBandwidth() * wrapperSize.width) /
-        (props.pan.bandwidthMHz * 1_000_000),
-    );
-  });
+      (props.pan.bandwidthMHz * 1_000_000),
+  );
 
   const totalSeconds = createMemo(() => {
     const height = canvasHeight();
@@ -296,8 +294,11 @@ export function Waterfall(props: {
           filled += copyCount;
         }
 
-        // Keep your working shim (-1) to maintain current visual alignment
-        offscreenCtx.putImageData(stripImageData!, startingBin - 1, yOffset);
+        offscreenCtx.putImageData(
+          stripImageData!,
+          startingBin + preferences.waterfallOffset,
+          yOffset,
+        );
       }
 
       if (startingBin + binsInThisFrame >= totalBins) {

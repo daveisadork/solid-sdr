@@ -79,6 +79,8 @@ export interface Preferences {
   showTxFilterInPan: boolean;
   preventScreenSleep: boolean;
   palette: PaletteSettings;
+  panadapterOffset: number;
+  waterfallOffset: number;
   remoteAudio: {
     tx: TxAudioConfig;
     rx: RxAudioConfig;
@@ -119,6 +121,8 @@ const getDefaults = (): Preferences => ({
   enableTransparencyEffects: true,
   showDisplayMarkers: true,
   guiClientId: null,
+  panadapterOffset: -2,
+  waterfallOffset: -1,
   midiMappings: [],
   spots: {
     enabled: true,

@@ -53,12 +53,14 @@ export function buildFrequencyGrid(params: {
   centerFrequencyMHz: number;
   bandwidthMHz: number;
   width: number;
+  alignmentOffset: number;
   minPixelSpacing?: number;
 }): FrequencyGridTick[] {
   const {
     centerFrequencyMHz,
     bandwidthMHz,
     width,
+    alignmentOffset = 0,
     minPixelSpacing = 72,
   } = params;
   if (!width || width <= 0 || !Number.isFinite(bandwidthMHz)) return [];
@@ -89,7 +91,7 @@ export function buildFrequencyGrid(params: {
     }
 
     const label = `${value.toFixed(fixedPrecision)}${unit}`;
-    const offset = (freq - actualStart) / mhzPerPx - 2;
+    const offset = (freq - actualStart) / mhzPerPx + alignmentOffset;
     ticks.push({ value: freq, label, offset });
   }
 
@@ -124,6 +126,7 @@ export const Scale = <T extends ValidComponent = "button">(
       bandwidthMHz,
       centerFrequencyMHz,
       width,
+      alignmentOffset: preferences.panadapterOffset,
     });
     setGridFreqs(ticks);
   });

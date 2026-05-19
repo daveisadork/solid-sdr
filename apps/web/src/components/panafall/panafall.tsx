@@ -490,6 +490,15 @@ export function Panafall(props: { index: number }) {
                       <ContextMenuSeparator />
                       <ContextMenuGroup>
                         <ContextMenuCheckboxItem
+                          checked={state.status.radio.tnfEnabled}
+                          onChange={(checked) => {
+                            radio().setTnfEnabled(checked);
+                          }}
+                        >
+                          Globally Enable TNFs
+                        </ContextMenuCheckboxItem>
+                        <ContextMenuSeparator />
+                        <ContextMenuCheckboxItem
                           checked={preferences.showTuningGuide}
                           onChange={(checked) => {
                             setPreferences("showTuningGuide", checked);

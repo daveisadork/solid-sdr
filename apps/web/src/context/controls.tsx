@@ -1651,6 +1651,21 @@ export const CONTROL_DEFINITIONS = [
     },
   }),
 
+  defineControl<BooleanControlAction<"radio.tnf.enabled">>({
+    target: "radio.tnf.enabled",
+    label: "Radio TNF Enabled",
+    scope: "radio",
+    ops: ["toggle", "set"],
+    editor: { kind: "boolean" },
+    execute(ctx, action) {
+      const radioController = ctx.radio();
+      if (!radioController) return;
+      radioController.setTnfEnabled(
+        resolveBooleanAction(action, radioController.tnfEnabled),
+      );
+    },
+  }),
+
   defineControl<BooleanControlAction<"radio.txMonitor.enabled">>({
     target: "radio.txMonitor.enabled",
     label: "Radio TX Monitor Enabled",

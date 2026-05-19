@@ -24,13 +24,7 @@ import {
   SegmentedControlItemsList,
   SegmentedControlLabel,
 } from "../ui/segmented-control";
-import {
-  createEffect,
-  createMemo,
-  createSignal,
-  For,
-  Show,
-} from "solid-js";
+import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import useFlexRadio, { FilterPresetState } from "~/context/flexradio";
 import type { FilterPresetEntry, Radio } from "@repo/flexlib";
 import { TextField, TextFieldInput, TextFieldLabel } from "../ui/text-field";
@@ -63,7 +57,7 @@ import {
 import { Checkbox } from "../ui/checkbox";
 import * as NumberFieldPrimitive from "@kobalte/core/number-field";
 import * as TextFieldPrimitive from "@kobalte/core/text-field";
-import MaterialSymbolsProgressActivity from "~icons/material-symbols/progress-activity";
+import Spinner from "~icons/svg-spinners/180-ring";
 import { RadioOscillatorSetting } from "@repo/flexlib";
 import { SliderToggle } from "../ui/slider-toggle";
 import { Badge } from "../ui/badge";
@@ -85,7 +79,7 @@ function TxBandSettings(props: { radio: Radio }) {
           <DialogTitle>TX Band Settings</DialogTitle>
         </DialogHeader>
 
-        <div class="flex flex-col gap-4 overflow-hidden shrink">
+        <div class="flex flex-col gap-4 flex-1 min-h-0">
           <Select
             class="flex flex-col gap-2 select-none"
             value={state.status.radio.profileTxSelection}
@@ -527,7 +521,7 @@ function RadioSettingsInner(props: { radio: Radio }) {
             </NumberField>
           </div>
         </CardContent>
-        <CardFooter>
+        <CardFooter class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 items-stretch">
           <TxBandSettings radio={props.radio} />
         </CardFooter>
       </Card>
@@ -828,7 +822,7 @@ function RadioSettingsInner(props: { radio: Radio }) {
               </NumberFieldGroup>
             </NumberField>
           </CardContent>
-          <CardFooter>
+          <CardFooter class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 items-stretch">
             <Button
               onClick={() => {
                 setCalibrationEnabled(false);
@@ -837,7 +831,7 @@ function RadioSettingsInner(props: { radio: Radio }) {
               disabled={!calibrationEnabled()}
             >
               <Show when={!calibrationEnabled()} fallback="Start Calibration">
-                <MaterialSymbolsProgressActivity class="animate-spin" />
+                <Spinner />
                 Calibrating
               </Show>
             </Button>
@@ -997,7 +991,7 @@ function RadioSettingsInner(props: { radio: Radio }) {
           <CardTitle>Filter Presets</CardTitle>
         </CardHeader>
         <CardContent class="flex flex-col gap-4">
-          <div class="flex flex-col gap-4 overflow-hidden shrink">
+          <div class="flex flex-col gap-4 flex-1 min-w-0">
             <Select
               class="flex flex-col gap-2 select-none"
               value={filterModeGroup()}
@@ -1085,7 +1079,7 @@ function RadioSettingsInner(props: { radio: Radio }) {
             </Table>
           </div>
         </CardContent>
-        <CardFooter class="flex gap-2 justify-between">
+        <CardFooter class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 items-stretch">
           <Button
             onClick={() =>
               props.radio
@@ -1252,7 +1246,7 @@ function RadioSettingsInner(props: { radio: Radio }) {
                       </NumberFieldGroup>
                     </NumberField>
                   </CardContent>
-                  <CardFooter class="justify-end">
+                  <CardFooter class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 items-stretch">
                     <ConfirmButton
                       variant="destructive"
                       message={`Are you sure you want to remove XVTR ${xvtr.name}?`}
@@ -1266,7 +1260,7 @@ function RadioSettingsInner(props: { radio: Radio }) {
             }}
           </For>
         </CardContent>
-        <CardFooter>
+        <CardFooter class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 items-stretch">
           <Button onClick={() => props.radio.createXvtr()}>
             Add Transverter Band
           </Button>

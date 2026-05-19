@@ -689,7 +689,7 @@ function AddMappingDialog(props: { class?: string | undefined }) {
                 description: (
                   <div class="pt-2 flex gap-2 justify-between items-center">
                     <Select<string | null>
-                      class="flex flex-col gap-2 grow"
+                      class="flex flex-col gap-2 flex-1 min-w-0"
                       value={selectedPort()}
                       onChange={setSelectedPort}
                       options={inputs.keys().toArray()}
@@ -701,11 +701,31 @@ function AddMappingDialog(props: { class?: string | undefined }) {
                       )}
                     >
                       <SelectLabel>Which device?</SelectLabel>
-                      <SelectTrigger>
-                        <SelectValue<InputType>>
-                          {(state) => inputs.get(state.selectedOption())?.name}
-                        </SelectValue>
-                      </SelectTrigger>
+                      <div class="flex gap-2">
+                        <SelectTrigger class="flex-1 min-w-0">
+                          <SelectValue<InputType> class="truncate">
+                            {(state) =>
+                              inputs.get(state.selectedOption())?.name
+                            }
+                          </SelectValue>
+                        </SelectTrigger>
+                        <Button
+                          variant="outline"
+                          class="grow-0 shrink-0"
+                          size="icon"
+                          disabled={!capturedSource()}
+                          onClick={() => {
+                            setCapturedSource(null);
+                          }}
+                        >
+                          <Show
+                            when={capturedSource()}
+                            fallback={<SvgSpinners180Ring class="size-full" />}
+                          >
+                            <MdiRefresh class="size-full" />
+                          </Show>
+                        </Button>
+                      </div>
                       <SelectDescription>
                         <Show
                           when={capturedSource()}
@@ -723,22 +743,6 @@ function AddMappingDialog(props: { class?: string | undefined }) {
                       </SelectDescription>
                       <SelectContent />
                     </Select>
-                    <Button
-                      variant="outline"
-                      class="grow-0 shrink-0"
-                      size="icon"
-                      disabled={!capturedSource()}
-                      onClick={() => {
-                        setCapturedSource(null);
-                      }}
-                    >
-                      <Show
-                        when={capturedSource()}
-                        fallback={<SvgSpinners180Ring class="size-full" />}
-                      >
-                        <MdiRefresh class="size-full" />
-                      </Show>
-                    </Button>
                     <div class="size-16">
                       <Show when={lastMessage()}>
                         <MidiValueRing
@@ -771,7 +775,7 @@ function AddMappingDialog(props: { class?: string | undefined }) {
                           How should this control behave?
                         </SelectLabel>
                         <SelectTrigger>
-                          <SelectValue<InputType>>
+                          <SelectValue<InputType> class="truncate">
                             {(state) => INPUT_LABELS[state.selectedOption()]}
                           </SelectValue>
                         </SelectTrigger>

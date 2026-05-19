@@ -379,7 +379,7 @@ function SpotsSettingsInner(props: { radio: Radio }) {
 export function SpotsSettings() {
   const { state, radio } = useFlexRadio();
   return (
-    <DialogContent class="w-sm text-sm">
+    <DialogContent class="sm:max-w-sm text-sm">
       <DialogHeader>
         <DialogTitle>Spots</DialogTitle>
       </DialogHeader>

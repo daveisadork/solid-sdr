@@ -338,7 +338,7 @@ export function AppSettings() {
               <FileFieldHiddenInput />
             </FileField>
           </CardContent>
-          <CardFooter class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+          <CardFooter class="flex flex-col sm:flex-row sm:justify-end gap-2 items-stretch">
             <Button disabled={!importFile()} onClick={doImport}>
               <Upload /> Import
             </Button>

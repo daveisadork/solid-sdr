@@ -27,6 +27,24 @@ const Slider = <T extends ValidComponent = "div">(
   );
 };
 
+type SliderDescriptionProps = SliderPrimitive.SliderDescriptionProps & {
+  class?: string | undefined;
+};
+
+const SliderDescription = <T extends ValidComponent = "div">(
+  props: PolymorphicProps<T, SliderDescriptionProps>,
+) => {
+  const [local, others] = splitProps(props as SliderDescriptionProps, [
+    "class",
+  ]);
+  return (
+    <SliderPrimitive.Description
+      class={cn("text-muted-foreground text-xs", local.class)}
+      {...others}
+    />
+  );
+};
+
 type SliderTrackProps<T extends ValidComponent = "div"> =
   SliderPrimitive.SliderTrackProps<T> & {
     class?: string | undefined;
@@ -152,4 +170,5 @@ export {
   SliderThumb,
   SliderLabel,
   SliderValueLabel,
+  SliderDescription,
 };

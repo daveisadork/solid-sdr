@@ -148,7 +148,7 @@ const FileFieldItemList = <T extends ValidComponent = "ul">(
   ]);
   return (
     <FileFieldPrimitive.ItemList
-      class={cn("flex flex-col gap-2", local.class)}
+      class={cn("flex flex-col gap-2 overflow-hidden", local.class)}
       {...others}
     />
   );

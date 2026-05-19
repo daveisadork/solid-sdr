@@ -41,7 +41,7 @@ function quantizeBandwidth(bandwidthMHz: number) {
 }
 
 export function Tnf(props: { tnf: TnfState; pan: PanadapterState }) {
-  const { radio } = useFlexRadio();
+  const { radio, state } = useFlexRadio();
   const { freqToX, mhzToPx, pxToMHz } = usePanafall();
   const [dragState, setDragState] = createStore({
     down: false,
@@ -93,9 +93,11 @@ export function Tnf(props: { tnf: TnfState; pan: PanadapterState }) {
     <div
       class="absolute left-(--tnf-offset) -translate-x-1/2 inset-y-0 w-(--tnf-width) pointer-events-auto cursor-move"
       style={{
-        "--tnf-color": props.tnf.permanent
-          ? "var(--color-green-500)"
-          : "var(--color-yellow-500)",
+        "--tnf-color": state.status.radio.tnfEnabled
+          ? props.tnf.permanent
+            ? "var(--color-green-500)"
+            : "var(--color-yellow-500)"
+          : "var(--color-foreground)",
         "--tnf-offset": `${freqToX(props.tnf.frequencyMHz)}px`,
         "--tnf-width": `${Math.max(1, Math.round(mhzToPx(props.tnf.bandwidthMHz))) + 2}px`,
         "--tnf-depth": props.tnf.depth,

@@ -4,7 +4,14 @@ import {
   PeakStyle,
   usePreferences,
 } from "../../context/preferences";
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "../ui/card";
 import { SimpleSwitch } from "../ui/simple-switch";
 import {
   SegmentedControl,
@@ -15,16 +22,66 @@ import {
   SegmentedControlItemsList,
   SegmentedControlLabel,
 } from "../ui/segmented-control";
-import { createEffect, For, onCleanup } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  onCleanup,
+  Show,
+} from "solid-js";
 import { useColorMode } from "@kobalte/core";
-import { TextField, TextFieldInput, TextFieldLabel } from "../ui/text-field";
+import {
+  TextField,
+  TextFieldDescription,
+  TextFieldInput,
+  TextFieldLabel,
+} from "../ui/text-field";
 import useFlexRadio from "~/context/flexradio";
 import { DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
+import { SimpleSlider } from "../ui/simple-slider";
+import Upload from "~icons/material-symbols/upload";
+import Download from "~icons/material-symbols/download";
+import { Button } from "../ui/button";
+import { Callout, CalloutContent } from "../ui/callout";
+import {
+  FileField,
+  FileFieldDropzone,
+  FileFieldHiddenInput,
+  FileFieldItem,
+  FileFieldItemList,
+  FileFieldItemName,
+  FileFieldItemSize,
+} from "../ui/file-field";
+import { reconcile } from "solid-js/store";
+import { showToast } from "../ui/toast";
 
 export function AppSettings() {
   const { preferences, setPreferences } = usePreferences();
   const { setColorMode } = useColorMode();
   const { radio } = useFlexRadio();
+
+  const [importFile, setImportFile] = createSignal<File>();
+
+  const downloadUrl = createMemo(() => {
+    const blob = new Blob([JSON.stringify(preferences, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    onCleanup(() => URL.revokeObjectURL(url));
+    return url;
+  });
+
+  const doImport = () =>
+    importFile()
+      ?.text()
+      .then((data) => {
+        setPreferences(reconcile(JSON.parse(data)));
+        showToast({
+          variant: "success",
+          description: "Settings imported successfully",
+        });
+      });
 
   createEffect(() => {
     setColorMode(preferences.theme);
@@ -79,6 +136,7 @@ export function AppSettings() {
                 setPreferences("enableTransparencyEffects", isChecked);
               }}
               label="Transparency Effects"
+              description="Enable the use of transparent/floating UI elements."
             />
             <SimpleSwitch
               checked={preferences.enableBlurEffects}
@@ -86,6 +144,7 @@ export function AppSettings() {
                 setPreferences("enableBlurEffects", isChecked);
               }}
               label="Blur Effects"
+              description="Enable the use of a blur effect on transparent UI elements"
             />
             <SimpleSwitch
               checked={preferences.smoothScroll}
@@ -93,6 +152,7 @@ export function AppSettings() {
                 setPreferences("smoothScroll", isChecked);
               }}
               label="Smooth Scroll"
+              description="Enable smooth horizontal scrolling of the panafall."
             />
             <SimpleSwitch
               checked={preferences.showTuningGuide}
@@ -114,6 +174,7 @@ export function AppSettings() {
                 setPreferences("showFps", isChecked);
               }}
               label="Show FPS"
+              description="Show a floating FPS counter."
             />
             <SimpleSwitch
               checked={preferences.preventScreenSleep}
@@ -239,6 +300,99 @@ export function AppSettings() {
                 </SegmentedControlItemsList>
               </SegmentedControlGroup>
             </SegmentedControl>
+          </CardContent>
+        </Card>
+        <Card class="bg-transparent">
+          <CardHeader>
+            <CardTitle>Import / Export</CardTitle>
+            <CardDescription>
+              Manage SolidSDR GUI settings. These settings are stored in browser
+              local storage, and include the settings in this dialog, MIDI
+              controller mappings, audio/DAX settings, etc. It does NOT include
+              radio settings or SolidSDR server settings.
+            </CardDescription>
+          </CardHeader>
+          <CardContent class="flex flex-col gap-4">
+            <FileField
+              accept=".json"
+              multiple={false}
+              onFileChange={({ acceptedFiles }) =>
+                setImportFile(acceptedFiles[0])
+              }
+            >
+              <FileFieldDropzone class="flex justify-around items-center">
+                <Show
+                  when={importFile()}
+                  fallback="Drop your file here or click to choose..."
+                >
+                  <FileFieldItemList>
+                    {() => (
+                      <FileFieldItem>
+                        <FileFieldItemName />
+                        <FileFieldItemSize />
+                      </FileFieldItem>
+                    )}
+                  </FileFieldItemList>
+                </Show>
+              </FileFieldDropzone>
+              <FileFieldHiddenInput />
+            </FileField>
+          </CardContent>
+          <CardFooter class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+            <Button disabled={!importFile()} onClick={doImport}>
+              <Upload /> Import
+            </Button>
+            <Button
+              as="a"
+              href={downloadUrl()}
+              download={`solid-sdr-settings-${preferences.guiClientId}-${new Date().toISOString()}.json`}
+            >
+              <Download /> Export
+            </Button>
+          </CardFooter>
+        </Card>
+
+        <Card class="bg-transparent">
+          <CardHeader>
+            <CardTitle>Advanced</CardTitle>
+          </CardHeader>
+          <CardContent class="flex flex-col gap-4">
+            <TextField
+              value={preferences.guiClientId}
+              onChange={(value) =>
+                setPreferences("guiClientId", value.length ? value : null)
+              }
+              class="flex flex-col gap-2"
+            >
+              <TextFieldLabel>GUI Client ID</TextFieldLabel>
+              <TextFieldInput />
+              <TextFieldDescription>
+                Unique identifier for this client, used by the radio for
+                per-client settings persistence.
+              </TextFieldDescription>
+            </TextField>
+            <SimpleSlider
+              value={[preferences.panadapterOffset]}
+              label="Panadapter Alignment Offset"
+              minValue={-5}
+              maxValue={5}
+              step={1 / devicePixelRatio}
+              onChange={([value]) => setPreferences("panadapterOffset", value)}
+              description="Slightly shift frequency-positioned UI elements to improve alignment with panadapter data."
+              getValueLabel={({ values: [value] }) => `${value}px`}
+              fromCenter
+            />
+            <SimpleSlider
+              value={[preferences.waterfallOffset]}
+              label="Waterfall Alignment Offset"
+              minValue={-5}
+              maxValue={5}
+              step={1}
+              onChange={([value]) => setPreferences("waterfallOffset", value)}
+              description="Slightly shift waterfall data to improve alignment with panadapter data."
+              getValueLabel={({ values: [value] }) => `${value} bin`}
+              fromCenter
+            />
           </CardContent>
         </Card>
       </div>

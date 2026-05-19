@@ -704,7 +704,8 @@ const AudioControls = (props: {
             getValueLabel={(params) => `${params.values[0]}%`}
             label="Audio Level"
           />
-          <Slider
+          <SimpleSlider
+            label="Audio Pan"
             minValue={0}
             maxValue={100}
             value={[props.slice.audioPan]}
@@ -716,28 +717,8 @@ const AudioControls = (props: {
               if (value === 0) return "Center";
               return value < 0 ? `L${-value}` : `R${value}`;
             }}
-            class="gap-3"
-          >
-            <div class="flex w-full justify-between">
-              <SliderLabel>Audio Pan</SliderLabel>
-              <SliderValueLabel />
-            </div>
-            <SliderTrack>
-              <SliderFill
-                style={{
-                  right:
-                    props.slice.audioPan > 50
-                      ? `${100 - props.slice.audioPan}%`
-                      : "50%",
-                  left:
-                    props.slice.audioPan <= 50
-                      ? `${props.slice.audioPan}%`
-                      : "50%",
-                }}
-              />
-              <SliderThumb />
-            </SliderTrack>
-          </Slider>
+            fromCenter
+          />
           <SegmentedControl
             value={props.slice.agcMode}
             onChange={(value) => {

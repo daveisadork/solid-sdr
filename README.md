@@ -19,7 +19,10 @@ supported. Running the server and using the app on the same machine via
 <http://localhost:8080> works fine, but if you want to access the server from
 another computer, it must be served over HTTPS in order to work. The easiest
 way to do this is with a reverse proxy that can do automatic HTTPS, such as
-[Caddy](https://caddyserver.com/docs/automatic-https).
+[Caddy](https://caddyserver.com/). For more information, check out the wiki:
+
+- [Secure Contexts](https://github.com/daveisadork/solid-sdr/wiki/Secure-Contexts)
+- [Using Caddy with SolidSDR](https://github.com/daveisadork/solid-sdr/wiki/Using-Caddy-with-SolidSDR)
 
 ### Windows
 

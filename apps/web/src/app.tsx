@@ -19,6 +19,9 @@ import { FPSCounter } from "./components/fps";
 import { RuntimeProvider } from "./context/runtime";
 import { Show } from "solid-js";
 import { ControlsProvider } from "./context/controls";
+import { Callout, CalloutContent, CalloutTitle } from "./components/ui/callout";
+import { Button } from "./components/ui/button";
+import MaterialSymbolsOpenInNew from "~icons/material-symbols/open-in-new";
 
 function AppInner() {
   const { preferences, setPreferences } = usePreferences();
@@ -59,16 +62,41 @@ function App() {
         initialColorMode="dark"
         storageManager={storageManager}
       >
-        <RtcProvider>
-          <FlexRadioProvider>
-            <RuntimeProvider>
-              <ControlsProvider>
-                <AppInner />
-                <RtcAudio /> {/* keeps audio elements mounted */}
-              </ControlsProvider>
-            </RuntimeProvider>
-          </FlexRadioProvider>
-        </RtcProvider>
+        <Show
+          when={window.isSecureContext}
+          fallback={
+            <Callout
+              variant="error"
+              class="absolute top-1/2 left-1/2 -translate-1/2"
+            >
+              <CalloutTitle>HTTPS Required</CalloutTitle>
+              <CalloutContent class="flex flex-col gap-2">
+                SolidSDR requires a secure context (HTTPS) to work.
+                <div class="flex justify-end">
+                  <Button
+                    as="a"
+                    href="https://github.com/daveisadork/solid-sdr/wiki/Secure-Contexts"
+                    target="_blank"
+                  >
+                    <MaterialSymbolsOpenInNew />
+                    View Docs
+                  </Button>
+                </div>
+              </CalloutContent>
+            </Callout>
+          }
+        >
+          <RtcProvider>
+            <FlexRadioProvider>
+              <RuntimeProvider>
+                <ControlsProvider>
+                  <AppInner />
+                  <RtcAudio /> {/* keeps audio elements mounted */}
+                </ControlsProvider>
+              </RuntimeProvider>
+            </FlexRadioProvider>
+          </RtcProvider>
+        </Show>
         <Toaster />
       </ColorModeProvider>
     </PreferencesProvider>

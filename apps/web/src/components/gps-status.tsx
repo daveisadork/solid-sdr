@@ -60,13 +60,13 @@ export function GpsStatus(props: { class?: string }) {
   };
 
   return (
-    <div
-      class={cn(
-        "flex items-center h-full justify-around cursor-default select-none pointer-coarse:flex-col not-pointer-coarse:gap-4",
-        props.class,
-      )}
-    >
-      <Show when={radio().gpsGrid}>
+    <Show when={radio().gpsGrid}>
+      <div
+        class={cn(
+          "flex items-center h-full justify-around cursor-default select-none pointer-coarse:flex-col not-pointer-coarse:gap-4",
+          props.class,
+        )}
+      >
         <HoverCard>
           <HoverCardTrigger
             as={"div"}
@@ -156,12 +156,12 @@ export function GpsStatus(props: { class?: string }) {
             </Show>
           </HoverCardContent>
         </HoverCard>
-      </Show>
-      <Show when={radio().gpsUtcTime}>
-        <span class="font-mono textbox-trim-both textbox-edge-cap-alphabetic">
-          {radio().gpsUtcTime}
-        </span>
-      </Show>
-    </div>
+        <Show when={radio().gpsUtcTime}>
+          <span class="font-mono textbox-trim-both textbox-edge-cap-alphabetic">
+            {radio().gpsUtcTime}
+          </span>
+        </Show>
+      </div>
+    </Show>
   );
 }

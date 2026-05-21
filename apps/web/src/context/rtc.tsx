@@ -8,6 +8,7 @@ import {
   batch,
 } from "solid-js";
 import type { Accessor, Setter } from "solid-js";
+import { APP_VERSION } from "~/lib/version";
 import {
   createReconnectingWS,
   createWSState,
@@ -35,6 +36,7 @@ type RtcContextValue = {
   setRemoteAudioTxTrack: Setter<MediaStreamTrack>;
   signalingWs: ReconnectingWebSocket;
   signalingWsState: Accessor<0 | 1 | 2 | 3>;
+  serverVersion: Accessor<string | null>;
 };
 
 type SignalingMessage =
@@ -42,7 +44,8 @@ type SignalingMessage =
   | { type: "ice"; payload: RTCIceCandidateInit }
   | { type: "error"; payload: { code: string; message: string } }
   | { type: "ping"; payload: null }
-  | { type: "pong"; payload: null };
+  | { type: "pong"; payload: null }
+  | { type: "version"; payload: { version: string } };
 
 export const RtcProvider: ParentComponent = (props) => {
   const [rtcState, setRtcState] = createStore<RtcState>({
@@ -53,6 +56,7 @@ export const RtcProvider: ParentComponent = (props) => {
   });
   const [peerConnection, setPeerConnection] =
     createSignal<RTCPeerConnection | null>(null);
+  const [serverVersion, setServerVersion] = createSignal<string | null>(null);
   const [audioTransceiver, setAudioTransceiver] =
     createSignal<RTCRtpTransceiver | null>(null);
   const [remoteAudioRxStream, setRemoteAudioRxStream] =
@@ -133,7 +137,17 @@ export const RtcProvider: ParentComponent = (props) => {
         console.error(new Error(`${payload.code}: ${payload.message}`));
         break;
       }
+      case "version": {
+        setServerVersion(payload.version);
+        break;
+      }
     }
+  };
+
+  const onOpen = () => {
+    signalingWs.send(
+      JSON.stringify({ type: "version", payload: { version: APP_VERSION } }),
+    );
   };
 
   function onRtcStateChange(this: RTCPeerConnection) {
@@ -153,8 +167,10 @@ export const RtcProvider: ParentComponent = (props) => {
 
   createEffect(() => {
     signalingWs.addEventListener("message", onMessage);
+    signalingWs.addEventListener("open", onOpen);
     onCleanup(() => {
       signalingWs.removeEventListener("message", onMessage);
+      signalingWs.removeEventListener("open", onOpen);
     });
   });
 
@@ -162,6 +178,7 @@ export const RtcProvider: ParentComponent = (props) => {
     batch(() => {
       if (signalingWsState() !== WebSocket.OPEN) {
         setPeerConnection(null);
+        setServerVersion(null);
         return;
       }
 
@@ -226,6 +243,7 @@ export const RtcProvider: ParentComponent = (props) => {
         remoteAudioRxStream,
         setRemoteAudioTxTrack,
         signalingWsState,
+        serverVersion,
       }}
     >
       {props.children}

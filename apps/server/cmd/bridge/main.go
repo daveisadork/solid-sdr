@@ -45,6 +45,7 @@ func main() {
 		ICEPortEnd:   cfg.ICEPortEnd,
 		STUN:         cfg.StunURLs,
 		NAT1To1IPs:   cfg.NAT1To1IPs,
+		Version:      v,
 	})
 
 	// ---- HTTP mux ----

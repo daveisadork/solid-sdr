@@ -22,6 +22,7 @@ import { ControlsProvider } from "./context/controls";
 import { Callout, CalloutContent, CalloutTitle } from "./components/ui/callout";
 import { Button } from "./components/ui/button";
 import MaterialSymbolsOpenInNew from "~icons/material-symbols/open-in-new";
+import { ReleaseNotification } from "./components/release-notification";
 
 function AppInner() {
   const { preferences, setPreferences } = usePreferences();
@@ -99,6 +100,7 @@ function App() {
         </Show>
         <Toaster />
       </ColorModeProvider>
+      <ReleaseNotification />
     </PreferencesProvider>
   );
 }

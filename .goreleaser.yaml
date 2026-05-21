@@ -63,6 +63,9 @@ archives:
     files:
       - solid-sdr-server.example.yaml
 
+release:
+  draft: true
+
 checksum:
   name_template: checksums.txt
 

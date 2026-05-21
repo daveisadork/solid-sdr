@@ -226,6 +226,9 @@ importers:
       solid-js:
         specifier: ^1.9.11
         version: 1.9.12
+      solid-presence:
+        specifier: ^0.2.0
+        version: 0.2.0(solid-js@1.9.12)
       vite-plugin-assemblyscript-asc:
         specifier: ^1.0.5
         version: 1.0.5(@types/node@22.19.19)
@@ -3457,6 +3460,11 @@ packages:
 
   solid-presence@0.1.8:
     resolution: {integrity: sha512-pWGtXUFWYYUZNbg5YpG5vkQJyOtzn2KXhxYaMx/4I+lylTLYkITOLevaCwMRN+liCVk0pqB6EayLWojNqBFECA==}
+    peerDependencies:
+      solid-js: ^1.8
+
+  solid-presence@0.2.0:
+    resolution: {integrity: sha512-YM92o+jvpzX3XGaD4rLYmq/Kc2ZVh47GSCLEufHBFQQIurvZTs8SoGJxO8BJGNDxBKdcS8F3dYhW1SDXp4BNjA==}
     peerDependencies:
       solid-js: ^1.8
 
@@ -7248,6 +7256,11 @@ snapshots:
       seroval-plugins: 1.5.4(seroval@1.5.4)
 
   solid-presence@0.1.8(solid-js@1.9.12):
+    dependencies:
+      '@corvu/utils': 0.4.2(solid-js@1.9.12)
+      solid-js: 1.9.12
+
+  solid-presence@0.2.0(solid-js@1.9.12):
     dependencies:
       '@corvu/utils': 0.4.2(solid-js@1.9.12)
       solid-js: 1.9.12

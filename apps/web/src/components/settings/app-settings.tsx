@@ -31,7 +31,6 @@ import {
   createSignal,
   For,
   onCleanup,
-  onMount,
   Show,
 } from "solid-js";
 import { useColorMode } from "@kobalte/core";

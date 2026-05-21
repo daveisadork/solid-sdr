@@ -4,6 +4,8 @@ import {
   PeakStyle,
   usePreferences,
 } from "../../context/preferences";
+import { APP_VERSION } from "~/lib/version";
+import { InfoItem } from "./common";
 import {
   Card,
   CardContent,
@@ -38,6 +40,7 @@ import {
   TextFieldLabel,
 } from "../ui/text-field";
 import useFlexRadio from "~/context/flexradio";
+import { useRtc } from "~/context/rtc";
 import { DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { SimpleSlider } from "../ui/simple-slider";
 import Upload from "~icons/material-symbols/upload";
@@ -60,6 +63,7 @@ export function AppSettings() {
   const { preferences, setPreferences } = usePreferences();
   const { setColorMode } = useColorMode();
   const { radio } = useFlexRadio();
+  const { serverVersion } = useRtc();
 
   const [importFile, setImportFile] = createSignal<File>();
 
@@ -110,6 +114,15 @@ export function AppSettings() {
         class="relative flex flex-col gap-4 text-sm overflow-y-auto shrink"
         style={{ "scrollbar-width": "thin" }}
       >
+        <Card class="bg-transparent">
+          <CardHeader>
+            <CardTitle>About</CardTitle>
+          </CardHeader>
+          <CardContent class="flex flex-col gap-2 text-sm">
+            <InfoItem label="App Version" value={APP_VERSION} />
+            <InfoItem label="Server Version" value={serverVersion() ?? "—"} />
+          </CardContent>
+        </Card>
         <Card class="bg-transparent">
           <CardHeader>
             <CardTitle>Station</CardTitle>

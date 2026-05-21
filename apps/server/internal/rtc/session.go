@@ -23,6 +23,7 @@ const (
 	typeNetworkDiagnostics = "networkDiagnostics"
 	typePing               = "ping"
 	typePong               = "pong"
+	typeVersion            = "version"
 )
 
 type message struct {
@@ -33,6 +34,10 @@ type message struct {
 type errorPayload struct {
 	Code    string `json:"code"`
 	Message string `json:"message"`
+}
+
+type versionPayload struct {
+	Version string `json:"version"`
 }
 
 func encode(msgType string, payload any) (message, error) {
@@ -59,18 +64,20 @@ type clientSession struct {
 	cancel     context.CancelFunc
 	send       chan message
 	audioTrack *webrtc.TrackLocalStaticSample
+	clientIP   string
 
 	mu    sync.Mutex
 	pc    *webrtc.PeerConnection
 	radio *radioConn
 }
 
-func newClientSession(srv *Server, ws *websocket.Conn, cancel context.CancelFunc) *clientSession {
+func newClientSession(srv *Server, ws *websocket.Conn, cancel context.CancelFunc, clientIP string) *clientSession {
 	return &clientSession{
-		srv:    srv,
-		ws:     ws,
-		cancel: cancel,
-		send:   make(chan message, 64),
+		srv:      srv,
+		ws:       ws,
+		cancel:   cancel,
+		send:     make(chan message, 64),
+		clientIP: clientIP,
 	}
 }
 
@@ -129,9 +136,22 @@ func (cs *clientSession) dispatch(ctx context.Context, msg message) {
 		cs.handleICE(msg.Payload)
 	case typePing:
 		cs.trySend(mustEncode(typePong, nil))
+	case typeVersion:
+		cs.handleVersion(msg.Payload)
 	default:
 		log.Printf("[rtc] unknown message type: %q", msg.Type)
 	}
+}
+
+func (cs *clientSession) handleVersion(raw json.RawMessage) {
+	var p versionPayload
+
+	err := json.Unmarshal(raw, &p)
+	if err != nil {
+		return
+	}
+
+	log.Printf("[rtc] client %s connected with version %s", cs.clientIP, p.Version)
 }
 
 func (cs *clientSession) reportServerToRadioDiagnostics(
@@ -246,8 +266,6 @@ func (cs *clientSession) setupPeerConnection(ctx context.Context) {
 		cs.trySend(mustEncode(typeICE, c.ToJSON()))
 	})
 	cs.pc.OnConnectionStateChange(func(state webrtc.PeerConnectionState) {
-		log.Printf("[rtc] connection state: %s", state)
-
 		if state == webrtc.PeerConnectionStateFailed || state == webrtc.PeerConnectionStateClosed {
 			cs.cancel()
 			_ = cs.pc.Close()

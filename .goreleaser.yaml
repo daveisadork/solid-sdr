@@ -18,7 +18,7 @@ builds:
     flags:
       - -tags=release
     ldflags:
-      - -s -w
+      - -s -w -X github.com/daveisadork/solid-sdr/apps/server/internal/version.Version={{.Tag}}
     goos:
       - linux
       - darwin

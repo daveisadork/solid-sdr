@@ -18,12 +18,14 @@ type Options struct {
 	ICEPortEnd   uint16
 	STUN         []string
 	NAT1To1IPs   []string
+	Version      string
 }
 
 type Server struct {
 	disco      *discovery.Service
 	api        *webrtc.API
 	iceServers []webrtc.ICEServer
+	version    string
 }
 
 func New(disco *discovery.Service, opt Options) *Server {
@@ -72,7 +74,7 @@ func New(disco *discovery.Service, opt Options) *Server {
 		iceServers = append(iceServers, webrtc.ICEServer{URLs: opt.STUN})
 	}
 
-	return &Server{disco: disco, api: api, iceServers: iceServers}
+	return &Server{disco: disco, api: api, iceServers: iceServers, version: opt.Version}
 }
 
 var upgrader = websocket.Upgrader{ //nolint:gochecknoglobals
@@ -91,12 +93,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer func() { _ = ws.Close() }()
 
 	clientIP := clientIPFromRequest(r)
-	log.Printf("[rtc] new connection from %s", clientIP)
 
 	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()
 
-	cs := newClientSession(s, ws, cancel)
+	cs := newClientSession(s, ws, cancel, clientIP)
+	cs.trySend(mustEncode(typeVersion, versionPayload{Version: s.version}))
 	cs.serve(ctx)
 }
 

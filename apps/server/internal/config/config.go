@@ -68,13 +68,14 @@ func Load() (Config, error) {
 	fs.String("config", "", "Path to optional config file")
 
 	// Usage
-	fs.Usage = func() {
+	usage := func() {
 		fmt.Fprintf(os.Stderr, `solid-sdr-server
 
 Usage:
   %s [flags]
 
 Flags:
+  -V, --version         Print version and exit
 `, os.Args[0])
 		fs.PrintDefaults()
 		fmt.Fprintf(os.Stderr, `
@@ -89,8 +90,12 @@ Config file:
   Or place solid-sdr-server.yaml/json/toml in current directory
 `)
 	}
+	fs.Usage = usage
 
 	pflag.CommandLine.AddFlagSet(fs)
+	pflag.CommandLine.Usage = usage
+	pflag.Usage = usage
+
 	pflag.Parse()
 
 	// Viper setup

@@ -14,9 +14,16 @@ import (
 	"github.com/daveisadork/solid-sdr/apps/server/internal/discovery"
 	"github.com/daveisadork/solid-sdr/apps/server/internal/rtc"
 	"github.com/daveisadork/solid-sdr/apps/server/internal/static"
+	"github.com/daveisadork/solid-sdr/apps/server/internal/version"
 )
 
 func main() {
+	v := version.Resolve()
+
+	if isVersionFlag(v) {
+		return
+	}
+
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("config error: %v", err)
@@ -71,7 +78,7 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("listening on %s", addr)
+		log.Printf("solid-sdr-server %s listening on %s", v, addr)
 
 		err := srv.ListenAndServe()
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -88,6 +95,18 @@ func main() {
 	defer cancel()
 
 	_ = srv.Shutdown(ctx)
+}
+
+func isVersionFlag(v string) bool {
+	for _, arg := range os.Args[1:] {
+		if arg == "--version" || arg == "-version" || arg == "-V" {
+			_, _ = fmt.Fprintf(os.Stdout, "solid-sdr-server %s\n", v)
+
+			return true
+		}
+	}
+
+	return false
 }
 
 func withCOI(next http.Handler) http.Handler {

@@ -27,9 +27,11 @@ import {
 import {
   createEffect,
   createMemo,
+  createResource,
   createSignal,
   For,
   onCleanup,
+  onMount,
   Show,
 } from "solid-js";
 import { useColorMode } from "@kobalte/core";
@@ -41,12 +43,19 @@ import {
 } from "../ui/text-field";
 import useFlexRadio from "~/context/flexradio";
 import { useRtc } from "~/context/rtc";
-import { DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "../ui/dialog";
 import { SimpleSlider } from "../ui/simple-slider";
 import Upload from "~icons/material-symbols/upload";
 import Download from "~icons/material-symbols/download";
 import { Button } from "../ui/button";
-import { Callout, CalloutContent } from "../ui/callout";
+import { Callout, CalloutContent, CalloutTitle } from "../ui/callout";
 import {
   FileField,
   FileFieldDropzone,
@@ -58,14 +67,75 @@ import {
 } from "../ui/file-field";
 import { reconcile } from "solid-js/store";
 import { showToast } from "../ui/toast";
+import MdiGithub from "~icons/mdi/github";
+import MaterialSymbolsLicense from "~icons/material-symbols/license";
+
+const LicenseInfo = () => {
+  const [open, setOpen] = createSignal(false);
+
+  return (
+    <Dialog open={open()} onOpenChange={setOpen}>
+      <DialogTrigger as={Button}>
+        <MaterialSymbolsLicense /> License
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>License</DialogTitle>
+          <DialogDescription>
+            SolidSDR is licensed under the MIT license
+          </DialogDescription>
+        </DialogHeader>
+        <p>Copyright {new Date().getFullYear()} Dave Hayes, KF0SMY</p>
+
+        <p>
+          Permission is hereby granted, free of charge, to any person obtaining
+          a copy of this software and associated documentation files (the
+          “Software”), to deal in the Software without restriction, including
+          without limitation the rights to use, copy, modify, merge, publish,
+          distribute, sublicense, and/or sell copies of the Software, and to
+          permit persons to whom the Software is furnished to do so, subject to
+          the following conditions:
+        </p>
+
+        <p>
+          The above copyright notice and this permission notice shall be
+          included in all copies or substantial portions of the Software.
+        </p>
+
+        <p>
+          THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
+          EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+          MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+          IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+          CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+          TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+          SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+        </p>
+      </DialogContent>
+    </Dialog>
+  );
+};
 
 export function AppSettings() {
   const { preferences, setPreferences } = usePreferences();
   const { setColorMode } = useColorMode();
   const { radio } = useFlexRadio();
   const { serverVersion } = useRtc();
-
+  const [newRelease, setNewRelease] = createSignal(false);
   const [importFile, setImportFile] = createSignal<File>();
+
+  const [currentRelease] = createResource(async () => {
+    const response = await fetch(
+      "https://api.github.com/repos/daveisadork/solid-sdr/releases/latest",
+    );
+    return await response.json();
+  });
+
+  createEffect(() => {
+    const currentVersion = currentRelease()?.tag_name;
+    if (!currentVersion) return;
+    setNewRelease(!APP_VERSION.startsWith(currentVersion));
+  });
 
   const downloadUrl = createMemo(() => {
     const blob = new Blob([JSON.stringify(preferences, null, 2)], {
@@ -116,12 +186,34 @@ export function AppSettings() {
       >
         <Card class="bg-transparent">
           <CardHeader>
-            <CardTitle>About</CardTitle>
+            <CardTitle>About SolidSDR</CardTitle>
           </CardHeader>
           <CardContent class="flex flex-col gap-2 text-sm">
-            <InfoItem label="App Version" value={APP_VERSION} />
+            <Show when={newRelease()}>
+              <a href={currentRelease().html_url} target="_blank">
+                <Callout>
+                  <CalloutTitle>
+                    SolidSDR {currentRelease().name} is available!
+                  </CalloutTitle>
+                  <CalloutContent>
+                    Click here for more information.
+                  </CalloutContent>
+                </Callout>
+              </a>
+            </Show>
+            <InfoItem label="Client Version" value={APP_VERSION} />
             <InfoItem label="Server Version" value={serverVersion() ?? "—"} />
           </CardContent>
+          <CardFooter class="flex flex-col sm:flex-row sm:justify-end gap-2 items-stretch">
+            <LicenseInfo />
+            <Button
+              as="a"
+              href="https://github.com/daveisadork/solid-sdr"
+              target="_blank"
+            >
+              <MdiGithub /> Project Page
+            </Button>
+          </CardFooter>
         </Card>
         <Card class="bg-transparent">
           <CardHeader>

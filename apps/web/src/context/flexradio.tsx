@@ -528,9 +528,9 @@ export const FlexRadioProvider: ParentComponent = (props) => {
       await radio.connect({
         clientInfo: {
           isGui: true,
-          program: "SolidSDR Web",
+          program: "SolidSDR",
           guiClientId: preferences.guiClientId,
-          station: preferences.stationName.replaceAll(/ /g, "\u007f"),
+          station: preferences.stationName,
         },
       });
     } catch (error) {

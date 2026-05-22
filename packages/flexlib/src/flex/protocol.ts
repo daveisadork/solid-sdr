@@ -47,10 +47,9 @@ export interface FlexNoticeMessage {
   readonly kind: "notice";
   readonly raw: string;
   readonly timestamp: number;
-  readonly sequence?: number;
+  readonly code: number;
   readonly severity: FlexNoticeSeverity;
   readonly text: string;
-  readonly metadata?: Readonly<Record<string, string>>;
 }
 
 export interface FlexUnknownMessage {
@@ -211,31 +210,23 @@ function parseNotice(
   const { header, body } = splitHeader(line);
   if (body === undefined) return undefined;
 
-  const parts = body.split("|");
-  const sequence = safeParseInt(header);
-  const severityToken = parts[0]?.trim().toLowerCase();
-  const text = parts[1]?.trim() ?? "";
-  const metadataSegment = parts[2];
+  const code = parseReplyCode(header);
+  if (code === undefined) return { kind: "unknown", raw: line, timestamp };
 
-  if (!severityToken) {
-    return {
-      kind: "unknown",
-      raw: line,
-      timestamp,
-    };
-  }
-
-  const severity = normalizeSeverity(severityToken);
-  const metadata = metadataSegment ? parseMetadata(metadataSegment) : undefined;
+  const severityBits = (code >>> 24) & 0x3;
+  let severity: FlexNoticeSeverity;
+  if (severityBits === 1) severity = "warning";
+  else if (severityBits === 2) severity = "error";
+  else if (severityBits === 3) severity = "fatal";
+  else severity = "info";
 
   return {
     kind: "notice",
     raw: line,
     timestamp,
-    sequence: sequence ?? undefined,
+    code,
     severity,
-    text,
-    metadata,
+    text: body,
   };
 }
 
@@ -264,12 +255,6 @@ function parseReplyCode(value: string | undefined): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-function normalizeSeverity(token: string): FlexNoticeSeverity {
-  if (token === "warn" || token === "warning") return "warning";
-  if (token === "err" || token === "error") return "error";
-  if (token === "fatal") return "fatal";
-  return "info";
-}
 
 function parseAttributes(
   source: string,
@@ -391,14 +376,3 @@ function normalizeStatusAttributeValue(value: string): string {
   return v.replace(/\u007f/g, " ").trim();
 }
 
-function parseMetadata(segment: string): Record<string, string> {
-  const attributes = Object.create(null) as Record<string, string>;
-  for (const item of segment.split(",")) {
-    const equals = item.indexOf("=");
-    if (equals === -1) continue;
-    const key = item.slice(0, equals).trim();
-    const value = item.slice(equals + 1).trim();
-    if (key) attributes[key] = value;
-  }
-  return attributes;
-}

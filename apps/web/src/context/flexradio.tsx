@@ -55,6 +55,13 @@ import { Timeline } from "~/components/ui/timeline";
 import { InfoItem } from "~/components/settings/common";
 import { ReactiveMap } from "@solid-primitives/map";
 import { FlexRadioDescriptor } from "@repo/flexlib";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogTitle,
+} from "~/components/ui/alert-dialog";
+import * as ToastPrimitive from "@kobalte/core/toast";
 
 export enum ConnectionState {
   disconnected,
@@ -204,8 +211,12 @@ export const FlexRadioProvider: ParentComponent = (props) => {
   const { preferences, setPreferences } = usePreferences();
   const { peerConnection, rtcState, signalingWsState } = useRtc();
   const [activeRadio, setActiveRadio] = createSignal<Radio | null>(null);
+  const [showAlert, setShowAlert] = createSignal(false);
+  const [alertMessage, setAlertMessage] = createSignal("");
 
   const spots = new ReactiveMap<string, SpotState>();
+
+  createEffect(() => setShowAlert(Boolean(alertMessage())));
 
   let radioSubscriptions: Subscription[] = [];
 
@@ -413,22 +424,52 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     setState("selectedPanadapter", firstOwnPan ?? null);
   });
 
-  const handleNoticePayload = (payload: string) => {
-    const [, description] = payload.split("|");
-    if (description) {
-      showToast({ description, variant: "info" });
-    }
-  };
+  const previousToasts: Record<string, number> = {};
 
   const handleFlexMessage = (message: FlexWireMessage) => {
     switch (message.kind) {
       case "notice":
-        handleNoticePayload(message.raw);
+        // this keeps us from spamming duplicate messages
+        if (message.text in previousToasts) {
+          ToastPrimitive.toaster.dismiss(previousToasts[message.text]);
+        }
+        switch (message.severity) {
+          case "info":
+            console.info(message.text);
+            previousToasts[message.text] = showToast({
+              description: message.text,
+              variant: message.severity,
+            });
+            break;
+          case "warning":
+            console.warn(message.text);
+            previousToasts[message.text] = showToast({
+              description: message.text,
+              variant: message.severity,
+            });
+            break;
+          case "error": {
+            console.error(message.text);
+            previousToasts[message.text] = showToast({
+              description: message.text,
+              variant: message.severity,
+            });
+            break;
+          }
+          case "fatal": {
+            console.error(message.text);
+            setAlertMessage(message.text);
+            break;
+          }
+          default:
+            console.log(message.text);
+            previousToasts[message.text] = showToast({
+              description: message.text,
+            });
+        }
         break;
       case "reply":
         switch (message.level) {
-          case "success":
-            break;
           case "info":
             console.info("Command reply", message.raw);
             break;
@@ -669,6 +710,17 @@ export const FlexRadioProvider: ParentComponent = (props) => {
       >
         {props.children}
       </Show>
+      <AlertDialog
+        open={showAlert()}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) setAlertMessage("");
+        }}
+      >
+        <AlertDialogContent class="border-error-foreground">
+          <AlertDialogTitle>Fatal Error</AlertDialogTitle>
+          <AlertDialogDescription>{alertMessage()}</AlertDialogDescription>
+        </AlertDialogContent>
+      </AlertDialog>
     </FlexRadioContext.Provider>
   );
 };

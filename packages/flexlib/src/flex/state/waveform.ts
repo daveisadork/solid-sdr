@@ -86,14 +86,11 @@ export function parseLegacyWaveformList(
 
   const entries: ParsedLegacyWaveformEntry[] = [];
   for (const rawEntry of value.split(",")) {
-    const trimmed = rawEntry.trim();
-    if (!trimmed) continue;
-
-    const separatorIndex = trimmed.indexOf("  ");
-    if (separatorIndex === -1) continue;
-
-    const name = normalizeWaveformToken(trimmed.slice(0, separatorIndex));
-    const version = normalizeWaveformToken(trimmed.slice(separatorIndex + 2));
+    // these are supposed to be separated by a DEL character, but sometimes there's more than 1
+    const [name, version] = rawEntry
+      .trim()
+      .replace(/\u007f+/g, "\u007f")
+      .split("\u007f");
     if (!name) continue;
 
     entries.push({

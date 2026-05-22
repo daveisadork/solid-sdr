@@ -1843,7 +1843,6 @@ class RadioImpl {
     }
 
     const response = await this.command(command);
-    console.log(response);
     const newId = response.message?.trim() ?? "";
     const controller = this.slice(newId);
     if (!controller)

@@ -1867,7 +1867,7 @@ export function createRadioStateStore(
     }
 
     if ("installed_list" in message.attributes) {
-      return replaceLegacyWaveforms(message.attributes["installed_list"]);
+      return replaceLegacyWaveforms(message.raw);
     }
 
     const radioChange = patchRadio(message.attributes, {
@@ -1929,9 +1929,8 @@ export function createRadioStateStore(
     return changes;
   }
 
-  function replaceLegacyWaveforms(
-    installedList: string | undefined,
-  ): RadioStateChange[] {
+  function replaceLegacyWaveforms(rawMessage: string): RadioStateChange[] {
+    const [, installedList] = rawMessage.split("installed_list=");
     const entries = parseLegacyWaveformList(installedList);
     const nextIds = new Set(entries.map((entry) => entry.id));
     const changes: RadioStateChange[] = [];

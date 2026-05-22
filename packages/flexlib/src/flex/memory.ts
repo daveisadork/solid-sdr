@@ -24,8 +24,9 @@ export interface MemoryControllerEvents {
  * update settings. Each setter sends the appropriate `memory set` command
  * to the radio and optimistically patches the local store.
  */
-export interface MemoryController
-  extends Readonly<Omit<MemorySnapshot, "raw">> {
+export interface MemoryController extends Readonly<
+  Omit<MemorySnapshot, "raw">
+> {
   /** Returns the current snapshot of this memory's state. */
   snapshot(): MemorySnapshot;
 
@@ -145,15 +146,15 @@ export class MemoryControllerImpl implements MemoryController {
   }
 
   async setOwner(owner: string): Promise<void> {
-    await this.sendSet({ owner: owner.replace(/ /g, "\u007f") });
+    await this.sendSet({ owner });
   }
 
   async setGroup(group: string): Promise<void> {
-    await this.sendSet({ group: group.replace(/ /g, "\u007f") });
+    await this.sendSet({ group });
   }
 
   async setName(name: string): Promise<void> {
-    await this.sendSet({ name: name.replace(/ /g, "\u007f") });
+    await this.sendSet({ name });
   }
 
   async setFrequency(frequencyMHz: number): Promise<void> {
@@ -240,7 +241,7 @@ export class MemoryControllerImpl implements MemoryController {
 
   private async sendSet(entries: Record<string, string>): Promise<void> {
     const parts = Object.entries(entries).map(
-      ([key, value]) => `${key}=${value}`,
+      ([key, value]) => `${key}=${value.replace(/ /g, "\u007f")}`,
     );
     const change = this.radio.getStore().patchMemory(this.id, entries);
     if (change) this.radio.applyStateChange(change);

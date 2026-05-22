@@ -1384,12 +1384,6 @@ type RadioContextKind =
   | "file";
 
 function resolveRadioContext(context?: RadioStatusContext): RadioContextKind {
-  const identifier = context?.identifier?.toLowerCase();
-  if (identifier === "gps") return "gps";
-  if (identifier === "filter_sharpness") return "filter_sharpness";
-  if (identifier === "static_net_params") return "static_net_params";
-  if (identifier === "oscillator") return "oscillator";
-
   const source = context?.source?.toLowerCase();
   if (source === "gps") return "gps";
   if (source === "interlock") return "interlock";
@@ -1399,6 +1393,12 @@ function resolveRadioContext(context?: RadioStatusContext): RadioContextKind {
   if (source === "atu") return "atu";
   if (source === "waveform") return "waveform";
   if (source === "file") return "file";
+
+  const identifier = context?.identifier?.toLowerCase();
+  if (identifier === "gps") return "gps";
+  if (identifier === "filter_sharpness") return "filter_sharpness";
+  if (identifier === "static_net_params") return "static_net_params";
+  if (identifier === "oscillator") return "oscillator";
 
   return "radio";
 }

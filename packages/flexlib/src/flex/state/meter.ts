@@ -56,9 +56,7 @@ export function parseMeterUnits(
   fallback?: MeterUnits,
 ): MeterUnits {
   if (!value) return fallback ?? "none";
-  const trimmed = value.trim();
-  if (trimmed === "") return fallback ?? "none";
-  const normalized = trimmed.toLowerCase() === "none" ? "none" : trimmed;
+  const normalized = value.toLowerCase() === "none" ? "none" : value;
   const known = KNOWN_METER_UNITS.find((unit) => unit === normalized);
   if (known) return known;
   return normalized as MeterUnits;

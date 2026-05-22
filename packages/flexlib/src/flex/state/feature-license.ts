@@ -133,7 +133,7 @@ function applySubscriptionAttributes(
   partial: Mutable<Partial<FeatureLicenseSnapshot>>,
   previous?: FeatureLicenseSnapshot,
 ): void {
-  const name = attributes["name"]?.trim().toLowerCase();
+  const name = attributes["name"]?.toLowerCase();
   if (!name) {
     logParseError("license", "subscription.name", attributes["name"] ?? "");
     return;
@@ -212,7 +212,7 @@ function parseExpiration(value: string | undefined): Date | undefined {
 
 function normalizeReason(value: string | undefined): FeatureLicenseReason {
   if (!value) return "unknown";
-  const normalized = value.trim().toLowerCase();
+  const normalized = value.toLowerCase();
   if (
     normalized === "license_file" ||
     normalized === "plus" ||

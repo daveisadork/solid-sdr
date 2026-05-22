@@ -171,7 +171,7 @@ function applySamplerAttributes(
   partial: Mutable<Partial<ApdSnapshot>>,
   previous?: ApdSnapshot,
 ): void {
-  const txAntenna = attributes["tx_ant"]?.trim().toUpperCase();
+  const txAntenna = attributes["tx_ant"]?.toUpperCase();
   if (!txAntenna) return;
 
   const samplerState = resolveSamplerState(txAntenna, previous);
@@ -253,7 +253,7 @@ function normalizeSelectedSamplerPort(
   available: readonly string[],
   enforceAvailableList: boolean,
 ): string {
-  const normalized = rawValue?.trim().toUpperCase();
+  const normalized = rawValue?.toUpperCase();
   if (!normalized || normalized === "INVALID") return DEFAULT_SAMPLER_PORT;
   if (!enforceAvailableList) return normalized;
   return available.includes(normalized) ? normalized : DEFAULT_SAMPLER_PORT;

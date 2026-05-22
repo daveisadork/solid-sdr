@@ -1067,7 +1067,7 @@ export function createRadioStateStore(
     }
 
     if (action === "connected") {
-      const clientIdAttr = message.attributes["client_id"]?.trim();
+      const clientIdAttr = message.attributes["client_id"];
       if (!clientIdAttr) {
         return [
           {

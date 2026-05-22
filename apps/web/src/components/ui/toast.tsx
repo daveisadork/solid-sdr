@@ -145,8 +145,8 @@ function showToast(props: {
   description?: JSX.Element;
   variant?: ToastVariant;
   duration?: number;
-}) {
-  ToastPrimitive.toaster.show((data) => (
+}): number {
+  return ToastPrimitive.toaster.show((data) => (
     <Toast
       toastId={data.toastId}
       variant={props.variant}

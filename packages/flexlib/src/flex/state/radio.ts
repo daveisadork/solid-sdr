@@ -441,7 +441,7 @@ function applyRadioSourceAttributes(
         partial.fpgaVersion = value;
         break;
       case "gps": {
-        const normalized = value?.trim().toLowerCase();
+        const normalized = value?.toLowerCase();
         if (normalized) {
           partial.gpsInstalled = normalized !== "not present";
           if (normalized === "locked") partial.gpsLock = true;
@@ -1042,7 +1042,6 @@ function parseAmplifierHandles(
   value: string | undefined,
 ): readonly string[] | undefined {
   if (!value) return undefined;
-  if (!value.trim()) return Object.freeze([]) as readonly string[];
   const handles = value
     .split(",")
     .map((handle) => handle.trim())
@@ -1103,7 +1102,7 @@ function parseTuneMode(
   value: string | undefined,
 ): "single_tone" | "two_tone" | undefined {
   if (!value) return undefined;
-  const normalized = value.trim().toLowerCase();
+  const normalized = value.toLowerCase();
   if (normalized === "two_tone") return "two_tone";
   if (normalized === "single_tone") return "single_tone";
   return undefined;
@@ -1157,7 +1156,7 @@ const INTERLOCK_MOX_STATES = new Set<RadioInterlockState>([
 
 function parseScreensaverMode(value: string | undefined): RadioScreensaverMode {
   if (!value) return "none";
-  const normalized = value.trim().toLowerCase();
+  const normalized = value.toLowerCase();
   if (normalized === "model") return "model";
   if (normalized === "name") return "name";
   if (normalized === "callsign") return "callsign";
@@ -1184,8 +1183,7 @@ function parseAtuTuneStatus(
   value: string | undefined,
 ): RadioAtuTuneStatus | undefined {
   if (!value) return undefined;
-  const normalized = value.trim().toUpperCase();
-  if (!normalized) return undefined;
+  const normalized = value.toUpperCase();
   return ATU_TUNE_STATUS_BY_TOKEN[normalized];
 }
 
@@ -1352,7 +1350,7 @@ function applyGpsStatusAttributes(
         partial.gpsGnssPoweredAntenna = isTruthy(value);
         break;
       case "gps": {
-        const normalized = value?.trim().toLowerCase();
+        const normalized = value?.toLowerCase();
         if (normalized) {
           partial.gpsInstalled = normalized !== "not present";
           if (normalized === "locked") partial.gpsLock = true;
@@ -1386,12 +1384,6 @@ type RadioContextKind =
   | "file";
 
 function resolveRadioContext(context?: RadioStatusContext): RadioContextKind {
-  const identifier = context?.identifier?.toLowerCase();
-  if (identifier === "gps") return "gps";
-  if (identifier === "filter_sharpness") return "filter_sharpness";
-  if (identifier === "static_net_params") return "static_net_params";
-  if (identifier === "oscillator") return "oscillator";
-
   const source = context?.source?.toLowerCase();
   if (source === "gps") return "gps";
   if (source === "interlock") return "interlock";
@@ -1401,6 +1393,12 @@ function resolveRadioContext(context?: RadioStatusContext): RadioContextKind {
   if (source === "atu") return "atu";
   if (source === "waveform") return "waveform";
   if (source === "file") return "file";
+
+  const identifier = context?.identifier?.toLowerCase();
+  if (identifier === "gps") return "gps";
+  if (identifier === "filter_sharpness") return "filter_sharpness";
+  if (identifier === "static_net_params") return "static_net_params";
+  if (identifier === "oscillator") return "oscillator";
 
   return "radio";
 }
@@ -1526,15 +1524,14 @@ function normalizeProfileSelection(
   value: string | undefined,
 ): string | undefined {
   if (value === undefined) return undefined;
-  const trimmed = value.trim();
-  return trimmed.length ? trimmed : undefined;
+  return value.length ? value : undefined;
 }
 
 function parseFilterSharpnessMode(
   token: string | undefined,
 ): RadioFilterSharpnessMode | undefined {
   if (!token) return undefined;
-  const normalized = token.trim().toLowerCase();
+  const normalized = token.toLowerCase();
   if (normalized === "voice") return "voice";
   if (normalized === "cw") return "cw";
   if (normalized === "digital") return "digital";
@@ -1542,28 +1539,26 @@ function parseFilterSharpnessMode(
 }
 
 function parseIpAddress(value: string | undefined): string | undefined {
-  if (value === undefined) return undefined;
-  const normalized = value.trim();
-  if (!normalized) return undefined;
-  if (normalized.includes(":")) {
+  if (!value) return undefined;
+  if (value.includes(":")) {
     // Basic validation for IPv6 literals.
-    return /^[0-9a-fA-F:]+$/.test(normalized) ? normalized : undefined;
+    return /^[0-9a-fA-F:]+$/.test(value) ? value : undefined;
   }
-  const parts = normalized.split(".");
+  const parts = value.split(".");
   if (parts.length !== 4) return undefined;
   for (const part of parts) {
     if (!/^\d+$/.test(part)) return undefined;
     const octet = Number.parseInt(part, 10);
     if (!Number.isFinite(octet) || octet < 0 || octet > 255) return undefined;
   }
-  return normalized;
+  return value;
 }
 
 function parseOscillatorSetting(
   value: string | undefined,
 ): RadioOscillatorSetting | undefined {
   if (!value) return undefined;
-  const normalized = value.trim().toLowerCase();
+  const normalized = value.toLowerCase();
   if (normalized === "auto") return "auto";
   if (normalized === "external") return "external";
   if (normalized === "gpsdo") return "gpsdo";

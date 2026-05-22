@@ -27,16 +27,17 @@ describe("parseFlexMessage", () => {
     expect(message.message).toBe("slice created");
   });
 
-  it("parses notices and normalizes severity", () => {
+  it("parses notices and extracts severity from message code", () => {
     const message = parseFlexMessage(
-      "M|warn|High SWR|ant=ANT1,vswr=3.2",
+      "M31000003|Interlock is preventing transmission",
       Date.now(),
     );
     expect(message).toBeDefined();
     if (!message || message.kind !== "notice")
       throw new Error("expected notice");
+    expect(message.code).toBe(0x31000003);
     expect(message.severity).toBe("warning");
-    expect(message.metadata?.vswr).toBe("3.2");
+    expect(message.text).toBe("Interlock is preventing transmission");
   });
 
   it("parses gps status with hash-delimited attributes", () => {

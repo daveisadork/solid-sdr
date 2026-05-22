@@ -36,9 +36,9 @@ export function parseDiscoveredGuiClients(
         clientHandle,
         clientHandleInt,
         program: normalizeToken(programs[index]),
-        station: normalizeStation(stations[index]),
-        host: normalizeStation(hosts[index]),
-        ip: normalizeStation(ips[index]),
+        station: normalizeToken(stations[index]),
+        host: normalizeToken(hosts[index]),
+        ip: normalizeToken(ips[index]),
         isLocalPtt: false,
       }),
     );
@@ -60,12 +60,6 @@ function parseClientHandle(value: string | undefined): number | undefined {
 
 function normalizeToken(value: string | undefined): string | undefined {
   if (!value) return undefined;
-  const trimmed = value.trim();
+  const trimmed = value.replace(/\u007f/g, " ").trim();
   return trimmed.length > 0 ? trimmed : undefined;
-}
-
-function normalizeStation(value: string | undefined): string | undefined {
-  if (!value) return undefined;
-  const replaced = value.replace(/\u007f/g, " ");
-  return normalizeToken(replaced);
 }

@@ -496,7 +496,9 @@ describe("createRadioStateStore", () => {
     const store = createRadioStateStore();
 
     const changes = store.apply(
-      makeStatus("S1|waveform installed_list=NAVTEX\u007f1.0,RapidM\u007f2.1"),
+      makeStatus(
+        "S1|waveform installed_list=NAVTEX\u007f\u007f1.0,RapidM\u007f\u007f2.1",
+      ),
     );
 
     expect(store.getWaveforms()).toHaveLength(2);
@@ -511,7 +513,7 @@ describe("createRadioStateStore", () => {
     store.apply(makeStatus("S2|waveform container name=FT8 version=0.9"));
     expect(store.getWaveforms()).toHaveLength(3);
 
-    store.apply(makeStatus("S3|waveform installed_list=RapidM\u007f2.1"));
+    store.apply(makeStatus("S3|waveform installed_list=RapidM\u007f\u007f2.1"));
     expect(
       store.getWaveforms().map((waveform) => waveform.displayName),
     ).toEqual(["RapidM 2.1", "FT8 0.9"]);
@@ -669,7 +671,7 @@ describe("createRadioStateStore", () => {
 
     const { snapshot } = createGuiClientSnapshot(
       "0x29DD2CDC",
-      { station: "Home\u007fOffice" },
+      { station: "Home Office" },
       previous,
     );
 
@@ -678,7 +680,7 @@ describe("createRadioStateStore", () => {
     expect(snapshot.station).toBe("Home Office");
     expect(snapshot.raw["client_id"]).toBe("ABCD1234");
     expect(snapshot.raw["program"]).toBe("SmartSDR");
-    expect(snapshot.raw["station"]).toBe("Home\u007fOffice");
+    expect(snapshot.raw["station"]).toBe("Home Office");
   });
 
   it("tracks log available levels and modules", () => {

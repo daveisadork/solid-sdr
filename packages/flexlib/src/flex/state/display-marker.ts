@@ -55,7 +55,7 @@ export function createDisplayMarkerSnapshot(
         // Identity is resolved before snapshot creation.
         break;
       case "label":
-        partial.label = value.replace(/\u007f/g, " ");
+        partial.label = value;
         break;
       case "start_freq": {
         const parsed = parseFloatSafe(value);
@@ -78,9 +78,6 @@ export function createDisplayMarkerSnapshot(
         else logParseError("display_marker", key, value);
         break;
       }
-      case "removed":
-        // Lifecycle-only flag handled by the store.
-        break;
       default:
         logUnknownAttribute("display_marker", key, value);
         break;

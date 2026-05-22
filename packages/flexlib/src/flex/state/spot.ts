@@ -62,7 +62,7 @@ export function createSpotSnapshot(
   for (const [key, value] of Object.entries(attributes)) {
     switch (key) {
       case "callsign":
-        partial.callsign = value.replace(/\u007f/g, " ");
+        partial.callsign = value;
         break;
       case "rx_freq": {
         const parsed = parseFloatSafe(value);
@@ -104,7 +104,7 @@ export function createSpotSnapshot(
         break;
       }
       case "comment":
-        partial.comment = value.replace(/\u007f/g, " ");
+        partial.comment = value;
         break;
       case "priority": {
         const parsed = parseInteger(value);

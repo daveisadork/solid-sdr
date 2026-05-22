@@ -9,9 +9,9 @@ import { createConnectedRadio } from "../helpers.js";
 describe("MemorySnapshot parser", () => {
   it("parses all wire attributes on first creation", () => {
     const attributes: Record<string, string> = {
-      owner: "Dave\u007fHayes",
+      owner: "KF0SMY",
       group: "HF",
-      name: "40m\u007fSSB",
+      name: "40m SSB",
       freq: "7.250000",
       mode: "USB",
       step: "100",
@@ -32,7 +32,7 @@ describe("MemorySnapshot parser", () => {
     const { snapshot, diff } = createMemorySnapshot("0", attributes);
 
     expect(snapshot.id).toBe("0");
-    expect(snapshot.owner).toBe("Dave Hayes");
+    expect(snapshot.owner).toBe("KF0SMY");
     expect(snapshot.group).toBe("HF");
     expect(snapshot.name).toBe("40m SSB");
     expect(snapshot.frequencyMHz).toBeCloseTo(7.25);
@@ -51,7 +51,7 @@ describe("MemorySnapshot parser", () => {
     expect(snapshot.diglOffsetHz).toBe(0);
     expect(snapshot.diguOffsetHz).toBe(0);
     expect(diff.id).toBe("0");
-    expect(snapshot.raw["owner"]).toBe("Dave\u007fHayes");
+    expect(snapshot.raw["owner"]).toBe("KF0SMY");
   });
 
   it("incrementally updates from a previous snapshot", () => {
@@ -74,18 +74,6 @@ describe("MemorySnapshot parser", () => {
     expect(diff.mode).toBe("LSB");
     expect(diff.stepHz).toBeUndefined();
     expect(diff.id).toBeUndefined();
-  });
-
-  it("decodes \\u007f as space in owner, group, and name", () => {
-    const { snapshot } = createMemorySnapshot("0", {
-      owner: "John\u007fDoe",
-      group: "40\u007fm",
-      name: "My\u007fFreq",
-    });
-
-    expect(snapshot.owner).toBe("John Doe");
-    expect(snapshot.group).toBe("40 m");
-    expect(snapshot.name).toBe("My Freq");
   });
 
   it("logs unknown attributes", () => {

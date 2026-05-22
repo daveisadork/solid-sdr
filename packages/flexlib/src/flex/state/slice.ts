@@ -470,7 +470,7 @@ export function createSliceSnapshot(
         partial.recordingEnabled = isTruthy(value);
         break;
       case "play": {
-        const normalized = value?.trim().toLowerCase();
+        const normalized = value?.toLowerCase();
         if (!value || normalized === "disabled") {
           partial.playbackAvailable = false;
           partial.playbackEnabled = false;

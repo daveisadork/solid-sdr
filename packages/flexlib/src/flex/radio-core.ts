@@ -352,15 +352,20 @@ const DEFAULT_HANDSHAKE_COMMANDS: readonly string[] = [
   "sub license all",
   "sub usb_cable all",
   "sub tnf all",
-  "sub spot all",
   "sub display_marker all",
+  "sub spot all",
   "sub filt_preset all",
   "sub rapidm all",
   "sub ale all",
   "sub log_manager",
   "sub radio all",
+  "sub codec all",
   "sub apd all",
   "sub dvk all",
+  "sub ha_api amplifier",
+  "sub ha_api fault",
+  "sub navtex all",
+  "sub filt_preset all",
   "sub waveform all",
   "keepalive enable",
 ];
@@ -2678,7 +2683,12 @@ class RadioImpl {
     this.pendingCommands.delete(reply.sequence);
     if (entry.timeoutHandle) clearTimeout(entry.timeoutHandle);
 
-    const accepted = reply.level === "success" || reply.level === "info";
+    // SL_RESP_UNKNOWN (0x50001000): firmware ran the command but forgot to close
+    // the response loop — treat as accepted since the change was applied.
+    const accepted =
+      reply.level === "success" ||
+      reply.level === "info" ||
+      reply.code === 0x50001000;
     entry.resolve({
       sequence: reply.sequence,
       accepted,
@@ -2858,7 +2868,7 @@ class RadioImpl {
 
     const stationName = info.station;
     if (stationName) {
-      await this.command(`client station ${stationName}`).catch(() => {});
+      await this.setClientStationName(stationName).catch(() => {});
     }
 
     this.emitProgress("sync", "complete");

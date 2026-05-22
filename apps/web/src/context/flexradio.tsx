@@ -421,8 +421,6 @@ export const FlexRadioProvider: ParentComponent = (props) => {
   };
 
   const handleFlexMessage = (message: FlexWireMessage) => {
-    if (message.raw.includes("memory") || message.raw.includes("waveform"))
-      console.log(JSON.stringify(message, null, 2));
     switch (message.kind) {
       case "notice":
         handleNoticePayload(message.raw);

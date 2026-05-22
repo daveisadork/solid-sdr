@@ -208,10 +208,15 @@ function MemorySettingsInner() {
             );
           }}
         >
-          <SelectPrimitive.Trigger class="w-full">
+          <SelectPrimitive.Trigger class="w-full text-left">
             <SelectPrimitive.Value<string>>
               {(state) =>
-                state.selectedOption() ?? `${props.row.original.mode}⚠`
+                state.selectedOption() ?? (
+                  <>
+                    {props.row.original.mode}
+                    <span class="text-warning-foreground">⚠</span>
+                  </>
+                )
               }
             </SelectPrimitive.Value>
           </SelectPrimitive.Trigger>

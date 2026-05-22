@@ -169,7 +169,7 @@ const BUILTIN_RESPONSE_CODES: ReadonlyArray<[number, string]> = [
   [0x500000a1, "CWX unterminated inline command"],
   [0x500000a2, "CWX invalid inline command"],
   [0x500000a3, "Invalid subscription"],
-  [0x50001000, "Unknown response from radio"],
+  [0x50001000, "Command processed without explicit reply"],
   [0x50001001, "MySQL connection failure"],
   [0x50001002, "MySQL login failure"],
   [0x50001003, "MySQL not connected"],

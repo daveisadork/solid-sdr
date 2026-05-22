@@ -197,7 +197,7 @@ function MemorySettingsInner() {
       cell: (props) => (
         <SelectPrimitive.Root
           options={modeList()}
-          value={props.row.original.mode}
+          value={props.row.original.mode?.trim()}
           onChange={(value?: string) => {
             if (!value || value == props.row.original.mode) return;
             radio().memory(props.row.original.id)?.setMode(value);
@@ -208,9 +208,11 @@ function MemorySettingsInner() {
             );
           }}
         >
-          <SelectPrimitive.Trigger>
+          <SelectPrimitive.Trigger class="w-full">
             <SelectPrimitive.Value<string>>
-              {(state) => state.selectedOption()}
+              {(state) =>
+                state.selectedOption() ?? `${props.row.original.mode}⚠`
+              }
             </SelectPrimitive.Value>
           </SelectPrimitive.Trigger>
 

@@ -50,18 +50,12 @@ export function createGuiClientSnapshot(
   for (const [key, value] of Object.entries(attributes)) {
     switch (key) {
       case "client_id": {
-        const trimmed = value.trim();
-        partial.clientId = trimmed.length > 0 ? trimmed : undefined;
+        partial.clientId = value.length > 0 ? value : undefined;
         break;
       }
-      case "program": {
-        const trimmed = value.trim();
-        partial.program = trimmed.length > 0 ? trimmed : undefined;
-        break;
-      }
+      case "program":
       case "station": {
-        const normalized = value.replace(/\u007f/g, " ").trim();
-        partial.station = normalized.length > 0 ? normalized : undefined;
+        partial[key] = value.length > 0 ? value : undefined;
         break;
       }
       case "local_ptt":

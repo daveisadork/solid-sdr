@@ -1881,7 +1881,7 @@ export function createRadioStateStore(
   function handleContainerWaveform(
     message: FlexStatusMessage,
   ): RadioStateChange[] {
-    const name = message.attributes["name"]?.replace(/\u007f/g, " ").trim();
+    const { name, version } = message.attributes;
     if (!name) {
       return [
         {
@@ -1893,8 +1893,6 @@ export function createRadioStateStore(
       ];
     }
 
-    const version =
-      message.attributes["version"]?.replace(/\u007f/g, " ").trim() ?? "";
     const id = createWaveformId(name, version, true);
     const changes: RadioStateChange[] = [];
     const removed = isMarkedDeleted(message);

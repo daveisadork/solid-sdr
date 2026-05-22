@@ -384,10 +384,11 @@ function parseSpaceSeparatedAttributes(
 const ESCAPED_STATUS_QUOTE = /\\(["\\])/g;
 
 function normalizeStatusAttributeValue(value: string): string {
-  if (value.startsWith('"') && value.endsWith('"') && value.length >= 2) {
-    return value.slice(1, -1).replace(ESCAPED_STATUS_QUOTE, "$1");
+  let v = value;
+  if (v.startsWith('"') && v.endsWith('"') && v.length >= 2) {
+    v = v.slice(1, -1).replace(ESCAPED_STATUS_QUOTE, "$1");
   }
-  return value;
+  return v.replace(/\u007f/g, " ").trim();
 }
 
 function parseMetadata(segment: string): Record<string, string> {

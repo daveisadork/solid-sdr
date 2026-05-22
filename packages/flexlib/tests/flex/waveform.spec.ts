@@ -6,7 +6,7 @@ describe("waveform controller", () => {
   it("tracks waveform state and sends uninstall/restart commands", async () => {
     const { radio, connection } = await createConnectedRadio();
 
-    connection.emitStatus("S1|waveform installed_list=NAVTEX\u007f1.0");
+    connection.emitStatus("S1|waveform installed_list=NAVTEX\u007f\u007f1.0");
     connection.emitStatus("S2|waveform container name=FT8 version=0.9");
 
     const legacy = radio

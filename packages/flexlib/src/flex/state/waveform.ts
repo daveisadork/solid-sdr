@@ -89,11 +89,11 @@ export function parseLegacyWaveformList(
     const trimmed = rawEntry.trim();
     if (!trimmed) continue;
 
-    const separatorIndex = trimmed.indexOf("\u007f");
+    const separatorIndex = trimmed.indexOf("  ");
     if (separatorIndex === -1) continue;
 
     const name = normalizeWaveformToken(trimmed.slice(0, separatorIndex));
-    const version = normalizeWaveformToken(trimmed.slice(separatorIndex + 1));
+    const version = normalizeWaveformToken(trimmed.slice(separatorIndex + 2));
     if (!name) continue;
 
     entries.push({
@@ -108,5 +108,5 @@ export function parseLegacyWaveformList(
 }
 
 function normalizeWaveformToken(value: string | undefined): string {
-  return value?.replace(/\u007f/g, " ").trim() ?? "";
+  return value?.trim() ?? "";
 }

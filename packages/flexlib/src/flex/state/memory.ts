@@ -46,13 +46,13 @@ export function createMemorySnapshot(
   for (const [key, value] of Object.entries(attributes)) {
     switch (key) {
       case "owner":
-        partial.owner = value.replace(/\u007f/g, " ");
+        partial.owner = value;
         break;
       case "group":
-        partial.group = value.replace(/\u007f/g, " ");
+        partial.group = value;
         break;
       case "name":
-        partial.name = value.replace(/\u007f/g, " ");
+        partial.name = value;
         break;
       case "freq": {
         const parsed = parseMegahertz(value);

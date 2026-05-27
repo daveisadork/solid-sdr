@@ -81,6 +81,7 @@ export interface Preferences {
   palette: PaletteSettings;
   panadapterOffset: number;
   waterfallOffset: number;
+  networkMtu: number;
   remoteAudio: {
     tx: TxAudioConfig;
     rx: RxAudioConfig;
@@ -121,7 +122,8 @@ const getDefaults = (): Preferences => ({
   enableTransparencyEffects: true,
   showDisplayMarkers: true,
   guiClientId: null,
-  panadapterOffset: -2,
+  networkMtu: 1450,
+  panadapterOffset: -1,
   waterfallOffset: -1,
   midiMappings: [],
   spots: {

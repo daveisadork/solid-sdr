@@ -655,7 +655,7 @@ function BandSettings(props: {
 
   return (
     <ToggleGroup
-      class="grid grid-cols-3 gap-1"
+      class="grid grid-cols-3 gap-2"
       value={
         props.panadapter.xvtr
           ? `x${

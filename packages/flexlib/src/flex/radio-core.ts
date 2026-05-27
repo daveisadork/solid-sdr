@@ -210,6 +210,12 @@ export interface RadioConnectOptions {
   readonly pingIntervalMs?: number | null;
   /** Handle timeout in ms during handshake. Defaults to 10000. */
   readonly handleTimeoutMs?: number;
+  /**
+   * MTU to request from the radio during the handshake.
+   * Sends `client set enforce_network_mtu=1 network_mtu=<value>`.
+   * Defaults to 1500.
+   */
+  readonly networkMtu?: number;
 }
 
 /** Client identity metadata announced during the handshake. */
@@ -327,6 +333,7 @@ export interface RadioSession {
 const DEFAULT_COMMAND_TIMEOUT_MS = 5_000;
 const DEFAULT_HANDLE_TIMEOUT_MS = 10_000;
 const DEFAULT_PING_INTERVAL_MS = 1_000;
+const DEFAULT_NETWORK_MTU = 1_500;
 const COMMAND_TERMINATOR = "\n";
 
 /** Subscription commands sent during the default handshake. */
@@ -1228,7 +1235,7 @@ class RadioImpl {
       this.emitProgress("handle", handle);
 
       // --- Handshake ---
-      await this.performHandshake(options?.clientInfo);
+      await this.performHandshake(options);
 
       // --- UDP ---
       this.emitProgress("udp", "connecting");
@@ -2822,8 +2829,8 @@ class RadioImpl {
   // Handshake
   // -----------------------------------------------------------------------
 
-  private async performHandshake(clientInfo?: RadioClientInfo): Promise<void> {
-    const info = clientInfo ?? {};
+  private async performHandshake(options?: RadioConnectOptions): Promise<void> {
+    const info = options?.clientInfo ?? {};
 
     // Announce program name
     const programName = info.program?.trim();
@@ -2851,6 +2858,9 @@ class RadioImpl {
 
     // Configure network
     this.emitProgress("sync", "network");
+    await this.setNetworkMtu(options?.networkMtu ?? DEFAULT_NETWORK_MTU).catch(
+      () => {},
+    );
     await this.command("client set send_reduced_bw_dax=1").catch(() => {});
 
     // Register as GUI client

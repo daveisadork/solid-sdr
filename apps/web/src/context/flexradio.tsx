@@ -573,6 +573,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
           guiClientId: preferences.guiClientId,
           station: preferences.stationName,
         },
+        networkMtu: preferences.networkMtu,
       });
     } catch (error) {
       console.error("Failed to connect to radio", error);

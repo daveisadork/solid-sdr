@@ -6,6 +6,7 @@ import {
   DialogHeader,
   DialogContent,
   DialogTrigger,
+  DialogFooter,
 } from "../ui/dialog";
 import {
   Card,
@@ -26,8 +27,17 @@ import {
 } from "../ui/segmented-control";
 import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import useFlexRadio, { FilterPresetState } from "~/context/flexradio";
-import type { FilterPresetEntry, Radio } from "@repo/flexlib";
-import { TextField, TextFieldInput, TextFieldLabel } from "../ui/text-field";
+import type {
+  FilterPresetEntry,
+  FlexCommandRejectedError,
+  Radio,
+} from "@repo/flexlib";
+import {
+  TextField,
+  TextFieldErrorMessage,
+  TextFieldInput,
+  TextFieldLabel,
+} from "../ui/text-field";
 import { SimpleSlider } from "../ui/simple-slider";
 import {
   Select,
@@ -64,6 +74,12 @@ import { Badge } from "../ui/badge";
 import { InfoItem } from "./common";
 import { ConfirmButton } from "../ui/confirm-button";
 import { Mutable } from "@repo/flexlib/flex/state/common";
+import { showToastPromise } from "../ui/toast";
+
+const ipv4Regex =
+  /^(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)){3}$/;
+
+const isValidIPv4 = (ip: string) => ipv4Regex.test(ip);
 
 function TxBandSettings(props: { radio: Radio }) {
   const { state } = useFlexRadio();
@@ -211,6 +227,205 @@ function TxBandSettings(props: { radio: Radio }) {
   );
 }
 
+function NetworkSettings(props: { radio: Radio }) {
+  const { state } = useFlexRadio();
+  const { preferences, setPreferences } = usePreferences();
+  const [rawNetworkMtu, setRawNetworkMtu] = createSignal(
+    preferences.networkMtu,
+  );
+  const [staticNetwork, setStaticNetwork] = createStore({
+    ip: state.status.radio.staticIp,
+    gateway: state.status.radio.staticGateway,
+    netmask: state.status.radio.staticNetmask,
+    ipTouched: false,
+    gatewayTouched: false,
+    netmaskTouched: false,
+  });
+
+  const networkMode = createMemo(() =>
+    state.status.radio.staticIp &&
+    state.status.radio.staticNetmask &&
+    state.status.radio.staticGateway
+      ? "static"
+      : "dhcp",
+  );
+
+  const [rawNetworkMode, setRawNetworkMode] = createSignal<"static" | "dhcp">(
+    networkMode(),
+  );
+
+  createEffect(() => setRawNetworkMode(networkMode()));
+  createEffect(() => setRawNetworkMtu(preferences.networkMtu));
+
+  createEffect(() => {
+    const desiredMtu = rawNetworkMtu();
+    if (desiredMtu === preferences.networkMtu) return;
+    props.radio
+      .setNetworkMtu(desiredMtu)
+      .then(() => setPreferences("networkMtu", desiredMtu));
+  });
+
+  const applyDisabled = createMemo(() =>
+    rawNetworkMode() === "dhcp"
+      ? networkMode() === "dhcp"
+      : (staticNetwork.ip === state.status.radio.staticIp &&
+          staticNetwork.netmask === state.status.radio.staticNetmask &&
+          staticNetwork.gateway === state.status.radio.staticGateway) ||
+        !(
+          isValidIPv4(staticNetwork.ip) &&
+          isValidIPv4(staticNetwork.netmask) &&
+          isValidIPv4(staticNetwork.gateway)
+        ),
+  );
+
+  const apply = () => {
+    showToastPromise(
+      rawNetworkMode() === "dhcp"
+        ? props.radio.resetStaticNetworkParams()
+        : props.radio.setStaticNetworkParams({
+            ip: staticNetwork.ip,
+            netmask: staticNetwork.netmask,
+            gateway: staticNetwork.gateway,
+          }),
+      {
+        success() {
+          return "Network settings applied successfully";
+        },
+        error(error: FlexCommandRejectedError) {
+          console.error(error);
+          return error.codeDescription ?? "Error applying network settings";
+        },
+      },
+    );
+  };
+
+  return (
+    <Dialog>
+      <DialogTrigger as={Button}>Advanced</DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Advanced Network Settings</DialogTitle>
+        </DialogHeader>
+        <div class="flex flex-col gap-4 text-sm">
+          <NumberField
+            class="flex flex-col gap-2 select-none"
+            rawValue={rawNetworkMtu()}
+            format={false}
+            minValue={576}
+            maxValue={9000}
+            onRawValueChange={setRawNetworkMtu}
+          >
+            <NumberFieldLabel class="select-none">Network MTU</NumberFieldLabel>
+            <NumberFieldGroup class="select-none">
+              <NumberFieldInput />
+              <NumberFieldIncrementTrigger class="select-none" />
+              <NumberFieldDecrementTrigger class="select-none" />
+            </NumberFieldGroup>
+          </NumberField>
+          <SimpleSwitch
+            label="Enforce Private IP Connections"
+            checked={state.status.radio.enforcePrivateIpConnections}
+            onChange={(checked) =>
+              props.radio.setEnforcePrivateIpConnections(checked)
+            }
+          />
+
+          <SegmentedControl
+            value={rawNetworkMode()}
+            onChange={setRawNetworkMode}
+          >
+            <SegmentedControlLabel>Network Mode</SegmentedControlLabel>
+            <SegmentedControlGroup>
+              <SegmentedControlIndicator />
+              <SegmentedControlItemsList>
+                <For each={["DHCP", "Static"]}>
+                  {(mode) => (
+                    <SegmentedControlItem value={mode.toLowerCase()}>
+                      <SegmentedControlItemLabel>
+                        {mode}
+                      </SegmentedControlItemLabel>
+                    </SegmentedControlItem>
+                  )}
+                </For>
+              </SegmentedControlItemsList>
+            </SegmentedControlGroup>
+          </SegmentedControl>
+          <Show when={rawNetworkMode() === "static"}>
+            <Card>
+              <CardHeader>
+                <CardTitle>Static Network Settings</CardTitle>
+              </CardHeader>
+              <CardContent class="flex flex-col gap-4">
+                <TextField
+                  value={staticNetwork.ip}
+                  onChange={(value) => setStaticNetwork("ip", value)}
+                  validationState={
+                    !staticNetwork.ipTouched || isValidIPv4(staticNetwork.ip)
+                      ? "valid"
+                      : "invalid"
+                  }
+                  class="flex flex-col gap-2"
+                >
+                  <TextFieldLabel>Static IP</TextFieldLabel>
+                  <TextFieldInput
+                    onBlur={() => setStaticNetwork("ipTouched", true)}
+                  />
+                  <TextFieldErrorMessage>
+                    Valid IPv4 address required
+                  </TextFieldErrorMessage>
+                </TextField>
+                <TextField
+                  value={staticNetwork.netmask}
+                  validationState={
+                    !staticNetwork.netmaskTouched ||
+                    isValidIPv4(staticNetwork.netmask)
+                      ? "valid"
+                      : "invalid"
+                  }
+                  onChange={(value) => setStaticNetwork("netmask", value)}
+                  class="flex flex-col gap-2"
+                >
+                  <TextFieldLabel>Static Netmask</TextFieldLabel>
+                  <TextFieldInput
+                    onBlur={() => setStaticNetwork("netmaskTouched", true)}
+                  />
+                  <TextFieldErrorMessage>
+                    Valid IPv4 address required
+                  </TextFieldErrorMessage>
+                </TextField>
+                <TextField
+                  value={staticNetwork.gateway}
+                  validationState={
+                    !staticNetwork.gatewayTouched ||
+                    isValidIPv4(staticNetwork.gateway)
+                      ? "valid"
+                      : "invalid"
+                  }
+                  onChange={(value) => setStaticNetwork("gateway", value)}
+                  class="flex flex-col gap-2"
+                >
+                  <TextFieldLabel>Static Gateway</TextFieldLabel>
+                  <TextFieldInput
+                    onBlur={() => setStaticNetwork("gatewayTouched", true)}
+                  />
+                  <TextFieldErrorMessage>
+                    Valid IPv4 address required
+                  </TextFieldErrorMessage>
+                </TextField>
+              </CardContent>
+            </Card>
+          </Show>
+        </div>
+        <DialogFooter>
+          <Button disabled={applyDisabled()} onClick={apply}>
+            Apply
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function RadioSettingsInner(props: { radio: Radio }) {
   const { state } = useFlexRadio();
   const [nickname, setNickname] = createSignal(state.status.radio.nickname);
@@ -345,6 +560,9 @@ function RadioSettingsInner(props: { radio: Radio }) {
           <InfoItem label="Subnet Mask" value={state.status.radio.netmask} />
           <InfoItem label="MAC Address" value={state.status.radio.macAddress} />
         </CardContent>
+        <CardFooter class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 items-stretch">
+          <NetworkSettings radio={props.radio} />
+        </CardFooter>
       </Card>
       <Card class="bg-transparent">
         <CardHeader>

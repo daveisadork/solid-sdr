@@ -28,6 +28,7 @@ import {
 import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import useFlexRadio, { FilterPresetState } from "~/context/flexradio";
 import type {
+  ApdSamplerPort,
   FilterPresetEntry,
   FlexCommandRejectedError,
   Radio,
@@ -550,6 +551,23 @@ function RadioSettingsInner(props: { radio: Radio }) {
             value={`v${state.status.featureLicense.highestMajorVersion}.x`}
           />
         </CardContent>
+        <CardFooter class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 items-stretch">
+          <Button
+            onClick={() =>
+              showToastPromise(
+                props.radio.featureLicense().refreshLicenseState(),
+                {
+                  loading: "Refreshing license",
+                  success: () => "License refreshed successfully",
+                  error: (e: FlexCommandRejectedError) =>
+                    e.codeDescription ?? "Error refreshing license",
+                },
+              )
+            }
+          >
+            Refresh
+          </Button>
+        </CardFooter>
       </Card>
       <Card class="bg-transparent">
         <CardHeader>
@@ -1484,6 +1502,122 @@ function RadioSettingsInner(props: { radio: Radio }) {
           </Button>
         </CardFooter>
       </Card>
+      <Show when={state.status.apd?.configurable}>
+        <Card class="bg-transparent">
+          <CardHeader>
+            <CardTitle>APD</CardTitle>
+          </CardHeader>
+          <CardContent class="select-none flex flex-col gap-4">
+            <Select
+              class="flex flex-col gap-2 select-none"
+              value={state.status.apd.selectedSamplerPortAnt1}
+              onChange={(value: ApdSamplerPort) =>
+                props.radio.apd().setSamplerPort("ANT1", value)
+              }
+              options={Array.from(state.status.apd.availableSamplerPortsAnt1)}
+              itemComponent={(props) => {
+                return (
+                  <SelectItem item={props.item} class="uppercase">
+                    {props.item.rawValue.toString()}
+                  </SelectItem>
+                );
+              }}
+            >
+              <SelectLabel>ANT1 Sampler Port</SelectLabel>
+              <SelectTrigger class="uppercase">
+                <SelectValue<string>>
+                  {(state) => state.selectedOption()}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent />
+            </Select>
+            <Select
+              class="flex flex-col gap-2 select-none"
+              value={state.status.apd.selectedSamplerPortAnt2}
+              onChange={(value: ApdSamplerPort) =>
+                props.radio.apd().setSamplerPort("ANT2", value)
+              }
+              options={Array.from(state.status.apd.availableSamplerPortsAnt2)}
+              itemComponent={(props) => {
+                return (
+                  <SelectItem item={props.item} class="uppercase">
+                    {props.item.rawValue.toString()}
+                  </SelectItem>
+                );
+              }}
+            >
+              <SelectLabel>ANT2 Sampler Port</SelectLabel>
+              <SelectTrigger class="uppercase">
+                <SelectValue<ApdSamplerPort>>
+                  {(state) => state.selectedOption()}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent />
+            </Select>
+            <Select
+              class="flex flex-col gap-2 select-none"
+              value={state.status.apd.selectedSamplerPortXvta}
+              onChange={(value: ApdSamplerPort) =>
+                props.radio.apd().setSamplerPort("XVTA", value)
+              }
+              options={Array.from(state.status.apd.availableSamplerPortsXvta)}
+              itemComponent={(props) => {
+                return (
+                  <SelectItem item={props.item} class="uppercase">
+                    {props.item.rawValue.toString()}
+                  </SelectItem>
+                );
+              }}
+            >
+              <SelectLabel>XVTA Sampler Port</SelectLabel>
+              <SelectTrigger class="uppercase">
+                <SelectValue<ApdSamplerPort>>
+                  {(state) => state.selectedOption()}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent />
+            </Select>
+            <Show when={state.status.radio.rxAntennaList.includes("XVTB")}>
+              <Select
+                class="flex flex-col gap-2 select-none"
+                value={state.status.apd.selectedSamplerPortXvtb}
+                onChange={(value: ApdSamplerPort) =>
+                  props.radio.apd().setSamplerPort("XVTB", value)
+                }
+                options={Array.from(state.status.apd.availableSamplerPortsXvtb)}
+                itemComponent={(props) => {
+                  return (
+                    <SelectItem item={props.item} class="uppercase">
+                      {props.item.rawValue.toString()}
+                    </SelectItem>
+                  );
+                }}
+              >
+                <SelectLabel>XVTB Sampler Port</SelectLabel>
+                <SelectTrigger class="uppercase">
+                  <SelectValue<ApdSamplerPort>>
+                    {(state) => state.selectedOption()}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent />
+              </Select>
+            </Show>
+          </CardContent>
+          <CardFooter class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 items-stretch">
+            <Button
+              onClick={() =>
+                showToastPromise(props.radio.apd().equalizerReset(), {
+                  loading: "Resetting APD equalizer",
+                  success: () => "APD equalizer reset successfully",
+                  error: () => "Error resetting APD equalizer",
+                })
+              }
+            >
+              Reset Equalizer
+            </Button>
+          </CardFooter>
+        </Card>
+      </Show>
     </div>
   );
 }

@@ -7,11 +7,21 @@ import { FlexStateUnavailableError } from "./errors.js";
 
 export type { FeatureLicenseFeature } from "./state/feature-license.js";
 
-export interface FeatureLicenseController
-  extends Readonly<Omit<FeatureLicenseSnapshot, "raw">> {
+export interface FeatureLicenseController extends Readonly<
+  Omit<FeatureLicenseSnapshot, "raw">
+> {
   snapshot(): FeatureLicenseSnapshot;
   getFeature(name: string): FeatureLicenseFeature | undefined;
   listFeatures(): readonly FeatureLicenseFeature[];
+  /** Send `license refresh` to re-fetch the radio's license state from the server. */
+  refreshLicenseState(): Promise<void>;
+  /**
+   * Upload a license key to the radio. `licenseKey` is the content of a
+   * FlexRadio `.lic` file with the `BEGIN/END LICENSE KEY` header lines and
+   * all newlines removed. The file's body is already base64-encoded by
+   * FlexRadio; no additional encoding is required before calling this method.
+   */
+  uploadLicense(licenseKey: string): Promise<void>;
 }
 
 export class FeatureLicenseControllerImpl implements FeatureLicenseController {
@@ -83,5 +93,13 @@ export class FeatureLicenseControllerImpl implements FeatureLicenseController {
 
   listFeatures(): readonly FeatureLicenseFeature[] {
     return Object.values(this.current().features);
+  }
+
+  async refreshLicenseState(): Promise<void> {
+    console.log(await this.radio.command("license refresh"));
+  }
+
+  async uploadLicense(licenseKey: string): Promise<void> {
+    await this.radio.command(`license set=${licenseKey}`);
   }
 }

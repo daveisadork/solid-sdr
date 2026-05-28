@@ -31,6 +31,9 @@ type Config struct {
 	// Diagnostics
 	APILogFile string `mapstructure:"api-log-file"`
 
+	// Server defaults
+	DefaultsFile string `mapstructure:"defaults-file"`
+
 	// Config file path (optional)
 	ConfigFile string `mapstructure:"-"`
 }
@@ -65,6 +68,7 @@ func Load() (Config, error) {
 	}, "Comma-separated STUN URLs")
 	fs.StringSlice("nat-1to1-ips", nil, "Optional public IPs for NAT 1:1 mapping (e.g. 203.0.113.2,2001:db8::2)")
 	fs.String("api-log-file", defaultAPILogPath(), "Path to write raw TCP API messages (set empty to disable)")
+	fs.String("defaults-file", "", "Path to JSON file served as server defaults (optional)")
 	fs.String("config", "", "Path to optional config file")
 
 	// Usage
@@ -137,8 +141,8 @@ Config file:
 	}
 
 	cfg.ConfigFile = v.ConfigFileUsed()
-	log.Printf("[config] http=:%d static=%q ice=%d..%d api-log=%q file=%q\n",
-		cfg.HTTPPort, cfg.StaticDir, cfg.ICEPortStart, cfg.ICEPortEnd, cfg.APILogFile, cfg.ConfigFile)
+	log.Printf("[config] http=:%d static=%q ice=%d..%d api-log=%q defaults=%q file=%q\n",
+		cfg.HTTPPort, cfg.StaticDir, cfg.ICEPortStart, cfg.ICEPortEnd, cfg.APILogFile, cfg.DefaultsFile, cfg.ConfigFile)
 
 	// Sanity checks
 	if cfg.ICEPortEnd < cfg.ICEPortStart {

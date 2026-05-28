@@ -43,7 +43,7 @@ export default defineConfig({
         ws: true,
         rewriteWsOrigin: true,
       },
-      "/rtc": { target: "http://localhost:8080" },
+      "/defaults.json": { target: "http://localhost:8080" },
     },
     headers: {
       // cross-origin isolation for SAB in dev

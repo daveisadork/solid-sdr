@@ -54,7 +54,7 @@ function App() {
   const storageManager = createLocalStorageManager("vite-ui-theme");
 
   return (
-    <PreferencesProvider>
+    <>
       <ColorModeScript
         initialColorMode="dark"
         storageType={storageManager.type}
@@ -63,45 +63,47 @@ function App() {
         initialColorMode="dark"
         storageManager={storageManager}
       >
-        <Show
-          when={window.isSecureContext}
-          fallback={
-            <Callout
-              variant="error"
-              class="absolute top-1/2 left-1/2 -translate-1/2"
-            >
-              <CalloutTitle>HTTPS Required</CalloutTitle>
-              <CalloutContent class="flex flex-col gap-2">
-                SolidSDR requires a secure context (HTTPS) to work.
-                <div class="flex justify-end">
-                  <Button
-                    as="a"
-                    href="https://github.com/daveisadork/solid-sdr/wiki/Secure-Contexts"
-                    target="_blank"
-                  >
-                    <MaterialSymbolsOpenInNew />
-                    View Docs
-                  </Button>
-                </div>
-              </CalloutContent>
-            </Callout>
-          }
-        >
-          <RtcProvider>
-            <FlexRadioProvider>
-              <RuntimeProvider>
-                <ControlsProvider>
-                  <AppInner />
-                  <RtcAudio /> {/* keeps audio elements mounted */}
-                </ControlsProvider>
-              </RuntimeProvider>
-            </FlexRadioProvider>
-          </RtcProvider>
-        </Show>
+        <PreferencesProvider>
+          <Show
+            when={window.isSecureContext}
+            fallback={
+              <Callout
+                variant="error"
+                class="absolute top-1/2 left-1/2 -translate-1/2"
+              >
+                <CalloutTitle>HTTPS Required</CalloutTitle>
+                <CalloutContent class="flex flex-col gap-2">
+                  SolidSDR requires a secure context (HTTPS) to work.
+                  <div class="flex justify-end">
+                    <Button
+                      as="a"
+                      href="https://github.com/daveisadork/solid-sdr/wiki/Secure-Contexts"
+                      target="_blank"
+                    >
+                      <MaterialSymbolsOpenInNew />
+                      View Docs
+                    </Button>
+                  </div>
+                </CalloutContent>
+              </Callout>
+            }
+          >
+            <RtcProvider>
+              <FlexRadioProvider>
+                <RuntimeProvider>
+                  <ControlsProvider>
+                    <AppInner />
+                    <RtcAudio /> {/* keeps audio elements mounted */}
+                  </ControlsProvider>
+                </RuntimeProvider>
+              </FlexRadioProvider>
+            </RtcProvider>
+          </Show>
+          <ReleaseNotification />
+        </PreferencesProvider>
         <Toaster />
       </ColorModeProvider>
-      <ReleaseNotification />
-    </PreferencesProvider>
+    </>
   );
 }
 

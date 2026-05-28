@@ -5,7 +5,7 @@ import { SidebarProvider, SidebarTrigger } from "./components/ui/sidebar";
 import { Toaster } from "./components/ui/toast";
 import "./app.css";
 import { RtcProvider } from "./context/rtc";
-import RtcAudio from "./components/rtc-audio";
+import { AudioProvider } from "./context/audio";
 import {
   ColorModeProvider,
   ColorModeScript,
@@ -91,10 +91,11 @@ function App() {
             <RtcProvider>
               <FlexRadioProvider>
                 <RuntimeProvider>
-                  <ControlsProvider>
-                    <AppInner />
-                    <RtcAudio /> {/* keeps audio elements mounted */}
-                  </ControlsProvider>
+                  <AudioProvider>
+                    <ControlsProvider>
+                      <AppInner />
+                    </ControlsProvider>
+                  </AudioProvider>
                 </RuntimeProvider>
               </FlexRadioProvider>
             </RtcProvider>

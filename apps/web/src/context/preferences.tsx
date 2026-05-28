@@ -7,7 +7,6 @@ import {
   createEffect,
   createResource,
   Show,
-  Suspense,
 } from "solid-js";
 import {
   createStore,
@@ -468,23 +467,22 @@ export const PreferencesProvider: ParentComponent = (props) => {
   });
 
   return (
-    <Suspense
+    <Show
+      when={serverDefaults()}
       fallback={
         <div class="absolute top-1/2 left-1/2 -translate-1/2 border rounded-lg p-4">
           Loading...
         </div>
       }
     >
-      <Show when={serverDefaults()}>
-        {(serverDefaults) => (
-          <PreferencesProviderInner
-            getDefaults={() => deepMerge(getDefaults(), serverDefaults())}
-          >
-            {props.children}
-          </PreferencesProviderInner>
-        )}
-      </Show>
-    </Suspense>
+      {(serverDefaults) => (
+        <PreferencesProviderInner
+          getDefaults={() => deepMerge(getDefaults(), serverDefaults())}
+        >
+          {props.children}
+        </PreferencesProviderInner>
+      )}
+    </Show>
   );
 };
 

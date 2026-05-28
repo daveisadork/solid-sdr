@@ -51,6 +51,7 @@ func main() {
 	// ---- HTTP mux ----
 	mux := http.NewServeMux()
 	mux.Handle("/ws/signal", rtcServer)
+	mux.HandleFunc("/defaults.json", makeDefaultsHandler(cfg.DefaultsFile))
 
 	if cfg.StaticDir != "" {
 		mux.Handle("/", http.FileServer(http.Dir(cfg.StaticDir)))
@@ -108,6 +109,29 @@ func isVersionFlag(v string) bool {
 	}
 
 	return false
+}
+
+func makeDefaultsHandler(path string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		if path == "" {
+			_, _ = w.Write([]byte("{}"))
+			return
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			if os.IsNotExist(err) {
+				http.NotFound(w, r)
+				return
+			}
+
+			http.Error(w, "failed to read defaults file", http.StatusInternalServerError)
+			return
+		}
+
+		_, _ = w.Write(data)
+	}
 }
 
 func withCOI(next http.Handler) http.Handler {

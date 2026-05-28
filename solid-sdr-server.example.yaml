@@ -33,3 +33,8 @@ stun:
 
 # Path to write raw API message log (default: messages.txt — set empty to disable)
 # api-log-file: messages.txt
+
+# Path to a JSON file of partial preferences to serve as server-defined defaults.
+# Clients merge these into their hardcoded defaults before applying saved preferences.
+# If unset, /defaults.json returns {}. If set but the file is missing, clients receive a 404.
+# defaults-file: /path/to/defaults.json

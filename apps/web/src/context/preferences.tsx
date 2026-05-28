@@ -5,8 +5,17 @@ import {
   type ParentComponent,
   useContext,
   createEffect,
+  createResource,
+  Show,
+  Suspense,
 } from "solid-js";
-import { createStore, reconcile, SetStoreFunction } from "solid-js/store";
+import {
+  createStore,
+  reconcile,
+  SetStoreFunction,
+  unwrap,
+} from "solid-js/store";
+import { showToast } from "~/components/ui/toast";
 import { DaxChannelMode } from "~/lib/dax-audio-sink/types";
 import { MidiMapping } from "~/lib/midi";
 
@@ -377,7 +386,7 @@ const getDefaults = (): Preferences => ({
   },
 });
 
-const deepMerge = <T extends object>(target: T, source: T): T => {
+const deepMerge = <T extends object>(target: T, source: Partial<T>): T => {
   for (const [key, value] of Object.entries(source)) {
     const targetValue = target[key];
     if (targetValue === value) continue;
@@ -393,17 +402,17 @@ const deepMerge = <T extends object>(target: T, source: T): T => {
   return target;
 };
 
-export const PreferencesProvider: ParentComponent = (props) => {
-  const [store, setStore] = createStore(getDefaults());
+export const PreferencesProviderInner: ParentComponent<{
+  getDefaults: () => Preferences;
+}> = (props) => {
+  const [store, setStore] = createStore(props.getDefaults());
   const [preferences, setPreferences] = makePersisted([store, setStore], {
     name: "preferences",
   });
 
   // populate any missing defaults, and clean up any deprecated/removed prefs
   setPreferences(
-    reconcile(
-      deepMerge(getDefaults(), JSON.parse(JSON.stringify(preferences))),
-    ),
+    reconcile(deepMerge(props.getDefaults(), unwrap(preferences))),
   );
 
   createEffect(() => {
@@ -426,6 +435,56 @@ export const PreferencesProvider: ParentComponent = (props) => {
     <PreferencesContext.Provider value={{ preferences, setPreferences }}>
       {props.children}
     </PreferencesContext.Provider>
+  );
+};
+
+export const PreferencesProvider: ParentComponent = (props) => {
+  const [serverDefaults] = createResource<Partial<Preferences>>(async () => {
+    try {
+      const response = await fetch("/defaults.json");
+      if (!response.ok) throw new Error(response.statusText);
+      const serverDefaults = await response.json();
+      const defaults = getDefaults();
+      for (const key in serverDefaults) {
+        if (!(key in defaults)) {
+          console.warn("Unknown key in serverDefaults:", key);
+        }
+      }
+      if ("guiClientId" in serverDefaults) {
+        console.warn(
+          "serverDefaults contains guiClientId, which is not recommended!",
+        );
+      }
+      return serverDefaults;
+    } catch (err) {
+      console.error(err);
+      showToast({
+        variant: "error",
+        title: "Failed to load server defaults",
+        description: String(err),
+      });
+      return {};
+    }
+  });
+
+  return (
+    <Suspense
+      fallback={
+        <div class="absolute top-1/2 left-1/2 -translate-1/2 border rounded-lg p-4">
+          Loading...
+        </div>
+      }
+    >
+      <Show when={serverDefaults()}>
+        {(serverDefaults) => (
+          <PreferencesProviderInner
+            getDefaults={() => deepMerge(getDefaults(), serverDefaults())}
+          >
+            {props.children}
+          </PreferencesProviderInner>
+        )}
+      </Show>
+    </Suspense>
   );
 };
 

@@ -1,15 +1,7 @@
 import { usePreferences } from "../../context/preferences";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { SimpleSwitch } from "../ui/simple-switch";
-import {
-  createEffect,
-  createMemo,
-  createSignal,
-  For,
-  Match,
-  Show,
-  Switch,
-} from "solid-js";
+import { createEffect, createSignal, For, Match, Show, Switch } from "solid-js";
 import useFlexRadio from "~/context/flexradio";
 import { DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import {
@@ -32,7 +24,8 @@ import {
   SwitchLabel,
   SwitchThumb,
 } from "../ui/switch";
-import { useRuntime } from "~/context/runtime";
+import { useAudio } from "~/context/audio";
+import { AudioLevelMeter } from "../ui/audio-level-meter";
 import { Callout, CalloutContent, CalloutTitle } from "../ui/callout";
 import { createPermission } from "~/lib/permission";
 
@@ -43,25 +36,13 @@ const CHANNEL_MODE_ICONS = {
 };
 
 function InnerDaxSettings() {
-  const { audioStreams } = useRuntime();
+  const { daxSinks, daxTxStream } = useAudio();
   const { preferences, setPreferences } = usePreferences();
   const { state } = useFlexRadio();
   const [caps, setCaps] = createSignal<string[]>([]);
 
   const outputs = createSpeakers();
   const inputs = createMicrophones();
-
-  const daxTxDevice = createMemo(() =>
-    inputs().find((d) => d.deviceId === preferences.dax.tx.inputDeviceId),
-  );
-
-  const daxTxStream = createMemo(() => {
-    return audioStreams.get(
-      Object.values(state.status.audioStream).find(
-        (s) => s.clientHandle === state.clientHandleInt && s.type === "dax_tx",
-      )?.id,
-    );
-  });
 
   createEffect(() => {
     navigator.mediaDevices
@@ -102,37 +83,8 @@ function InnerDaxSettings() {
               <SwitchThumb />
             </SwitchControl>
           </SwitchRoot>
-          {/* <For each={daxTxStream()?.getAudioTracks()}> */}
-          {/*   {(track) => { */}
-          {/*     const settings = track.getSettings(); */}
-          {/*     return ( */}
-          {/*       <CardDescription> */}
-          {/*         {[ */}
-          {/*           settings.sampleSize ? `${settings.sampleSize}-bit` : null, */}
-          {/*           settings.sampleRate */}
-          {/*             ? `${settings.sampleRate / 1_000}kHz` */}
-          {/*             : null, */}
-          {/*         ] */}
-          {/*           .filter(Boolean) */}
-          {/*           .join(" ")} */}
-          {/*       </CardDescription> */}
-          {/*     ); */}
-          {/*   }} */}
-          {/* </For> */}
         </CardHeader>
         <CardContent class="flex flex-col gap-4">
-          {/* <Show when={daxTxInstance()}> */}
-          {/*   <SimpleMeter */}
-          {/*     value={Math.max(daxTxLevel(), DAX_LEVEL_METER.low)} */}
-          {/*     peakValue={Math.max(daxTxPeak(), DAX_LEVEL_METER.low)} */}
-          {/*     meter={DAX_LEVEL_METER} */}
-          {/*     label="DAX TX Level" */}
-          {/*     showTicks */}
-          {/*     showTickLabels */}
-          {/*     containTickLabels */}
-          {/*     tickLabelFilter={({ index }) => index % 2 === 0} */}
-          {/*   /> */}
-          {/* </Show> */}
           <div class="flex gap-2">
             <Select
               class="flex flex-col gap-2 grow shrink"
@@ -195,6 +147,10 @@ function InnerDaxSettings() {
               <SelectContent />
             </Select>
           </div>
+          <AudioLevelMeter
+            stream={daxTxStream()}
+            channelMode={preferences.dax.tx.channelMode}
+          />
           <SimpleSwitch
             checked={preferences.dax.tx.reducedBandwidth}
             onChange={(checked) =>
@@ -340,6 +296,10 @@ function InnerDaxSettings() {
                   <SelectContent />
                 </Select>
               </div>
+              <AudioLevelMeter
+                stream={daxSinks.get(channel)?.stream}
+                channelMode={preferences.dax.rx[channel].channelMode}
+              />
             </CardContent>
           </Card>
         )}

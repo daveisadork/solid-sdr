@@ -1,14 +1,7 @@
 import { usePreferences } from "../../context/preferences";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { SimpleSwitch } from "../ui/simple-switch";
-import {
-  createEffect,
-  createMemo,
-  createSignal,
-  Match,
-  Show,
-  Switch,
-} from "solid-js";
+import { createEffect, createSignal, Match, Show, Switch } from "solid-js";
 import useFlexRadio from "~/context/flexradio";
 import { DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import {
@@ -26,7 +19,8 @@ import {
   SwitchLabel,
   SwitchThumb,
 } from "../ui/switch";
-import { useRuntime } from "~/context/runtime";
+import { useAudio } from "~/context/audio";
+import { AudioLevelMeter } from "../ui/audio-level-meter";
 import MaterialSymbolsMic from "~icons/material-symbols/mic";
 import MaterialSymbolsSpeaker from "~icons/material-symbols/speaker";
 import { Callout, CalloutContent, CalloutTitle } from "../ui/callout";
@@ -40,29 +34,12 @@ import MdiHeadphonesOff from "~icons/mdi/headphones-off";
 import { Dynamic } from "solid-js/web";
 
 function InnerAudioSettings() {
-  const { audioStreams } = useRuntime();
+  const { remoteAudioTxStream, remoteAudioRxStream } = useAudio();
   const { preferences, setPreferences } = usePreferences();
-  const { state } = useFlexRadio();
   const [caps, setCaps] = createSignal<string[]>([]);
 
   const outputs = createSpeakers();
   const inputs = createMicrophones();
-
-  const remoteAudioTxDevice = createMemo(() =>
-    inputs().find(
-      (d) => d.deviceId === preferences.remoteAudio.tx.inputDeviceId,
-    ),
-  );
-
-  const remoteAudioTxStream = createMemo(() => {
-    return audioStreams.get(
-      Object.values(state.status.audioStream).find(
-        (s) =>
-          s.clientHandle === state.clientHandleInt &&
-          s.type === "remoteAudio_tx",
-      )?.id,
-    );
-  });
 
   createEffect(() => {
     navigator.mediaDevices
@@ -141,6 +118,7 @@ function InnerAudioSettings() {
           </SelectTrigger>
           <SelectContent />
         </Select>
+        <AudioLevelMeter stream={remoteAudioRxStream()} channelMode="both" />
         <Select
           class="flex flex-col gap-2 grow shrink"
           value={preferences.remoteAudio.tx.inputDeviceId}
@@ -170,6 +148,7 @@ function InnerAudioSettings() {
           </SelectTrigger>
           <SelectContent />
         </Select>
+        <AudioLevelMeter stream={remoteAudioTxStream()} channelMode="both" />
         <Show when={caps().length} fallback="Checking capabilities...">
           <Show when={caps().includes("autoGainControl")}>
             <SimpleSwitch

@@ -7,8 +7,6 @@ import {
   MenubarShortcut,
   MenubarTrigger,
 } from "~/components/ui/menubar";
-import RtcAudio from "./rtc-audio";
-
 export function AppMenubar() {
   return (
     <Menubar class="fancy-bg-background">
@@ -25,7 +23,6 @@ export function AppMenubar() {
           <MenubarItem>Print</MenubarItem>
         </MenubarContent>
       </MenubarMenu>
-      <RtcAudio />
     </Menubar>
   );
 }

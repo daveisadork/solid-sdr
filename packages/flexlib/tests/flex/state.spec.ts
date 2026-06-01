@@ -247,12 +247,12 @@ describe("createRadioStateStore", () => {
     );
     store.apply(
       makeStatus(
-        "S1|license subscription name=smartsdr+ expiration=2025-03-15T00:00:00Z",
+        "S1|license subscription name=smartsdr+ expiration=2099-03-15T00:00:00Z",
       ),
     );
     store.apply(
       makeStatus(
-        "S1|license subscription name=smartsdr+_early_access expiration=2025-04-15T00:00:00Z",
+        "S1|license subscription name=smartsdr+_early_access expiration=2099-04-15T00:00:00Z",
       ),
     );
 
@@ -263,11 +263,11 @@ describe("createRadioStateStore", () => {
     expect(license?.features["auto_tune"]?.reason).toBe("plus");
     expect(license?.smartSdrPlusActive).toBe(true);
     expect(license?.smartSdrPlusExpiration?.toISOString()).toBe(
-      "2025-03-15T00:00:00.000Z",
+      "2099-03-15T00:00:00.000Z",
     );
     expect(license?.smartSdrPlusEarlyAccessActive).toBe(true);
     expect(license?.smartSdrPlusEarlyAccessExpiration?.toISOString()).toBe(
-      "2025-04-15T00:00:00.000Z",
+      "2099-04-15T00:00:00.000Z",
     );
   });
 

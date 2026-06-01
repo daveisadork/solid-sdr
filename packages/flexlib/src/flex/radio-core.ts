@@ -74,11 +74,13 @@ import {
 import { type MeterController, MeterControllerImpl } from "./meter.js";
 import {
   type AudioStreamController,
+  type DaxRxAudioStreamController,
   type DaxTxAudioStreamController,
   type AudioStreamTxController,
   type RemoteAudioTxStreamController,
   AudioStreamControllerImpl,
   AudioStreamTxControllerImpl,
+  DaxRxAudioStreamControllerImpl,
   DaxTxAudioStreamControllerImpl,
   RemoteAudioTxStreamControllerImpl,
 } from "./audio-stream.js";
@@ -1073,11 +1075,11 @@ class RadioImpl {
 
   async createDaxRxAudioStream(options: {
     daxChannel: number;
-  }): Promise<AudioStreamController> {
+  }): Promise<DaxRxAudioStreamController> {
     const channel = toInteger(options.daxChannel, "DAX RX channel");
     return this.createAudioStreamController(
       `stream create type=dax_rx dax_channel=${channel}`,
-      AudioStreamControllerImpl,
+      DaxRxAudioStreamControllerImpl,
     );
   }
 
@@ -1285,6 +1287,21 @@ class RadioImpl {
 
     this.setConnectionState("disconnected");
     this.emitDisconnected(undefined);
+  }
+
+  /** Reboot the radio's firmware. The connection will drop shortly after. */
+  async rebootRadio(): Promise<void> {
+    await this.command("radio reboot");
+  }
+
+  /** Install the GPS subsystem on a GPS-equipped radio. */
+  async gpsInstall(): Promise<void> {
+    await this.command("radio gps install");
+  }
+
+  /** Uninstall the GPS subsystem on a GPS-equipped radio. */
+  async gpsUninstall(): Promise<void> {
+    await this.command("radio gps uninstall");
   }
 
   // -----------------------------------------------------------------------

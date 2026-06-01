@@ -1,4 +1,5 @@
 import { TypedEventEmitter, type Subscription } from "../util/events.js";
+import { clampInteger } from "./controller-helpers.js";
 import { FlexStateUnavailableError } from "./errors.js";
 import type {
   AudioStreamSnapshot,
@@ -71,6 +72,17 @@ export interface RemoteAudioTxStreamController extends AudioStreamTxController {
    * VITA-49 packet framing, sequencing, and stream ID.
    */
   sendOpus(frame: Uint8Array): void;
+}
+
+/** DAX RX stream controller with per-channel RX gain. */
+export interface DaxRxAudioStreamController extends AudioStreamController {
+  /**
+   * Set the RX gain (0..100) for this DAX RX channel.
+   *
+   * Requires the stream to be bound to a slice. Throws
+   * {@link FlexStateUnavailableError} if no slice is currently bound.
+   */
+  setRxGain(gain: number): Promise<void>;
 }
 
 export class AudioStreamControllerImpl implements AudioStreamController {
@@ -262,6 +274,34 @@ export class DaxTxAudioStreamControllerImpl
 {
   async requestTx(tx: boolean): Promise<void> {
     await this.radio.command(`stream set ${this.id} tx=${tx ? 1 : 0}`);
+  }
+}
+
+/** DAX RX audio stream with per-channel RX gain. */
+export class DaxRxAudioStreamControllerImpl
+  extends AudioStreamControllerImpl
+  implements DaxRxAudioStreamController
+{
+  async setRxGain(gain: number): Promise<void> {
+    const sliceLetter = this.slice;
+    if (sliceLetter === undefined) {
+      throw new FlexStateUnavailableError(
+        `DAX RX stream ${this.id} has no slice bound; cannot set gain`,
+      );
+    }
+    const slice = this.radio
+      .getStore()
+      .getSlices()
+      .find((s) => s.indexLetter === sliceLetter);
+    if (!slice) {
+      throw new FlexStateUnavailableError(
+        `DAX RX stream ${this.id} bound to slice ${sliceLetter} but slice is not in store`,
+      );
+    }
+    const clamped = clampInteger(gain, 0, 100, "DAX RX gain");
+    await this.radio.command(
+      `audio stream ${this.id} slice ${slice.id} gain ${clamped}`,
+    );
   }
 }
 

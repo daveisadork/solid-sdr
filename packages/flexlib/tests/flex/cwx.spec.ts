@@ -91,7 +91,7 @@ describe("CWX controller", () => {
 
     // when we send text
     await cwx.send("CQ CQ CQ");
-    expect(connection.lastCommand()).toBe('cwx send "CQ CQ CQ"');
+    expect(connection.lastCommand()).toBe('cwx send "CQ\x7fCQ\x7fCQ"');
 
     // when we erase
     await cwx.erase(3);
@@ -100,6 +100,20 @@ describe("CWX controller", () => {
     // when we clear the buffer
     await cwx.clearBuffer();
     expect(connection.lastCommand()).toBe("cwx clear");
+  });
+
+  it("escapes spaces in send text as DEL (0x7f)", async () => {
+    // given a connected radio with cwx
+    const { radio, connection } = await createConnectedRadio();
+    connection.emitStatus("S1|cwx wpm=20");
+
+    // when send text contains spaces
+    await radio.cwx().send("hello world test");
+    expect(connection.lastCommand()).toBe('cwx send "hello\x7fworld\x7ftest"');
+
+    // when send text contains no spaces
+    await radio.cwx().send("single");
+    expect(connection.lastCommand()).toBe('cwx send "single"');
   });
 
   it("clamps speed and delay values", async () => {

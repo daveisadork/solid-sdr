@@ -128,6 +128,11 @@ export function createDvkSnapshot(
           break;
       }
     }
+
+    if ("enabled" in attributes && partial.enabled === false) {
+      partial.status = "disabled";
+      partial.statusRecordingId = undefined;
+    }
   }
 
   const snapshot = Object.freeze({

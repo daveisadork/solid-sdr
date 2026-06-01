@@ -29,6 +29,7 @@ export class DaxAudioSink {
   private workletNode?: AudioWorkletNode;
   private worker?: Worker;
   private resumePending = false;
+  private closed = false;
 
   private bufferMs: number;
   private channelMode: DaxChannelMode;
@@ -56,7 +57,9 @@ export class DaxAudioSink {
   }
 
   async init(): Promise<void> {
+    if (this.closed) return;
     await this.ctx.audioWorklet.addModule(sabWorkletURL);
+    if (this.closed) return;
     const node = new AudioWorkletNode(this.ctx, "dax-sab-sink", {
       numberOfInputs: 0,
       numberOfOutputs: 1,
@@ -160,13 +163,14 @@ export class DaxAudioSink {
   }
 
   async close(): Promise<void> {
+    this.closed = true;
     try {
       this.worker?.terminate();
       this.worker = undefined;
       this.workletNode?.disconnect();
       this.audio.srcObject = null;
     } finally {
-      await this.ctx.close();
+      if (this.ctx.state !== "closed") await this.ctx.close();
     }
   }
 

@@ -145,7 +145,25 @@ export class XvtrControllerImpl implements XvtrController {
   }
 
   async setMaxPowerDbm(power: number): Promise<void> {
-    const clamped = clampNumber(ensureFinite(power, "Max power"), -10);
+    const finite = ensureFinite(power, "Max power");
+    const ifFreq = this.current().ifFreqMHz;
+    const model = this.radio.getStore().getRadio()?.model;
+    let max: number;
+    if (ifFreq < 80.0) {
+      if (
+        model === "FLEX-6400" ||
+        model === "FLEX-6400M" ||
+        model === "FLEX-6600" ||
+        model === "FLEX-6600M"
+      ) {
+        max = 10.0;
+      } else {
+        max = 15.0;
+      }
+    } else {
+      max = 8.0;
+    }
+    const clamped = clampNumber(finite, -10, max);
     const value = clamped.toFixed(2);
     await this.sendSet({ max_power: value });
   }

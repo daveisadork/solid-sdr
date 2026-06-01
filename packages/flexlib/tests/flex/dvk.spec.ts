@@ -81,6 +81,66 @@ describe("DVK snapshot", () => {
     expect(dvk?.statusRecordingId).toBe("1");
   });
 
+  it("forces status to disabled when enabled=0 arrives alone", () => {
+    // given a store with active playback
+    const store = createRadioStateStore();
+    store.apply(makeStatus("S1|dvk status=playback enabled=1 id=5"));
+    expect(store.getDvk()?.status).toBe("playback");
+    expect(store.getDvk()?.statusRecordingId).toBe("5");
+
+    // when enabled=0 arrives without status/id
+    store.apply(makeStatus("S2|dvk enabled=0"));
+
+    // then status is forced to disabled and recordingId cleared
+    const dvk = store.getDvk();
+    expect(dvk?.enabled).toBe(false);
+    expect(dvk?.status).toBe("disabled");
+    expect(dvk?.statusRecordingId).toBeUndefined();
+  });
+
+  it("overrides status when enabled=0 arrives with status and id in same message", () => {
+    // given a fresh store
+    const store = createRadioStateStore();
+
+    // when a contradictory message arrives
+    store.apply(makeStatus("S1|dvk status=playback enabled=0 id=5"));
+
+    // then enabled=0 wins and forces disabled with cleared id
+    const dvk = store.getDvk();
+    expect(dvk?.enabled).toBe(false);
+    expect(dvk?.status).toBe("disabled");
+    expect(dvk?.statusRecordingId).toBeUndefined();
+  });
+
+  it("does not override when enabled=1 arrives with status and id", () => {
+    // given a fresh store
+    const store = createRadioStateStore();
+
+    // when enabled=1 arrives with playback status
+    store.apply(makeStatus("S1|dvk status=playback enabled=1 id=5"));
+
+    // then status and id are preserved
+    const dvk = store.getDvk();
+    expect(dvk?.enabled).toBe(true);
+    expect(dvk?.status).toBe("playback");
+    expect(dvk?.statusRecordingId).toBe("5");
+  });
+
+  it("does not override when enabled key is absent", () => {
+    // given a store in playback
+    const store = createRadioStateStore();
+    store.apply(makeStatus("S1|dvk status=playback enabled=1 id=5"));
+
+    // when a status-only update arrives without enabled key
+    store.apply(makeStatus("S2|dvk status=idle"));
+
+    // then enabled is unchanged and status/id are not forced
+    const dvk = store.getDvk();
+    expect(dvk?.enabled).toBe(true);
+    expect(dvk?.status).toBe("idle");
+    expect(dvk?.statusRecordingId).toBe("5");
+  });
+
   it("snapshot includes dvk", () => {
     // given a store with dvk state
     const store = createRadioStateStore();

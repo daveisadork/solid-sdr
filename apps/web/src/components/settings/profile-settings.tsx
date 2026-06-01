@@ -365,7 +365,7 @@ function ProfileSettingsInner(props: { radio: Radio }) {
         <SimpleSwitch
           label="Enable Profile Auto-Save"
           checked={state.status.radio.profileAutoSave}
-          onChange={props.radio.setProfileAutoSave}
+          onChange={(checked) => props.radio.setProfileAutoSave(checked)}
         />
         <Tabs
           value={activeTab()}

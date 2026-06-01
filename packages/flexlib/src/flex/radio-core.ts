@@ -1292,6 +1292,16 @@ class RadioImpl {
     await this.command("radio reboot");
   }
 
+  /** Install the GPS subsystem on a GPS-equipped radio. */
+  async gpsInstall(): Promise<void> {
+    await this.command("radio gps install");
+  }
+
+  /** Uninstall the GPS subsystem on a GPS-equipped radio. */
+  async gpsUninstall(): Promise<void> {
+    await this.command("radio gps uninstall");
+  }
+
   // -----------------------------------------------------------------------
   // Commands
   // -----------------------------------------------------------------------

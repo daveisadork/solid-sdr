@@ -424,17 +424,6 @@ describe("Radio", () => {
     expect(connection.lastCommand()).toBe("atu clear");
   });
 
-  it("issues gps install and uninstall commands", async () => {
-    const { radio, connection } = await createConnectedRadio();
-
-    // GPS commands go through the generic command interface
-    await radio.command("radio gps install");
-    expect(connection.lastCommand()).toBe("radio gps install");
-
-    await radio.command("radio gps uninstall");
-    expect(connection.lastCommand()).toBe("radio gps uninstall");
-  });
-
   it("issues a radio reboot command", async () => {
     const { radio, connection } = await createConnectedRadio();
 

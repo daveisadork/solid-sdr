@@ -150,11 +150,12 @@ function applySubscriptionAttributes(
     [name]: subscription,
   });
 
+  const active = expiration !== undefined && expiration.getTime() > Date.now();
   if (name === "smartsdr+") {
-    partial.smartSdrPlusActive = true;
+    partial.smartSdrPlusActive = active;
     partial.smartSdrPlusExpiration = expiration;
   } else if (name === "smartsdr+_early_access") {
-    partial.smartSdrPlusEarlyAccessActive = true;
+    partial.smartSdrPlusEarlyAccessActive = active;
     partial.smartSdrPlusEarlyAccessExpiration = expiration;
   }
 }

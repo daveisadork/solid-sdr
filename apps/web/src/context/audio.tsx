@@ -221,9 +221,7 @@ export const AudioProvider: ParentComponent = (props) => {
       );
       if (!activeStream) return;
 
-      const sink = new DaxAudioSink({
-        channelMode: preferences.dax.rx[daxChannel]?.channelMode ?? "both",
-      });
+      const sink = new DaxAudioSink();
       const controller = radio()?.audioStream(activeStream.id);
       sink.init().catch(console.error);
       const subscription = controller?.on("data", (event) => sink.play(event));

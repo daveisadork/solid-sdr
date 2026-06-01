@@ -68,6 +68,7 @@ export class DaxAudioTx {
   private readonly int16Buf = new Int16Array(DAX_PACKET_SAMPLES);
   private worklet?: AudioWorkletNode;
   private started = false;
+  private closed = false;
   private channelMode: DaxChannelMode;
 
   constructor(
@@ -89,7 +90,9 @@ export class DaxAudioTx {
 
   async start(): Promise<void> {
     if (!this.started) {
+      if (this.closed) return;
       await this.context.audioWorklet.addModule(daxAudioTxProcessorURL);
+      if (this.closed) return;
       const worklet = new AudioWorkletNode(this.context, "dax-audio-tx", {
         numberOfInputs: 1,
         numberOfOutputs: 1,
@@ -134,18 +137,20 @@ export class DaxAudioTx {
       this.started = true;
     }
 
+    if (this.closed) return;
     if (this.context.state !== "running") {
       await this.context.resume();
     }
   }
 
   async close(): Promise<void> {
+    this.closed = true;
     console.log("Closing dax tx");
     this.worklet?.port.close();
     this.worklet?.disconnect();
     this.mute.disconnect();
     this.source.disconnect();
-    await this.context.close();
+    if (this.context.state !== "closed") await this.context.close();
   }
 }
 

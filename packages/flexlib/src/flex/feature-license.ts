@@ -96,7 +96,7 @@ export class FeatureLicenseControllerImpl implements FeatureLicenseController {
   }
 
   async refreshLicenseState(): Promise<void> {
-    console.log(await this.radio.command("license refresh"));
+    await this.radio.command("license refresh");
   }
 
   async uploadLicense(licenseKey: string): Promise<void> {

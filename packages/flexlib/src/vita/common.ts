@@ -3,6 +3,12 @@
 // Author: Ported from C# by OpenAI (original author: Eric Wachsmann, KE5DTO)
 // *****************************************************************************
 
+/** FlexRadio IEEE OUI (24-bit), present in all Flex VITA class IDs. */
+export const VITA_FLEX_OUI = 0x001c2d;
+
+/** FlexRadio information class code, present in all Flex VITA class IDs. */
+export const VITA_FLEX_INFO_CLASS = 0x534c;
+
 //
 // Enums
 //

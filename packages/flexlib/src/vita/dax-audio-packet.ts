@@ -11,13 +11,9 @@ import {
   writeClassIdBE,
   createPacketContext,
   type VitaPacketContext,
+  VITA_FLEX_OUI,
+  VITA_FLEX_INFO_CLASS,
 } from "./common";
-
-/** FlexRadio IEEE OUI (24-bit), present in all Flex VITA class IDs. */
-export const VITA_FLEX_OUI = 0x001c2d;
-
-/** FlexRadio information class code, present in all Flex VITA class IDs. */
-export const VITA_FLEX_INFO_CLASS = 0x534c;
 
 /** Packet class code for DAX stereo audio (float32 interleaved L/R). */
 export const VITA_FLEX_DAX_AUDIO_CLASS = 0x03e3;

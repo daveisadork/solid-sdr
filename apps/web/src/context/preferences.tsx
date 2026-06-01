@@ -56,6 +56,12 @@ export interface DaxRxConfig extends RxAudioConfig {
   channelMode: DaxChannelMode;
 }
 
+export interface DaxIqConfig {
+  enabled: boolean;
+  sampleRate: number;
+  outputDeviceId: string;
+}
+
 export interface SpotPreferences {
   enabled: boolean;
   levels: number;
@@ -97,6 +103,7 @@ export interface Preferences {
   dax: {
     tx: DaxTxConfig;
     rx: Record<number, DaxRxConfig>;
+    iq: Record<number, DaxIqConfig>;
   };
   panadapterSizes: number[][];
   panadapterSettingsOpen: boolean[];
@@ -118,6 +125,18 @@ const defaultDaxRxConfig = () => {
       enabled: false,
       outputDeviceId: "default",
       channelMode: "both",
+    };
+  }
+  return config;
+};
+
+const defaultDaxIqConfig = () => {
+  const config: Record<number, DaxIqConfig> = {};
+  for (let i = 1; i <= 4; i++) {
+    config[i] = {
+      enabled: false,
+      sampleRate: 24_000,
+      outputDeviceId: "default",
     };
   }
   return config;
@@ -162,6 +181,7 @@ const getDefaults = (): Preferences => ({
   showTxFilterInPan: true,
   dax: {
     rx: defaultDaxRxConfig(),
+    iq: defaultDaxIqConfig(),
     tx: {
       enabled: false,
       inputDeviceId: "default",

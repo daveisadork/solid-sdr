@@ -11,6 +11,7 @@ import (
 func startUDPDemux(rc *radioConn, audioTrack *webrtc.TrackLocalStaticSample) {
 	rc.mu.RLock()
 	u := rc.udpConn
+	raddr := rc.udpRaddr
 	rc.mu.RUnlock()
 
 	if u == nil {
@@ -42,13 +43,19 @@ func startUDPDemux(rc *radioConn, audioTrack *webrtc.TrackLocalStaticSample) {
 
 			_ = u.SetReadDeadline(time.Now().Add(30 * time.Second))
 
-			n, err := u.Read(buf)
+			n, src, err := u.ReadFromUDP(buf)
 			if n == 0 && err != nil {
 				if ne, ok := err.(interface{ Timeout() bool }); ok && ne.Timeout() {
 					continue
 				}
 
 				return
+			}
+
+			// Accept packets from any source port the radio uses but only
+			// from the radio's IP.
+			if raddr != nil && !src.IP.Equal(raddr.IP) {
+				continue
 			}
 
 			p := buf[:n]

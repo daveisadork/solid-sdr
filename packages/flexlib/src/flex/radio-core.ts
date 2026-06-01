@@ -1287,6 +1287,11 @@ class RadioImpl {
     this.emitDisconnected(undefined);
   }
 
+  /** Reboot the radio's firmware. The connection will drop shortly after. */
+  async rebootRadio(): Promise<void> {
+    await this.command("radio reboot");
+  }
+
   // -----------------------------------------------------------------------
   // Commands
   // -----------------------------------------------------------------------

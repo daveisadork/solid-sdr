@@ -435,6 +435,14 @@ describe("Radio", () => {
     expect(connection.lastCommand()).toBe("radio gps uninstall");
   });
 
+  it("issues a radio reboot command", async () => {
+    const { radio, connection } = await createConnectedRadio();
+
+    await radio.rebootRadio();
+
+    expect(connection.lastCommand()).toBe("radio reboot");
+  });
+
   it("emits disconnected reason when another client forces us off", async () => {
     const { radio, connection } = await createConnectedRadio();
     const reasons: Array<string | undefined> = [];

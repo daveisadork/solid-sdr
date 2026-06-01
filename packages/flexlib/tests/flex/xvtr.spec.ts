@@ -314,18 +314,30 @@ describe("XVTR controller", () => {
     expect(controller.id).toBe("1");
   });
 
-  it("clamps max power to minimum of -10 dBm", async () => {
-    // given a connected radio with an xvtr
-    const { radio, connection } = await createConnectedRadio();
-    connection.emitStatus(
-      "S1|xvtr 0 name=2M rf_freq=144.000000 if_freq=28.000000 max_power=5.00",
-    );
-    const controller = radio.xvtr("0")!;
+  // setMaxPowerDbm matches the official lib's clamp matrix (Xvtr.cs:170-209):
+  // the radio doesn't validate max_power so the client must clamp by model + IF freq.
+  it.each([
+    { model: "FLEX-6400", ifFreqMHz: 28, input: 20, expected: "10.00" },
+    { model: "FLEX-6600M", ifFreqMHz: 28, input: 50, expected: "10.00" },
+    { model: "FLEX-6500", ifFreqMHz: 28, input: 20, expected: "15.00" },
+    { model: "FLEX-8600", ifFreqMHz: 28, input: 20, expected: "15.00" },
+    { model: "FLEX-6400", ifFreqMHz: 100, input: 20, expected: "8.00" },
+    { model: "FLEX-6400", ifFreqMHz: 28, input: 5, expected: "5.00" },
+    { model: "FLEX-6400", ifFreqMHz: 28, input: -20, expected: "-10.00" },
+  ])(
+    "clamps max power: $model + IF=$ifFreqMHz MHz, input=$input → $expected",
+    async ({ model, ifFreqMHz, input, expected }) => {
+      const { radio, connection } = await createConnectedRadio();
+      connection.emitStatus(`S1|radio model=${model}`);
+      connection.emitStatus(
+        `S2|xvtr 0 name=2M rf_freq=144.000000 if_freq=${ifFreqMHz}.000000 max_power=0.00`,
+      );
 
-    // when we set max power below -10
-    await controller.setMaxPowerDbm(-20);
+      await radio.xvtr("0")!.setMaxPowerDbm(input);
 
-    // then it is clamped to -10
-    expect(connection.lastCommand()).toBe("xvtr set 0 max_power=-10.00");
-  });
+      expect(connection.lastCommand()).toBe(
+        `xvtr set 0 max_power=${expected}`,
+      );
+    },
+  );
 });

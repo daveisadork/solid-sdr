@@ -54,6 +54,7 @@ export interface DaxTxConfig extends TxAudioConfig {
 
 export interface DaxRxConfig extends RxAudioConfig {
   channelMode: DaxChannelMode;
+  gain: number;
 }
 
 export interface DaxIqConfig {
@@ -125,6 +126,7 @@ const defaultDaxRxConfig = () => {
       enabled: false,
       outputDeviceId: "default",
       channelMode: "both",
+      gain: 100,
     };
   }
   return config;

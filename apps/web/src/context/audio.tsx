@@ -16,6 +16,7 @@ import { useRtc } from "./rtc";
 import useFlexRadio from "./flexradio";
 import { usePreferences } from "./preferences";
 import {
+  DaxRxAudioStreamController,
   type AudioStreamController,
   type AudioStreamTxController,
   type DaxIqAudioStreamController,
@@ -68,6 +69,10 @@ export const AudioProvider: ParentComponent = (props) => {
   const [remoteAudioTxStreamId, setRemoteAudioTxStreamId] = createSignal<
     string | undefined
   >();
+  const daxRxControllers = new ReactiveMap<
+    number,
+    DaxRxAudioStreamController
+  >();
 
   // Prompt for microphone permission when any audio feature is enabled
   createEffect(() => {
@@ -114,11 +119,9 @@ export const AudioProvider: ParentComponent = (props) => {
     audio.setAttribute("playsinline", "");
     audio.srcObject = stream;
     setRemoteAudioElement(audio);
-    window.addEventListener(
-      "click",
-      () => audio.play().catch(console.error),
-      { once: true },
-    );
+    window.addEventListener("click", () => audio.play().catch(console.error), {
+      once: true,
+    });
     onCleanup(() => {
       audio.srcObject = null;
       setRemoteAudioElement(undefined);
@@ -131,9 +134,7 @@ export const AudioProvider: ParentComponent = (props) => {
       | (HTMLAudioElement & { setSinkId?: (id: string) => Promise<void> })
       | undefined;
     if (!audio?.setSinkId) return;
-    audio
-      .setSinkId(preferences.remoteAudio.rx.outputDeviceId)
-      .catch(() => {});
+    audio.setSinkId(preferences.remoteAudio.rx.outputDeviceId).catch(() => {});
   });
 
   // Create/destroy remote audio RX radio stream
@@ -207,8 +208,14 @@ export const AudioProvider: ParentComponent = (props) => {
       if (!state.clientHandle || !preferences.dax.rx[daxChannel]?.enabled)
         return;
       const promise = radio()?.createDaxRxAudioStream({ daxChannel });
+      promise.then((controller) =>
+        daxRxControllers.set(controller.daxChannel, controller),
+      );
       onCleanup(() =>
-        promise?.then((stream) => radio()?.audioStream(stream.id)?.close()),
+        promise?.then((stream) => {
+          daxRxControllers.delete(stream.daxChannel);
+          radio()?.audioStream(stream.id)?.close();
+        }),
       );
     });
   }
@@ -252,7 +259,9 @@ export const AudioProvider: ParentComponent = (props) => {
     createEffect(() => {
       const sink = daxSinks.get(daxChannel);
       if (!sink) return;
-      sink.setChannelMode(preferences.dax.rx[daxChannel]?.channelMode ?? "both");
+      sink.setChannelMode(
+        preferences.dax.rx[daxChannel]?.channelMode ?? "both",
+      );
     });
   }
 
@@ -359,9 +368,7 @@ export const AudioProvider: ParentComponent = (props) => {
     promise?.then(setDaxTxController);
     onCleanup(() => {
       setDaxTxController(undefined);
-      promise?.then((controller) =>
-        controller.close().catch(() => {}),
-      );
+      promise?.then((controller) => controller.close().catch(() => {}));
     });
   });
 
@@ -398,7 +405,11 @@ export const AudioProvider: ParentComponent = (props) => {
         error.name === "OverconstrainedError"
           ? `Constraint not satisfied: ${error.constraint}`
           : String(error);
-      showToast({ title: "Failed to start DAX TX", description, variant: "error" });
+      showToast({
+        title: "Failed to start DAX TX",
+        description,
+        variant: "error",
+      });
     });
 
     const { promise: cleanupPromise, resolve } = Promise.withResolvers<void>();
@@ -419,6 +430,13 @@ export const AudioProvider: ParentComponent = (props) => {
   // Sync channel mode to running DaxAudioTx instance
   createEffect(() => {
     daxTxInstance()?.setChannelMode(preferences.dax.tx.channelMode);
+  });
+
+  createEffect(() => {
+    for (const [channel, config] of Object.entries(preferences.dax.rx)) {
+      if (config.enabled)
+        daxRxControllers.get(Number(channel))?.setRxGain(config.gain);
+    }
   });
 
   return (

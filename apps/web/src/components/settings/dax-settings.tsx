@@ -28,6 +28,7 @@ import { useAudio } from "~/context/audio";
 import { AudioLevelMeter } from "../ui/audio-level-meter";
 import { Callout, CalloutContent, CalloutTitle } from "../ui/callout";
 import { createPermission } from "~/lib/permission";
+import { SimpleSlider } from "../ui/simple-slider";
 
 const CHANNEL_MODE_ICONS = {
   left: Left,
@@ -299,6 +300,18 @@ function InnerDaxSettings() {
               <AudioLevelMeter
                 stream={daxSinks.get(channel)?.stream}
                 channelMode={preferences.dax.rx[channel].channelMode}
+              />
+
+              <SimpleSlider
+                minValue={0}
+                maxValue={100}
+                step={1}
+                value={[preferences.dax.rx[channel].gain]}
+                onChange={([value]) =>
+                  setPreferences("dax", "rx", channel, "gain", value)
+                }
+                getValueLabel={({ values }) => `${values[0]}%`}
+                label="Gain"
               />
             </CardContent>
           </Card>

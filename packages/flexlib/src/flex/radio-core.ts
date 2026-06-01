@@ -74,11 +74,13 @@ import {
 import { type MeterController, MeterControllerImpl } from "./meter.js";
 import {
   type AudioStreamController,
+  type DaxRxAudioStreamController,
   type DaxTxAudioStreamController,
   type AudioStreamTxController,
   type RemoteAudioTxStreamController,
   AudioStreamControllerImpl,
   AudioStreamTxControllerImpl,
+  DaxRxAudioStreamControllerImpl,
   DaxTxAudioStreamControllerImpl,
   RemoteAudioTxStreamControllerImpl,
 } from "./audio-stream.js";
@@ -1073,11 +1075,11 @@ class RadioImpl {
 
   async createDaxRxAudioStream(options: {
     daxChannel: number;
-  }): Promise<AudioStreamController> {
+  }): Promise<DaxRxAudioStreamController> {
     const channel = toInteger(options.daxChannel, "DAX RX channel");
     return this.createAudioStreamController(
       `stream create type=dax_rx dax_channel=${channel}`,
-      AudioStreamControllerImpl,
+      DaxRxAudioStreamControllerImpl,
     );
   }
 

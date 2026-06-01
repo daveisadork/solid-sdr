@@ -220,6 +220,45 @@ describe("Radio", () => {
     expect(stream.radioAck).toBe(true);
   });
 
+  it.each([
+    { input: 50, expected: 50 },
+    { input: 150, expected: 100 },
+    { input: -10, expected: 0 },
+  ])(
+    "clamps dax rx gain and resolves slice letter to numeric id: setRxGain($input) → $expected",
+    async ({ input, expected }) => {
+      const { radio, connection } = await createConnectedRadio();
+      // slice 1 has display letter B
+      connection.emitStatus("S1|slice 1 index_letter=B");
+      connection.prepareResponse("stream create", { message: "2000002" });
+      const creationPromise = radio.createDaxRxAudioStream({ daxChannel: 3 });
+      // stream status reports slice binding as the letter
+      connection.emitStatus(
+        "S1|stream 0x02000002 type=dax_rx dax_channel=3 slice=B client_handle=0x9ABC",
+      );
+      const stream = await creationPromise;
+
+      await stream.setRxGain(input);
+
+      // wire command sends the numeric slice id, not the letter
+      expect(connection.lastCommand()).toBe(
+        `audio stream 0x02000002 slice 1 gain ${expected}`,
+      );
+    },
+  );
+
+  it("throws when setting dax rx gain on a stream with no slice bound", async () => {
+    const { radio, connection } = await createConnectedRadio();
+    connection.prepareResponse("stream create", { message: "2000002" });
+    const creationPromise = radio.createDaxRxAudioStream({ daxChannel: 3 });
+    connection.emitStatus(
+      "S1|stream 0x02000002 type=dax_rx dax_channel=3 client_handle=0x9ABC",
+    );
+    const stream = await creationPromise;
+
+    await expect(stream.setRxGain(50)).rejects.toThrow(/no slice bound/);
+  });
+
   it("creates dax tx audio stream controllers and requests tx ownership", async () => {
     const { radio, connection } = await createConnectedRadio();
 

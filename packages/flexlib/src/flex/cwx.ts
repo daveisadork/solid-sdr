@@ -132,7 +132,7 @@ export class CwxControllerImpl implements CwxController {
   }
 
   async send(text: string): Promise<void> {
-    await this.radio.command(`cwx send "${text}"`);
+    await this.radio.command(`cwx send "${text.replaceAll(" ", "\x7f")}"`);
   }
 
   async erase(count: number): Promise<void> {

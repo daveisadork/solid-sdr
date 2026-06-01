@@ -85,6 +85,17 @@ export interface DaxRxAudioStreamController extends AudioStreamController {
   setRxGain(gain: number): Promise<void>;
 }
 
+/** DAX IQ stream controller with sample-rate selection. */
+export interface DaxIqAudioStreamController extends AudioStreamController {
+  /**
+   * Set the IQ sample rate. `rate` must be one of the model's supported
+   * rates (see RadioSession.modelInfo.daxIqSampleRates). Throws RangeError
+   * if not. Models with no published rate list (unknown model) skip the
+   * client-side check and let the radio validate.
+   */
+  setSampleRate(rate: number): Promise<void>;
+}
+
 export class AudioStreamControllerImpl implements AudioStreamController {
   private readonly events =
     new TypedEventEmitter<AudioStreamControllerEvents>();
@@ -123,6 +134,34 @@ export class AudioStreamControllerImpl implements AudioStreamController {
 
   get daxChannel() {
     return this.current().daxChannel;
+  }
+
+  get daxIqChannel() {
+    return this.current().daxIqChannel;
+  }
+
+  get daxIqRate() {
+    return this.current().daxIqRate;
+  }
+
+  get active() {
+    return this.current().active;
+  }
+
+  get pan() {
+    return this.current().pan;
+  }
+
+  get endpointType() {
+    return this.current().endpointType;
+  }
+
+  get clientGuiHandle() {
+    return this.current().clientGuiHandle;
+  }
+
+  get payloadEndian() {
+    return this.current().payloadEndian;
   }
 
   get streamId() {
@@ -302,6 +341,22 @@ export class DaxRxAudioStreamControllerImpl
     await this.radio.command(
       `audio stream ${this.id} slice ${slice.id} gain ${clamped}`,
     );
+  }
+}
+
+/** DAX IQ audio stream with sample-rate control. */
+export class DaxIqAudioStreamControllerImpl
+  extends AudioStreamControllerImpl
+  implements DaxIqAudioStreamController
+{
+  async setSampleRate(rate: number): Promise<void> {
+    const allowed = this.radio.modelInfo.daxIqSampleRates;
+    if (allowed.length > 0 && !allowed.includes(rate)) {
+      throw new RangeError(
+        `DAX IQ sample rate ${rate} not supported on ${this.radio.modelInfo.modelName}. Allowed: ${allowed.join(", ")}`,
+      );
+    }
+    await this.radio.command(`stream set ${this.id} daxiq_rate=${rate}`);
   }
 }
 

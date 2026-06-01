@@ -392,13 +392,14 @@ func (cs *clientSession) openUDP(dc *webrtc.DataChannel) {
 	dc.OnMessage(func(msg webrtc.DataChannelMessage) {
 		rc.mu.RLock()
 		u := rc.udpConn
+		raddr := rc.udpRaddr
 		rc.mu.RUnlock()
 
-		if u == nil || len(msg.Data) == 0 {
+		if u == nil || raddr == nil || len(msg.Data) == 0 {
 			return
 		}
 
-		if _, err := u.Write(msg.Data); err != nil {
+		if _, err := u.WriteToUDP(msg.Data, raddr); err != nil {
 			log.Printf("[rtc] udp write: %v", err)
 
 			_ = dc.Close()
@@ -433,14 +434,15 @@ func (cs *clientSession) handleTXTrack(track *webrtc.TrackRemote) {
 
 		rc.mu.RLock()
 		u := rc.udpConn
+		raddr := rc.udpRaddr
 		rc.mu.RUnlock()
 
-		if u == nil {
+		if u == nil || raddr == nil {
 			continue
 		}
 
 		pkt := buildTXOpusPacket(streamID, count, packet.Payload)
-		if _, err := u.Write(pkt); err != nil {
+		if _, err := u.WriteToUDP(pkt, raddr); err != nil {
 			return
 		}
 	}

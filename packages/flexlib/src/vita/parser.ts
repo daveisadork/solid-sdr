@@ -14,6 +14,13 @@ import {
   VITA_FLEX_DAX_AUDIO_CLASS,
   VITA_FLEX_DAX_REDUCED_BW_CLASS,
 } from "./dax-audio-packet";
+import {
+  VitaDaxIqPacket,
+  VITA_FLEX_DAX_IQ_24_CLASS,
+  VITA_FLEX_DAX_IQ_48_CLASS,
+  VITA_FLEX_DAX_IQ_96_CLASS,
+  VITA_FLEX_DAX_IQ_192_CLASS,
+} from "./dax-iq-packet";
 
 export type VitaPacketKind =
   | "meter"
@@ -22,10 +29,7 @@ export type VitaPacketKind =
   | "discovery"
   | "opus"
   | "daxReducedBw"
-  | "daxIq24"
-  | "daxIq48"
-  | "daxIq96"
-  | "daxIq192"
+  | "daxIq"
   | "daxAudio";
 
 export interface VitaPacketMetadata {
@@ -55,10 +59,10 @@ export interface VitaParsedPacketMap {
     kind: "daxReducedBw";
     packet: VitaDaxReducedBwPacket;
   };
-  daxIq24: VitaPacketMetadata & { kind: "daxIq24"; packet: Uint8Array };
-  daxIq48: VitaPacketMetadata & { kind: "daxIq48"; packet: Uint8Array };
-  daxIq96: VitaPacketMetadata & { kind: "daxIq96"; packet: Uint8Array };
-  daxIq192: VitaPacketMetadata & { kind: "daxIq192"; packet: Uint8Array };
+  daxIq: VitaPacketMetadata & {
+    kind: "daxIq";
+    packet: VitaDaxIqPacket;
+  };
   daxAudio: VitaPacketMetadata & {
     kind: "daxAudio";
     packet: VitaDaxAudioPacket;
@@ -79,10 +83,6 @@ const PACKET_CLASS_METER = 0x8002;
 const PACKET_CLASS_FFT = 0x8003;
 const PACKET_CLASS_WATERFALL = 0x8004;
 const PACKET_CLASS_OPUS = 0x8005;
-const PACKET_CLASS_DAX_IQ24 = 0x02e3;
-const PACKET_CLASS_DAX_IQ48 = 0x02e4;
-const PACKET_CLASS_DAX_IQ96 = 0x02e5;
-const PACKET_CLASS_DAX_IQ192 = 0x02e6;
 const PACKET_CLASS_DISCOVERY = 0xffff;
 
 export function parseVitaPacket(
@@ -132,30 +132,14 @@ export function parseVitaPacket(
       packet.parseWithContext(ctx);
       return { kind: "daxReducedBw", packet, ...metadata };
     }
-    case PACKET_CLASS_DAX_IQ24:
-      return {
-        kind: "daxIq24",
-        packet: slicePayload(ctx, data),
-        ...metadata,
-      };
-    case PACKET_CLASS_DAX_IQ48:
-      return {
-        kind: "daxIq48",
-        packet: slicePayload(ctx, data),
-        ...metadata,
-      };
-    case PACKET_CLASS_DAX_IQ96:
-      return {
-        kind: "daxIq96",
-        packet: slicePayload(ctx, data),
-        ...metadata,
-      };
-    case PACKET_CLASS_DAX_IQ192:
-      return {
-        kind: "daxIq192",
-        packet: slicePayload(ctx, data),
-        ...metadata,
-      };
+    case VITA_FLEX_DAX_IQ_24_CLASS:
+    case VITA_FLEX_DAX_IQ_48_CLASS:
+    case VITA_FLEX_DAX_IQ_96_CLASS:
+    case VITA_FLEX_DAX_IQ_192_CLASS: {
+      const packet = new VitaDaxIqPacket();
+      packet.parseWithContext(ctx);
+      return { kind: "daxIq", packet, ...metadata };
+    }
     case VITA_FLEX_DAX_AUDIO_CLASS: {
       const packet = new VitaDaxAudioPacket();
       packet.parseWithContext(ctx);

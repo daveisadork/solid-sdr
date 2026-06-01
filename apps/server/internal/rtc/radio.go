@@ -25,6 +25,7 @@ type radioConn struct {
 
 	tcpConn    net.Conn
 	udpConn    *net.UDPConn
+	udpRaddr   *net.UDPAddr
 	tcpDC      *webrtc.DataChannel
 	udpDC      *webrtc.DataChannel
 	tcpWriteMu sync.Mutex
@@ -205,20 +206,25 @@ func newRadioConn(
 	return rc, nil
 }
 
-// openUDP dials UDP to addr, tells the radio our local port, and stores the connection.
+// openUDP binds an unconnected UDP socket, tells the radio our local port, and
+// remembers the radio's address for outgoing writes. We use ListenUDP (not
+// DialUDP) so we can accept incoming packets from any source port the radio
+// uses — DAX IQ data arrives from a different source port than regular
+// streams, and a connected socket would silently drop those.
 func (rc *radioConn) openUDP(dc *webrtc.DataChannel, addr string) error {
 	raddr, err := net.ResolveUDPAddr("udp", addr)
 	if err != nil {
 		return err
 	}
 
-	u, err := net.DialUDP("udp", &net.UDPAddr{IP: net.IPv4zero, Port: 0}, raddr)
+	u, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.IPv4zero, Port: 0})
 	if err != nil {
 		return err
 	}
 
 	rc.mu.Lock()
 	rc.udpConn = u
+	rc.udpRaddr = raddr
 	rc.udpDC = dc
 	rc.mu.Unlock()
 

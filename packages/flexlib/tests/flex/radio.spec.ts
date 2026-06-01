@@ -286,6 +286,48 @@ describe("Radio", () => {
     expect(connection.lastCommand()).toBe("stream set 0x02000003 tx=0");
   });
 
+  it("creates dax iq audio stream controllers", async () => {
+    const { radio, connection } = await createConnectedRadio();
+
+    connection.prepareResponse("stream create", { message: "5000001" });
+    const creationPromise = radio.createDaxIqStream({ daxIqChannel: 2 });
+    expect(connection.lastCommand()).toBe(
+      "stream create type=dax_iq daxiq_channel=2",
+    );
+
+    connection.emitStatus(
+      "S1|stream 0x05000001 type=dax_iq daxiq_channel=2 daxiq_rate=48000 active=1 client_handle=0x9ABC",
+    );
+
+    const stream = await creationPromise;
+    expect(stream.type).toBe("dax_iq");
+    expect(stream.daxIqChannel).toBe(2);
+    expect(stream.daxIqRate).toBe(48_000);
+    expect(stream.active).toBe(true);
+    expect(stream.clientHandle).toBe(0x9abc);
+    expect(stream.radioAck).toBe(true);
+  });
+
+  it("sends an additional daxiq_rate command when sampleRate is provided", async () => {
+    const { radio, connection } = await createConnectedRadio();
+
+    connection.prepareResponse("stream create", { message: "5000002" });
+    const creationPromise = radio.createDaxIqStream({
+      daxIqChannel: 1,
+      sampleRate: 96000,
+    });
+
+    connection.emitStatus(
+      "S1|stream 0x05000002 type=dax_iq daxiq_channel=1 daxiq_rate=24000 client_handle=0x9ABC",
+    );
+
+    await creationPromise;
+
+    expect(connection.lastCommand()).toBe(
+      "stream set 0x05000002 daxiq_rate=96000",
+    );
+  });
+
   it("surfaces command rejections with error details", async () => {
     const { radio, connection } = await createConnectedRadio();
 

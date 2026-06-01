@@ -3,12 +3,12 @@ import {
   VitaPacketType,
   VitaTimeStampIntegerType,
   VitaTimeStampFractionalType,
+  VITA_FLEX_OUI,
+  VITA_FLEX_INFO_CLASS,
 } from "../../src/vita/common";
 import {
   VitaDaxAudioPacket,
   VitaDaxReducedBwPacket,
-  VITA_FLEX_OUI,
-  VITA_FLEX_INFO_CLASS,
   VITA_FLEX_DAX_AUDIO_CLASS,
   VITA_FLEX_DAX_REDUCED_BW_CLASS,
 } from "../../src/vita/dax-audio-packet";

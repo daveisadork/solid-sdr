@@ -17,6 +17,7 @@ import {
 import { createSignal } from "solid-js";
 import { Dynamic } from "solid-js/web";
 import { DaxSettings } from "./dax-settings";
+import { DaxIqSettings } from "./dax-iq-settings";
 import { AudioSettings } from "./audio-settings";
 import { MultiflexSettings } from "./multiflex-settings";
 import { NetworkStats } from "./network-stats";
@@ -32,6 +33,7 @@ const tabs = {
   spots: SpotsSettings,
   midi: MidiSettings,
   dax: DaxSettings,
+  daxIq: DaxIqSettings,
   audio: AudioSettings,
   multiflex: MultiflexSettings,
   network: NetworkStats,
@@ -76,6 +78,9 @@ export function Settings() {
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => setActiveTab("dax")}>
             DAX Settings
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => setActiveTab("daxIq")}>
+            DAX IQ Settings
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => setActiveTab("audio")}>
             Audio Settings

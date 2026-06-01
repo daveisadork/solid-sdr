@@ -13,6 +13,7 @@ export type AudioStreamKind =
   | "dax_rx"
   | "dax_tx"
   | "dax_mic"
+  | "dax_iq"
   | (string & {});
 
 export interface AudioStreamSnapshot {
@@ -24,6 +25,13 @@ export interface AudioStreamSnapshot {
   readonly radioAck: boolean;
   readonly ip?: string;
   readonly daxChannel?: number;
+  readonly daxIqChannel?: number;
+  readonly daxIqRate?: number;
+  readonly active?: boolean;
+  readonly pan?: string;
+  readonly endpointType?: string;
+  readonly clientGuiHandle?: number;
+  readonly payloadEndian?: string;
   readonly slice?: string;
   readonly tx: boolean;
   readonly raw: Readonly<Record<string, string>>;
@@ -35,6 +43,7 @@ export const AUDIO_STREAM_TYPES: ReadonlySet<AudioStreamKind> = new Set([
   "dax_rx",
   "dax_tx",
   "dax_mic",
+  "dax_iq",
 ]);
 
 export function createAudioStreamSnapshot(
@@ -82,6 +91,36 @@ export function createAudioStreamSnapshot(
         break;
       case "tx":
         partial.tx = value === "1";
+        break;
+      case "daxiq_channel": {
+        const parsed = parseInteger(value);
+        if (parsed !== undefined) partial.daxIqChannel = parsed;
+        else logParseError("audio_stream", key, value);
+        break;
+      }
+      case "daxiq_rate": {
+        const parsed = parseInteger(value);
+        if (parsed !== undefined) partial.daxIqRate = parsed;
+        else logParseError("audio_stream", key, value);
+        break;
+      }
+      case "active":
+        partial.active = value === "1";
+        break;
+      case "pan":
+        partial.pan = value;
+        break;
+      case "endpoint_type":
+        partial.endpointType = value;
+        break;
+      case "client_gui_handle": {
+        const parsed = parseIntegerHex(value);
+        if (parsed !== undefined) partial.clientGuiHandle = parsed;
+        else logParseError("audio_stream", key, value);
+        break;
+      }
+      case "payload_endian":
+        partial.payloadEndian = value;
         break;
       default:
         logUnknownAttribute("audio_stream", key, value);

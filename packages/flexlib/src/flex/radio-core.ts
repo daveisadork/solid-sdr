@@ -76,12 +76,14 @@ import {
   type AudioStreamController,
   type DaxRxAudioStreamController,
   type DaxTxAudioStreamController,
+  type DaxIqAudioStreamController,
   type AudioStreamTxController,
   type RemoteAudioTxStreamController,
   AudioStreamControllerImpl,
   AudioStreamTxControllerImpl,
   DaxRxAudioStreamControllerImpl,
   DaxTxAudioStreamControllerImpl,
+  DaxIqAudioStreamControllerImpl,
   RemoteAudioTxStreamControllerImpl,
 } from "./audio-stream.js";
 import {
@@ -294,6 +296,13 @@ export interface RadioSession {
 
   /** Access the internal state store (snapshots, patches). */
   getStore(): RadioStateStore;
+
+  /**
+   * Per-model capability data (e.g. supported DAX IQ sample rates).
+   * Resolved from the current radio snapshot's model string; falls back
+   * to defaults when the model is unknown.
+   */
+  readonly modelInfo: RadioModelInfo;
 
   /** Look up (or lazily create) a slice controller by ID. */
   slice(id: string): SliceController | undefined;
@@ -714,7 +723,9 @@ class RadioImpl {
 
   audioStreams(): Array<
     | AudioStreamController
+    | DaxRxAudioStreamController
     | DaxTxAudioStreamController
+    | DaxIqAudioStreamController
     | AudioStreamTxController
     | RemoteAudioTxStreamController
   > {
@@ -725,7 +736,9 @@ class RadioImpl {
     id: string,
   ):
     | AudioStreamController
+    | DaxRxAudioStreamController
     | DaxTxAudioStreamController
+    | DaxIqAudioStreamController
     | AudioStreamTxController
     | RemoteAudioTxStreamController
     | undefined {
@@ -739,6 +752,8 @@ class RadioImpl {
         switch (stream.type) {
           case "dax_tx":
             return new DaxTxAudioStreamControllerImpl(this, id);
+          case "dax_iq":
+            return new DaxIqAudioStreamControllerImpl(this, id);
           case "remote_audio_tx":
             return new RemoteAudioTxStreamControllerImpl(this, id);
           default:
@@ -1095,6 +1110,21 @@ class RadioImpl {
       "stream create type=dax_mic",
       AudioStreamControllerImpl,
     );
+  }
+
+  async createDaxIqStream(options: {
+    daxIqChannel: number;
+    sampleRate?: number;
+  }): Promise<DaxIqAudioStreamController> {
+    const channel = toInteger(options.daxIqChannel, "DAX IQ channel");
+    const controller = await this.createAudioStreamController(
+      `stream create type=dax_iq daxiq_channel=${channel}`,
+      DaxIqAudioStreamControllerImpl,
+    );
+    if (options.sampleRate !== undefined) {
+      await controller.setSampleRate(options.sampleRate);
+    }
+    return controller;
   }
 
   private async createAudioStreamController<
@@ -1461,6 +1491,8 @@ class RadioImpl {
             switch (stream.type) {
               case "dax_tx":
                 return new DaxTxAudioStreamControllerImpl(this, change.id);
+              case "dax_iq":
+                return new DaxIqAudioStreamControllerImpl(this, change.id);
               case "remote_audio_tx":
                 return new RemoteAudioTxStreamControllerImpl(this, change.id);
               default:

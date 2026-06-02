@@ -91,7 +91,7 @@ export function Tnf(props: { tnf: TnfState; pan: PanadapterState }) {
 
   return (
     <div
-      class="absolute left-(--tnf-offset) -translate-x-1/2 inset-y-0 w-(--tnf-width) pointer-events-auto cursor-move touch-none"
+      class="absolute left-(--tnf-offset) -translate-x-1/2 inset-y-0 w-(--tnf-width) pointer-events-auto cursor-move"
       style={{
         "--tnf-color": state.status.radio.tnfEnabled
           ? props.tnf.permanent
@@ -129,9 +129,9 @@ export function Tnf(props: { tnf: TnfState; pan: PanadapterState }) {
             }}
           >
             <ContextMenuTrigger
-              class="absolute inset-0"
+              class="absolute inset-0 touch-none"
               classList={{
-                "pointer-events-none": contextMenuOpen() || dragState.dragging,
+                "pointer-events-none": contextMenuOpen(),
               }}
             >
               <div class="absolute inset-0 border-x tnf-stripes" />

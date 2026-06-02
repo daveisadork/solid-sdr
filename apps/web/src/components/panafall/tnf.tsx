@@ -91,7 +91,7 @@ export function Tnf(props: { tnf: TnfState; pan: PanadapterState }) {
 
   return (
     <div
-      class="absolute left-(--tnf-offset) -translate-x-1/2 inset-y-0 w-(--tnf-width) pointer-events-auto cursor-move"
+      class="absolute left-(--tnf-offset) -translate-x-1/2 inset-y-0 w-(--tnf-width) pointer-events-auto cursor-move touch-none"
       style={{
         "--tnf-color": state.status.radio.tnfEnabled
           ? props.tnf.permanent

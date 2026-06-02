@@ -372,7 +372,7 @@ export function Panafall(props: { index: number }) {
                       "cursor-grabbing": dragState.dragging,
                       "cursor-crosshair": !dragState.dragging,
                     }}
-                    class="absolute inset-0 select-none"
+                    class="absolute inset-0 select-none touch-none"
                     onDblClick={(e: PointerEvent) => {
                       if (dragState.dragging) return;
                       setDragState("originX", 0);

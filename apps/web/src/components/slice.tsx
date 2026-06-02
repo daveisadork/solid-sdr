@@ -48,14 +48,7 @@ import {
   SelectTrigger,
 } from "./ui/select";
 
-import {
-  Slider,
-  SliderFill,
-  SliderLabel,
-  SliderThumb,
-  SliderTrack,
-  SliderValueLabel,
-} from "./ui/slider";
+import { Slider, SliderFill, SliderThumb, SliderTrack } from "./ui/slider";
 
 import { Trigger as SelectTriggerPrimitive } from "@kobalte/core/select";
 import { ToggleButton } from "@kobalte/core/toggle-button";
@@ -1776,7 +1769,7 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
         >
           <Show when={!props.slice.diversityChild}>
             <div
-              class="absolute inset-y-0 pointer-coarse:w-10 -translate-x-1/2"
+              class="absolute inset-y-0 pointer-coarse:w-10 -translate-x-1/2 touch-none"
               classList={{
                 "cursor-grab": !dragState.dragging,
                 "cursor-grabbing": dragState.dragging,

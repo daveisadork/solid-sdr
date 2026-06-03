@@ -1,6 +1,6 @@
 {
   "name": "web",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "SolidSDR web client.",
   "author": "Dave Hayes <dwhayes@gmail.com>",
   "type": "module",

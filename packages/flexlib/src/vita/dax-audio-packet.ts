@@ -188,7 +188,9 @@ export class VitaDaxAudioPacket {
  *
  * Payload is mono 16-bit signed integer samples (range [−32768, 32767]).
  *
- * Typical use: 128-frame blocks on a reduced-bandwidth DAX channel (e.g. 8 kHz).
+ * Same 24 kHz sample rate and 128-frame cadence as the stereo float32 variant —
+ * the "reduced bandwidth" comes from the encoding (mono int16 = 2 bytes/frame vs
+ * stereo float32 = 8 bytes/frame), giving 4× lower wire bandwidth.
  */
 export class VitaDaxReducedBwPacket {
   /** VITA-49 header word fields. */

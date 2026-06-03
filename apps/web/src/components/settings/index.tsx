@@ -1,6 +1,4 @@
-import {
-  Dialog,
-} from "../ui/dialog";
+import { Dialog } from "../ui/dialog";
 import MdiSettings from "~icons/mdi/settings";
 import { AppSettings } from "./app-settings";
 import { RadioSettings } from "./radio-settings";
@@ -25,6 +23,7 @@ import { WaveformSettings } from "./waveform-settings";
 import { Meters } from "./meters";
 import { ProfileSettings } from "./profile-settings";
 import { ImportExport } from "./import-export";
+import useFlexRadio from "~/context/flexradio";
 
 const tabs = {
   app: AppSettings,
@@ -45,6 +44,8 @@ const tabs = {
 
 export function Settings() {
   const [activeTab, setActiveTab] = createSignal(null);
+  const { state } = useFlexRadio();
+  const disconnected = () => !state.clientHandle;
   return (
     <>
       <Dialog
@@ -64,43 +65,76 @@ export function Settings() {
           <DropdownMenuItem onSelect={() => setActiveTab("app")}>
             App Settings
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => setActiveTab("radio")}>
+          <DropdownMenuItem
+            disabled={disconnected()}
+            onSelect={() => setActiveTab("radio")}
+          >
             Radio Setup
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => setActiveTab("memory")}>
+          <DropdownMenuItem
+            disabled={disconnected()}
+            onSelect={() => setActiveTab("memory")}
+          >
             Memory
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => setActiveTab("spots")}>
+          <DropdownMenuItem
+            disabled={disconnected()}
+            onSelect={() => setActiveTab("spots")}
+          >
             Spots
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => setActiveTab("midi")}>
             MIDI Controllers
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => setActiveTab("dax")}>
+          <DropdownMenuItem
+            disabled={disconnected()}
+            onSelect={() => setActiveTab("dax")}
+          >
             DAX Settings
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => setActiveTab("daxIq")}>
+          <DropdownMenuItem
+            disabled={disconnected()}
+            onSelect={() => setActiveTab("daxIq")}
+          >
             DAX IQ Settings
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => setActiveTab("audio")}>
             Audio Settings
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => setActiveTab("multiflex")}>
+          <DropdownMenuItem
+            disabled={disconnected()}
+            onSelect={() => setActiveTab("multiflex")}
+          >
             multiFLEX
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => setActiveTab("network")}>
+          <DropdownMenuItem
+            disabled={disconnected()}
+            onSelect={() => setActiveTab("network")}
+          >
             Network Stats
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => setActiveTab("waveform")}>
+          <DropdownMenuItem
+            disabled={disconnected()}
+            onSelect={() => setActiveTab("waveform")}
+          >
             Waveforms
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => setActiveTab("meters")}>
+          <DropdownMenuItem
+            disabled={disconnected()}
+            onSelect={() => setActiveTab("meters")}
+          >
             Meters
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => setActiveTab("profiles")}>
+          <DropdownMenuItem
+            disabled={disconnected()}
+            onSelect={() => setActiveTab("profiles")}
+          >
             Profiles
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => setActiveTab("import/export")}>
+          <DropdownMenuItem
+            disabled={disconnected()}
+            onSelect={() => setActiveTab("import/export")}
+          >
             Import/Export
           </DropdownMenuItem>
         </DropdownMenuContent>

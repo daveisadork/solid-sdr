@@ -1,7 +1,7 @@
 import { usePreferences } from "../../context/preferences";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { SimpleSwitch } from "../ui/simple-switch";
-import { createEffect, createSignal, For, Match, Show, Switch } from "solid-js";
+import { createEffect, For, Match, Show, Switch } from "solid-js";
 import useFlexRadio from "~/context/flexradio";
 import { DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import {
@@ -36,32 +36,15 @@ const CHANNEL_MODE_ICONS = {
   both: Stereo,
 };
 
+const supportedConstraints = navigator.mediaDevices.getSupportedConstraints();
+
 function InnerDaxSettings() {
   const { daxSinks, daxTxStream } = useAudio();
   const { preferences, setPreferences } = usePreferences();
   const { state } = useFlexRadio();
-  const [caps, setCaps] = createSignal<string[]>([]);
 
   const outputs = createSpeakers();
   const inputs = createMicrophones();
-
-  createEffect(() => {
-    navigator.mediaDevices
-      .getUserMedia({
-        audio: {
-          deviceId: preferences.dax.tx.inputDeviceId,
-        },
-      })
-      .then((stream) => {
-        for (const track of stream.getTracks()) {
-          setCaps(Object.keys(track.getCapabilities()));
-          track.stop();
-        }
-      })
-      .catch((reason) =>
-        console.error("Failed get device capabilities:", reason),
-      );
-  });
 
   return (
     <div
@@ -159,43 +142,41 @@ function InnerDaxSettings() {
             }
             label="Reduced Bandwidth"
           />
-          <Show when={caps().length} fallback="Checking capabilities...">
-            <Show when={caps().includes("autoGainControl")}>
-              <SimpleSwitch
-                checked={preferences.dax.tx.autoGainControl}
-                onChange={(checked) =>
-                  setPreferences("dax", "tx", "autoGainControl", checked)
-                }
-                label="Auto Gain Control"
-              />
-            </Show>
-            <Show when={caps().includes("echoCancellation")}>
-              <SimpleSwitch
-                checked={preferences.dax.tx.echoCancellation}
-                onChange={(checked) =>
-                  setPreferences("dax", "tx", "echoCancellation", checked)
-                }
-                label="Echo Cancellation"
-              />
-            </Show>
-            <Show when={caps().includes("noiseSuppression")}>
-              <SimpleSwitch
-                checked={preferences.dax.tx.noiseSuppression}
-                onChange={(checked) =>
-                  setPreferences("dax", "tx", "noiseSuppression", checked)
-                }
-                label="Noise Suppression"
-              />
-            </Show>
-            <Show when={caps().includes("voiceIsolation")}>
-              <SimpleSwitch
-                checked={preferences.dax.tx.voiceIsolation}
-                onChange={(checked) =>
-                  setPreferences("dax", "tx", "voiceIsolation", checked)
-                }
-                label="Voice Isolation"
-              />
-            </Show>
+          <Show when={supportedConstraints?.autoGainControl}>
+            <SimpleSwitch
+              checked={preferences.dax.tx.autoGainControl}
+              onChange={(checked) =>
+                setPreferences("dax", "tx", "autoGainControl", checked)
+              }
+              label="Auto Gain Control"
+            />
+          </Show>
+          <Show when={supportedConstraints?.echoCancellation}>
+            <SimpleSwitch
+              checked={preferences.dax.tx.echoCancellation}
+              onChange={(checked) =>
+                setPreferences("dax", "tx", "echoCancellation", checked)
+              }
+              label="Echo Cancellation"
+            />
+          </Show>
+          <Show when={supportedConstraints?.noiseSuppression}>
+            <SimpleSwitch
+              checked={preferences.dax.tx.noiseSuppression}
+              onChange={(checked) =>
+                setPreferences("dax", "tx", "noiseSuppression", checked)
+              }
+              label="Noise Suppression"
+            />
+          </Show>
+          <Show when={supportedConstraints?.voiceIsolation}>
+            <SimpleSwitch
+              checked={preferences.dax.tx.voiceIsolation}
+              onChange={(checked) =>
+                setPreferences("dax", "tx", "voiceIsolation", checked)
+              }
+              label="Voice Isolation"
+            />
           </Show>
         </CardContent>
       </Card>
@@ -325,7 +306,7 @@ export function DaxSettings() {
   const audioPermission = createPermission("microphone");
 
   createEffect(() => {
-    if (audioPermission() === "unknown")
+    if (audioPermission() === "prompt")
       navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
         stream.getTracks().forEach((track) => track.stop());
       });

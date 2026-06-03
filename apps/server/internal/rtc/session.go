@@ -118,6 +118,16 @@ func (cs *clientSession) serve(ctx context.Context) {
 		cs.dispatch(ctx, env)
 	}
 
+	// WS is gone — Proactively close the PC instead of waiting for the client to do it
+	cs.mu.Lock()
+	pc := cs.pc
+	cs.mu.Unlock()
+
+	if pc != nil {
+		_ = pc.Close()
+	}
+
+	cs.cancel()
 	wg.Wait()
 }
 

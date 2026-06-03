@@ -10,12 +10,12 @@ import {
 import type { Accessor, Setter } from "solid-js";
 import { APP_VERSION } from "~/lib/version";
 import {
-  createReconnectingWS,
   createWSState,
   makeHeartbeatWS,
   type ReconnectingWebSocket,
 } from "@solid-primitives/websocket";
 import { createStore } from "solid-js/store";
+import { createReconnectingWS } from "~/lib/websocket";
 
 const RtcCtx = createContext<RtcContextValue>();
 

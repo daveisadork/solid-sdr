@@ -9,6 +9,11 @@ declare global {
       debugOutput: string;
     }>;
   }
+
+  // Chrome-only constraint, not yet in lib.dom.
+  interface MediaTrackSupportedConstraints {
+    voiceIsolation?: boolean;
+  }
 }
 
 export {};

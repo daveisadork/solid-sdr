@@ -81,6 +81,7 @@ export const AudioProvider: ParentComponent = (props) => {
       preferences.remoteAudio.rx.enabled ||
       preferences.dax.tx.enabled ||
       Object.values(preferences.dax.rx).some((c) => c.enabled);
+    Object.values(preferences.dax.iq).some((c) => c.enabled);
     if (!audioEnabled) return;
     navigator.mediaDevices
       .getUserMedia({ audio: true })
@@ -274,7 +275,8 @@ export const AudioProvider: ParentComponent = (props) => {
     // go through setSampleRate (in the rate-sync effect below) instead of
     // tearing the stream down and recreating it.
     createEffect(() => {
-      if (!state.clientHandle || !preferences.dax.iq[iqChannel]?.enabled) return;
+      if (!state.clientHandle || !preferences.dax.iq[iqChannel]?.enabled)
+        return;
       const initialRate = untrack(
         () => preferences.dax.iq[iqChannel].sampleRate,
       );

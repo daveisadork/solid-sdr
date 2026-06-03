@@ -1,7 +1,7 @@
 import { usePreferences } from "../../context/preferences";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { SimpleSwitch } from "../ui/simple-switch";
-import { createEffect, createSignal, Match, Show, Switch } from "solid-js";
+import { createEffect, Match, Show, Switch } from "solid-js";
 import useFlexRadio from "~/context/flexradio";
 import { DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import {
@@ -33,31 +33,14 @@ import MdiHeadphones from "~icons/mdi/headphones";
 import MdiHeadphonesOff from "~icons/mdi/headphones-off";
 import { Dynamic } from "solid-js/web";
 
+const supportedConstraints = navigator.mediaDevices.getSupportedConstraints();
+
 function InnerAudioSettings() {
   const { remoteAudioTxStream, remoteAudioRxStream } = useAudio();
   const { preferences, setPreferences } = usePreferences();
-  const [caps, setCaps] = createSignal<string[]>([]);
 
   const outputs = createSpeakers();
   const inputs = createMicrophones();
-
-  createEffect(() => {
-    navigator.mediaDevices
-      .getUserMedia({
-        audio: {
-          deviceId: preferences.remoteAudio.tx.inputDeviceId,
-        },
-      })
-      .then((stream) => {
-        for (const track of stream.getTracks()) {
-          setCaps(Object.keys(track.getCapabilities()));
-          track.stop();
-        }
-      })
-      .catch((reason) =>
-        console.error("Failed get device capabilities:", reason),
-      );
-  });
 
   return (
     <Card class="bg-transparent">
@@ -149,43 +132,41 @@ function InnerAudioSettings() {
           <SelectContent />
         </Select>
         <AudioLevelMeter stream={remoteAudioTxStream()} channelMode="both" />
-        <Show when={caps().length} fallback="Checking capabilities...">
-          <Show when={caps().includes("autoGainControl")}>
-            <SimpleSwitch
-              checked={preferences.remoteAudio.tx.autoGainControl}
-              onChange={(checked) =>
-                setPreferences("remoteAudio", "tx", "autoGainControl", checked)
-              }
-              label="Auto Gain Control"
-            />
-          </Show>
-          <Show when={caps().includes("echoCancellation")}>
-            <SimpleSwitch
-              checked={preferences.remoteAudio.tx.echoCancellation}
-              onChange={(checked) =>
-                setPreferences("remoteAudio", "tx", "echoCancellation", checked)
-              }
-              label="Echo Cancellation"
-            />
-          </Show>
-          <Show when={caps().includes("noiseSuppression")}>
-            <SimpleSwitch
-              checked={preferences.remoteAudio.tx.noiseSuppression}
-              onChange={(checked) =>
-                setPreferences("remoteAudio", "tx", "noiseSuppression", checked)
-              }
-              label="Noise Suppression"
-            />
-          </Show>
-          <Show when={caps().includes("voiceIsolation")}>
-            <SimpleSwitch
-              checked={preferences.remoteAudio.tx.voiceIsolation}
-              onChange={(checked) =>
-                setPreferences("remoteAudio", "tx", "voiceIsolation", checked)
-              }
-              label="Voice Isolation"
-            />
-          </Show>
+        <Show when={supportedConstraints?.autoGainControl}>
+          <SimpleSwitch
+            checked={preferences.remoteAudio.tx.autoGainControl}
+            onChange={(checked) =>
+              setPreferences("remoteAudio", "tx", "autoGainControl", checked)
+            }
+            label="Auto Gain Control"
+          />
+        </Show>
+        <Show when={supportedConstraints?.echoCancellation}>
+          <SimpleSwitch
+            checked={preferences.remoteAudio.tx.echoCancellation}
+            onChange={(checked) =>
+              setPreferences("remoteAudio", "tx", "echoCancellation", checked)
+            }
+            label="Echo Cancellation"
+          />
+        </Show>
+        <Show when={supportedConstraints?.noiseSuppression}>
+          <SimpleSwitch
+            checked={preferences.remoteAudio.tx.noiseSuppression}
+            onChange={(checked) =>
+              setPreferences("remoteAudio", "tx", "noiseSuppression", checked)
+            }
+            label="Noise Suppression"
+          />
+        </Show>
+        <Show when={supportedConstraints?.voiceIsolation}>
+          <SimpleSwitch
+            checked={preferences.remoteAudio.tx.voiceIsolation}
+            onChange={(checked) =>
+              setPreferences("remoteAudio", "tx", "voiceIsolation", checked)
+            }
+            label="Voice Isolation"
+          />
         </Show>
       </CardContent>
     </Card>
@@ -197,10 +178,11 @@ export function AudioSettings() {
   const audioPermission = createPermission("microphone");
 
   createEffect(() => {
-    if (audioPermission() === "unknown")
+    if (audioPermission() === "prompt") {
       navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
         stream.getTracks().forEach((track) => track.stop());
       });
+    }
   });
 
   return (

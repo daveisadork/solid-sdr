@@ -41,4 +41,5 @@ export function createFlexClient(
   });
 }
 
+export { BridgeTransport } from "./flex/bridge-transport.js";
 export type { BridgePeerConnection } from "./flex/bridge-transport.js";

@@ -23,12 +23,15 @@ import { Callout, CalloutContent, CalloutTitle } from "./components/ui/callout";
 import { Button } from "./components/ui/button";
 import MaterialSymbolsOpenInNew from "~icons/material-symbols/open-in-new";
 import { ReleaseNotification } from "./components/release-notification";
+import { DebugModeProvider } from "./context/debug-mode";
+import { DebugBanner } from "./components/debug-mode/banner";
 
 function AppInner() {
   const { preferences, setPreferences } = usePreferences();
   const { radio } = useFlexRadio();
   return (
     <div class="absolute inset-0 flex flex-col items-stretch">
+      <DebugBanner />
       <SidebarProvider
         class="relative grow h-auto overflow-visible min-h-0 bg-transparent"
         open={!!preferences.radioPanelOpen}
@@ -88,17 +91,19 @@ function App() {
               </Callout>
             }
           >
-            <RtcProvider>
-              <FlexRadioProvider>
-                <RuntimeProvider>
-                  <AudioProvider>
-                    <ControlsProvider>
-                      <AppInner />
-                    </ControlsProvider>
-                  </AudioProvider>
-                </RuntimeProvider>
-              </FlexRadioProvider>
-            </RtcProvider>
+            <DebugModeProvider>
+              <RtcProvider>
+                <FlexRadioProvider>
+                  <RuntimeProvider>
+                    <AudioProvider>
+                      <ControlsProvider>
+                        <AppInner />
+                      </ControlsProvider>
+                    </AudioProvider>
+                  </RuntimeProvider>
+                </FlexRadioProvider>
+              </RtcProvider>
+            </DebugModeProvider>
           </Show>
           <ReleaseNotification />
         </PreferencesProvider>

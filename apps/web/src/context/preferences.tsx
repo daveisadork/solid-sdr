@@ -76,6 +76,8 @@ export interface SpotPreferences {
 export interface Preferences {
   stationName: string;
   smoothScroll: boolean;
+  mousewheelTuning: boolean;
+  invertMousewheelTuning: boolean;
   enableBlurEffects: boolean;
   midiMappings: MidiMapping[];
   enableTransparencyEffects: boolean;
@@ -147,6 +149,8 @@ const defaultDaxIqConfig = () => {
 const getDefaults = (): Preferences => ({
   stationName: "",
   smoothScroll: true,
+  mousewheelTuning: false,
+  invertMousewheelTuning: false,
   enableBlurEffects: true,
   enableTransparencyEffects: true,
   showDisplayMarkers: true,

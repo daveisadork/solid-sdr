@@ -46,6 +46,7 @@ import { usePreferences } from "~/context/preferences";
 import { Toggle } from "../ui/toggle";
 import { PanafallControl } from "./controls";
 import { CreateProfileDialog } from "../settings/profile-settings";
+import { useControls } from "~/context/controls";
 
 type PanafallButtonProps<T extends ValidComponent = "button"> = ComponentProps<
   typeof TooltipTrigger<T>
@@ -134,6 +135,8 @@ export function Panafall(props: { index: number }) {
     panafallBounds,
     setPanafallPortalRef,
   } = usePanafall();
+
+  const { dispatch } = useControls();
 
   createEffect(
     (lastSize: { width: number; height: number }) => {
@@ -373,6 +376,25 @@ export function Panafall(props: { index: number }) {
                       "cursor-crosshair": !dragState.dragging,
                     }}
                     class="absolute inset-0 select-none touch-none"
+                    onWheel={
+                      preferences.mousewheelTuning
+                        ? (e: WheelEvent) => {
+                            e.preventDefault();
+                            const delta = (
+                              preferences.invertMousewheelTuning
+                                ? e.deltaY < 0
+                                : e.deltaY > 0
+                            )
+                              ? 1
+                              : -1;
+                            dispatch({
+                              target: "slice.frequency",
+                              op: "adjust",
+                              delta,
+                            });
+                          }
+                        : undefined
+                    }
                     onDblClick={(e: PointerEvent) => {
                       if (dragState.dragging) return;
                       setDragState("originX", 0);

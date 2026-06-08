@@ -231,6 +231,37 @@ export function AppSettings() {
         </Card>
         <Card class="bg-transparent">
           <CardHeader>
+            <CardTitle>Controls</CardTitle>
+          </CardHeader>
+          <CardContent class="flex flex-col gap-4">
+            <SimpleSwitch
+              checked={preferences.smoothScroll}
+              onChange={(isChecked) => {
+                setPreferences("smoothScroll", isChecked);
+              }}
+              label="Smooth Scroll"
+              description="Enable smooth horizontal scrolling of the panafall."
+            />
+            <SimpleSwitch
+              checked={preferences.mousewheelTuning}
+              onChange={(isChecked) => {
+                setPreferences("mousewheelTuning", isChecked);
+              }}
+              label="Mousewheel Tuning"
+              description="Enable tuning the active slice with the mousewheel."
+            />
+            <SimpleSwitch
+              checked={preferences.invertMousewheelTuning}
+              onChange={(isChecked) => {
+                setPreferences("invertMousewheelTuning", isChecked);
+              }}
+              label="Invert Mousewheel Tuning"
+              description="Change the direction mousewheel tuning moves the frequency."
+            />
+          </CardContent>
+        </Card>
+        <Card class="bg-transparent">
+          <CardHeader>
             <CardTitle>Display</CardTitle>
           </CardHeader>
           <CardContent class="flex flex-col gap-4">
@@ -249,14 +280,6 @@ export function AppSettings() {
               }}
               label="Blur Effects"
               description="Enable the use of a blur effect on transparent UI elements"
-            />
-            <SimpleSwitch
-              checked={preferences.smoothScroll}
-              onChange={(isChecked) => {
-                setPreferences("smoothScroll", isChecked);
-              }}
-              label="Smooth Scroll"
-              description="Enable smooth horizontal scrolling of the panafall."
             />
             <SimpleSwitch
               checked={preferences.showTuningGuide}

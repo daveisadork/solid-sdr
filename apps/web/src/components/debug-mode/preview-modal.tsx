@@ -26,9 +26,10 @@ export function DebugPreviewModal(props: DebugPreviewModalProps) {
         <div class="p-4 border-b border-zinc-800">
           <div class="font-bold">Debug Report Preview</div>
           <div class="text-sm text-zinc-400 mt-1">
-            Search (Ctrl-F) for your callsign, MAC, IP, or lat/lon. Anything
-            still visible is a sanitizer miss — please tell us instead of
-            attaching.
+            Your callsign, IP addresses, GPS data, etc. have been removed from
+            the report automatically, but you should review the information
+            below and ensure it doesn't contain any information you don't want
+            to share publicly.
           </div>
         </div>
         <pre class="flex-1 overflow-auto p-4 text-xs font-mono whitespace-pre">

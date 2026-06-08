@@ -209,7 +209,7 @@ export const AudioProvider: ParentComponent = (props) => {
       if (!state.clientHandle || !preferences.dax.rx[daxChannel]?.enabled)
         return;
       const promise = radio()?.createDaxRxAudioStream({ daxChannel });
-      promise.then((controller) =>
+      promise?.then((controller) =>
         daxRxControllers.set(controller.daxChannel, controller),
       );
       onCleanup(() =>

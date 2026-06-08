@@ -47,9 +47,10 @@ import type {
   FilterPresetSnapshot,
   DisconnectedReason,
 } from "@repo/flexlib";
-import { createFlexClient } from "@repo/flexlib/bridge";
+import { BridgeTransport } from "@repo/flexlib/bridge";
 import { useRtc } from "./rtc";
 import { usePreferences } from "./preferences";
+import { useDebugMode } from "./debug-mode";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Timeline } from "~/components/ui/timeline";
 import { InfoItem } from "~/components/settings/common";
@@ -236,11 +237,12 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     }
   };
 
+  const debug = useDebugMode();
   const flexClient = createMemo(() => {
     const pc = peerConnection();
-    return pc && rtcState.connectionState === "connected"
-      ? createFlexClient(pc)
-      : null;
+    if (!pc || rtcState.connectionState !== "connected") return null;
+    const transport = debug.wrapTransportIfEnabled(new BridgeTransport(pc));
+    return new FlexClient({ transport });
   });
 
   const updateDiscoveryRadio = (descriptor?: FlexRadioDescriptor) => {

@@ -40,19 +40,19 @@ function RemoteAudioToggle() {
     <ToggleButton
       class="size-10 not-pointer-coarse:size-5 aspect-square"
       classList={{
-        "text-error-foreground": audioPermission() === "denied",
-        "text-warning-foreground": audioPermission() === "prompt",
+        "text-error-foreground":
+          preferences.remoteAudio.rx.enabled && audioPermission() === "denied",
+        "text-warning-foreground":
+          preferences.remoteAudio.rx.enabled && audioPermission() === "prompt",
       }}
-      pressed={
-        preferences.remoteAudio.rx.enabled && audioPermission() === "granted"
-      }
+      pressed={preferences.remoteAudio.rx.enabled}
       onChange={(pressed) =>
         setPreferences("remoteAudio", "rx", "enabled", pressed)
       }
     >
       <Dynamic
         component={
-          audioPermission() === "granted" && preferences.remoteAudio.rx.enabled
+          preferences.remoteAudio.rx.enabled
             ? MaterialSymbolsVolumeUp
             : MaterialSymbolsVolumeOff
         }

@@ -12,7 +12,12 @@ export function Panafalls() {
   const { preferences, setPreferences } = usePreferences();
   const panafalls = createMemo(() =>
     Object.values(state.status.panadapter)
-      .filter((p) => p.clientHandle === state.clientHandleInt)
+      .filter(
+        (p) =>
+          p.clientHandle === state.clientHandleInt &&
+          state.status.waterfall[p.waterfallStreamId]?.clientHandle ===
+            state.clientHandleInt,
+      )
       .map((p) => p.id)
       .toSorted(),
   );

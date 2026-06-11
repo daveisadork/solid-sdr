@@ -9,7 +9,7 @@ import {
   type DaxChannelMode,
   type SinkMessage,
 } from "./types";
-import sabWorkletURL from "./dax-audio-sink.worklet.ts?worker&url";
+import sabWorkletURL from "../sab-ring-sink.worklet.ts?worker&url";
 import sinkWorkerURL from "./dax-audio-sink.worker.ts?worker&url";
 
 // const sinkWorkerURL = new URL("./dax-audio-sink.worker.ts", import.meta.url);
@@ -60,7 +60,7 @@ export class DaxAudioSink {
     if (this.closed) return;
     await this.ctx.audioWorklet.addModule(sabWorkletURL);
     if (this.closed) return;
-    const node = new AudioWorkletNode(this.ctx, "dax-sab-sink", {
+    const node = new AudioWorkletNode(this.ctx, "sab-ring-sink", {
       numberOfInputs: 0,
       numberOfOutputs: 1,
       outputChannelCount: [this.channels],

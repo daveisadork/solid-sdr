@@ -1,6 +1,6 @@
 import type { AudioStreamDataEvent, VitaDaxIqPacket } from "@repo/flexlib";
 import { DAX_IQ_RING_FRAMES as RING_FRAMES, type SinkMessage } from "./types";
-import sabWorkletURL from "./dax-iq-audio-sink.worklet.ts?worker&url";
+import sabWorkletURL from "../sab-ring-sink.worklet.ts?worker&url";
 import sinkWorkerURL from "./dax-iq-audio-sink.worker.ts?worker&url";
 
 export interface DaxIqAudioSinkOptions {
@@ -43,7 +43,7 @@ export class DaxIqAudioSink {
     if (this.closed) return;
     await this.ctx.audioWorklet.addModule(sabWorkletURL);
     if (this.closed) return;
-    const node = new AudioWorkletNode(this.ctx, "dax-iq-sab-sink", {
+    const node = new AudioWorkletNode(this.ctx, "sab-ring-sink", {
       numberOfInputs: 0,
       numberOfOutputs: 1,
       outputChannelCount: [this.channels],

@@ -1,59 +1,8 @@
 import type { AudioStreamTxController } from "@repo/flexlib";
 import type { DaxChannelMode } from "./dax-audio-sink/types";
+import daxAudioTxProcessorURL from "./dax-audio-tx.worklet.ts?worker&url";
 
 const DAX_PACKET_SAMPLES = 128;
-
-const daxAudioTxProcessorURL = URL.createObjectURL(
-  new Blob(
-    [
-      `
-class DaxAudioTxProcessor extends AudioWorkletProcessor {
-  constructor() {
-    super();
-    this._channelMode = "mono";
-    this.port.onmessage = (e) => {
-      if (e.data.type === "channelMode") this._channelMode = e.data.mode;
-    };
-  }
-  process(inputs, outputs) {
-    const input = inputs[0];
-    const output = outputs[0];
-
-    if (output) {
-      for (let c = 0; c < output.length; c += 1) {
-        output[c].fill(0);
-      }
-    }
-
-    if (!input || input.length === 0 || input[0].length === 0) {
-      return true;
-    }
-
-    // Pick source channel based on mode
-    let src;
-    switch (this._channelMode) {
-      case "right":
-        src = input[1] ?? input[0];
-        break;
-      case "left":
-      default:
-        src = input[0];
-        break;
-    }
-
-    const mono = new Float32Array(src.length);
-    mono.set(src);
-    this.port.postMessage({ mono }, [mono.buffer]);
-    return true;
-  }
-}
-
-registerProcessor("dax-audio-tx", DaxAudioTxProcessor);
-      `,
-    ],
-    { type: "application/javascript" },
-  ),
-);
 
 export class DaxAudioTx {
   private readonly context = new AudioContext({

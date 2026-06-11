@@ -2921,11 +2921,12 @@ class RadioImpl {
       );
       this._clientId = response.message?.trim() ?? null;
     } else if (info.boundClientId) {
-      await this.command(`client bind_gui_client ${info.boundClientId}`);
+      await this.bindGuiClient(info.boundClientId);
     }
 
+    // The radio rejects "client station" from non-GUI clients (0x500000AA)
     const stationName = info.station;
-    if (stationName) {
+    if (stationName && isGui) {
       await this.setClientStationName(stationName).catch(() => {});
     }
 

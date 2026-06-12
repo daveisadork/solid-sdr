@@ -1,7 +1,21 @@
 import { usePreferences } from "../../context/preferences";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "../ui/accordion";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { SimpleSwitch } from "../ui/simple-switch";
-import { createEffect, For, Match, Show, Switch } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  Match,
+  Show,
+  Switch,
+} from "solid-js";
 import useFlexRadio from "~/context/flexradio";
 import { DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import {
@@ -25,6 +39,7 @@ import {
   SwitchThumb,
 } from "../ui/switch";
 import { useAudio } from "~/context/audio";
+import { DaxDiagnostics } from "./dax-diagnostics";
 import { AudioLevelMeter } from "../ui/audio-level-meter";
 import { Callout, CalloutContent, CalloutTitle } from "../ui/callout";
 import { createPermission } from "~/lib/permission";
@@ -45,6 +60,16 @@ function InnerDaxSettings() {
 
   const outputs = createSpeakers();
   const inputs = createMicrophones();
+
+  const activeRxChannels = createMemo(() =>
+    Array.from(
+      { length: state.status.radio.sliceCount },
+      (_, i) => i + 1,
+    ).filter((ch) => preferences.dax.rx[ch]?.enabled),
+  );
+
+  const [diagOpen, setDiagOpen] = createSignal<string[]>([]);
+  const diagIsOpen = () => diagOpen().includes("diag");
 
   return (
     <div
@@ -298,6 +323,19 @@ function InnerDaxSettings() {
           </Card>
         )}
       </For>
+      <Accordion multiple value={diagOpen()} onChange={setDiagOpen}>
+        <AccordionItem value="diag" class="border rounded-lg">
+          <AccordionTrigger>Diagnostics</AccordionTrigger>
+          <AccordionContent>
+            <Show when={diagIsOpen()}>
+              <DaxDiagnostics
+                rxChannels={activeRxChannels()}
+                showTx={preferences.dax.tx.enabled}
+              />
+            </Show>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
     </div>
   );
 }

@@ -13,12 +13,16 @@ declare function registerProcessor(
   processorCtor: new () => AudioWorkletProcessor,
 ): void;
 
+const RX_SLOT_WORKLET_UNDERRUNS = 9;
+const RX_SLOT_WORKLET_QUANTA_SERVED = 10;
+
 class SabRingSinkProcessor extends AudioWorkletProcessor {
   private ready = false;
   private channels = 0;
   private framesCap = 0;
   private buffers: Float32Array[] | null = null;
   private idx: Int32Array | null = null;
+  private telemetry: Int32Array | null = null;
 
   constructor() {
     super();
@@ -29,6 +33,7 @@ class SabRingSinkProcessor extends AudioWorkletProcessor {
         framesPerChannel?: number;
         audioSAB?: SharedArrayBuffer;
         indexSAB?: SharedArrayBuffer;
+        telemetrySAB?: SharedArrayBuffer;
       };
       if (m?.type !== "init") return;
       if (!m.audioSAB || !m.indexSAB) return;
@@ -43,6 +48,9 @@ class SabRingSinkProcessor extends AudioWorkletProcessor {
           c * this.framesCap * Float32Array.BYTES_PER_ELEMENT,
           this.framesCap,
         );
+      }
+      if (m.telemetrySAB) {
+        this.telemetry = new Int32Array(m.telemetrySAB);
       }
       this.ready = true;
     };
@@ -82,6 +90,13 @@ class SabRingSinkProcessor extends AudioWorkletProcessor {
     }
 
     if (take > 0) Atomics.store(this.idx, 0, r + take);
+
+    if (this.telemetry) {
+      Atomics.add(this.telemetry, RX_SLOT_WORKLET_QUANTA_SERVED, 1);
+      if (take < need) {
+        Atomics.add(this.telemetry, RX_SLOT_WORKLET_UNDERRUNS, 1);
+      }
+    }
     return true;
   }
 }

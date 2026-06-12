@@ -3,6 +3,11 @@ import {
   type DaxChannelMode,
   type SinkMessage,
 } from "./types";
+import {
+  incr as telemetryIncr,
+  RxSlot,
+  viewTelemetry,
+} from "../dax-audio/telemetry";
 
 const SCALE_I16_TO_F32 = 1 / 32768;
 
@@ -17,6 +22,8 @@ class DaxSinkWorker {
   private channelMode: DaxChannelMode = "both";
   private framesCap = 0;
   private idx: Int32Array | null = null;
+  private telemetry: Int32Array | null = null;
+  private lastSeenSeqForGapCount = -1;
   private buffers: Float32Array[] | null = null;
   private queue: QueueEntry[] = [];
   private queuedFrames = 0;
@@ -43,6 +50,7 @@ class DaxSinkWorker {
         );
       }
       this.channelMode = m.channelMode ?? "both";
+      this.telemetry = viewTelemetry(m.telemetrySAB);
       this.setBufferMs(m.bufferMs);
       return;
     }
@@ -58,6 +66,21 @@ class DaxSinkWorker {
     if (m.type !== "packet" || !this.buffers || !this.idx) return;
 
     const seq = this.extendSeq((m.seq | 0) & 0xf);
+    if (this.telemetry) {
+      telemetryIncr(this.telemetry, RxSlot.PktReceived);
+      if (this.lastSeenSeqForGapCount >= 0) {
+        const expected = this.lastSeenSeqForGapCount + 1;
+        if (seq > expected) {
+          telemetryIncr(this.telemetry, RxSlot.PktSeqGaps, seq - expected);
+        } else if (seq < this.lastSeenSeqForGapCount) {
+          telemetryIncr(this.telemetry, RxSlot.PktReordered);
+        }
+      }
+      this.lastSeenSeqForGapCount = Math.max(
+        this.lastSeenSeqForGapCount,
+        seq,
+      );
+    }
     let srcPlanes: Float32Array[];
     if (m.kind === "daxAudio") {
       if (!m.left || m.left.length === 0 || !m.right || m.right.length === 0) {
@@ -201,11 +224,21 @@ class DaxSinkWorker {
     if (lead > this.maxLeadFrames) {
       r = w - this.targetLeadFrames;
       Atomics.store(this.idx, 0, r);
+      if (this.telemetry) {
+        telemetryIncr(
+          this.telemetry,
+          RxSlot.BufForcedDrops,
+          lead - this.targetLeadFrames,
+        );
+      }
     }
 
     const free = Math.max(0, cap - ((w - r) | 0));
     if (frames > free) {
       Atomics.store(this.idx, 0, r + (frames - free));
+      if (this.telemetry) {
+        telemetryIncr(this.telemetry, RxSlot.BufForcedDrops, frames - free);
+      }
     }
 
     const pos = ((w % cap) + cap) % cap;
@@ -216,6 +249,10 @@ class DaxSinkWorker {
       if (!out || !src) continue;
       out.set(src.subarray(0, first), pos);
       if (first < frames) out.set(src.subarray(first, frames), 0);
+    }
+    if (this.telemetry) {
+      const fill = (w + frames - Atomics.load(this.idx, 0)) | 0;
+      Atomics.store(this.telemetry, RxSlot.BufFillFrames, fill);
     }
     Atomics.store(this.idx, 1, w + frames);
   }

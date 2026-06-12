@@ -9,6 +9,7 @@ export interface InitMessage {
   framesPerChannel: number;
   audioSAB: SharedArrayBuffer;
   indexSAB: SharedArrayBuffer;
+  telemetrySAB: SharedArrayBuffer;
   bufferMs: number;
   channelMode: DaxChannelMode;
 }

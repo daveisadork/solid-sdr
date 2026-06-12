@@ -13,14 +13,24 @@ declare function registerProcessor(
   processorCtor: new () => AudioWorkletProcessor,
 ): void;
 
+const TX_SLOT_WORKLET_FRAMES_CAPTURED = 0;
+
 class DaxAudioTxProcessor extends AudioWorkletProcessor {
   private channelMode = "mono";
+  private telemetry: Int32Array | null = null;
 
   constructor() {
     super();
     this.port.onmessage = (e: MessageEvent) => {
-      const m = e.data as { type?: string; mode?: string };
+      const m = e.data as {
+        type?: string;
+        mode?: string;
+        telemetrySAB?: SharedArrayBuffer;
+      };
       if (m?.type === "channelMode" && m.mode) this.channelMode = m.mode;
+      if (m?.type === "init" && m.telemetrySAB) {
+        this.telemetry = new Int32Array(m.telemetrySAB);
+      }
     };
   }
 
@@ -51,6 +61,9 @@ class DaxAudioTxProcessor extends AudioWorkletProcessor {
 
     const mono = new Float32Array(src.length);
     mono.set(src);
+    if (this.telemetry) {
+      Atomics.add(this.telemetry, TX_SLOT_WORKLET_FRAMES_CAPTURED, src.length);
+    }
     this.port.postMessage({ mono }, [mono.buffer]);
     return true;
   }

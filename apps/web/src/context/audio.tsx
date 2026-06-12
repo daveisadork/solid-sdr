@@ -350,14 +350,13 @@ export const AudioProvider: ParentComponent = (props) => {
     });
   }
 
-  // getUserMedia constraints for DAX TX
   const preferredDaxInputDevice = createMemo(() => {
     const constraints = {
       deviceId: preferences.dax.tx.inputDeviceId,
-      autoGainControl: preferences.dax.tx.autoGainControl,
-      echoCancellation: preferences.dax.tx.echoCancellation,
-      noiseSuppression: preferences.dax.tx.noiseSuppression,
-      voiceIsolation: preferences.dax.tx.voiceIsolation,
+      autoGainControl: false,
+      echoCancellation: false,
+      noiseSuppression: false,
+      voiceIsolation: false,
       latency: 0,
       channelCount: 2,
     } as MediaTrackConstraints;

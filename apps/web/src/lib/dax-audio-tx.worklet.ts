@@ -59,11 +59,11 @@ class DaxAudioTxProcessor extends AudioWorkletProcessor {
         break;
     }
 
-    const mono = new Float32Array(src.length);
-    mono.set(src);
     if (this.telemetry) {
       Atomics.add(this.telemetry, TX_SLOT_WORKLET_FRAMES_CAPTURED, src.length);
     }
+    const mono = new Float32Array(src.length);
+    mono.set(src);
     this.port.postMessage({ mono }, [mono.buffer]);
     return true;
   }

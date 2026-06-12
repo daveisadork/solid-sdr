@@ -51,8 +51,6 @@ const CHANNEL_MODE_ICONS = {
   both: Stereo,
 };
 
-const supportedConstraints = navigator.mediaDevices.getSupportedConstraints();
-
 function InnerDaxSettings() {
   const { daxSinks, daxTxStream } = useAudio();
   const { preferences, setPreferences } = usePreferences();
@@ -167,42 +165,6 @@ function InnerDaxSettings() {
             }
             label="Reduced Bandwidth"
           />
-          <Show when={supportedConstraints?.autoGainControl}>
-            <SimpleSwitch
-              checked={preferences.dax.tx.autoGainControl}
-              onChange={(checked) =>
-                setPreferences("dax", "tx", "autoGainControl", checked)
-              }
-              label="Auto Gain Control"
-            />
-          </Show>
-          <Show when={supportedConstraints?.echoCancellation}>
-            <SimpleSwitch
-              checked={preferences.dax.tx.echoCancellation}
-              onChange={(checked) =>
-                setPreferences("dax", "tx", "echoCancellation", checked)
-              }
-              label="Echo Cancellation"
-            />
-          </Show>
-          <Show when={supportedConstraints?.noiseSuppression}>
-            <SimpleSwitch
-              checked={preferences.dax.tx.noiseSuppression}
-              onChange={(checked) =>
-                setPreferences("dax", "tx", "noiseSuppression", checked)
-              }
-              label="Noise Suppression"
-            />
-          </Show>
-          <Show when={supportedConstraints?.voiceIsolation}>
-            <SimpleSwitch
-              checked={preferences.dax.tx.voiceIsolation}
-              onChange={(checked) =>
-                setPreferences("dax", "tx", "voiceIsolation", checked)
-              }
-              label="Voice Isolation"
-            />
-          </Show>
         </CardContent>
       </Card>
       <For

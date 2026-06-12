@@ -1,7 +1,7 @@
 // apps/web/src/lib/dax-audio/telemetry.ts
 
-// Atomic Int32 slot indices. Frozen across stages 1-4; do not renumber.
-// Stages 2-3 fill in currently-unused slots without renumbering existing ones.
+// Atomic Int32 slot indices. Writers (worklet, worker, main-thread sender)
+// update slots via Atomics.add / setMax CAS; readers snapshot via Atomics.load.
 
 export const RxSlot = {
   PktReceived: 0,
@@ -19,18 +19,17 @@ export const RxSlot = {
   CtxSampleRateHz: 12,     // populated once at init
 } as const;
 
+// WorkletFramesCaptured must stay at 0 — the worklet references the literal 0
+// for that slot (workers/worklets currently can't import this module at runtime).
 export const TxSlot = {
   WorkletFramesCaptured: 0,
-  WorkletOverruns: 1,      // stage 2: capture ring full
-  WorkerPacketsBuilt: 2,   // stage 2
-  MainPacketsSent: 3,
-  MainSendStallMaxUs: 4,   // high-water mark since session start
-  MainBurstMaxPackets: 5,  // high-water mark per tick
-  CtxSampleRateHz: 6,
-  MainSendStallOver10msCount: 7,
-  MainSendStallOver25msCount: 8,
-  MainSendStallOver50msCount: 9,
-  MainSendStallOver100msCount: 10,
+  MainPacketsSent: 1,
+  MainSendStallMaxUs: 2,
+  CtxSampleRateHz: 3,
+  MainSendStallOver10msCount: 4,
+  MainSendStallOver25msCount: 5,
+  MainSendStallOver50msCount: 6,
+  MainSendStallOver100msCount: 7,
 } as const;
 
 export const RX_SLOT_COUNT = 16; // pad to 16 for cache-line alignment + headroom
@@ -86,11 +85,8 @@ export interface RxTelemetrySnapshot {
 
 export interface TxTelemetrySnapshot {
   workletFramesCaptured: number;
-  workletOverruns: number;
-  workerPacketsBuilt: number;
   mainPacketsSent: number;
   mainSendStallMaxUs: number;
-  mainBurstMaxPackets: number;
   ctxSampleRateHz: number;
   mainSendStallOver10msCount: number;
   mainSendStallOver25msCount: number;
@@ -119,11 +115,8 @@ export function snapshotRx(view: Int32Array): RxTelemetrySnapshot {
 export function snapshotTx(view: Int32Array): TxTelemetrySnapshot {
   return {
     workletFramesCaptured: load(view, TxSlot.WorkletFramesCaptured),
-    workletOverruns: load(view, TxSlot.WorkletOverruns),
-    workerPacketsBuilt: load(view, TxSlot.WorkerPacketsBuilt),
     mainPacketsSent: load(view, TxSlot.MainPacketsSent),
     mainSendStallMaxUs: load(view, TxSlot.MainSendStallMaxUs),
-    mainBurstMaxPackets: load(view, TxSlot.MainBurstMaxPackets),
     ctxSampleRateHz: load(view, TxSlot.CtxSampleRateHz),
     mainSendStallOver10msCount: load(view, TxSlot.MainSendStallOver10msCount),
     mainSendStallOver25msCount: load(view, TxSlot.MainSendStallOver25msCount),

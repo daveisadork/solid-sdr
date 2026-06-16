@@ -6,14 +6,14 @@ import type {
   AudioStreamStateChange,
 } from "./state/index.js";
 import type { RadioSession } from "./radio-core.js";
-import type { VitaParsedPacket } from "../vita/parser.js";
+import type { VitaPacket } from "../vita/parser.js";
 import {
   VitaDaxAudioPacket,
   VitaDaxReducedBwPacket,
 } from "../vita/dax-audio-packet.js";
 import { VitaOpusPacket } from "../vita/opus-packet.js";
 
-export type AudioStreamDataEvent = VitaParsedPacket;
+export type AudioStreamDataEvent = VitaPacket;
 
 /** Number of audio frames per DAX packet. */
 const DAX_PACKET_SAMPLES = 128;

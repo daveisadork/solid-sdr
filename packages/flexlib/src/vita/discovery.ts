@@ -21,6 +21,7 @@ const UTF8_ENCODER = new TextEncoder();
 const UTF8_DECODER = new TextDecoder();
 
 export class VitaDiscoveryPacket {
+  readonly kind = "discovery" as const;
   header: VitaHeader;
   streamId = 0;
   classId: VitaClassId;

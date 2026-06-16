@@ -6,4 +6,5 @@ export * from "./meter-packet";
 export * from "./fft-packet";
 export * from "./dax-audio-packet";
 export * from "./dax-iq-packet";
+export * from "./opus-packet";
 export * from "./parser";

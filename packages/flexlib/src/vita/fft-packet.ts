@@ -20,6 +20,7 @@ import {
 const FFT_META_BYTES = 12; // start(2) + num(2) + binSize(2) + total(2) + frameIndex(4)
 
 export class VitaFFTPacket {
+  readonly kind = "panadapter" as const;
   header: VitaHeader;
   streamId = 0;
   classId: VitaClassId;

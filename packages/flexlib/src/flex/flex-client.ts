@@ -273,10 +273,7 @@ export class FlexClient {
       const parsed = parseVitaPacket(data);
       if (!parsed || parsed.kind !== "discovery") return;
 
-      const descriptor = decodeDiscoveryPayload(
-        parsed.packet.payload,
-        Date.now(),
-      );
+      const descriptor = decodeDiscoveryPayload(parsed.payload, Date.now());
 
       const endpoint: RadioEndpoint = {
         host: descriptor.host,

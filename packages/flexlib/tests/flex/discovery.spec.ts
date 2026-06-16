@@ -17,7 +17,7 @@ function parseDescriptorFromPacket(data: Uint8Array): FlexRadioDescriptor {
   if (!parsed || parsed.kind !== "discovery") {
     throw new Error("Not a discovery packet");
   }
-  return decodeDiscoveryPayload(parsed.packet.payload, Date.now());
+  return decodeDiscoveryPayload(parsed.payload, Date.now());
 }
 
 const SAMPLE_PACKET = loadPacket("flex-8600-available.bin");

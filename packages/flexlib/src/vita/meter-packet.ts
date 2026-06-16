@@ -18,6 +18,7 @@ import {
 } from "./common";
 
 export class VitaMeterPacket {
+  readonly kind = "meter" as const;
   header: VitaHeader;
   streamId = 0;
   classId: VitaClassId;

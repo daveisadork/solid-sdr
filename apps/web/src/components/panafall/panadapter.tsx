@@ -19,7 +19,7 @@ import { PanadapterGrid } from "./panadapter-grid";
 import { buildFrequencyGrid } from "./scale";
 import type { FrequencyGridTick } from "./scale";
 import { parseColor } from "@kobalte/core/colors";
-import type { PanadapterController, VitaParsedPacket } from "@repo/flexlib";
+import type { PanadapterController, VitaFFTPacket } from "@repo/flexlib";
 import { usePanafall } from "~/context/panafall";
 import { usePreferences } from "~/context/preferences";
 import { Spots } from "./spots";
@@ -170,7 +170,7 @@ export function Panadapter(props: {
 
     let lastBinValue = 0;
 
-    return ({ packet }: VitaParsedPacket<"panadapter">) => {
+    return (packet: VitaFFTPacket) => {
       const startingBin = packet.startBinIndex;
       const binsInThisFrame = packet.numBins;
       const totalBins = packet.totalBinsInFrame;

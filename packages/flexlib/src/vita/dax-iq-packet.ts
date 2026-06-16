@@ -67,6 +67,7 @@ function defaultDaxIqHeader(): VitaHeader {
  * I -> `left`, Q -> `right`. Sample rate is determined by the packet class code.
  */
 export class VitaDaxIqPacket {
+  readonly kind = "daxIq" as const;
   header: VitaHeader;
   streamId = 0;
   classId: VitaClassId;

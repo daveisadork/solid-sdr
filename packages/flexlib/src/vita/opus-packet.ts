@@ -10,6 +10,7 @@
 import {
   type VitaHeader,
   type VitaClassId,
+  type VitaPacketContext,
   VitaPacketType,
   VitaTimeStampIntegerType,
   VitaTimeStampFractionalType,
@@ -29,6 +30,7 @@ const VITA_FLEX_OPUS_CLASS = 0x8005;
  * for remote audio playback.
  */
 export class VitaOpusPacket {
+  readonly kind = "opus" as const;
   header: VitaHeader;
   streamId = 0;
   classId: VitaClassId;
@@ -86,5 +88,18 @@ export class VitaOpusPacket {
     buf.set(this.payload, off);
 
     return buf;
+  }
+
+  parseWithContext(ctx: VitaPacketContext): void {
+    this.header = ctx.header;
+    this.streamId = ctx.streamId;
+    this.classId = ctx.classId;
+    this.timestampInt = ctx.timestampInt;
+    this.timestampFrac = ctx.timestampFrac;
+    this.payload = new Uint8Array(
+      ctx.view.buffer,
+      ctx.view.byteOffset + ctx.payloadOffset,
+      ctx.payloadLength,
+    );
   }
 }

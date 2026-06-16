@@ -9,7 +9,7 @@ import {
 } from "solid-js";
 import { type PanadapterState, type WaterfallState } from "~/context/flexradio";
 import { LinearScale } from "../linear-scale";
-import type { VitaParsedPacket, WaterfallController } from "@repo/flexlib";
+import type { VitaWaterfallPacket, WaterfallController } from "@repo/flexlib";
 import { usePreferences } from "~/context/preferences";
 import { usePanafall } from "~/context/panafall";
 import { roundToDevicePixels } from "~/lib/utils";
@@ -190,7 +190,7 @@ export function Waterfall(props: {
       screenCtx.drawImage(offscreen, 0, 0, canvas.width, canvas.height);
     };
 
-    return ({ packet }: VitaParsedPacket<"waterfall">) => {
+    return (packet: VitaWaterfallPacket) => {
       const tile = packet.tile;
       const binBandwidth = tile.binBandwidth.freqHz;
       const firstBinFreq = tile.frameLowFreq.freqHz;

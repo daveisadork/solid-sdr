@@ -1,5 +1,5 @@
-import type {
-  AudioStreamDataEvent,
+import {
+  type AudioStreamDataEvent,
   VitaDaxAudioPacket,
   VitaDaxReducedBwPacket,
 } from "@repo/flexlib";
@@ -97,35 +97,30 @@ export class DaxAudioSink {
     await this.audio.play().catch(() => {});
   }
 
-  play(event: AudioStreamDataEvent): void {
+  play(packet: AudioStreamDataEvent): void {
     if (!this.worker) return;
 
-    const { kind, header } = event;
     this.maybeResume();
 
-    const seq = header.packetCount;
+    const seq = packet.header.packetCount;
 
-    if (kind === "daxAudio") {
-      const pkt = event.packet as VitaDaxAudioPacket;
-      if (!pkt.numFrames) return;
+    if (packet instanceof VitaDaxAudioPacket) {
+      if (!packet.numFrames) return;
       this.worker.postMessage({
         type: "packet",
-        kind,
+        kind: "daxAudio",
         seq,
-        left: pkt.left,
-        right: pkt.right,
+        left: packet.left,
+        right: packet.right,
       } satisfies SinkMessage);
-    } else if (kind === "daxReducedBw") {
-      const pkt = event.packet as VitaDaxReducedBwPacket;
-      if (!pkt.numFrames) return;
+    } else if (packet instanceof VitaDaxReducedBwPacket) {
+      if (!packet.numFrames) return;
       this.worker.postMessage({
         type: "packet",
-        kind,
+        kind: "daxReducedBw",
         seq,
-        samples: pkt.samples,
+        samples: packet.samples,
       } satisfies SinkMessage);
-    } else {
-      return;
     }
   }
 

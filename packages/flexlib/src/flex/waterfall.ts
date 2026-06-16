@@ -11,11 +11,11 @@ import {
   lineSpeedToDurationMs,
 } from "./waterfall-line-speed.js";
 import type { RadioSession, StreamPacketHandler } from "./radio-core.js";
-import type { VitaParsedPacket } from "../vita/parser.js";
+import type { VitaWaterfallPacket } from "../vita/waterfall-packet.js";
 
 export interface WaterfallControllerEvents {
   readonly change: WaterfallStateChange;
-  readonly data: VitaParsedPacket<"waterfall">;
+  readonly data: VitaWaterfallPacket;
 }
 
 export interface WaterfallUpdateRequest {

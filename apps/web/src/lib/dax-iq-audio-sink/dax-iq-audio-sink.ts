@@ -1,4 +1,4 @@
-import type { AudioStreamDataEvent, VitaDaxIqPacket } from "@repo/flexlib";
+import { type AudioStreamDataEvent, VitaDaxIqPacket } from "@repo/flexlib";
 import { DAX_IQ_RING_FRAMES as RING_FRAMES, type SinkMessage } from "./types";
 import sabWorkletURL from "../sab-ring-sink.worklet.ts?worker&url";
 import sinkWorkerURL from "./dax-iq-audio-sink.worker.ts?worker&url";
@@ -80,18 +80,17 @@ export class DaxIqAudioSink {
     await this.audio.play().catch(() => {});
   }
 
-  play(event: AudioStreamDataEvent): void {
+  play(packet: AudioStreamDataEvent): void {
     if (!this.worker) return;
-    if (event.kind !== "daxIq") return;
+    if (!(packet instanceof VitaDaxIqPacket)) return;
     this.maybeResume();
-    const pkt = event.packet as VitaDaxIqPacket;
-    if (!pkt.numFrames) return;
+    if (!packet.numFrames) return;
     this.worker.postMessage({
       type: "packet",
       kind: "daxIq",
-      seq: event.header.packetCount,
-      left: pkt.left,
-      right: pkt.right,
+      seq: packet.header.packetCount,
+      left: packet.left,
+      right: packet.right,
     } satisfies SinkMessage);
   }
 

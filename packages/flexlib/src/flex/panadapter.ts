@@ -15,11 +15,11 @@ import {
   formatMegahertz,
 } from "./controller-helpers.js";
 import type { RadioSession } from "./radio-core.js";
-import type { VitaParsedPacket } from "../vita/parser.js";
+import type { VitaFFTPacket } from "../vita/fft-packet.js";
 
 export interface PanadapterControllerEvents {
   readonly change: PanadapterStateChange;
-  readonly data: VitaParsedPacket<"panadapter">;
+  readonly data: VitaFFTPacket;
 }
 
 export interface PanadapterUpdateRequest {

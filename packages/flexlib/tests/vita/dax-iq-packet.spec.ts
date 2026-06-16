@@ -119,8 +119,8 @@ describe.each([
     const parsed = parseVitaPacket(bytes);
     expect(parsed?.kind).toBe("daxIq");
     if (parsed?.kind === "daxIq") {
-      expect(parsed.packet.classId.packetClassCode).toBe(classCode);
-      expect(parsed.packet.streamId).toBe(0x42000099);
+      expect(parsed.classId.packetClassCode).toBe(classCode);
+      expect(parsed.streamId).toBe(0x42000099);
     }
   });
 });

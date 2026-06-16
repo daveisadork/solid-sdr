@@ -70,6 +70,7 @@ function writePreamble(
  * Typical use: 128-frame blocks at 24 kHz (~5.3 ms latency) on a DAX audio channel.
  */
 export class VitaDaxAudioPacket {
+  readonly kind = "daxAudio" as const;
   /** VITA-49 header word fields. */
   header: VitaHeader;
   /** Stream identifier (uint32). */
@@ -193,6 +194,7 @@ export class VitaDaxAudioPacket {
  * stereo float32 = 8 bytes/frame), giving 4× lower wire bandwidth.
  */
 export class VitaDaxReducedBwPacket {
+  readonly kind = "daxReducedBw" as const;
   /** VITA-49 header word fields. */
   header: VitaHeader;
   /** Stream identifier (uint32). */

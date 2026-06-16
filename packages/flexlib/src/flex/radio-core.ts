@@ -142,7 +142,8 @@ import type {
   FilterPresetStateChange,
   WaveformStateChange,
 } from "./state/index.js";
-import { parseVitaPacket, type VitaParsedPacket } from "../vita/parser.js";
+import { parseVitaPacket, type VitaPacket } from "../vita/parser.js";
+import { VitaMeterPacket } from "../vita/meter-packet.js";
 import { getModelInfo, type RadioModelInfo } from "./model-info.js";
 import {
   RadioNetworkDiagnosticsTracker,
@@ -275,7 +276,7 @@ interface PendingCommand {
 // ---------------------------------------------------------------------------
 
 /** Callback for VITA stream data routed by the Radio. */
-export type StreamPacketHandler = (packet: VitaParsedPacket) => void;
+export type StreamPacketHandler = (packet: VitaPacket) => void;
 
 /** Callback for individual meter value updates. */
 export type MeterValueHandler = (meterId: number, rawValue: number) => void;
@@ -2767,19 +2768,16 @@ class RadioImpl {
       return;
     }
 
-    if (parsed.kind === "meter") {
+    if (parsed instanceof VitaMeterPacket) {
       this.recordNetworkDiagnostics("meter", parsed);
 
-      // Meter packets carry multiple meter IDs per packet.
-      // Dispatch individual values to registered meter handlers.
-      const meterPacket = parsed.packet;
-      const count = meterPacket.numMeters;
+      const count = parsed.numMeters;
       for (let i = 0; i < count; i++) {
-        const meterId = meterPacket.ids[i];
+        const meterId = parsed.ids[i];
         const handlers = this.meterHandlers.get(meterId);
         if (handlers) {
           for (const handler of handlers) {
-            handler(meterId, meterPacket.values[i]);
+            handler(meterId, parsed.values[i]);
           }
         }
       }
@@ -3042,7 +3040,7 @@ class RadioImpl {
 
   private recordNetworkDiagnostics(
     source: "meter" | "stream",
-    packet: VitaParsedPacket,
+    packet: VitaPacket,
   ): void {
     const now = Date.now();
     const packetCount = packet.header.packetCount;

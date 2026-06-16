@@ -24,6 +24,7 @@ import { VitaFrequency } from "../util/vita-frequency";
 const TILE_HEADER_BYTES = 36; // 8+8+4+2+2+4+4+2+2
 
 export class VitaWaterfallPacket {
+  readonly kind = "waterfall" as const;
   header: VitaHeader;
   streamId = 0;
   classId: VitaClassId;

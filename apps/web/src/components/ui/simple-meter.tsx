@@ -161,29 +161,59 @@ export function SimpleMeter(props: MeterProps) {
               "mask-composite": "exclude",
             }}
           />
-          <MeterPrimitive.Fill
-            class={cn(
-              "absolute inset-0 rounded-xl bg-linear-to-r/decreasing from-blue-500 via-yellow-300 via-75% to-red-500",
-              props.class,
-            )}
-            style={{
-              "will-change": "clip-path",
-              "clip-path":
-                "inset(0 calc(100% - var(--kb-meter-fill-width)) 0 0)",
-              transition: `clip-path ${1 / (props.meter.fps || 4)}s linear`,
-              ...props.style,
-            }}
-          />
-          <Show when={props.peakValue !== undefined}>
-            <div class="absolute inset-0 rounded-xl overflow-hidden">
+          {(() => {
+            // Imperative DOM write for the fill width — bypasses Solid's
+            // JSX style diff (insertExpression) for the one CSS var that
+            // updates at meter rate. The static styles stay declarative.
+            let fillEl!: HTMLDivElement;
+            createEffect(() => {
+              const v = props.value ?? value();
+              const min = props.minValue ?? props.meter.low;
+              const max = props.maxValue ?? props.meter.high;
+              const pct = Math.max(
+                0,
+                Math.min(100, ((v - min) / (max - min)) * 100),
+              );
+              fillEl?.style.setProperty("--kb-meter-fill-width", `${pct}%`);
+            });
+            return (
               <div
-                class="absolute inset-y-px w-px bg-foreground translate-x-(--peak-position) will-change-transform"
+                ref={fillEl}
+                class={cn(
+                  "absolute inset-0 rounded-xl bg-linear-to-r/decreasing from-blue-500 via-yellow-300 via-75% to-red-500",
+                  props.class,
+                )}
                 style={{
-                  transition: `transform ${1 / (props.meter?.fps || 4)}s linear`,
-                  "--peak-position": calculatePeakOffset()(props.peakValue!),
+                  "will-change": "clip-path",
+                  "clip-path":
+                    "inset(0 calc(100% - var(--kb-meter-fill-width)) 0 0)",
+                  transition: `clip-path ${1 / (props.meter.fps || 4)}s linear`,
+                  ...props.style,
                 }}
               />
-            </div>
+            );
+          })()}
+          <Show when={props.peakValue !== undefined}>
+            {(() => {
+              let peakEl!: HTMLDivElement;
+              createEffect(() => {
+                peakEl?.style.setProperty(
+                  "--peak-position",
+                  calculatePeakOffset()(props.peakValue!),
+                );
+              });
+              return (
+                <div class="absolute inset-0 rounded-xl overflow-hidden">
+                  <div
+                    ref={peakEl}
+                    class="absolute inset-y-px w-px bg-foreground translate-x-(--peak-position) will-change-transform"
+                    style={{
+                      transition: `transform ${1 / (props.meter?.fps || 4)}s linear`,
+                    }}
+                  />
+                </div>
+              );
+            })()}
           </Show>
           <Show when={props.showTicks}>
             <div class="absolute inset-px flex justify-between">

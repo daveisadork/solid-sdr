@@ -11,6 +11,11 @@ import {
 
 const SCALE_I16_TO_F32 = 1 / 32768;
 
+// Headroom above target before we shed back. Smaller value → smaller, more
+// frequent catch-up drops as the buffer drifts up due to source/sink clock
+// mismatch; larger value → rarer but bigger drops with more latency creep.
+const MAX_LEAD_HEADROOM_FRAMES = Math.round(0.025 * SAMPLE_RATE);
+
 interface QueueEntry {
   seq: number;
   planes: Float32Array[];
@@ -28,10 +33,7 @@ class DaxSinkWorker {
   private queue: QueueEntry[] = [];
   private queuedFrames = 0;
   private targetLeadFrames = Math.round(0.05 * SAMPLE_RATE);
-  private maxLeadFrames = Math.max(
-    this.targetLeadFrames,
-    Math.round(0.25 * SAMPLE_RATE),
-  );
+  private maxLeadFrames = this.targetLeadFrames + MAX_LEAD_HEADROOM_FRAMES;
   private lastSeqExt = -1;
   private silenceCache = new Map<number, Float32Array>();
 
@@ -113,10 +115,7 @@ class DaxSinkWorker {
   private setBufferMs(ms: number): void {
     const safeMs = Number.isFinite(ms) ? Math.max(0, ms) : 50;
     this.targetLeadFrames = Math.round((safeMs / 1000) * SAMPLE_RATE);
-    this.maxLeadFrames = Math.max(
-      this.targetLeadFrames,
-      Math.round(0.25 * SAMPLE_RATE),
-    );
+    this.maxLeadFrames = this.targetLeadFrames + MAX_LEAD_HEADROOM_FRAMES;
   }
 
   private extendSeq(seq4: number): number {

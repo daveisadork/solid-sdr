@@ -20,6 +20,7 @@ import {
 import { createElementBounds } from "@solid-primitives/bounds";
 import { usePreferences } from "./preferences";
 import { roundToDecimals } from "~/lib/utils";
+import { onlyAncestorMutations } from "~/lib/element-bounds";
 
 export type PanafallSpot = SpotState & {
   x: number;
@@ -91,7 +92,9 @@ export const PanafallProvider: ParentComponent<{ streamId?: string }> = (
     createSignal<HTMLElement>();
   const [panadapterControlsRef, setPanadapterControlsRef] =
     createSignal<HTMLElement>();
-  const panafallBounds = createElementBounds(panafallControlsRef);
+  const panafallBounds = createElementBounds(panafallControlsRef, {
+    trackMutation: onlyAncestorMutations(panafallControlsRef),
+  });
   const panadapter = createMemo(
     () => state.status.panadapter[props.streamId ?? state.selectedPanadapter],
   );

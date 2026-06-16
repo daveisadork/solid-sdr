@@ -24,6 +24,7 @@ import {
 import type { Component, ComponentProps, JSX, ValidComponent } from "solid-js";
 import { createPointerListeners } from "@solid-primitives/pointer";
 import { createElementBounds } from "@solid-primitives/bounds";
+import { onlyAncestorMutations } from "~/lib/element-bounds";
 import MaterialSymbolsChevronLeft from "~icons/material-symbols/chevron-left";
 import MaterialSymbolsChevronRight from "~icons/material-symbols/chevron-right";
 import MaterialSymbolsVolumeUp from "~icons/material-symbols/volume-up";
@@ -1536,8 +1537,12 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
     offset: 0,
     contain: 0,
   });
-  const sentinelBounds = createElementBounds(sentinel);
-  const flagBounds = createElementBounds(flag);
+  const sentinelBounds = createElementBounds(sentinel, {
+    trackMutation: onlyAncestorMutations(sentinel),
+  });
+  const flagBounds = createElementBounds(flag, {
+    trackMutation: onlyAncestorMutations(flag),
+  });
   const { preferences } = usePreferences();
   const { runtime } = useRuntime();
   const { dispatch } = useControls();

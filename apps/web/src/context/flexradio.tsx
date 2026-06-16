@@ -234,6 +234,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
       );
     if (resetState) {
       setState(reconcile(initialState()));
+      spots.clear();
     }
   };
 

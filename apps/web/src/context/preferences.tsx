@@ -47,9 +47,7 @@ export interface RxAudioConfig {
   outputDeviceId: string;
 }
 
-export interface DaxTxConfig {
-  enabled: boolean;
-  inputDeviceId: string;
+export interface DaxTxConfig extends TxAudioConfig {
   reducedBandwidth: boolean;
   channelMode: DaxChannelMode;
 }
@@ -195,6 +193,10 @@ const getDefaults = (): Preferences => ({
       inputDeviceId: "default",
       reducedBandwidth: true,
       channelMode: "both",
+      autoGainControl: false,
+      echoCancellation: false,
+      noiseSuppression: false,
+      voiceIsolation: false,
     },
   },
   remoteAudio: {

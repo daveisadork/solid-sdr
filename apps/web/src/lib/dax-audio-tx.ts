@@ -15,13 +15,6 @@ import {
 
 const DAX_PACKET_SAMPLES = 128;
 
-const STALL_BUCKETS: Array<{ thresholdUs: number; slot: number }> = [
-  { thresholdUs: 10_000, slot: TxSlot.MainSendStallOver10msCount },
-  { thresholdUs: 25_000, slot: TxSlot.MainSendStallOver25msCount },
-  { thresholdUs: 50_000, slot: TxSlot.MainSendStallOver50msCount },
-  { thresholdUs: 100_000, slot: TxSlot.MainSendStallOver100msCount },
-];
-
 export class DaxAudioTx {
   private readonly context = new AudioContext({
     sampleRate: 24_000,
@@ -33,13 +26,15 @@ export class DaxAudioTx {
   private readonly leftBuf = new Float32Array(DAX_PACKET_SAMPLES);
   private readonly rightBuf = new Float32Array(DAX_PACKET_SAMPLES);
   private readonly int16Buf = new Int16Array(DAX_PACKET_SAMPLES);
-  private readonly telemetrySAB = allocTelemetrySAB(TX_SLOT_COUNT);
-  private readonly telemetryView = viewTelemetry(this.telemetrySAB);
   private worklet?: AudioWorkletNode;
   private started = false;
   private closed = false;
   private channelMode: DaxChannelMode;
+  private readonly telemetrySAB = allocTelemetrySAB(TX_SLOT_COUNT);
+  private readonly telemetryView = viewTelemetry(this.telemetrySAB);
   private lastSendTimeUs = 0;
+  private burstCountThisTick = 0;
+  private burstTickScheduled = false;
 
   constructor(
     private readonly controller: AudioStreamTxController,
@@ -80,25 +75,6 @@ export class DaxAudioTx {
       });
       worklet.port.postMessage({ type: "channelMode", mode: this.channelMode });
 
-      const sendOne = () => {
-        const nowUs = performance.now() * 1000;
-        if (this.lastSendTimeUs > 0) {
-          const stallUs = (nowUs - this.lastSendTimeUs) | 0;
-          telemetrySetMax(
-            this.telemetryView,
-            TxSlot.MainSendStallMaxUs,
-            stallUs,
-          );
-          for (const bucket of STALL_BUCKETS) {
-            if (stallUs > bucket.thresholdUs) {
-              telemetryIncr(this.telemetryView, bucket.slot);
-            }
-          }
-        }
-        this.lastSendTimeUs = nowUs;
-        telemetryIncr(this.telemetryView, TxSlot.MainPacketsSent);
-      };
-
       worklet.port.onmessage = (
         event: MessageEvent<{ mono: Float32Array }>,
       ) => {
@@ -106,6 +82,58 @@ export class DaxAudioTx {
         for (let i = 0; i < mono.length; i += 1) {
           this.queue.push(mono[i]);
         }
+
+        const sendOne = () => {
+          const nowUs = performance.now() * 1000;
+          if (this.lastSendTimeUs > 0) {
+            const stallUs = (nowUs - this.lastSendTimeUs) | 0;
+            telemetrySetMax(
+              this.telemetryView,
+              TxSlot.MainSendStallMaxUs,
+              stallUs,
+            );
+            if (stallUs > 10_000) {
+              telemetryIncr(
+                this.telemetryView,
+                TxSlot.MainSendStallOver10msCount,
+              );
+            }
+            if (stallUs > 25_000) {
+              telemetryIncr(
+                this.telemetryView,
+                TxSlot.MainSendStallOver25msCount,
+              );
+            }
+            if (stallUs > 50_000) {
+              telemetryIncr(
+                this.telemetryView,
+                TxSlot.MainSendStallOver50msCount,
+              );
+            }
+            if (stallUs > 100_000) {
+              telemetryIncr(
+                this.telemetryView,
+                TxSlot.MainSendStallOver100msCount,
+              );
+            }
+          }
+          this.lastSendTimeUs = nowUs;
+          telemetryIncr(this.telemetryView, TxSlot.MainPacketsSent);
+          this.burstCountThisTick += 1;
+          if (!this.burstTickScheduled) {
+            // Collapse bursts within one task into a single high-water-mark update.
+            this.burstTickScheduled = true;
+            queueMicrotask(() => {
+              telemetrySetMax(
+                this.telemetryView,
+                TxSlot.MainBurstMaxPackets,
+                this.burstCountThisTick,
+              );
+              this.burstCountThisTick = 0;
+              this.burstTickScheduled = false;
+            });
+          }
+        };
 
         while (this.queue.length >= DAX_PACKET_SAMPLES) {
           if (this.reducedBw) {
@@ -147,6 +175,7 @@ export class DaxAudioTx {
 
   async close(): Promise<void> {
     this.closed = true;
+    console.log("Closing dax tx");
     this.worklet?.port.close();
     this.worklet?.disconnect();
     this.mute.disconnect();

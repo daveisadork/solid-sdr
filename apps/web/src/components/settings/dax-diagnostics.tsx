@@ -193,6 +193,12 @@ export function DaxDiagnostics(props: DaxDiagnosticsProps) {
                     </TableCell>
                   </TableRow>
                   <TableRow>
+                    <TableCell>Worker packets built</TableCell>
+                    <TableCell class="text-right">
+                      {fmt(snap().workerPacketsBuilt)}
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
                     <TableCell>Send-stall max (µs)</TableCell>
                     <TableCell
                       class="text-right"
@@ -237,6 +243,17 @@ export function DaxDiagnostics(props: DaxDiagnosticsProps) {
                       classList={{ "text-red-500": rate100() > 0 }}
                     >
                       {fmt(rate100())}
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell>Burst max (packets)</TableCell>
+                    <TableCell
+                      class="text-right"
+                      classList={{
+                        "text-red-500": snap().mainBurstMaxPackets > 4,
+                      }}
+                    >
+                      {fmt(snap().mainBurstMaxPackets)}
                     </TableCell>
                   </TableRow>
                   <TableRow>

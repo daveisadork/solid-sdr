@@ -1,17 +1,6 @@
 import type { AudioStreamTxController } from "@repo/flexlib";
 import type { DaxChannelMode } from "./dax-audio-sink/types";
 import daxAudioTxProcessorURL from "./dax-audio-tx.worklet.ts?worker&url";
-import {
-  allocTelemetrySAB,
-  incr as telemetryIncr,
-  set as telemetrySet,
-  setMax as telemetrySetMax,
-  snapshotTx,
-  TX_SLOT_COUNT,
-  TxSlot,
-  viewTelemetry,
-  type TxTelemetrySnapshot,
-} from "./dax-audio/telemetry";
 
 const DAX_PACKET_SAMPLES = 128;
 
@@ -30,11 +19,6 @@ export class DaxAudioTx {
   private started = false;
   private closed = false;
   private channelMode: DaxChannelMode;
-  private readonly telemetrySAB = allocTelemetrySAB(TX_SLOT_COUNT);
-  private readonly telemetryView = viewTelemetry(this.telemetrySAB);
-  private lastSendTimeUs = 0;
-  private burstCountThisTick = 0;
-  private burstTickScheduled = false;
 
   constructor(
     private readonly controller: AudioStreamTxController,
@@ -46,11 +30,6 @@ export class DaxAudioTx {
     this.source = this.context.createMediaStreamSource(stream);
     this.mute = this.context.createGain();
     this.mute.gain.value = 0;
-    telemetrySet(
-      this.telemetryView,
-      TxSlot.CtxSampleRateHz,
-      this.context.sampleRate | 0,
-    );
   }
 
   setChannelMode(mode: DaxChannelMode): void {
@@ -69,10 +48,6 @@ export class DaxAudioTx {
         outputChannelCount: [2],
       });
 
-      worklet.port.postMessage({
-        type: "init",
-        telemetrySAB: this.telemetrySAB,
-      });
       worklet.port.postMessage({ type: "channelMode", mode: this.channelMode });
 
       worklet.port.onmessage = (
@@ -82,58 +57,6 @@ export class DaxAudioTx {
         for (let i = 0; i < mono.length; i += 1) {
           this.queue.push(mono[i]);
         }
-
-        const sendOne = () => {
-          const nowUs = performance.now() * 1000;
-          if (this.lastSendTimeUs > 0) {
-            const stallUs = (nowUs - this.lastSendTimeUs) | 0;
-            telemetrySetMax(
-              this.telemetryView,
-              TxSlot.MainSendStallMaxUs,
-              stallUs,
-            );
-            if (stallUs > 10_000) {
-              telemetryIncr(
-                this.telemetryView,
-                TxSlot.MainSendStallOver10msCount,
-              );
-            }
-            if (stallUs > 25_000) {
-              telemetryIncr(
-                this.telemetryView,
-                TxSlot.MainSendStallOver25msCount,
-              );
-            }
-            if (stallUs > 50_000) {
-              telemetryIncr(
-                this.telemetryView,
-                TxSlot.MainSendStallOver50msCount,
-              );
-            }
-            if (stallUs > 100_000) {
-              telemetryIncr(
-                this.telemetryView,
-                TxSlot.MainSendStallOver100msCount,
-              );
-            }
-          }
-          this.lastSendTimeUs = nowUs;
-          telemetryIncr(this.telemetryView, TxSlot.MainPacketsSent);
-          this.burstCountThisTick += 1;
-          if (!this.burstTickScheduled) {
-            // Collapse bursts within one task into a single high-water-mark update.
-            this.burstTickScheduled = true;
-            queueMicrotask(() => {
-              telemetrySetMax(
-                this.telemetryView,
-                TxSlot.MainBurstMaxPackets,
-                this.burstCountThisTick,
-              );
-              this.burstCountThisTick = 0;
-              this.burstTickScheduled = false;
-            });
-          }
-        };
 
         while (this.queue.length >= DAX_PACKET_SAMPLES) {
           if (this.reducedBw) {
@@ -151,7 +74,7 @@ export class DaxAudioTx {
             }
             this.controller.sendAudio(l, r);
           }
-          sendOne();
+
           this.queue.splice(0, DAX_PACKET_SAMPLES);
         }
       };
@@ -167,10 +90,6 @@ export class DaxAudioTx {
     if (this.context.state !== "running") {
       await this.context.resume();
     }
-  }
-
-  telemetry(): TxTelemetrySnapshot {
-    return snapshotTx(this.telemetryView);
   }
 
   async close(): Promise<void> {

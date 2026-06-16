@@ -25,10 +25,6 @@ import {
 import { DaxAudioSink } from "~/lib/dax-audio-sink";
 import { DaxIqAudioSink } from "~/lib/dax-iq-audio-sink";
 import { DaxAudioTx } from "~/lib/dax-audio-tx";
-import type {
-  RxTelemetrySnapshot,
-  TxTelemetrySnapshot,
-} from "~/lib/dax-audio/telemetry";
 import { showToast } from "~/components/ui/toast";
 import { createPermission } from "~/lib/permission";
 
@@ -38,8 +34,6 @@ interface AudioContextValue {
   daxTxStream: Accessor<MediaStream | undefined>;
   remoteAudioTxStream: Accessor<MediaStream | undefined>;
   remoteAudioRxStream: Accessor<MediaStream | undefined>;
-  daxRxTelemetry: (channel: number) => RxTelemetrySnapshot | undefined;
-  daxTxTelemetry: () => TxTelemetrySnapshot | undefined;
 }
 
 const AudioContext = createContext<AudioContextValue>();
@@ -447,12 +441,6 @@ export const AudioProvider: ParentComponent = (props) => {
     }
   });
 
-  const daxRxTelemetry = (channel: number): RxTelemetrySnapshot | undefined =>
-    daxSinks.get(channel)?.telemetry();
-
-  const daxTxTelemetry = (): TxTelemetrySnapshot | undefined =>
-    daxTxInstance()?.telemetry();
-
   return (
     <AudioContext.Provider
       value={{
@@ -461,8 +449,6 @@ export const AudioProvider: ParentComponent = (props) => {
         daxTxStream,
         remoteAudioTxStream,
         remoteAudioRxStream: rtcRemoteAudioRxStream,
-        daxRxTelemetry,
-        daxTxTelemetry,
       }}
     >
       {props.children}

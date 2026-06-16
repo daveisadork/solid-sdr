@@ -9,15 +9,6 @@ import {
   type DaxChannelMode,
   type SinkMessage,
 } from "./types";
-import {
-  allocTelemetrySAB,
-  RX_SLOT_COUNT,
-  RxSlot,
-  set as telemetrySet,
-  snapshotRx,
-  viewTelemetry,
-  type RxTelemetrySnapshot,
-} from "../dax-audio/telemetry";
 import sabWorkletURL from "../sab-ring-sink.worklet.ts?worker&url";
 import sinkWorkerURL from "./dax-audio-sink.worker.ts?worker&url";
 
@@ -34,8 +25,6 @@ export class DaxAudioSink {
   private readonly msDest: MediaStreamAudioDestinationNode;
   private readonly audio: HTMLAudioElement;
   private readonly channels: number;
-  private readonly telemetrySAB = allocTelemetrySAB(RX_SLOT_COUNT);
-  private readonly telemetryView = viewTelemetry(this.telemetrySAB);
 
   private workletNode?: AudioWorkletNode;
   private worker?: Worker;
@@ -65,7 +54,6 @@ export class DaxAudioSink {
     this.audio.autoplay = true;
     this.audio.setAttribute("playsinline", "");
     this.audio.srcObject = this.msDest.stream;
-    telemetrySet(this.telemetryView, RxSlot.CtxSampleRateHz, this.ctx.sampleRate | 0);
   }
 
   async init(): Promise<void> {
@@ -91,7 +79,6 @@ export class DaxAudioSink {
       framesPerChannel: RING_FRAMES,
       audioSAB,
       indexSAB,
-      telemetrySAB: this.telemetrySAB,
     });
 
     const worker = new Worker(sinkWorkerURL, { type: "module" });
@@ -101,7 +88,6 @@ export class DaxAudioSink {
       framesPerChannel: RING_FRAMES,
       audioSAB,
       indexSAB,
-      telemetrySAB: this.telemetrySAB,
       bufferMs: this.bufferMs,
       channelMode: this.channelMode,
     } satisfies SinkMessage);
@@ -186,11 +172,6 @@ export class DaxAudioSink {
     } finally {
       if (this.ctx.state !== "closed") await this.ctx.close();
     }
-  }
-
-  /** Returns a fresh snapshot of the telemetry counters. Allocation-free read of atomics. */
-  telemetry(): RxTelemetrySnapshot {
-    return snapshotRx(this.telemetryView);
   }
 
   private maybeResume(): void {

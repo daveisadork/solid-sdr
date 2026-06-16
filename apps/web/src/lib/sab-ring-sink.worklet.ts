@@ -13,7 +13,7 @@ declare function registerProcessor(
   processorCtor: new () => AudioWorkletProcessor,
 ): void;
 
-class DaxSabSinkProcessor extends AudioWorkletProcessor {
+class SabRingSinkProcessor extends AudioWorkletProcessor {
   private ready = false;
   private channels = 0;
   private framesCap = 0;
@@ -86,4 +86,6 @@ class DaxSabSinkProcessor extends AudioWorkletProcessor {
   }
 }
 
-registerProcessor("dax-sab-sink", DaxSabSinkProcessor);
+registerProcessor("sab-ring-sink", SabRingSinkProcessor);
+
+export {};

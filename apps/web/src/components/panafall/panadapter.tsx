@@ -154,7 +154,6 @@ export function Panadapter(props: {
     const getPixelRatio = () =>
       Math.max(Number(devicePixelRatio?.toFixed(2) ?? 1), 1);
     let pixelRatio = getPixelRatio();
-    let transformDirty = true;
 
     const flushFrame = () => {
       rafId = null;
@@ -169,6 +168,27 @@ export function Panadapter(props: {
     };
 
     let lastBinValue = 0;
+
+    // Reusable per-color buckets for the solid fill. Each frame we group bins
+    // by amplitude (= palette index) so every distinct color is drawn as one
+    // batched path of integer device-pixel rects. Pre-allocated and reused
+    // across frames to avoid per-frame allocation. bucketX[colorIndex] holds
+    // the logical bin x-positions for that color; bucketCount its length.
+    let bucketX: Int32Array[] = [];
+    let bucketCount = new Int32Array(0);
+    let bucketColors = 0;
+    let bucketCapacity = 0;
+    const ensureBuckets = (colorCount: number, capacity: number) => {
+      if (bucketColors !== colorCount || bucketCapacity < capacity) {
+        bucketX = Array.from(
+          { length: colorCount },
+          () => new Int32Array(capacity),
+        );
+        bucketCount = new Int32Array(colorCount);
+        bucketColors = colorCount;
+        bucketCapacity = capacity;
+      }
+    };
 
     return (packet: VitaFFTPacket) => {
       const startingBin = packet.startBinIndex;
@@ -189,7 +209,6 @@ export function Panadapter(props: {
       const nextRatio = getPixelRatio();
       if (nextRatio !== pixelRatio) {
         pixelRatio = nextRatio;
-        transformDirty = true;
       }
       const scaleWidth = Math.round(width * pixelRatio);
       const scaleHeight = Math.round(height * pixelRatio);
@@ -200,7 +219,6 @@ export function Panadapter(props: {
         if (offscreen.height !== scaleHeight) {
           offscreen.height = scaleHeight;
         }
-        transformDirty = true;
         skipFrame = frame;
       }
       if (updating()) {
@@ -209,8 +227,25 @@ export function Panadapter(props: {
       if (frame === skipFrame) {
         return;
       }
-      if (transformDirty) {
-        const sharpOffset = pixelRatio === 1 ? 0.5 : 0;
+      // Logical-space transform (for gradient fill / peak line, where smooth
+      // antialiasing is wanted). sharpOffset centers 1px lines at DPR 1.
+      const sharpOffset = pixelRatio === 1 ? 0.5 : 0;
+      const hDev = offscreen.height;
+      const segLeft = Math.round(startingBin * pixelRatio);
+      const segRight = Math.round((startingBin + binsInThisFrame) * pixelRatio);
+
+      // Clear this segment's device-pixel column span (identity transform).
+      offscreenCtx.setTransform(1, 0, 0, 1, 0, 0);
+      offscreenCtx.clearRect(
+        startingBin === 0 ? -1 : segLeft,
+        -1,
+        startingBin === 0 ? segRight + 1 : segRight - segLeft,
+        hDev + 1,
+      );
+
+      const { peakStyle, fillStyle } = preferences;
+      if (fillStyle === "gradient") {
+        // Filled spectrum polygon, drawn in logical space (antialiased).
         offscreenCtx.setTransform(
           pixelRatio,
           0,
@@ -219,18 +254,7 @@ export function Panadapter(props: {
           sharpOffset,
           sharpOffset,
         );
-        offscreenCtx.imageSmoothingEnabled = true;
-        transformDirty = false;
-      }
-      offscreenCtx.clearRect(
-        startingBin === 0 ? -1 : startingBin,
-        -1,
-        startingBin === 0 ? binsInThisFrame + 1 : binsInThisFrame,
-        height + 1,
-      );
-      offscreenCtx.lineWidth = 1;
-      const { peakStyle, fillStyle } = preferences;
-      if (fillStyle === "gradient") {
+        offscreenCtx.lineWidth = 1;
         const gradient = fillGradient();
         if (peakStyle === "points") {
           // if the peaks are points, we need to draw the "fill" as individual lines
@@ -263,30 +287,49 @@ export function Panadapter(props: {
           offscreenCtx.fill();
         }
       } else if (fillStyle === "solid") {
-        let currentColor = "";
-        let hasPath = false;
+        // Solid spectrum: one vertical bar per bin, colored by amplitude.
+        // Drawn as integer device-pixel rects so bars stay crisp at any DPR
+        // (incl. fractional), batched one fill() per distinct color via reused
+        // amplitude buckets (no per-frame allocation).
+        ensureBuckets(height, totalBins);
+        bucketCount.fill(0);
         for (let index = 0; index < binsInThisFrame; index++) {
-          const x = startingBin + index;
           const y = bins[index];
+          if (y < 0 || y >= height) continue;
+          bucketX[y][bucketCount[y]++] = startingBin + index;
+        }
+        offscreenCtx.setTransform(1, 0, 0, 1, 0, 0);
+        for (let y = 0; y < height; y++) {
+          const count = bucketCount[y];
+          if (!count) continue;
           const color = colors[y];
           if (!color) continue;
-          if (color !== currentColor) {
-            if (hasPath) {
-              offscreenCtx.stroke();
-            }
-            offscreenCtx.strokeStyle = color;
-            offscreenCtx.beginPath();
-            hasPath = true;
-            currentColor = color;
+          offscreenCtx.fillStyle = color;
+          offscreenCtx.beginPath();
+          const yTop = Math.round(y * pixelRatio);
+          const rectH = hDev - yTop;
+          const xs = bucketX[y];
+          for (let j = 0; j < count; j++) {
+            const x = xs[j];
+            const x0 = Math.round(x * pixelRatio);
+            const x1 = Math.round((x + 1) * pixelRatio);
+            offscreenCtx.rect(x0, yTop, x1 - x0, rectH);
           }
-          offscreenCtx.moveTo(x, height);
-          offscreenCtx.lineTo(x, y);
-        }
-        if (hasPath) {
-          offscreenCtx.stroke();
+          offscreenCtx.fill();
         }
       }
       if (peakStyle === "line") {
+        // Peak line: diagonal polyline, logical space (antialiased — sharp
+        // pixel-snapping would make a diagonal look worse, not better).
+        offscreenCtx.setTransform(
+          pixelRatio,
+          0,
+          0,
+          pixelRatio,
+          sharpOffset,
+          sharpOffset,
+        );
+        offscreenCtx.lineWidth = 1;
         offscreenCtx.strokeStyle = "white";
         offscreenCtx.beginPath();
         offscreenCtx.moveTo(startingBin - 1, lastBinValue);
@@ -297,12 +340,19 @@ export function Panadapter(props: {
         }
         offscreenCtx.stroke();
       } else if (peakStyle === "points") {
+        // Peak points: crisp dots aligned to the device-pixel grid. All white,
+        // so batch into one path + single fill() rather than N fillRect calls.
+        offscreenCtx.setTransform(1, 0, 0, 1, 0, 0);
         offscreenCtx.fillStyle = "white";
+        offscreenCtx.beginPath();
+        const dot = Math.max(1, Math.round(pixelRatio));
         for (let index = 0; index < binsInThisFrame; index++) {
-          const x = startingBin + index;
           const y = bins[index];
-          offscreenCtx.fillRect(x - 0.5, y - 0.5, 1, 1);
+          const x0 = Math.round((startingBin + index) * pixelRatio);
+          const yTop = Math.round(y * pixelRatio);
+          offscreenCtx.rect(x0, yTop, dot, dot);
         }
+        offscreenCtx.fill();
       }
 
       if (startingBin > 0) {

@@ -39,6 +39,9 @@ export interface ParseVitaPacketOptions {
   meter?: { ids?: Uint16Array; values?: Int16Array };
   panadapter?: { payload?: Uint16Array };
   waterfall?: { data?: Uint16Array };
+  daxAudio?: { left?: Float32Array; right?: Float32Array };
+  daxReducedBw?: { samples?: Int16Array };
+  daxIq?: { left?: Float32Array; right?: Float32Array };
 }
 
 const PACKET_CLASS_METER = 0x8002;
@@ -82,7 +85,7 @@ export function parseVitaPacket(
     }
     case VITA_FLEX_DAX_REDUCED_BW_CLASS: {
       const packet = new VitaDaxReducedBwPacket();
-      packet.parseWithContext(ctx);
+      packet.parseWithContext(ctx, options.daxReducedBw);
       return packet;
     }
     case VITA_FLEX_DAX_IQ_24_CLASS:
@@ -90,12 +93,12 @@ export function parseVitaPacket(
     case VITA_FLEX_DAX_IQ_96_CLASS:
     case VITA_FLEX_DAX_IQ_192_CLASS: {
       const packet = new VitaDaxIqPacket();
-      packet.parseWithContext(ctx);
+      packet.parseWithContext(ctx, options.daxIq);
       return packet;
     }
     case VITA_FLEX_DAX_AUDIO_CLASS: {
       const packet = new VitaDaxAudioPacket();
-      packet.parseWithContext(ctx);
+      packet.parseWithContext(ctx, options.daxAudio);
       return packet;
     }
     default:

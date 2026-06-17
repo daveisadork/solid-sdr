@@ -47,7 +47,6 @@ export class VitaWaterfallPacket {
     };
     this.classId = { oui: 0, informationClassCode: 0, packetClassCode: 0 };
     this.tile = {
-      dateTime: new Date(),
       frameLowFreq: VitaFrequency.fromHz(0),
       binBandwidth: VitaFrequency.fromHz(0),
       lineDurationMs: 0,
@@ -57,7 +56,6 @@ export class VitaWaterfallPacket {
       autoBlackLevel: 0,
       totalBinsInFrame: 0,
       firstBinIndex: 0,
-      isFrameComplete: false,
       data: new Uint16Array(0),
     };
     this.trailer = emptyTrailer();
@@ -181,7 +179,6 @@ export class VitaWaterfallPacket {
     const payloadEnd = ctx.payloadOffset + ctx.payloadLength;
 
     const tile = this.tile;
-    tile.dateTime = new Date();
 
     if (off + TILE_HEADER_BYTES > payloadEnd) {
       tile.frameLowFreq = VitaFrequency.fromHz(0);
@@ -193,7 +190,6 @@ export class VitaWaterfallPacket {
       tile.autoBlackLevel = 0;
       tile.totalBinsInFrame = 0;
       tile.firstBinIndex = 0;
-      tile.isFrameComplete = false;
       tile.data =
         out?.data && out.data.length
           ? out.data.subarray(0, 0)

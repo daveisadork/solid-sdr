@@ -12,7 +12,6 @@ import useFlexRadio, {
 } from "~/context/flexradio";
 import { DetachedSlices, Slice } from "../slice";
 import { debounce } from "@solid-primitives/scheduled";
-import { createElementSize } from "@solid-primitives/resize-observer";
 import { LinearScale } from "../linear-scale";
 import type { LinearScaleTick } from "../linear-scale";
 import { PanadapterGrid } from "./panadapter-grid";
@@ -36,8 +35,6 @@ export function Panadapter(props: {
   const { preferences } = usePreferences();
 
   const [canvasRef, setCanvasRef] = createSignal<HTMLCanvasElement>();
-  const [wrapper, setWrapper] = createSignal<HTMLDivElement>();
-  const wrapperSize = createElementSize(wrapper);
   const [updating, setUpdating] = createSignal(false);
   const [palette, setPalette] = createSignal(new Uint8ClampedArray(0x400));
   const [paletteCss, setPaletteCss] = createSignal<string[]>([]);
@@ -48,8 +45,15 @@ export function Panadapter(props: {
   const frameTimes: number[] = [];
   const { setRuntime } = useRuntime();
 
+  const {
+    slices,
+    setPanadapterControlsRef,
+    setPanadapterWrapper,
+    panadapterWrapperSize,
+  } = usePanafall();
+
   const frequencyTicks = createMemo<FrequencyGridTick[]>(() => {
-    const width = wrapperSize.width;
+    const width = panadapterWrapperSize.width;
     if (!(width && props.pan)) return [];
     const { centerFrequencyMHz, bandwidthMHz } = props.pan;
     return buildFrequencyGrid({
@@ -60,8 +64,6 @@ export function Panadapter(props: {
       minPixelSpacing: 72,
     });
   });
-
-  const { slices, setPanadapterControlsRef } = usePanafall();
 
   createEffect(() => {
     const canvas = canvasRef();
@@ -127,7 +129,7 @@ export function Panadapter(props: {
   }, 250);
 
   createEffect(() => {
-    const { width, height } = wrapperSize;
+    const { width, height } = panadapterWrapperSize;
     if (!width || !height) return;
     resizeCallback(width, height);
   });
@@ -398,10 +400,10 @@ export function Panadapter(props: {
 
   return (
     <div
-      ref={setWrapper}
+      ref={setPanadapterWrapper}
       class="relative shrink size-full flex justify-center overflow-clip select-none bg-radial-[ellipse_at_bottom] from-(--panadapter-background-color) via-(--panadapter-background-color)/70 via-30% to-(--panadapter-background-color)/35 to-85%"
       style={{
-        "--panadapter-available-height": `${wrapperSize.height}px`,
+        "--panadapter-available-height": `${panadapterWrapperSize.height}px`,
         "--panadapter-background-color": txBackgroundColor(),
       }}
     >

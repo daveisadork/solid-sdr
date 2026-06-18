@@ -1705,8 +1705,9 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
       );
       setOffset(
         roundToDevicePixels(
-          freqToX((diversityParent() ?? props.slice).frequencyMHz),
-        ) + preferences.panadapterOffset,
+          freqToX((diversityParent() ?? props.slice).frequencyMHz) +
+            preferences.panadapterOffset,
+        ),
       );
     });
   });

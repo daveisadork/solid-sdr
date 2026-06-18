@@ -133,6 +133,7 @@ export function Panafall(props: { index: number }) {
     xToFreq,
     setPanafallControlsRef,
     panafallBounds,
+    panadapterWrapperSize,
     setPanafallPortalRef,
   } = usePanafall();
 
@@ -183,7 +184,8 @@ export function Panafall(props: { index: number }) {
     const boundsWidth = panafallBounds.width;
     const boundsLeft = panafallBounds.left;
 
-    const fullWidth = pan.width;
+    const fullWidth = panadapterWrapperSize.width;
+    if (!fullWidth) return;
     const currentCenter = pan.centerFrequencyMHz;
     const currentBandwidth = pan.bandwidthMHz;
 
@@ -204,7 +206,8 @@ export function Panafall(props: { index: number }) {
     const boundsWidth = panafallBounds.width;
     const boundsLeft = panafallBounds.left;
 
-    const fullWidth = pan.width;
+    const fullWidth = panadapterWrapperSize.width;
+    if (!fullWidth) return;
     const currentCenter = pan.centerFrequencyMHz;
     const currentBandwidth = pan.bandwidthMHz;
     const mhzPerPixel = currentBandwidth / fullWidth;

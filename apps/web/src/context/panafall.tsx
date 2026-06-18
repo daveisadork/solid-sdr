@@ -18,6 +18,7 @@ import {
   type WaterfallController,
 } from "@repo/flexlib";
 import { createElementBounds } from "@solid-primitives/bounds";
+import { createElementSize } from "@solid-primitives/resize-observer";
 import { usePreferences } from "./preferences";
 import { roundToDecimals } from "~/lib/utils";
 import { onlyAncestorMutations } from "~/lib/element-bounds";
@@ -51,6 +52,14 @@ const PanafallContext = createContext<{
   mhzToPx: (mhz: number) => number;
   /** The current panadapter state object from the radio. */
   panadapter: Accessor<PanadapterState>;
+  /** Sets the panadapter wrapper element so the context can track its size. */
+  setPanadapterWrapper: (el: HTMLElement) => void;
+  /**
+   * Reactive size of the panadapter wrapper (the canvas's CSS box). This is the
+   * coordinate space mouse events live in, so all freq<->pixel math keys off its
+   * width rather than `pan.width` (the radio's integer dimension).
+   */
+  panadapterWrapperSize: ReturnType<typeof createElementSize>;
   /** Controller for sending commands to the panadapter (pan, zoom, etc.). */
   panadapterController: Accessor<PanadapterController>;
   /** Reactive bounding rect of the panadapter/waterfall element. */
@@ -92,6 +101,8 @@ export const PanafallProvider: ParentComponent<{ streamId?: string }> = (
     createSignal<HTMLElement>();
   const [panadapterControlsRef, setPanadapterControlsRef] =
     createSignal<HTMLElement>();
+  const [panadapterWrapper, setPanadapterWrapper] = createSignal<HTMLElement>();
+  const panadapterWrapperSize = createElementSize(panadapterWrapper);
   const panafallBounds = createElementBounds(panafallControlsRef, {
     trackMutation: onlyAncestorMutations(panafallControlsRef),
   });
@@ -120,48 +131,52 @@ export const PanafallProvider: ParentComponent<{ streamId?: string }> = (
 
   const pxPerMHz = createMemo(() => {
     const pan = panadapter();
-    if (!pan || !pan.bandwidthMHz || !pan.width) return 0;
-    return pan.width / pan.bandwidthMHz;
+    const width = panadapterWrapperSize.width;
+    if (!pan || !pan.bandwidthMHz || !width) return 0;
+    return width / pan.bandwidthMHz;
   });
 
   const mhzPerPx = createMemo(() => {
     const pan = panadapter();
-    if (!pan || !pan.bandwidthMHz || !pan.width) return 0;
-    return pan.bandwidthMHz / pan.width;
+    const width = panadapterWrapperSize.width;
+    if (!pan || !pan.bandwidthMHz || !width) return 0;
+    return pan.bandwidthMHz / width;
   });
 
   const mhzToPx = (mhz: number) => {
     const pan = panadapter();
-    if (!pan || !pan.bandwidthMHz || !pan.width) return 0;
+    if (!pan || !pan.bandwidthMHz || !panadapterWrapperSize.width) return 0;
     return mhz * pxPerMHz();
   };
 
   const pxToMHz = (px: number) => {
     const pan = panadapter();
-    if (!pan || !pan.bandwidthMHz || !pan.width) return 0;
+    if (!pan || !pan.bandwidthMHz || !panadapterWrapperSize.width) return 0;
     return roundToDecimals(px * mhzPerPx(), 6);
   };
 
   const xToFreq = (x: number) => {
     const pan = panadapter();
-    if (!pan || !pan.bandwidthMHz || !pan.width) return 0;
+    const width = panadapterWrapperSize.width;
+    if (!pan || !pan.bandwidthMHz || !width) return 0;
     const centerFreq = pan.centerFrequencyMHz;
     const offsetPx = preferences.enableTransparencyEffects
       ? x
       : x - panafallBounds.left;
-    const offsetMHz = pxToMHz(offsetPx - pan.width / 2);
+    const offsetMHz = pxToMHz(offsetPx - width / 2);
     return roundToDecimals(centerFreq + offsetMHz, 6);
   };
 
   const freqToX = (freq: number) => {
     const pan = panadapter();
-    if (!pan || !pan.bandwidthMHz || !pan.width) return 0;
+    const width = panadapterWrapperSize.width;
+    if (!pan || !pan.bandwidthMHz || !width) return 0;
     const centerFreq = pan.centerFrequencyMHz;
     const offsetMHz = freq - centerFreq;
     const offsetPx = preferences.enableTransparencyEffects
       ? 0
       : panafallBounds.left;
-    return pan.width / 2 + mhzToPx(offsetMHz) + offsetPx;
+    return width / 2 + mhzToPx(offsetMHz) + offsetPx;
   };
 
   return (
@@ -180,6 +195,8 @@ export const PanafallProvider: ParentComponent<{ streamId?: string }> = (
           mhzPerPx,
           mhzToPx,
           panadapter,
+          setPanadapterWrapper,
+          panadapterWrapperSize,
           panadapterController,
           panafallBounds,
           pxPerMHz,

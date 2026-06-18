@@ -24,7 +24,12 @@ import MaterialSymbolsAddCommentOutlineRounded from "~icons/material-symbols/add
 import MdiFilterPlus from "~icons/mdi/filter-plus";
 import { Button } from "../ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
-import { cn, frequencyToLabel, roundToDecimals } from "~/lib/utils";
+import {
+  cn,
+  frequencyToLabel,
+  roundToDecimals,
+  roundToDevicePixels,
+} from "~/lib/utils";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -330,7 +335,6 @@ export function Panafall(props: { index: number }) {
           "--panafall-top": `${panafallBounds.top}px`,
           "--panafall-right": `${panafallBounds.right}px`,
           "--panafall-bottom": `${panafallBounds.bottom}px`,
-
           "--drag-offset": `${dragState.offset}px`,
         }}
       >
@@ -351,10 +355,29 @@ export function Panafall(props: { index: number }) {
                   initialSizes={[0.25, 0.75]}
                   onSizesChange={(sizes) => {
                     if (sizes?.length !== 2) return;
-                    setPreferences("panadapterSizes", props.index, sizes);
+                    const targetHeight = roundToDevicePixels(
+                      sizes[0] * panafallBounds.height,
+                    );
+                    const panHeight = roundToDecimals(
+                      targetHeight / panafallBounds.height,
+                      6,
+                    );
+                    if (
+                      isNaN(panHeight) ||
+                      panHeight === preferences.panadapterSizes[props.index][0]
+                    ) {
+                      return;
+                    }
+                    setPreferences("panadapterSizes", props.index, [
+                      panHeight,
+                      1 - panHeight,
+                    ]);
                   }}
                 >
-                  <ResizablePanel class="overflow-clip select-none">
+                  <ResizablePanel
+                    class="overflow-clip select-none"
+                    minSize="16px"
+                  >
                     <Panadapter
                       pan={pan()}
                       waterfall={waterfall()}

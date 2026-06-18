@@ -1481,7 +1481,7 @@ const ExtraSliceControls = <T extends ValidComponent = "div">(
   return (
     <div
       class={cn(
-        "grid grid-rows-4 gap-1 py-1 opacity-75 [&_svg]:pointer-events-none [&_svg]:size-full *:aspect-square",
+        "grid grid-rows-4 py-1 gap-1 opacity-75 [&_svg]:pointer-events-none [&_svg]:h-full *:aspect-square",
         local.class,
       )}
       {...others}

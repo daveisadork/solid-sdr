@@ -128,10 +128,36 @@ export function Panadapter(props: {
     setUpdating(false);
   }, 250);
 
+  const [pixelDensity, setPixelDensity] = createSignal(
+    Math.max(window.devicePixelRatio || 1, 1),
+  );
+  createEffect(() => {
+    // A resolution media query only fires when it stops matching its fixed
+    // value, so re-subscribe whenever the density changes. This catches the
+    // window moving to a monitor with a different DPR, where the CSS wrapper
+    // size is unchanged but the device-pixel size isn't.
+    const current = pixelDensity();
+    const query = window.matchMedia(`(resolution: ${current}dppx)`);
+    const onChange = () =>
+      setPixelDensity(Math.max(window.devicePixelRatio || 1, 1));
+    query.addEventListener("change", onChange);
+    onCleanup(() => query.removeEventListener("change", onChange));
+  });
+
   createEffect(() => {
     const { width, height } = panadapterWrapperSize;
+    const density = pixelDensity();
     if (!width || !height) return;
-    resizeCallback(width, height);
+    // The panadapter occupies a fixed device-pixel region (width * density);
+    // the radio renders it at that region divided by round(density), so the bin
+    // count steps on the DPR rounding boundary and holds constant within each
+    // bucket. We then scale those bins back up to device pixels ourselves while
+    // drawing, so both fills and peak lines rasterize natively at full DPR.
+    const scale = Math.max(1, Math.round(density));
+    resizeCallback(
+      Math.round((width * density) / scale),
+      Math.round((height * density) / scale),
+    );
   });
 
   const onPanadapter = createMemo(() => {
@@ -153,13 +179,18 @@ export function Panadapter(props: {
     let skipFrame = 0;
     let frameStartTime = performance.now();
     let rafId: number | null = null;
-    const getPixelRatio = () =>
-      Math.max(Number(devicePixelRatio?.toFixed(2) ?? 1), 1);
-    let pixelRatio = getPixelRatio();
+    // Integer upscale factor: round(DPR). The offscreen is sized to full device
+    // pixels (bins * scale) and a scale transform draws each bin as a scale-wide
+    // block, so the spectrum rasterizes natively at device resolution and the
+    // canvas blit is 1:1 — no nearest-neighbor upscale to blur or ghost.
+    const getScale = () => Math.max(1, Math.round(devicePixelRatio || 1));
+    let scale = getScale();
     let transformDirty = true;
 
     const flushFrame = () => {
       rafId = null;
+      // The offscreen is already at device resolution, so the canvas matches it
+      // 1:1 and the blit does no scaling.
       if (canvas.width !== offscreen.width) {
         canvas.width = offscreen.width;
       }
@@ -188,19 +219,21 @@ export function Panadapter(props: {
       if (!p.length || !colors.length) return;
       const width = totalBins;
       const height = p.length / 4;
-      const nextRatio = getPixelRatio();
-      if (nextRatio !== pixelRatio) {
-        pixelRatio = nextRatio;
-        transformDirty = true;
-      }
-      const scaleWidth = Math.round(width * pixelRatio);
-      const scaleHeight = Math.round(height * pixelRatio);
-      if (offscreen.width !== scaleWidth || offscreen.height !== scaleHeight) {
-        if (offscreen.width !== scaleWidth) {
-          offscreen.width = scaleWidth;
+      // Size the offscreen to full device pixels: the stepped bin count times
+      // the integer scale. The scale only changes when DPR crosses a rounding
+      // boundary, which is also when the radio re-sends a new bin count.
+      scale = getScale();
+      const offscreenWidth = width * scale;
+      const offscreenHeight = height * scale;
+      if (
+        offscreen.width !== offscreenWidth ||
+        offscreen.height !== offscreenHeight
+      ) {
+        if (offscreen.width !== offscreenWidth) {
+          offscreen.width = offscreenWidth;
         }
-        if (offscreen.height !== scaleHeight) {
-          offscreen.height = scaleHeight;
+        if (offscreen.height !== offscreenHeight) {
+          offscreen.height = offscreenHeight;
         }
         transformDirty = true;
         skipFrame = frame;
@@ -212,16 +245,12 @@ export function Panadapter(props: {
         return;
       }
       if (transformDirty) {
-        const sharpOffset = pixelRatio === 1 ? 0.5 : 0;
-        offscreenCtx.setTransform(
-          pixelRatio,
-          0,
-          0,
-          pixelRatio,
-          sharpOffset,
-          sharpOffset,
-        );
-        offscreenCtx.imageSmoothingEnabled = true;
+        // Scale bin coordinates up to device pixels. Bin values are integers
+        // (Uint16) and scale is an integer, so every fillRect lands on whole
+        // device pixels — crisp with no offset needed — while strokes (the peak
+        // line) anti-alias smoothly at full device resolution.
+        offscreenCtx.setTransform(scale, 0, 0, scale, 0, 0);
+        offscreenCtx.imageSmoothingEnabled = false;
         transformDirty = false;
       }
       offscreenCtx.clearRect(
@@ -265,27 +294,20 @@ export function Panadapter(props: {
           offscreenCtx.fill();
         }
       } else if (fillStyle === "solid") {
+        // One scale-wide fillRect per bin (bar from its peak down to the floor)
+        // rather than scale separate 1px lines. Same draw-call count as the old
+        // stroked version; the rasterizer fills the wider rect in one go.
         let currentColor = "";
-        let hasPath = false;
         for (let index = 0; index < binsInThisFrame; index++) {
           const x = startingBin + index;
           const y = bins[index];
           const color = colors[y];
           if (!color) continue;
           if (color !== currentColor) {
-            if (hasPath) {
-              offscreenCtx.stroke();
-            }
-            offscreenCtx.strokeStyle = color;
-            offscreenCtx.beginPath();
-            hasPath = true;
+            offscreenCtx.fillStyle = color;
             currentColor = color;
           }
-          offscreenCtx.moveTo(x, height);
-          offscreenCtx.lineTo(x, y);
-        }
-        if (hasPath) {
-          offscreenCtx.stroke();
+          offscreenCtx.fillRect(x, y, 1, height - y);
         }
       }
       if (peakStyle === "line") {
@@ -299,11 +321,14 @@ export function Panadapter(props: {
         }
         offscreenCtx.stroke();
       } else if (peakStyle === "points") {
+        // Each point is one scale x scale block at integer device coords (bin
+        // and amplitude are both integers, scale is integer). No drawImage
+        // upscale means there's nothing left to ghost, in any browser.
         offscreenCtx.fillStyle = "white";
         for (let index = 0; index < binsInThisFrame; index++) {
           const x = startingBin + index;
           const y = bins[index];
-          offscreenCtx.fillRect(x - 0.5, y - 0.5, 1, 1);
+          offscreenCtx.fillRect(x, y, 1, 1);
         }
       }
 

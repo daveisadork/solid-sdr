@@ -210,11 +210,14 @@ export const AudioProvider: ParentComponent = (props) => {
         return;
       const promise = radio()?.createDaxRxAudioStream({ daxChannel });
       promise?.then((controller) =>
-        daxRxControllers.set(controller.daxChannel, controller),
+        daxRxControllers.set(daxChannel, controller),
       );
       onCleanup(() =>
         promise?.then((stream) => {
-          daxRxControllers.delete(stream.daxChannel);
+          // Use the captured daxChannel local, not stream.daxChannel: on
+          // disconnect the store snapshot is already gone, so reading the
+          // getter would throw FlexStateUnavailableError.
+          daxRxControllers.delete(daxChannel);
           radio()?.audioStream(stream.id)?.close();
         }),
       );

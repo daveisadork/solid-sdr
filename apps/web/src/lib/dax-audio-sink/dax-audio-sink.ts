@@ -58,7 +58,15 @@ export class DaxAudioSink {
 
   async init(): Promise<void> {
     if (this.closed) return;
-    await this.ctx.audioWorklet.addModule(sabWorkletURL);
+    try {
+      await this.ctx.audioWorklet.addModule(sabWorkletURL);
+    } catch (err) {
+      // close() can race the in-flight addModule (e.g. the sink is torn
+      // down during a reconnect before the worklet finishes loading),
+      // closing the AudioContext and rejecting with AbortError. Benign.
+      if (this.closed) return;
+      throw err;
+    }
     if (this.closed) return;
     const node = new AudioWorkletNode(this.ctx, "sab-ring-sink", {
       numberOfInputs: 0,

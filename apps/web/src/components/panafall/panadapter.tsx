@@ -264,17 +264,15 @@ export function Panadapter(props: {
       if (fillStyle === "gradient") {
         const gradient = fillGradient();
         if (peakStyle === "points") {
-          // if the peaks are points, we need to draw the "fill" as individual lines
-          offscreenCtx.strokeStyle = gradient || "white";
-          offscreenCtx.beginPath();
-          offscreenCtx.moveTo(startingBin, height);
+          // Discrete columns under each point — the same fillRect-per-bin method
+          // as the solid fill, just filled with the gradient. Keeps the columns
+          // pixel-aligned with the point markers drawn on top.
+          offscreenCtx.fillStyle = gradient || "white";
           for (let index = 0; index < binsInThisFrame; index++) {
             const x = startingBin + index;
             const y = bins[index];
-            offscreenCtx.moveTo(x, height);
-            offscreenCtx.lineTo(x, y);
+            offscreenCtx.fillRect(x, y, 1, height - y);
           }
-          offscreenCtx.stroke();
         } else {
           // otherwise we can just outline the shape and fill it
           offscreenCtx.strokeStyle = "transparent";

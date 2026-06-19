@@ -25,6 +25,7 @@ import { Spots } from "./spots";
 import { Tnf } from "./tnf";
 import { useRuntime } from "~/context/runtime";
 import { DisplayMarkers } from "./display-markers";
+import { deviceScale, pixelDensity } from "~/lib/device-scale";
 
 export function Panadapter(props: {
   pan: PanadapterState;
@@ -36,7 +37,6 @@ export function Panadapter(props: {
 
   const [canvasRef, setCanvasRef] = createSignal<HTMLCanvasElement>();
   const [updating, setUpdating] = createSignal(false);
-  const [palette, setPalette] = createSignal(new Uint8ClampedArray(0x400));
   const [paletteCss, setPaletteCss] = createSignal<string[]>([]);
   const [offscreenCanvasRef, setOffscreenCanvasRef] =
     createSignal<OffscreenCanvas | null>(null);
@@ -90,7 +90,6 @@ export function Panadapter(props: {
     ctx.fillRect(0, 0, offscreen.width, offscreen.height);
     const imageData = ctx.getImageData(0, 0, offscreen.width, offscreen.height);
     const data = imageData.data;
-    setPalette(data);
     const css = new Array<string>(data.length / 4);
     for (let index = 0; index < css.length; index++) {
       const offset = index * 4;
@@ -128,32 +127,11 @@ export function Panadapter(props: {
     setUpdating(false);
   }, 250);
 
-  const [pixelDensity, setPixelDensity] = createSignal(
-    Math.max(window.devicePixelRatio || 1, 1),
-  );
-  createEffect(() => {
-    // A resolution media query only fires when it stops matching its fixed
-    // value, so re-subscribe whenever the density changes. This catches the
-    // window moving to a monitor with a different DPR, where the CSS wrapper
-    // size is unchanged but the device-pixel size isn't.
-    const current = pixelDensity();
-    const query = window.matchMedia(`(resolution: ${current}dppx)`);
-    const onChange = () =>
-      setPixelDensity(Math.max(window.devicePixelRatio || 1, 1));
-    query.addEventListener("change", onChange);
-    onCleanup(() => query.removeEventListener("change", onChange));
-  });
-
   createEffect(() => {
     const { width, height } = panadapterWrapperSize;
-    const density = pixelDensity();
     if (!width || !height) return;
-    // The panadapter occupies a fixed device-pixel region (width * density);
-    // the radio renders it at that region divided by round(density), so the bin
-    // count steps on the DPR rounding boundary and holds constant within each
-    // bucket. We then scale those bins back up to device pixels ourselves while
-    // drawing, so both fills and peak lines rasterize natively at full DPR.
-    const scale = Math.max(1, Math.round(density));
+    const density = pixelDensity();
+    const scale = deviceScale();
     resizeCallback(
       Math.round((width * density) / scale),
       Math.round((height * density) / scale),
@@ -179,18 +157,10 @@ export function Panadapter(props: {
     let skipFrame = 0;
     let frameStartTime = performance.now();
     let rafId: number | null = null;
-    // Integer upscale factor: round(DPR). The offscreen is sized to full device
-    // pixels (bins * scale) and a scale transform draws each bin as a scale-wide
-    // block, so the spectrum rasterizes natively at device resolution and the
-    // canvas blit is 1:1 — no nearest-neighbor upscale to blur or ghost.
-    const getScale = () => Math.max(1, Math.round(devicePixelRatio || 1));
-    let scale = getScale();
     let transformDirty = true;
 
     const flushFrame = () => {
       rafId = null;
-      // The offscreen is already at device resolution, so the canvas matches it
-      // 1:1 and the blit does no scaling.
       if (canvas.width !== offscreen.width) {
         canvas.width = offscreen.width;
       }
@@ -214,15 +184,17 @@ export function Panadapter(props: {
         frameStartTime = performance.now();
         lastBinValue = bins[0];
       }
-      const p = palette();
       const colors = paletteCss();
-      if (!p.length || !colors.length) return;
+      if (!colors.length) return;
       const width = totalBins;
-      const height = p.length / 4;
+      // colors.length === pan.height (the palette is built one column tall at
+      // pan.height), so it doubles as the bin-space height and stays in sync
+      // with the color lookup below.
+      const height = colors.length;
       // Size the offscreen to full device pixels: the stepped bin count times
       // the integer scale. The scale only changes when DPR crosses a rounding
       // boundary, which is also when the radio re-sends a new bin count.
-      scale = getScale();
+      const scale = deviceScale();
       const offscreenWidth = width * scale;
       const offscreenHeight = height * scale;
       if (

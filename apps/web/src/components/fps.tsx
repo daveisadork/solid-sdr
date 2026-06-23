@@ -3,6 +3,14 @@ import { createEffect, createSignal, For, onCleanup } from "solid-js";
 import { Portal } from "solid-js/web";
 import { Card, CardContent } from "~/components/ui/card";
 import { useRuntime } from "~/context/runtime";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuPortal,
+  ContextMenuTrigger,
+} from "./ui/context-menu";
+import { usePreferences } from "~/context/preferences";
 
 const COLORS = [
   "text-amber-400",
@@ -15,6 +23,7 @@ const COLORS = [
 export function FPSCounter() {
   const [running, setRunning] = createSignal(true);
   const { runtime, setRuntime } = useRuntime();
+  const { setPreferences } = usePreferences();
   const { draggable } = createDraggable();
   let lastTime = performance.now();
   const frameTimes: number[] = [];
@@ -38,23 +47,34 @@ export function FPSCounter() {
 
   return (
     <Portal>
-      <div use:draggable={{ handle: ".handle" }} class="absolute z-50">
-        <Card class="fancy-bg-card! handle cursor-move">
-          <CardContent class="py-2 px-4 select-none">
-            <For each={Object.keys(runtime.fps)}>
-              {(key, i) => (
-                <div
-                  class={`text-lg font-mono whitespace-pre font-bold ${
-                    COLORS[i() % COLORS.length]
-                  }`}
-                >
-                  {key}: {runtime.fps[key]?.toString().padStart(4, " ")}
-                </div>
-              )}
-            </For>
-          </CardContent>
-        </Card>
-      </div>
+      <ContextMenu>
+        <div use:draggable={{ handle: ".handle" }} class="absolute z-50">
+          <ContextMenuTrigger>
+            <Card class="fancy-bg-card! handle cursor-move">
+              <CardContent class="py-2 px-4 select-none">
+                <For each={Object.keys(runtime.fps)}>
+                  {(key, i) => (
+                    <div
+                      class={`text-lg font-mono whitespace-pre font-bold ${
+                        COLORS[i() % COLORS.length]
+                      }`}
+                    >
+                      {key}: {runtime.fps[key]?.toString().padStart(4, " ")}
+                    </div>
+                  )}
+                </For>
+              </CardContent>
+            </Card>
+          </ContextMenuTrigger>
+        </div>
+        <ContextMenuPortal>
+          <ContextMenuContent>
+            <ContextMenuItem onSelect={() => setPreferences("showFps", false)}>
+              Close
+            </ContextMenuItem>
+          </ContextMenuContent>
+        </ContextMenuPortal>
+      </ContextMenu>
     </Portal>
   );
 }

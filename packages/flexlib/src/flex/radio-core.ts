@@ -142,7 +142,11 @@ import type {
   FilterPresetStateChange,
   WaveformStateChange,
 } from "./state/index.js";
-import { parseVitaPacket, type VitaPacket } from "../vita/parser.js";
+import {
+  parseVitaPacket,
+  type VitaPacket,
+  type ParseVitaPacketOptions,
+} from "../vita/parser.js";
 import { VitaMeterPacket } from "../vita/meter-packet.js";
 import { getModelInfo, type RadioModelInfo } from "./model-info.js";
 import {
@@ -521,6 +525,25 @@ class RadioImpl {
   // Stream handler registries for UDP data routing
   private readonly streamHandlers = new Map<number, Set<StreamPacketHandler>>();
   private readonly meterHandlers = new Map<number, Set<MeterValueHandler>>();
+
+  // Reusable scratch buffers for VITA payload parsing. handleUdpData processes
+  // one packet to completion (parse → synchronous dispatch → consumed) before
+  // the next, so a single shared scratch per kind is safe and avoids a fresh
+  // typed-array allocation on every packet. This holds across multiple streams
+  // of the same kind (e.g. several DAX channels) because each packet is fully
+  // consumed before the next reuses the buffer. Consumers must read/copy the
+  // payload synchronously within their handler — verified: panadapter/waterfall
+  // draw synchronously, meter reads inline, and DAX audio/IQ postMessage a
+  // structured clone (not a transfer) to their worker. The parsers grow each
+  // buffer in place as needed.
+  private readonly vitaParseScratch: ParseVitaPacketOptions = {
+    meter: {},
+    panadapter: {},
+    waterfall: {},
+    daxAudio: {},
+    daxReducedBw: {},
+    daxIq: {},
+  };
 
   // Controller caches
   private readonly sliceControllers = new Map<string, SliceControllerImpl>();
@@ -2760,7 +2783,7 @@ class RadioImpl {
   // -----------------------------------------------------------------------
 
   private handleUdpData(data: Uint8Array): void {
-    const parsed = parseVitaPacket(data);
+    const parsed = parseVitaPacket(data, this.vitaParseScratch);
     if (!parsed) {
       this.logger?.warn?.("Unhandled UDP packet", {
         payloadLength: data.byteLength,

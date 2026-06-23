@@ -12,7 +12,6 @@ import useFlexRadio, {
 } from "~/context/flexradio";
 import { DetachedSlices, Slice } from "../slice";
 import { debounce } from "@solid-primitives/scheduled";
-import { createElementSize } from "@solid-primitives/resize-observer";
 import { LinearScale } from "../linear-scale";
 import type { LinearScaleTick } from "../linear-scale";
 import { PanadapterGrid } from "./panadapter-grid";
@@ -26,6 +25,18 @@ import { Spots } from "./spots";
 import { Tnf } from "./tnf";
 import { useRuntime } from "~/context/runtime";
 import { DisplayMarkers } from "./display-markers";
+import { deviceScale, pixelDensity } from "~/lib/device-scale";
+import {
+  CONTROL_BINS,
+  CONTROL_BUF,
+  CONTROL_BYTES,
+  CONTROL_LENGTH,
+  CONTROL_SEQ,
+  DATA_LENGTH,
+  MAX_BINS,
+  NUM_BUFFERS,
+  SAB_BYTES,
+} from "./panadapter-protocol";
 
 export function Panadapter(props: {
   pan: PanadapterState;
@@ -36,20 +47,30 @@ export function Panadapter(props: {
   const { preferences } = usePreferences();
 
   const [canvasRef, setCanvasRef] = createSignal<HTMLCanvasElement>();
-  const [wrapper, setWrapper] = createSignal<HTMLDivElement>();
-  const wrapperSize = createElementSize(wrapper);
-  const [updating, setUpdating] = createSignal(false);
-  const [palette, setPalette] = createSignal(new Uint8ClampedArray(0x400));
   const [paletteCss, setPaletteCss] = createSignal<string[]>([]);
-  const [offscreenCanvasRef, setOffscreenCanvasRef] =
-    createSignal<OffscreenCanvas | null>(null);
   const [levelTicks, setLevelTicks] = createSignal<LinearScaleTick[]>([]);
+  const [worker, setWorker] = createSignal<Worker>();
 
-  const frameTimes: number[] = [];
   const { setRuntime } = useRuntime();
 
+  // Shared buffer the worker draws from. The data event handler writes bins
+  // straight into it and publishes completed frames via the control region;
+  // nothing is copied or messaged per packet.
+  const sab = new SharedArrayBuffer(SAB_BYTES);
+  const control = new Int32Array(sab, 0, CONTROL_LENGTH);
+  const fftData = new Uint16Array(sab, CONTROL_BYTES, DATA_LENGTH);
+  let writeBuf = 0;
+  let frameSeq = 0;
+
+  const {
+    slices,
+    setPanadapterControlsRef,
+    setPanadapterWrapper,
+    panadapterWrapperSize,
+  } = usePanafall();
+
   const frequencyTicks = createMemo<FrequencyGridTick[]>(() => {
-    const width = wrapperSize.width;
+    const width = panadapterWrapperSize.width;
     if (!(width && props.pan)) return [];
     const { centerFrequencyMHz, bandwidthMHz } = props.pan;
     return buildFrequencyGrid({
@@ -59,14 +80,6 @@ export function Panadapter(props: {
       alignmentOffset: preferences.panadapterOffset,
       minPixelSpacing: 72,
     });
-  });
-
-  const { slices, setPanadapterControlsRef } = usePanafall();
-
-  createEffect(() => {
-    const canvas = canvasRef();
-    if (!canvas) return;
-    setOffscreenCanvasRef(new OffscreenCanvas(canvas.width, canvas.height));
   });
 
   createEffect(() => {
@@ -88,7 +101,6 @@ export function Panadapter(props: {
     ctx.fillRect(0, 0, offscreen.width, offscreen.height);
     const imageData = ctx.getImageData(0, 0, offscreen.width, offscreen.height);
     const data = imageData.data;
-    setPalette(data);
     const css = new Array<string>(data.length / 4);
     for (let index = 0; index < css.length; index++) {
       const offset = index * 4;
@@ -101,234 +113,103 @@ export function Panadapter(props: {
     setPaletteCss(css);
   });
 
-  const fillGradient = createMemo(() => {
-    const canvas = offscreenCanvasRef();
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    const { gradients } = preferences.palette;
-    const gradient = ctx.createLinearGradient(0, props.pan.height, 0, 0);
-    if (preferences.gradientStyle === "classic") {
-      gradient.addColorStop(0, "rgba(255, 255, 255, 0.2)");
-      gradient.addColorStop(1, "rgba(255, 255, 255, 1)");
-    } else {
-      const { stops } = gradients[props.waterfall.gradientIndex];
-      stops.forEach(({ offset, color }) => {
-        gradient.addColorStop(offset, color);
-      });
-    }
-    return gradient;
-  });
-
   const resizeCallback = debounce(async (width: number, height: number) => {
-    setUpdating(true);
     await props.controller.setSize({ width, height });
-    setUpdating(false);
   }, 250);
 
   createEffect(() => {
-    const { width, height } = wrapperSize;
+    const { width, height } = panadapterWrapperSize;
     if (!width || !height) return;
-    resizeCallback(width, height);
+    const density = pixelDensity();
+    const scale = deviceScale();
+    resizeCallback(
+      Math.round((width * density) / scale),
+      Math.round((height * density) / scale),
+    );
   });
 
-  const onPanadapter = createMemo(() => {
+  // Hand the canvas to a worker that owns all rasterization. transferControl-
+  // ToOffscreen is one-shot per element, so this is keyed to the canvas ref;
+  // if the canvas ever remounts, the old worker is torn down and a new one
+  // takes over the new canvas.
+  createEffect(() => {
     const canvas = canvasRef();
     if (!canvas) return;
-    const ctx = canvas.getContext("2d", {
-      colorSpace: "display-p3",
-    });
-    if (!ctx) return;
-    const offscreen = offscreenCanvasRef();
-    if (!offscreen) return;
-    const offscreenCtx = offscreen.getContext("2d", {
-      colorSpace: "display-p3",
-    });
-    if (!offscreenCtx) return;
-    ctx.imageSmoothingEnabled = false;
-    offscreenCtx.imageSmoothingEnabled = false;
-
-    let skipFrame = 0;
-    let frameStartTime = performance.now();
-    let rafId: number | null = null;
-    const getPixelRatio = () =>
-      Math.max(Number(devicePixelRatio?.toFixed(2) ?? 1), 1);
-    let pixelRatio = getPixelRatio();
-    let transformDirty = true;
-
-    const flushFrame = () => {
-      rafId = null;
-      if (canvas.width !== offscreen.width) {
-        canvas.width = offscreen.width;
-      }
-      if (canvas.height !== offscreen.height) {
-        canvas.height = offscreen.height;
-      }
-      ctx.clearRect(-1, -1, canvas.width + 1, canvas.height + 1);
-      ctx.drawImage(offscreen, 0, 0, canvas.width, canvas.height);
-    };
-
-    let lastBinValue = 0;
-
-    return (packet: VitaFFTPacket) => {
-      const startingBin = packet.startBinIndex;
-      const binsInThisFrame = packet.numBins;
-      const totalBins = packet.totalBinsInFrame;
-      const frame = packet.frameIndex;
-      const bins = packet.payload;
-      if (binsInThisFrame === 0) return;
-      if (startingBin === 0) {
-        frameStartTime = performance.now();
-        lastBinValue = bins[0];
-      }
-      const p = palette();
-      const colors = paletteCss();
-      if (!p.length || !colors.length) return;
-      const width = totalBins;
-      const height = p.length / 4;
-      const nextRatio = getPixelRatio();
-      if (nextRatio !== pixelRatio) {
-        pixelRatio = nextRatio;
-        transformDirty = true;
-      }
-      const scaleWidth = Math.round(width * pixelRatio);
-      const scaleHeight = Math.round(height * pixelRatio);
-      if (offscreen.width !== scaleWidth || offscreen.height !== scaleHeight) {
-        if (offscreen.width !== scaleWidth) {
-          offscreen.width = scaleWidth;
-        }
-        if (offscreen.height !== scaleHeight) {
-          offscreen.height = scaleHeight;
-        }
-        transformDirty = true;
-        skipFrame = frame;
-      }
-      if (updating()) {
-        skipFrame = frame;
-      }
-      if (frame === skipFrame) {
-        return;
-      }
-      if (transformDirty) {
-        const sharpOffset = pixelRatio === 1 ? 0.5 : 0;
-        offscreenCtx.setTransform(
-          pixelRatio,
-          0,
-          0,
-          pixelRatio,
-          sharpOffset,
-          sharpOffset,
-        );
-        offscreenCtx.imageSmoothingEnabled = true;
-        transformDirty = false;
-      }
-      offscreenCtx.clearRect(
-        startingBin === 0 ? -1 : startingBin,
-        -1,
-        startingBin === 0 ? binsInThisFrame + 1 : binsInThisFrame,
-        height + 1,
-      );
-      offscreenCtx.lineWidth = 1;
-      const { peakStyle, fillStyle } = preferences;
-      if (fillStyle === "gradient") {
-        const gradient = fillGradient();
-        if (peakStyle === "points") {
-          // if the peaks are points, we need to draw the "fill" as individual lines
-          offscreenCtx.strokeStyle = gradient || "white";
-          offscreenCtx.beginPath();
-          offscreenCtx.moveTo(startingBin, height);
-          for (let index = 0; index < binsInThisFrame; index++) {
-            const x = startingBin + index;
-            const y = bins[index];
-            offscreenCtx.moveTo(x, height);
-            offscreenCtx.lineTo(x, y);
-          }
-          offscreenCtx.stroke();
-        } else {
-          // otherwise we can just outline the shape and fill it
-          offscreenCtx.strokeStyle = "transparent";
-          offscreenCtx.lineWidth = 0;
-          offscreenCtx.fillStyle = gradient || "white";
-          offscreenCtx.beginPath();
-          offscreenCtx.moveTo(startingBin - 1, height);
-          offscreenCtx.lineTo(startingBin - 1, lastBinValue);
-          for (let index = 0; index < binsInThisFrame; index++) {
-            const x = startingBin + index;
-            const y = bins[index];
-            offscreenCtx.lineTo(x, y);
-          }
-          offscreenCtx.lineTo(startingBin + binsInThisFrame - 1, height);
-          offscreenCtx.lineTo(startingBin + binsInThisFrame - 1, height);
-          offscreenCtx.closePath();
-          offscreenCtx.fill();
-        }
-      } else if (fillStyle === "solid") {
-        let currentColor = "";
-        let hasPath = false;
-        for (let index = 0; index < binsInThisFrame; index++) {
-          const x = startingBin + index;
-          const y = bins[index];
-          const color = colors[y];
-          if (!color) continue;
-          if (color !== currentColor) {
-            if (hasPath) {
-              offscreenCtx.stroke();
-            }
-            offscreenCtx.strokeStyle = color;
-            offscreenCtx.beginPath();
-            hasPath = true;
-            currentColor = color;
-          }
-          offscreenCtx.moveTo(x, height);
-          offscreenCtx.lineTo(x, y);
-        }
-        if (hasPath) {
-          offscreenCtx.stroke();
-        }
-      }
-      if (peakStyle === "line") {
-        offscreenCtx.strokeStyle = "white";
-        offscreenCtx.beginPath();
-        offscreenCtx.moveTo(startingBin - 1, lastBinValue);
-        for (let index = 0; index < binsInThisFrame; index++) {
-          const x = startingBin + index;
-          const y = bins[index];
-          offscreenCtx.lineTo(x, y);
-        }
-        offscreenCtx.stroke();
-      } else if (peakStyle === "points") {
-        offscreenCtx.fillStyle = "white";
-        for (let index = 0; index < binsInThisFrame; index++) {
-          const x = startingBin + index;
-          const y = bins[index];
-          offscreenCtx.fillRect(x - 0.5, y - 0.5, 1, 1);
-        }
-      }
-
-      if (startingBin > 0) {
-        lastBinValue = bins[binsInThisFrame - 1];
-      }
-
-      if (startingBin + binsInThisFrame >= totalBins) {
-        if (rafId !== null) {
-          cancelAnimationFrame(rafId);
-        }
-        rafId = requestAnimationFrame(flushFrame);
-        if (preferences.showFps) {
-          frameTimes.push(performance.now() - frameStartTime);
-          if (frameTimes.length > 10) frameTimes.shift();
-          const avgFrameTime =
-            frameTimes.reduce((a, b) => a + b, 0) / frameTimes.length;
-          setRuntime("fps", "P", Math.round(1000 / avgFrameTime));
-        }
+    const w = new Worker(
+      new URL("./panadapter.worker.ts", import.meta.url),
+      { type: "module" },
+    );
+    const offscreen = canvas.transferControlToOffscreen();
+    w.postMessage({ type: "init", canvas: offscreen, sab }, [offscreen]);
+    w.onmessage = (event: MessageEvent) => {
+      if (event.data?.type === "fps") {
+        setRuntime("fps", "P", event.data.value);
       }
     };
+    setWorker(w);
+    onCleanup(() => {
+      w.terminate();
+      setWorker(undefined);
+    });
   });
 
+  // Push rendering config to the worker whenever any input changes. These all
+  // change rarely (palette edits, preference toggles, resize, DPR), so
+  // re-posting the whole config on any change is cheap. The worker sizes its
+  // backing store from the expected pan dimensions × scale and derives the
+  // per-frame draw scale from the actual bin count it receives.
   createEffect(() => {
-    const handler = onPanadapter();
-    if (!handler) return;
-    const subscription = props.controller.on("data", handler);
+    const w = worker();
+    if (!w) return;
+    const { gradients } = preferences.palette;
+    // Unwrap reactive store proxies to plain data — structuredClone (used by
+    // postMessage) can't serialize Solid store proxies.
+    const stops = (gradients[props.waterfall.gradientIndex]?.stops ?? []).map(
+      ({ offset, color }) => ({ offset, color }),
+    );
+    w.postMessage({
+      type: "config",
+      config: {
+        width: props.pan.width,
+        height: props.pan.height,
+        scale: deviceScale(),
+        paletteCss: [...paletteCss()],
+        fillStyle: preferences.fillStyle,
+        peakStyle: preferences.peakStyle,
+        gradientStyle: preferences.gradientStyle,
+        gradientStops: stops,
+        showFps: preferences.showFps,
+      },
+    });
+  });
+
+  // Accumulate FFT packets directly into the shared buffer. On the main thread
+  // this is just a typed-array copy into shared memory per packet — no
+  // allocation, no postMessage. When a frame completes we publish the slot and
+  // bin count, then bump the sequence counter (and notify) so the worker draws
+  // it. Frames rotate through NUM_BUFFERS slots so the writer never overwrites
+  // the slot the worker is reading.
+  createEffect(() => {
+    const w = worker();
+    if (!w) return;
+    const subscription = props.controller.on("data", (packet: VitaFFTPacket) => {
+      const numBins = packet.numBins;
+      if (numBins === 0) return;
+      const startBin = packet.startBinIndex;
+      const totalBins = packet.totalBinsInFrame;
+      const end = startBin + numBins;
+      if (end > MAX_BINS) return;
+
+      fftData.set(packet.payload.subarray(0, numBins), writeBuf * MAX_BINS + startBin);
+
+      if (end >= totalBins) {
+        Atomics.store(control, CONTROL_BUF, writeBuf);
+        Atomics.store(control, CONTROL_BINS, totalBins);
+        Atomics.store(control, CONTROL_SEQ, ++frameSeq);
+        Atomics.notify(control, CONTROL_SEQ);
+        writeBuf = (writeBuf + 1) % NUM_BUFFERS;
+      }
+    });
     if (!subscription) return;
     onCleanup(subscription.unsubscribe);
   });
@@ -348,10 +229,10 @@ export function Panadapter(props: {
 
   return (
     <div
-      ref={setWrapper}
+      ref={setPanadapterWrapper}
       class="relative shrink size-full flex justify-center overflow-clip select-none bg-radial-[ellipse_at_bottom] from-(--panadapter-background-color) via-(--panadapter-background-color)/70 via-30% to-(--panadapter-background-color)/35 to-85%"
       style={{
-        "--panadapter-available-height": `${wrapperSize.height}px`,
+        "--panadapter-available-height": `${panadapterWrapperSize.height}px`,
         "--panadapter-background-color": txBackgroundColor(),
       }}
     >

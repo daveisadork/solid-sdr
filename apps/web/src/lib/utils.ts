@@ -39,7 +39,7 @@ export function degToRad(deg: number): number {
 }
 
 export function roundToDevicePixels(px: number) {
-  const dpr = Number(window.devicePixelRatio?.toFixed(2) || 1);
+  const dpr = Number(window.devicePixelRatio?.toFixed(6) || 1);
   return Math.round(px * dpr) / dpr;
 }
 

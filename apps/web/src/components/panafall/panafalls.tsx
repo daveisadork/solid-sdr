@@ -6,6 +6,7 @@ import { PanafallSettingsSidebar, PanSettings } from "./settings";
 import { Panafall } from "./panafall";
 import BaselineDisplaySettings from "~icons/ic/baseline-display-settings";
 import { usePreferences } from "~/context/preferences";
+import { TuningPanel } from "../tuning-panel";
 
 export function Panafalls() {
   const { state } = useFlexRadio();
@@ -55,6 +56,7 @@ export function Panafalls() {
           </PanafallProvider>
         )}
       </For>
+      <TuningPanel />
     </div>
   );
 }

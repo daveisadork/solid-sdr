@@ -41,6 +41,8 @@ export interface RuntimeState {
   fps: Record<string, number>;
   split: Record<string, SliceSplitState>;
   network: RuntimeNetworkState;
+  /** Whether the touch tuning panel is open. Targets the active slice. */
+  tuningPanelOpen: boolean;
 }
 
 export type { NetworkQuality };
@@ -64,6 +66,7 @@ export const RuntimeProvider: ParentComponent = (props) => {
     fps: {},
     split: {},
     network: createInitialNetworkState(),
+    tuningPanelOpen: false,
   });
 
   const visible = createPageVisibility();

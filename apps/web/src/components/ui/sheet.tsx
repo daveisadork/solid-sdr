@@ -1,5 +1,5 @@
 import type { Component, ComponentProps, JSX, ValidComponent } from "solid-js";
-import { splitProps } from "solid-js";
+import { Show, splitProps } from "solid-js";
 
 import * as SheetPrimitive from "@kobalte/core/dialog";
 import type { PolymorphicProps } from "@kobalte/core/polymorphic";
@@ -58,7 +58,7 @@ const SheetOverlay = <T extends ValidComponent = "div">(
 };
 
 const sheetVariants = cva(
-  "fixed z-50 gap-4 bg-background p-6 shadow-lg transition ease-in-out data-[closed=]:duration-300 data-[expanded=]:duration-500 data-[expanded=]:animate-in data-[closed=]:animate-out",
+  "fixed z-50 gap-4 fancy-bg-background p-6 shadow-lg transition ease-in-out data-[closed=]:duration-300 data-[expanded=]:duration-500 data-[expanded=]:animate-in data-[closed=]:animate-out",
   {
     variants: {
       position: {
@@ -81,6 +81,7 @@ type DialogContentProps<T extends ValidComponent = "div"> =
     VariantProps<typeof sheetVariants> & {
       class?: string | undefined;
       children?: JSX.Element;
+      hideOverlay?: boolean;
     };
 
 const SheetContent = <T extends ValidComponent = "div">(
@@ -90,10 +91,13 @@ const SheetContent = <T extends ValidComponent = "div">(
     "position",
     "class",
     "children",
+    "hideOverlay",
   ]);
   return (
     <SheetPortal position={local.position}>
-      <SheetOverlay />
+      <Show when={!local.hideOverlay}>
+        <SheetOverlay />
+      </Show>
       <SheetPrimitive.Content
         class={cn(
           sheetVariants({ position: local.position }),

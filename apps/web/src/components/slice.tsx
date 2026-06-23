@@ -1544,7 +1544,7 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
     trackMutation: onlyAncestorMutations(flag),
   });
   const { preferences } = usePreferences();
-  const { runtime } = useRuntime();
+  const { runtime, setRuntime } = useRuntime();
   const { dispatch } = useControls();
   const [compactLayout, setCompactLayout] = createSignal(false);
 
@@ -2008,6 +2008,18 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
                             size={14}
                             valueHz={Math.round(props.slice.frequencyMHz * 1e6)}
                             onCommit={tuneSlice}
+                            // `on:touchstart` binds directly to the element
+                            // (non-passive); the camelCase `onTouchStart` is
+                            // delegated to document, where Chrome forces passive
+                            // and preventDefault() is ignored. We need
+                            // preventDefault to open the panel instead of
+                            // focusing the input (which pops the soft keyboard).
+                            // Fires only on touch, so mouse/pen keep inline edit.
+                            on:touchstart={(event) => {
+                              event.preventDefault();
+                              makeActive();
+                              setRuntime("tuningPanelOpen", true);
+                            }}
                           />
                         </div>
                       </Show>

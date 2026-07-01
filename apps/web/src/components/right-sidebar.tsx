@@ -28,6 +28,8 @@ import { SimpleSwitch } from "./ui/simple-switch";
 import { dbmToWatts, roundToDecimals } from "~/lib/utils";
 import { debounce } from "@solid-primitives/scheduled";
 import { SimpleMeter } from "./ui/simple-meter";
+import { useAudio } from "~/context/audio";
+import { createStreamLevel } from "~/lib/stream-level";
 import { SliderToggle } from "./ui/slider-toggle";
 import {
   SegmentedControl,
@@ -399,16 +401,12 @@ function TxSection() {
 
 function MicSection() {
   const { state, radio } = useFlexRadio();
-  const [micPeakValue, setMicPeakValue] = createSignal(-150);
+  const { remoteAudioTxStream } = useAudio();
   const [compPeakValue, setCompPeakValue] = createSignal(-150);
   const [createProfile, setCreateProfile] = createSignal(false);
 
   const micMeter = createMemo(() =>
     Object.values(state.status.meter).find((meter) => meter.name === "MIC"),
-  );
-
-  const micPeakMeter = createMemo(() =>
-    Object.values(state.status.meter).find((meter) => meter.name === "MICPEAK"),
   );
 
   const compPeakMeter = createMemo(() =>
@@ -417,15 +415,18 @@ function MicSection() {
     ),
   );
 
-  createEffect(() => {
-    if (!state.status.radio.meterInRx && !state.status.radio.mox)
-      return setMicPeakValue(-150);
+  // The radio's MIC/MICPEAK meters don't reflect the browser's network TX-audio
+  // path (they read the radio's own mic input), so derive the AF input level
+  // straight from the microphone stream the browser is sending.
+  const { level: afInputLevel, peak: afInputPeak } =
+    createStreamLevel(remoteAudioTxStream);
 
-    const sub = radio()
-      ?.meter(micPeakMeter()?.id)
-      ?.on("data", ({ value }) => setMicPeakValue(roundToDecimals(value, 1)));
-    onCleanup(() => sub?.unsubscribe());
-  });
+  // Reading shown while transmitting (or when meters are enabled in RX);
+  // floored to the meter minimum so it reads empty when idle.
+  const afInputReading = (value: number) =>
+    !state.status.radio.meterInRx && !state.status.radio.mox
+      ? -40
+      : Math.max(value, -40);
 
   createEffect(() => {
     if (
@@ -454,15 +455,11 @@ function MicSection() {
           return (
             <SimpleMeter
               meter={meter}
-              peakValue={micPeakValue()}
-              value={
-                !state.status.radio.meterInRx && !state.status.radio.mox
-                  ? -150
-                  : undefined
-              }
+              peakValue={afInputReading(afInputPeak())}
+              value={afInputReading(afInputLevel())}
               minValue={-40}
               maxValue={0}
-              getValueLabel={() => `${micPeakValue().toFixed(1)} dB`}
+              getValueLabel={() => `${afInputReading(afInputPeak()).toFixed(1)} dB`}
               label="AF Input Level"
               showTicks
               showTickLabels

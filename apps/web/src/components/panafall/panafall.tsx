@@ -364,7 +364,7 @@ export function Panafall(props: { index: number }) {
                     );
                     if (
                       isNaN(panHeight) ||
-                      panHeight === preferences.panadapterSizes[props.index][0]
+                      panHeight === preferences.panadapterSizes[props.index]?.[0]
                     ) {
                       return;
                     }

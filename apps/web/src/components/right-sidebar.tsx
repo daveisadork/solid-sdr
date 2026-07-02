@@ -28,6 +28,8 @@ import { SimpleSwitch } from "./ui/simple-switch";
 import { dbmToWatts, roundToDecimals } from "~/lib/utils";
 import { debounce } from "@solid-primitives/scheduled";
 import { SimpleMeter } from "./ui/simple-meter";
+import { useAudio } from "~/context/audio";
+import { createStreamLevel } from "~/lib/stream-level";
 import { SliderToggle } from "./ui/slider-toggle";
 import {
   SegmentedControl,
@@ -399,6 +401,7 @@ function TxSection() {
 
 function MicSection() {
   const { state, radio } = useFlexRadio();
+  const { remoteAudioTxStream } = useAudio();
   const [micPeakValue, setMicPeakValue] = createSignal(-150);
   const [compPeakValue, setCompPeakValue] = createSignal(-150);
   const [createProfile, setCreateProfile] = createSignal(false);
@@ -417,8 +420,35 @@ function MicSection() {
     ),
   );
 
+  // The radio's MIC/MICPEAK meters cover its physical inputs (MIC/BAL/LINE/ACC)
+  // and DAX, but read silence for the browser's network TX-audio path (the PC
+  // input with DAX off), so only that case derives the AF input level from the
+  // microphone stream the browser is sending — same behavior as SmartSDR.
+  const useBrowserLevel = createMemo(
+    () =>
+      state.status.radio.micSelection === "PC" &&
+      !state.status.radio.daxEnabled,
+  );
+
+  const { level: browserLevel, peak: browserPeak } = createStreamLevel(() =>
+    useBrowserLevel() ? remoteAudioTxStream() : undefined,
+  );
+
+  // Browser reading shown while transmitting (or when meters are enabled in
+  // RX); floored to the meter minimum so it reads empty when idle.
+  const browserReading = (value: number) =>
+    !state.status.radio.meterInRx && !state.status.radio.mox
+      ? -40
+      : Math.max(value, -40);
+
+  const afInputPeak = () =>
+    useBrowserLevel() ? browserReading(browserPeak()) : micPeakValue();
+
   createEffect(() => {
-    if (!state.status.radio.meterInRx && !state.status.radio.mox)
+    if (
+      useBrowserLevel() ||
+      (!state.status.radio.meterInRx && !state.status.radio.mox)
+    )
       return setMicPeakValue(-150);
 
     const sub = radio()
@@ -454,15 +484,17 @@ function MicSection() {
           return (
             <SimpleMeter
               meter={meter}
-              peakValue={micPeakValue()}
+              peakValue={afInputPeak()}
               value={
-                !state.status.radio.meterInRx && !state.status.radio.mox
-                  ? -150
-                  : undefined
+                useBrowserLevel()
+                  ? browserReading(browserLevel())
+                  : !state.status.radio.meterInRx && !state.status.radio.mox
+                    ? -150
+                    : undefined
               }
               minValue={-40}
               maxValue={0}
-              getValueLabel={() => `${micPeakValue().toFixed(1)} dB`}
+              getValueLabel={() => `${afInputPeak().toFixed(1)} dB`}
               label="AF Input Level"
               showTicks
               showTickLabels

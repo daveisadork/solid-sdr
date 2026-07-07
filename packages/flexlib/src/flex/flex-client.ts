@@ -14,7 +14,7 @@ import type { FlexRadioDescriptor, Logger } from "./adapters.js";
 import { decodeDiscoveryPayload } from "./discovery.js";
 import { FlexCommandRejectedError } from "./errors.js";
 import { type FlexReplyMessage, parseFlexMessage } from "./protocol.js";
-import { Radio, type RadioConnectOptions } from "./radio-core.js";
+import { isRadio, Radio, type RadioConnectOptions } from "./radio-core.js";
 import { describeResponseCode } from "./response-codes.js";
 import type { FlexTransport, RadioEndpoint } from "./transport.js";
 
@@ -189,7 +189,7 @@ export class FlexClient {
     options?: RadioConnectOptions,
   ): Promise<Radio> {
     if (this.closed) throw new Error("FlexClient is closed");
-    const radio = new Radio("unknown", this.transport, endpoint, {
+    const radio = Radio.create("unknown", this.transport, endpoint, {
       logger: this.logger,
     });
     await radio.connect(options);
@@ -210,7 +210,7 @@ export class FlexClient {
     options?: FlexClientCommandOptions,
   ): Promise<void> {
     if (this.closed) throw new Error("FlexClient is closed");
-    const endpoint = target instanceof Radio ? target.endpoint : target;
+    const endpoint = isRadio(target) ? target.endpoint : target;
     const handle = normalizeClientHandle(clientHandle);
     const reply = await this.sendEphemeralCommand(
       endpoint,
@@ -282,7 +282,7 @@ export class FlexClient {
 
       let radio = this.radioMap.get(descriptor.serial);
       if (!radio) {
-        radio = new Radio(
+        radio = Radio.create(
           descriptor.serial,
           this.transport,
           { host: descriptor.host, port: descriptor.port },

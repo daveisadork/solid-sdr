@@ -236,7 +236,8 @@ describe("XVTR controller", () => {
     connection.emitStatus(
       "S1|xvtr 0 name=2M rf_freq=144.000000 if_freq=28.000000 lo_error=0.000000 rx_gain=10.00 rx_only=0 max_power=5.00 order=0 is_valid=1",
     );
-    const controller = radio.xvtr("0")!;
+    const controller = radio.xvtr("0");
+    if (!controller) throw new Error("expected xvtr controller");
 
     // when we set properties
     await controller.setName("70cm");
@@ -270,7 +271,8 @@ describe("XVTR controller", () => {
     connection.emitStatus(
       "S1|xvtr 0 name=2M rf_freq=144.000000 if_freq=28.000000",
     );
-    const controller = radio.xvtr("0")!;
+    const controller = radio.xvtr("0");
+    if (!controller) throw new Error("expected xvtr controller");
 
     // when we set a name longer than 4 characters
     await controller.setName("LongName");
@@ -285,7 +287,8 @@ describe("XVTR controller", () => {
     connection.emitStatus(
       "S1|xvtr 0 name=2M rf_freq=144.000000 if_freq=28.000000",
     );
-    const controller = radio.xvtr("0")!;
+    const controller = radio.xvtr("0");
+    if (!controller) throw new Error("expected xvtr controller");
 
     // when we remove the xvtr
     await controller.remove();

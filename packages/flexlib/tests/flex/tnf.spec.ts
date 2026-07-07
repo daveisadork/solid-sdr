@@ -205,7 +205,8 @@ describe("TNF controller", () => {
     connection.emitStatus(
       "S1|tnf 1 freq=14.200000 depth=2 width=0.000100 permanent=0",
     );
-    const controller = radio.tnf("1")!;
+    const controller = radio.tnf("1");
+    if (!controller) throw new Error("expected tnf controller");
 
     // when we set properties
     await controller.setFrequency(7.05);
@@ -225,7 +226,8 @@ describe("TNF controller", () => {
     // given a connected radio with a tnf
     const { radio, connection } = await createConnectedRadio();
     connection.emitStatus("S1|tnf 1 freq=14.200000 depth=2 width=0.000100");
-    const controller = radio.tnf("1")!;
+    const controller = radio.tnf("1");
+    if (!controller) throw new Error("expected tnf controller");
 
     // when we set depth below minimum
     await controller.setDepth(0);
@@ -240,7 +242,8 @@ describe("TNF controller", () => {
     // given a connected radio with a tnf
     const { radio, connection } = await createConnectedRadio();
     connection.emitStatus("S1|tnf 1 freq=14.200000 depth=2 width=0.000100");
-    const controller = radio.tnf("1")!;
+    const controller = radio.tnf("1");
+    if (!controller) throw new Error("expected tnf controller");
 
     // when we remove the tnf
     await controller.remove();
@@ -256,7 +259,8 @@ describe("TNF controller", () => {
     connection.emitStatus(
       "S1|tnf 1 freq=14.200000 depth=2 width=0.000100 permanent=0",
     );
-    const controller = radio.tnf("1")!;
+    const controller = radio.tnf("1");
+    if (!controller) throw new Error("expected tnf controller");
 
     const promise = controller.setFrequency(7.05);
 
@@ -271,7 +275,8 @@ describe("TNF controller", () => {
     connection.emitStatus(
       "S1|tnf 1 freq=14.200000 depth=2 width=0.000100 permanent=0",
     );
-    const controller = radio.tnf("1")!;
+    const controller = radio.tnf("1");
+    if (!controller) throw new Error("expected tnf controller");
 
     connection.prepareResponse("tnf set", { code: 0x50000001 });
     await expect(controller.setFrequency(7.05)).rejects.toThrow();

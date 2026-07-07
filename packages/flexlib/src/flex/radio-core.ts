@@ -616,19 +616,25 @@ class RadioImpl {
     this._dvkController = new DvkControllerImpl(this);
     this._filterPresetController = new FilterPresetControllerImpl(this);
     this._featureLicenseController = new FeatureLicenseControllerImpl(this);
+  }
 
-    // Return a Proxy so that RadioSnapshot properties (nickname, sliceCount,
-    // callsign, etc.) are readable directly on the Radio instance.
-    // Properties defined on Radio itself take precedence over snapshot fields.
-    return new Proxy(this, {
+  // Wraps the instance in a Proxy so that RadioSnapshot properties (nickname,
+  // sliceCount, callsign, etc.) are readable directly on the Radio object.
+  // Properties defined on RadioImpl itself take precedence over snapshot fields.
+  static create(
+    serial: string,
+    transport: FlexTransport,
+    endpoint: RadioEndpoint,
+    options?: { logger?: Logger },
+  ): Radio {
+    const instance = new RadioImpl(serial, transport, endpoint, options);
+    return new Proxy(instance, {
       get(target, prop, receiver) {
-        // Own properties and methods take precedence
         return Reflect.has(target, prop)
           ? Reflect.get(target, prop, receiver)
-          : // Delegate to the current radio snapshot
-            target.store.getRadio()?.[prop as keyof RadioSnapshot];
+          : target.store.getRadio()?.[prop as keyof RadioSnapshot];
       },
-    });
+    }) as Radio;
   }
 
   // -----------------------------------------------------------------------
@@ -3104,17 +3110,13 @@ class RadioImpl {
 
 export type Radio = RadioImpl & Readonly<RadioSnapshot>;
 
-type RadioConstructor = {
-  new (
-    serial: string,
-    transport: FlexTransport,
-    endpoint: RadioEndpoint,
-    options?: { logger?: Logger },
-  ): Radio;
-  readonly prototype: RadioImpl;
-};
+export const Radio = {
+  create: RadioImpl.create.bind(RadioImpl),
+} as const;
 
-export const Radio: RadioConstructor = RadioImpl as unknown as RadioConstructor;
+export function isRadio(target: unknown): target is Radio {
+  return target instanceof RadioImpl;
+}
 
 // ---------------------------------------------------------------------------
 // Helpers

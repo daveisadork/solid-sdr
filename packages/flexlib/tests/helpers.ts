@@ -241,7 +241,7 @@ export async function createConnectedRadio(options?: {
   port?: number;
 }): Promise<{ radio: Radio; connection: MockFlexConnection }> {
   const transport = new MockFlexTransport();
-  const radio = new Radio(
+  const radio = Radio.create(
     options?.serial ?? DEFAULT_DESCRIPTOR.serial,
     transport,
     {
@@ -254,7 +254,9 @@ export async function createConnectedRadio(options?: {
     pingIntervalMs: null, // disable heartbeat in tests
   });
 
-  const connection = transport.connection!;
+  const connection = transport.connection;
+  if (!connection)
+    throw new Error("transport.connection not set after connect");
   return { radio, connection };
 }
 

@@ -1,7 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import { DaxIqAudioStreamControllerImpl } from "../../src/flex/audio-stream";
+import type { RadioSession } from "../../src/flex/radio-core";
 
-function fakeRadio(opts: { daxIqSampleRates: number[]; model?: string }): any {
+function fakeRadio(opts: {
+  daxIqSampleRates: number[];
+  model?: string;
+}): RadioSession {
   return {
     modelInfo: {
       daxIqSampleRates: opts.daxIqSampleRates,
@@ -18,7 +22,7 @@ function fakeRadio(opts: { daxIqSampleRates: number[]; model?: string }): any {
         raw: {},
       }),
     }),
-  };
+  } as unknown as RadioSession;
 }
 
 describe("DaxIqAudioStreamControllerImpl.setSampleRate", () => {

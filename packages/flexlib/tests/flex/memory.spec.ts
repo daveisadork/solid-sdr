@@ -221,7 +221,8 @@ describe("Memory controller", () => {
         "rx_filter_low=0 rx_filter_high=2800 rtty_mark=0 rtty_shift=0 " +
         "digl_offset=0 digu_offset=0",
     );
-    const controller = radio.memory("0")!;
+    const controller = radio.memory("0");
+    if (!controller) throw new Error("expected memory controller");
 
     const promise = controller.setFrequency(14.2);
     expect(controller.frequencyMHz).toBeCloseTo(14.2);
@@ -236,7 +237,8 @@ describe("Memory controller", () => {
         "rx_filter_low=0 rx_filter_high=2800 rtty_mark=0 rtty_shift=0 " +
         "digl_offset=0 digu_offset=0",
     );
-    const controller = radio.memory("0")!;
+    const controller = radio.memory("0");
+    if (!controller) throw new Error("expected memory controller");
 
     connection.prepareResponse("memory set", { code: 0x50000001 });
     await expect(controller.setFrequency(14.2)).rejects.toThrow();
@@ -252,7 +254,8 @@ describe("Memory controller", () => {
         "rx_filter_low=0 rx_filter_high=2800 rtty_mark=0 rtty_shift=0 " +
         "digl_offset=0 digu_offset=0",
     );
-    const controller = radio.memory("0")!;
+    const controller = radio.memory("0");
+    if (!controller) throw new Error("expected memory controller");
 
     await controller.setFrequency(14.2);
     expect(connection.lastCommand()).toBe("memory set 0 freq=14.200000");
@@ -319,7 +322,8 @@ describe("Memory controller", () => {
         "rx_filter_low=0 rx_filter_high=2800 rtty_mark=0 rtty_shift=0 " +
         "digl_offset=0 digu_offset=0",
     );
-    const controller = radio.memory("0")!;
+    const controller = radio.memory("0");
+    if (!controller) throw new Error("expected memory controller");
 
     const changes: RadioStateChange[] = [];
     radio.on("change", (c) => changes.push(c));
@@ -338,7 +342,8 @@ describe("Memory controller", () => {
         "rx_filter_low=0 rx_filter_high=2800 rtty_mark=0 rtty_shift=0 " +
         "digl_offset=0 digu_offset=0",
     );
-    const controller = radio.memory("0")!;
+    const controller = radio.memory("0");
+    if (!controller) throw new Error("expected memory controller");
 
     await controller.remove();
 

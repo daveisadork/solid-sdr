@@ -239,9 +239,9 @@ export class AudioStreamControllerImpl implements AudioStreamController {
   private ensureDataPipeline(): void {
     if (this.dataSubscription) return;
     const streamNumericId = parseStreamIdentifier(this.id);
-    if (!Number.isFinite(streamNumericId)) return;
+    if (streamNumericId === undefined) return;
     this.dataSubscription = this.radio.registerStreamHandler(
-      streamNumericId!,
+      streamNumericId,
       (packet) => {
         this.events.emit("data", packet);
       },

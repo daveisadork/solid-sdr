@@ -62,7 +62,7 @@ describe("TypedEventEmitter", () => {
     emitter.emit("bar", 1);
 
     emitter.removeAll();
-    subscriptions.forEach((subscription) => subscription.unsubscribe());
+    for (const subscription of subscriptions) subscription.unsubscribe();
 
     emitter.emit("foo", "b");
     emitter.emit("bar", 2);

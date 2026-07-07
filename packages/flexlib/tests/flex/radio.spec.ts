@@ -390,7 +390,8 @@ describe("Radio", () => {
     const { radio, connection } = await createConnectedRadio();
     connection.emitStatus("S1|slice 0 mode=LSB pan=0x40000000");
 
-    const source = radio.slice("0")!;
+    const source = radio.slice("0");
+    if (!source) throw new Error("expected slice controller");
 
     // given the radio will return the cloned slice index and emit its status
     connection.emitStatus("S1|slice 1 mode=LSB pan=0x40000000");

@@ -12,17 +12,16 @@
     "build": "vite build",
     "serve": "vite preview",
     "check-types": "tsc --noEmit",
-    "lint": "eslint src",
-    "lint:fix": "eslint src --fix"
+    "lint": "biome check src",
+    "lint:fix": "biome check --write src"
   },
   "license": "MIT",
   "packageManager": "pnpm@10.18.3",
   "devDependencies": {
+    "@biomejs/biome": "2.5.2",
     "@iconify/json": "^2.2.438",
-    "@repo/eslint-config": "workspace:*",
     "@repo/tailwind-config": "workspace:*",
     "@tailwindcss/vite": "^4.1.18",
-    "eslint": "^10.3.0",
     "rollup-plugin-visualizer": "^6.0.5",
     "tailwind-merge": "^3.4.0",
     "tailwindcss": "^4.1.18",

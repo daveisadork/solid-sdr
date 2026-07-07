@@ -10,13 +10,13 @@
     "dev:server": "turbo run dev:server",
     "dev:app": "turbo run dev:app",
     "lint": "turbo run lint",
-    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "format": "biome check --write .",
     "check-types": "turbo run check-types",
     "release:build": "goreleaser build --snapshot --clean && rm -rf apps/server/internal/static/web",
     "release": "goreleaser release --clean && rm -rf apps/server/internal/static/web"
   },
   "devDependencies": {
-    "prettier": "^3.5.3",
+    "@biomejs/biome": "2.5.2",
     "turbo": "^2.5.8",
     "typescript": "5.8.2"
   },

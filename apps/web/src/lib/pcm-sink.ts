@@ -29,7 +29,6 @@ export class PcmSink {
   private mode: Mode = "buffer";
 
   private channels: number;
-  private quantumFrames = 128; // WebAudio quantum size
   private allowSAB: boolean;
 
   // SAB state
@@ -226,7 +225,7 @@ export class PcmSink {
       data: packet,
     });
     (chunk as any).__gpsTsSec = tsGpsSec; // stash for use in output callback
-    this.opusDecoder!.decode(chunk);
+    this.opusDecoder?.decode(chunk);
     this.opusNextTimestampUs += durationUs;
   }
 
@@ -265,7 +264,7 @@ export class PcmSink {
     if (this.mode === "sab") {
       // Timestamped jitter buffering
       const nowWall = performance.now() / 1000;
-      this.jb!.push(
+      this.jb?.push(
         {
           planes: out,
           frames,
@@ -278,16 +277,16 @@ export class PcmSink {
 
       // Adaptive lead: aim for ~3× measured jitter, 20–150 ms
       if (this.adaptive && Math.random() < 0.05) {
-        const j = this.jb!.getJitterSec();
+        const j = this.jb?.getJitterSec();
         const targ = Math.max(0.02, Math.min(0.15, 3 * j));
         const max = Math.max(targ, 0.25);
-        this.jb!.setTargets(targ, max);
+        this.jb?.setTargets(targ, max);
         this.targetLeadFrames = Math.round(targ * targetRate);
         this.maxLeadFrames = Math.round(max * targetRate);
       }
 
       // Pop anything ready and write to SAB
-      const ready = this.jb!.popReady(this.ctx.currentTime, this.clock);
+      const ready = this.jb?.popReady(this.ctx.currentTime, this.clock);
       for (const f of ready) this.enqueueSAB(f.planes);
     } else {
       // buffer fallback: schedule immediately (engine timing)
@@ -321,7 +320,7 @@ export class PcmSink {
     };
     if (!anyEl.setSinkId)
       throw new Error("setSinkId is not supported in this browser");
-    await anyEl.setSinkId!(deviceId);
+    await anyEl.setSinkId?.(deviceId);
   }
   get currentSinkId(): string | undefined {
     return (this.audioEl as unknown as { sinkId?: string }).sinkId;
@@ -468,7 +467,7 @@ export class PcmSink {
 
       // Some browsers require description to be an ArrayBuffer without offset
       const res = await (AudioDecoder as any).isConfigSupported(cfg);
-      return !!(res && res.supported);
+      return !!res?.supported;
     } catch {
       return false;
     }
@@ -567,7 +566,10 @@ function resamplePlanarLinear(
 }
 
 /** Convert AudioData (WebCodecs) to AudioBuffer for fallback scheduling. */
-function audioDataToAudioBuffer(ctx: AudioContext, ad: AudioData): AudioBuffer {
+function _audioDataToAudioBuffer(
+  _ctx: AudioContext,
+  ad: AudioData,
+): AudioBuffer {
   const ch = ad.numberOfChannels | 0;
   const frames = ad.numberOfFrames | 0;
   const rate = ad.sampleRate | 0;
@@ -585,8 +587,8 @@ function audioDataToAudioBuffer(ctx: AudioContext, ad: AudioData): AudioBuffer {
 }
 
 /** Rechannel an AudioBuffer to the requested channel count. */
-function rechannelAudioBuffer(
-  ctx: AudioContext,
+function _rechannelAudioBuffer(
+  _ctx: AudioContext,
   buf: AudioBuffer,
   targetCh: number,
 ): AudioBuffer {

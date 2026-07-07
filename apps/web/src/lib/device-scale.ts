@@ -22,4 +22,4 @@ createEffect(() => {
 // device pixels only at integer scales.
 const deviceScale = createMemo(() => Math.max(1, Math.round(pixelDensity())));
 
-export { pixelDensity, deviceScale };
+export { deviceScale, pixelDensity };

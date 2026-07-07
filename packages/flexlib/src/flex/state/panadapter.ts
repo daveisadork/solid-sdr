@@ -8,8 +8,8 @@ import {
   parseCsv,
   parseFloatSafe,
   parseInteger,
-  parseIntegerList,
   parseIntegerHex,
+  parseIntegerList,
   parseMegahertz,
 } from "./common.js";
 

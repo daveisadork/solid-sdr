@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_RADIO_MODEL_INFO,
-  KNOWN_RADIO_MODEL_NAMES,
   getModelInfo,
+  KNOWN_RADIO_MODEL_NAMES,
 } from "../../src/flex/model-info.js";
 
 describe("getModelInfo", () => {
@@ -30,15 +30,10 @@ describe("getModelInfo", () => {
 
   it("exposes per-model DAX IQ sample-rate support", () => {
     expect(getModelInfo("FLEX-6400").daxIqSampleRates).toEqual([
-      24000,
-      48000,
-      96000,
+      24000, 48000, 96000,
     ]);
     expect(getModelInfo("RT-2122").daxIqSampleRates).toEqual([
-      24000,
-      48000,
-      96000,
-      192000,
+      24000, 48000, 96000, 192000,
     ]);
     expect(DEFAULT_RADIO_MODEL_INFO.daxIqSampleRates).toEqual([]);
   });

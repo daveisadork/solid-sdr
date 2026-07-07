@@ -171,7 +171,10 @@ export interface FlexConnection {
    * The caller must have already sent the `file upload` command and received the port
    * number before calling this.
    */
-  openUpload(endpoint: RadioEndpoint, data: AsyncIterable<Uint8Array>): Promise<void>;
+  openUpload(
+    endpoint: RadioEndpoint,
+    data: AsyncIterable<Uint8Array>,
+  ): Promise<void>;
 
   /**
    * Prepare to receive a file download from the radio.

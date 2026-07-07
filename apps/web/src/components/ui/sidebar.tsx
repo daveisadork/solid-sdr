@@ -1,3 +1,7 @@
+import type { PolymorphicProps } from "@kobalte/core/polymorphic";
+import { Polymorphic } from "@kobalte/core/polymorphic";
+import type { VariantProps } from "class-variance-authority";
+import { cva } from "class-variance-authority";
 import type {
   Accessor,
   Component,
@@ -14,17 +18,10 @@ import {
   mergeProps,
   onCleanup,
   Show,
-  splitProps,
   Switch,
+  splitProps,
   useContext,
 } from "solid-js";
-
-import type { PolymorphicProps } from "@kobalte/core/polymorphic";
-import { Polymorphic } from "@kobalte/core/polymorphic";
-import type { VariantProps } from "class-variance-authority";
-import { cva } from "class-variance-authority";
-
-import { cn } from "~/lib/utils";
 import type { ButtonProps } from "~/components/ui/button";
 import { Button } from "~/components/ui/button";
 import { Separator } from "~/components/ui/separator";
@@ -36,6 +33,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "~/components/ui/tooltip";
+import { cn } from "~/lib/utils";
 
 const MOBILE_BREAKPOINT = 768;
 const SIDEBAR_COOKIE_NAME = "sidebar:state";

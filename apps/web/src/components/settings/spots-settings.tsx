@@ -1,4 +1,4 @@
-import { createSignal, For, Show } from "solid-js";
+import type { Radio } from "@repo/flexlib";
 
 import type {
   ColumnFiltersState,
@@ -6,17 +6,15 @@ import type {
   VisibilityState,
 } from "@tanstack/solid-table";
 import {
+  type ColumnDef,
   createSolidTable,
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
-  type ColumnDef,
 } from "@tanstack/solid-table";
-import IconDots from "~icons/mdi/dots-horizontal";
-import IconChevronDown from "~icons/mdi/chevron-down";
-import IconSelector from "~icons/mdi/chevron-up-down";
+import { createSignal, For, Show } from "solid-js";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
 import {
@@ -37,18 +35,20 @@ import {
   TableRow,
 } from "~/components/ui/table";
 import { TextField, TextFieldInput } from "~/components/ui/text-field";
-import useFlexRadio, { SpotState } from "~/context/flexradio";
-import { Radio } from "@repo/flexlib";
-import { SimpleSwitch } from "../ui/simple-switch";
+import useFlexRadio, { type SpotState } from "~/context/flexradio";
 import { usePreferences } from "~/context/preferences";
-import { InfoItem } from "./common";
-import { SimpleSlider } from "../ui/simple-slider";
+import IconChevronDown from "~icons/mdi/chevron-down";
+import IconSelector from "~icons/mdi/chevron-up-down";
+import IconDots from "~icons/mdi/dots-horizontal";
 import {
   DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "../ui/dialog";
+import { SimpleSlider } from "../ui/simple-slider";
+import { SimpleSwitch } from "../ui/simple-switch";
+import { InfoItem } from "./common";
 
 export const columns: ColumnDef<SpotState>[] = [
   {

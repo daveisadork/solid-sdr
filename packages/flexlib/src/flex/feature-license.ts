@@ -1,15 +1,14 @@
+import { FlexStateUnavailableError } from "./errors.js";
+import type { RadioSession } from "./radio-core.js";
 import type {
   FeatureLicenseFeature,
   FeatureLicenseSnapshot,
 } from "./state/feature-license.js";
-import type { RadioSession } from "./radio-core.js";
-import { FlexStateUnavailableError } from "./errors.js";
 
 export type { FeatureLicenseFeature } from "./state/feature-license.js";
 
-export interface FeatureLicenseController extends Readonly<
-  Omit<FeatureLicenseSnapshot, "raw">
-> {
+export interface FeatureLicenseController
+  extends Readonly<Omit<FeatureLicenseSnapshot, "raw">> {
   snapshot(): FeatureLicenseSnapshot;
   getFeature(name: string): FeatureLicenseFeature | undefined;
   listFeatures(): readonly FeatureLicenseFeature[];

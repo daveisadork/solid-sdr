@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
-  TypedEventEmitter,
   type ListenerErrorInfo,
   type Subscription,
+  TypedEventEmitter,
 } from "../../src/util/events.js";
 
 interface TestEvents extends Record<string, unknown> {

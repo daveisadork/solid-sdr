@@ -1,4 +1,4 @@
-import { JSXElement, Show } from "solid-js";
+import { type JSXElement, Show } from "solid-js";
 
 export function InfoItem(props: { label: JSXElement; value: JSXElement }) {
   return (

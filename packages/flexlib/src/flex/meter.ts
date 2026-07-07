@@ -3,11 +3,13 @@ import type {
   MeterStateChange,
   MeterUnits,
 } from "./state/index.js";
-export type { MeterUnits, KnownMeterUnits } from "./state/index.js";
+
+export type { KnownMeterUnits, MeterUnits } from "./state/index.js";
 export { KNOWN_METER_UNITS } from "./state/index.js";
-import { TypedEventEmitter, type Subscription } from "../util/events.js";
+
+import { type Subscription, TypedEventEmitter } from "../util/events.js";
 import { FlexStateUnavailableError } from "./errors.js";
-import type { RadioSession, MeterValueHandler } from "./radio-core.js";
+import type { MeterValueHandler, RadioSession } from "./radio-core.js";
 
 /** Payload for meter "data" events — includes both raw and scaled values. */
 export interface MeterDataEvent {

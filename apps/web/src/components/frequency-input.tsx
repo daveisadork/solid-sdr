@@ -1,8 +1,8 @@
 import {
-  Component,
-  JSX,
+  type Component,
   createEffect,
   createSignal,
+  type JSX,
   splitProps,
 } from "solid-js";
 

@@ -1,6 +1,8 @@
-import { SimpleSwitch } from "../ui/simple-switch";
 import { For } from "solid-js";
-
+import useFlexRadio from "~/context/flexradio";
+import { Checkbox } from "../ui/checkbox";
+import { DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
+import { SimpleSwitch } from "../ui/simple-switch";
 import {
   Table,
   TableBody,
@@ -9,9 +11,6 @@ import {
   TableHeader,
   TableRow,
 } from "../ui/table";
-import useFlexRadio from "~/context/flexradio";
-import { DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
-import { Checkbox } from "../ui/checkbox";
 
 export function MultiflexSettings() {
   const { radio, state } = useFlexRadio();

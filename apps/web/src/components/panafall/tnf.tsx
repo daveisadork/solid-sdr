@@ -1,33 +1,35 @@
-import useFlexRadio, { PanadapterState, TnfState } from "~/context/flexradio";
+import { createPointerListeners } from "@solid-primitives/pointer";
+import { batch, createSignal } from "solid-js";
+import { createStore } from "solid-js/store";
+import useFlexRadio, {
+  type PanadapterState,
+  type TnfState,
+} from "~/context/flexradio";
 import { usePanafall } from "~/context/panafall";
-
+import BaselineDelete from "~icons/ic/baseline-delete";
 import {
   ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger,
-  ContextMenuPortal,
   ContextMenuCheckboxItem,
+  ContextMenuContent,
+  ContextMenuGroup,
+  ContextMenuGroupLabel,
+  ContextMenuItem,
+  ContextMenuPortal,
+  ContextMenuRadioGroup,
+  ContextMenuRadioItem,
   ContextMenuSeparator,
   ContextMenuSub,
   ContextMenuSubContent,
   ContextMenuSubTrigger,
-  ContextMenuRadioGroup,
-  ContextMenuRadioItem,
-  ContextMenuGroup,
-  ContextMenuGroupLabel,
+  ContextMenuTrigger,
 } from "../ui/context-menu";
-import BaselineDelete from "~icons/ic/baseline-delete";
-import { createStore } from "solid-js/store";
-import { createPointerListeners } from "@solid-primitives/pointer";
+import { Separator } from "../ui/separator";
 import {
   Tooltip,
   TooltipArrow,
   TooltipContent,
   TooltipTrigger,
 } from "../ui/tooltip";
-import { batch, createSignal } from "solid-js";
-import { Separator } from "../ui/separator";
 
 const MHZ = 1_000_000;
 const TNF_MIN = 5 / MHZ;

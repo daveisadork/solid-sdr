@@ -8,15 +8,15 @@
  */
 
 import {
-  type VitaHeader,
   type VitaClassId,
+  type VitaHeader,
   type VitaPacketContext,
   VitaPacketType,
-  VitaTimeStampIntegerType,
   VitaTimeStampFractionalType,
-  writeBigUint64BE as writeU64,
-  writeHeaderBE,
+  VitaTimeStampIntegerType,
   writeClassIdBE,
+  writeHeaderBE,
+  writeBigUint64BE as writeU64,
 } from "./common";
 
 const VITA_FLEX_OUI = 0x001c2d;

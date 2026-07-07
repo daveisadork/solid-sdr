@@ -1,4 +1,4 @@
-import { TypedEventEmitter, type Subscription } from "../util/events.js";
+import { type Subscription, TypedEventEmitter } from "../util/events.js";
 import {
   clampNumber,
   ensureFinite,
@@ -6,8 +6,8 @@ import {
   formatMegahertz,
 } from "./controller-helpers.js";
 import { FlexStateUnavailableError } from "./errors.js";
-import type { XvtrSnapshot, XvtrStateChange } from "./state/index.js";
 import type { RadioSession } from "./radio-core.js";
+import type { XvtrSnapshot, XvtrStateChange } from "./state/index.js";
 
 /** Events emitted by an {@link XvtrController}. */
 export interface XvtrControllerEvents {

@@ -1,6 +1,6 @@
 import {
-  DAX_AUDIO_SAMPLE_RATE as SAMPLE_RATE,
   type DaxChannelMode,
+  DAX_AUDIO_SAMPLE_RATE as SAMPLE_RATE,
   type SinkMessage,
 } from "./types";
 
@@ -31,7 +31,7 @@ class DaxSinkWorker {
   private silenceCache = new Map<number, Float32Array>();
 
   onMessage(m: SinkMessage): void {
-    if (!m || !m.type) return;
+    if (!m?.type) return;
     if (m.type === "init") {
       this.channels = m.channels | 0;
       this.framesCap = m.framesPerChannel | 0;

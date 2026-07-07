@@ -1,19 +1,19 @@
+import * as MeterPrimitive from "@kobalte/core/meter";
 import {
   createEffect,
   createMemo,
   createSignal,
   For,
-  JSX,
+  type JSX,
   Match,
   onCleanup,
   Show,
   Switch,
 } from "solid-js";
-import * as MeterPrimitive from "@kobalte/core/meter";
 
 import useFlexRadio, { type MeterState } from "~/context/flexradio";
-import { cn, dbmToWatts, range } from "~/lib/utils";
 import { usePreferences } from "~/context/preferences";
+import { cn, dbmToWatts, range } from "~/lib/utils";
 
 type MeterProps = MeterPrimitive.MeterRootOptions & {
   class?: string | undefined;

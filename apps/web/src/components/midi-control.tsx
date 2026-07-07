@@ -8,8 +8,8 @@ import { usePreferences } from "~/context/preferences";
 import {
   createMIDIPorts,
   MIDICommand,
-  MidiMapping,
-  ParsedMidiMessage,
+  type MidiMapping,
+  type ParsedMidiMessage,
   parseMidiMessage,
 } from "~/lib/midi";
 
@@ -248,13 +248,13 @@ export function MidiControl() {
 
   createEffect(() => {
     const handler = onMessage();
-    inputs.forEach((input) => input.addEventListener("midimessage", handler));
+    inputs.forEach((input) => {
+      input.addEventListener("midimessage", handler);
+    });
     onCleanup(() =>
-      inputs.forEach((input) =>
-        input.removeEventListener("midimessage", handler),
-      ),
+      inputs.forEach((input) => {
+        input.removeEventListener("midimessage", handler);
+      }),
     );
   });
-
-  return <></>;
 }

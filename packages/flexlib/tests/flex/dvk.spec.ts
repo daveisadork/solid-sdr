@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { createConnectedRadio, makeStatus } from "../helpers.js";
-import { createRadioStateStore } from "../../src/flex/state/index.js";
 import type { RadioStateChange } from "../../src/flex/state/index.js";
+import { createRadioStateStore } from "../../src/flex/state/index.js";
+import { createConnectedRadio, makeStatus } from "../helpers.js";
 
 describe("DVK snapshot", () => {
   it("parses global status updates", () => {

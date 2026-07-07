@@ -3,11 +3,11 @@ import { Show } from "solid-js";
 import useFlexRadio from "~/context/flexradio";
 import { useRuntime } from "~/context/runtime";
 import { networkQualityLabel } from "~/lib/network-telemetry";
+import { formatKbps } from "~/lib/utils";
 import { Badge } from "../ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { InfoItem } from "./common";
-import { formatKbps } from "~/lib/utils";
 
 function formatMs(value: number | null | undefined) {
   return value == null ? "--" : `${Math.round(value)} ms`;

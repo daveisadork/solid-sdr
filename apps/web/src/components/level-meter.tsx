@@ -1,4 +1,4 @@
-import useFlexRadio, { MeterState } from "~/context/flexradio";
+import * as MeterPrimitive from "@kobalte/core/meter";
 import {
   createEffect,
   createMemo,
@@ -7,12 +7,11 @@ import {
   onCleanup,
   Show,
   splitProps,
-  ValidComponent,
+  type ValidComponent,
 } from "solid-js";
-
-import * as MeterPrimitive from "@kobalte/core/meter";
-import { cn } from "~/lib/utils";
+import useFlexRadio, { type MeterState } from "~/context/flexradio";
 import { usePreferences } from "~/context/preferences";
+import { cn } from "~/lib/utils";
 
 const S9 = -73;
 const STOPS = [
@@ -124,7 +123,6 @@ export const LevelMeter = <T extends ValidComponent = "div">(
             preferences.sMeterEnabled
               ? dbmToSLabel(unscale(value))
               : `${Math.round(unscale(value))}dBm`;
-        case "peak":
         default:
           return () =>
             preferences.sMeterEnabled

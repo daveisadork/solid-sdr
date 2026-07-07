@@ -1,10 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { createMemorySnapshot } from "../../src/flex/state/memory.js";
-import { createRadioStateStore } from "../../src/flex/state/index.js";
-import { makeStatus } from "../helpers.js";
-import type { RadioStateChange } from "../../src/flex/state/index.js";
 import { FlexStateUnavailableError } from "../../src/flex/errors.js";
-import { createConnectedRadio } from "../helpers.js";
+import type { RadioStateChange } from "../../src/flex/state/index.js";
+import { createRadioStateStore } from "../../src/flex/state/index.js";
+import { createMemorySnapshot } from "../../src/flex/state/memory.js";
+import { createConnectedRadio, makeStatus } from "../helpers.js";
 
 describe("MemorySnapshot parser", () => {
   it("parses all wire attributes on first creation", () => {
@@ -51,7 +50,7 @@ describe("MemorySnapshot parser", () => {
     expect(snapshot.diglOffsetHz).toBe(0);
     expect(snapshot.diguOffsetHz).toBe(0);
     expect(diff.id).toBe("0");
-    expect(snapshot.raw["owner"]).toBe("KF0SMY");
+    expect(snapshot.raw.owner).toBe("KF0SMY");
   });
 
   it("incrementally updates from a previous snapshot", () => {

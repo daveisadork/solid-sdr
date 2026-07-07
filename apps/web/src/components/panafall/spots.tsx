@@ -1,35 +1,35 @@
+import { Key } from "@solid-primitives/keyed";
+import { createElementSize } from "@solid-primitives/resize-observer";
+import { throttle } from "@solid-primitives/scheduled";
+import { cva } from "class-variance-authority";
 import {
   createEffect,
   createMemo,
   createSignal,
   For,
-  JSX,
+  type JSX,
   onCleanup,
   Show,
   untrack,
 } from "solid-js";
 import useFlexRadio, {
-  SpotState,
   type PanadapterState,
+  type SpotState,
 } from "~/context/flexradio";
 import { usePanafall } from "~/context/panafall";
 import { usePreferences } from "~/context/preferences";
-import {
-  Tooltip,
-  TooltipArrow,
-  TooltipContent,
-  TooltipTrigger,
-} from "../ui/tooltip";
-import { Key } from "@solid-primitives/keyed";
-import { cva } from "class-variance-authority";
 import {
   Popover,
   PopoverArrow,
   PopoverContent,
   PopoverTrigger,
 } from "../ui/popover";
-import { createElementSize } from "@solid-primitives/resize-observer";
-import { throttle } from "@solid-primitives/scheduled";
+import {
+  Tooltip,
+  TooltipArrow,
+  TooltipContent,
+  TooltipTrigger,
+} from "../ui/tooltip";
 
 const FONT_SIZES = [
   "text-xs",

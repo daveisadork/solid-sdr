@@ -20,6 +20,7 @@
 export { FlexClient, type FlexClientOptions } from "./flex/flex-client.js";
 export { Radio } from "./flex/radio-core.js";
 export * from "./flex/transport.js";
+
 import { FlexClient } from "./flex/flex-client.js";
 import { NodeTransport } from "./flex/node-transport.js";
 

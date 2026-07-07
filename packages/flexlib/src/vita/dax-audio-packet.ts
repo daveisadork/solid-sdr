@@ -1,18 +1,18 @@
 // VITA-49 DAX audio packets for FlexRadio — stereo float32 and reduced-bandwidth mono int16
 
 import {
-  type VitaHeader,
-  type VitaClassId,
-  VitaPacketType,
-  VitaTimeStampIntegerType,
-  VitaTimeStampFractionalType,
-  writeBigUint64BE as writeU64,
-  writeHeaderBE,
-  writeClassIdBE,
   createPacketContext,
-  type VitaPacketContext,
-  VITA_FLEX_OUI,
   VITA_FLEX_INFO_CLASS,
+  VITA_FLEX_OUI,
+  type VitaClassId,
+  type VitaHeader,
+  type VitaPacketContext,
+  VitaPacketType,
+  VitaTimeStampFractionalType,
+  VitaTimeStampIntegerType,
+  writeClassIdBE,
+  writeHeaderBE,
+  writeBigUint64BE as writeU64,
 } from "./common";
 
 /** Packet class code for DAX stereo audio (float32 interleaved L/R). */
@@ -288,6 +288,8 @@ export class VitaDaxReducedBwPacket {
     }
 
     this.samples =
-      samplesOut.length === frames ? samplesOut : samplesOut.subarray(0, frames);
+      samplesOut.length === frames
+        ? samplesOut
+        : samplesOut.subarray(0, frames);
   }
 }

@@ -1,13 +1,13 @@
-export { CaptureBuffers } from "./buffers";
+export type { ReportInput, ReportMetaInput } from "./assemble";
+export { assembleReport } from "./assemble";
 export type {
-  CapturedMessage,
   CapturedLog,
+  CapturedMessage,
   Direction,
   LogLevel,
 } from "./buffers";
-export { installConsoleCapture } from "./console-capture";
+export { CaptureBuffers } from "./buffers";
 export { wrapTransport } from "./capture-transport";
-export { assembleReport } from "./assemble";
-export type { ReportInput, ReportMetaInput } from "./assemble";
+export { installConsoleCapture } from "./console-capture";
+export type { Category, ValueSetEntry } from "./sanitize";
 export { extractValueSet, sanitize } from "./sanitize";
-export type { ValueSetEntry, Category } from "./sanitize";

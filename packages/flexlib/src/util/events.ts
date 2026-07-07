@@ -22,7 +22,10 @@ export interface TypedEventEmitterOptions<TEvents extends object> {
 }
 
 export class TypedEventEmitter<TEvents extends object> {
-  private readonly listeners = new Map<EventKey<TEvents>, Set<Listener<unknown>>>();
+  private readonly listeners = new Map<
+    EventKey<TEvents>,
+    Set<Listener<unknown>>
+  >();
   private readonly options: TypedEventEmitterOptions<TEvents>;
 
   constructor(options: TypedEventEmitterOptions<TEvents> = {}) {

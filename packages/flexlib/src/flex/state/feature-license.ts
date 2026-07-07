@@ -96,9 +96,9 @@ function applyFeatureAttributes(
   partial: Mutable<Partial<FeatureLicenseSnapshot>>,
   previous?: FeatureLicenseSnapshot,
 ): void {
-  const name = attributes["name"];
-  const enabledValue = attributes["enabled"];
-  const reasonValue = attributes["reason"];
+  const name = attributes.name;
+  const enabledValue = attributes.enabled;
+  const reasonValue = attributes.reason;
   if (!name || enabledValue === undefined || !reasonValue) {
     logParseError("license", "feature", JSON.stringify(attributes));
     return;
@@ -133,13 +133,13 @@ function applySubscriptionAttributes(
   partial: Mutable<Partial<FeatureLicenseSnapshot>>,
   previous?: FeatureLicenseSnapshot,
 ): void {
-  const name = attributes["name"]?.toLowerCase();
+  const name = attributes.name?.toLowerCase();
   if (!name) {
-    logParseError("license", "subscription.name", attributes["name"] ?? "");
+    logParseError("license", "subscription.name", attributes.name ?? "");
     return;
   }
 
-  const expiration = parseExpiration(attributes["expiration"]);
+  const expiration = parseExpiration(attributes.expiration);
   const subscription: FeatureLicenseSubscription = Object.freeze({
     name,
     expiration,

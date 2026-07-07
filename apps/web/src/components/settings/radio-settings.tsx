@@ -1,13 +1,20 @@
+import * as NumberFieldPrimitive from "@kobalte/core/number-field";
+import * as TextFieldPrimitive from "@kobalte/core/text-field";
+import type {
+  ApdSamplerPort,
+  FilterPresetEntry,
+  FlexCommandRejectedError,
+  Radio,
+  RadioOscillatorSetting,
+} from "@repo/flexlib";
+import type { Mutable } from "@repo/flexlib/flex/state/common";
+import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
+import { createStore } from "solid-js/store";
+import useFlexRadio, { type FilterPresetState } from "~/context/flexradio";
+import Spinner from "~icons/svg-spinners/180-ring";
 import { usePreferences } from "../../context/preferences";
+import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
-import {
-  Dialog,
-  DialogTitle,
-  DialogHeader,
-  DialogContent,
-  DialogTrigger,
-  DialogFooter,
-} from "../ui/dialog";
 import {
   Card,
   CardContent,
@@ -15,40 +22,16 @@ import {
   CardHeader,
   CardTitle,
 } from "../ui/card";
-import { SimpleSwitch } from "../ui/simple-switch";
+import { Checkbox } from "../ui/checkbox";
+import { ConfirmButton } from "../ui/confirm-button";
 import {
-  SegmentedControl,
-  SegmentedControlGroup,
-  SegmentedControlIndicator,
-  SegmentedControlItem,
-  SegmentedControlItemLabel,
-  SegmentedControlItemsList,
-  SegmentedControlLabel,
-} from "../ui/segmented-control";
-import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
-import useFlexRadio, { FilterPresetState } from "~/context/flexradio";
-import type {
-  ApdSamplerPort,
-  FilterPresetEntry,
-  FlexCommandRejectedError,
-  Radio,
-} from "@repo/flexlib";
-import {
-  TextField,
-  TextFieldErrorMessage,
-  TextFieldInput,
-  TextFieldLabel,
-} from "../ui/text-field";
-import { SimpleSlider } from "../ui/simple-slider";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "../ui/select";
-import { createStore } from "solid-js/store";
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "../ui/dialog";
 import {
   NumberField,
   NumberFieldDecrementTrigger,
@@ -58,6 +41,26 @@ import {
   NumberFieldLabel,
 } from "../ui/number-field";
 import {
+  SegmentedControl,
+  SegmentedControlGroup,
+  SegmentedControlIndicator,
+  SegmentedControlItem,
+  SegmentedControlItemLabel,
+  SegmentedControlItemsList,
+  SegmentedControlLabel,
+} from "../ui/segmented-control";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
+import { SimpleSlider } from "../ui/simple-slider";
+import { SimpleSwitch } from "../ui/simple-switch";
+import { SliderToggle } from "../ui/slider-toggle";
+import {
   Table,
   TableBody,
   TableCell,
@@ -65,17 +68,14 @@ import {
   TableHeader,
   TableRow,
 } from "../ui/table";
-import { Checkbox } from "../ui/checkbox";
-import * as NumberFieldPrimitive from "@kobalte/core/number-field";
-import * as TextFieldPrimitive from "@kobalte/core/text-field";
-import Spinner from "~icons/svg-spinners/180-ring";
-import { RadioOscillatorSetting } from "@repo/flexlib";
-import { SliderToggle } from "../ui/slider-toggle";
-import { Badge } from "../ui/badge";
-import { InfoItem } from "./common";
-import { ConfirmButton } from "../ui/confirm-button";
-import { Mutable } from "@repo/flexlib/flex/state/common";
+import {
+  TextField,
+  TextFieldErrorMessage,
+  TextFieldInput,
+  TextFieldLabel,
+} from "../ui/text-field";
 import { showToastPromise } from "../ui/toast";
+import { InfoItem } from "./common";
 
 const ipv4Regex =
   /^(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)){3}$/;

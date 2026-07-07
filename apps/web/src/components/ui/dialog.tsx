@@ -1,8 +1,7 @@
-import type { Component, ComponentProps, JSX, ValidComponent } from "solid-js";
-import { Show, splitProps } from "solid-js";
-
 import * as DialogPrimitive from "@kobalte/core/dialog";
 import type { PolymorphicProps } from "@kobalte/core/polymorphic";
+import type { Component, ComponentProps, JSX, ValidComponent } from "solid-js";
+import { Show, splitProps } from "solid-js";
 
 import { cn } from "~/lib/utils";
 
@@ -152,10 +151,10 @@ const DialogDescription = <T extends ValidComponent = "p">(
 
 export {
   Dialog,
-  DialogTrigger,
   DialogContent,
-  DialogHeader,
-  DialogFooter,
-  DialogTitle,
   DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
 };

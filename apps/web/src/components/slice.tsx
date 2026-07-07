@@ -1,9 +1,10 @@
-import { createStore } from "solid-js/store";
-import useFlexRadio, {
-  MeterState,
-  PanadapterState,
-  SliceState,
-} from "~/context/flexradio";
+import type { PolymorphicProps } from "@kobalte/core";
+import { Trigger as SelectTriggerPrimitive } from "@kobalte/core/select";
+import { ToggleButton } from "@kobalte/core/toggle-button";
+import type { SliceController } from "@repo/flexlib";
+import { createElementBounds } from "@solid-primitives/bounds";
+import { createPointerListeners } from "@solid-primitives/pointer";
+import type { Component, ComponentProps, JSX, ValidComponent } from "solid-js";
 import {
   batch,
   createEffect,
@@ -14,46 +15,48 @@ import {
   Show,
   splitProps,
 } from "solid-js";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-  PopoverArrow,
-} from "~/components/ui/popover";
-
-import type { Component, ComponentProps, JSX, ValidComponent } from "solid-js";
-import { createPointerListeners } from "@solid-primitives/pointer";
-import { createElementBounds } from "@solid-primitives/bounds";
-import { onlyAncestorMutations } from "~/lib/element-bounds";
-import MaterialSymbolsChevronLeft from "~icons/material-symbols/chevron-left";
-import MaterialSymbolsChevronRight from "~icons/material-symbols/chevron-right";
-import MaterialSymbolsVolumeUp from "~icons/material-symbols/volume-up";
-import MaterialSymbolsVolumeOff from "~icons/material-symbols/volume-off";
-
-import SplitIcon from "~icons/material-symbols/split-scene-left-outline";
-import SwapIcon from "~icons/material-symbols/swap-horiz";
-import MdiLock from "~icons/material-symbols/lock-open-circle-outline";
-import MdiPlay from "~icons/mdi/play-circle-outline";
-import MdiRecord from "~icons/mdi/record-circle-outline";
-import MdiStop from "~icons/mdi/stop-circle-outline";
-import MdiClose from "~icons/mdi/close-circle-outline";
-import MdiSettings from "~icons/mdi/settings";
-import { Button } from "./ui/button";
+import { createStore } from "solid-js/store";
 import { Dynamic, Portal } from "solid-js/web";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectLabel,
-  SelectValue,
-  SelectTrigger,
-} from "./ui/select";
-
-import { Slider, SliderFill, SliderThumb, SliderTrack } from "./ui/slider";
-
-import { Trigger as SelectTriggerPrimitive } from "@kobalte/core/select";
-import { ToggleButton } from "@kobalte/core/toggle-button";
-import { ToggleGroup, ToggleGroupItem } from "./ui/toggle-group";
+  Popover,
+  PopoverArrow,
+  PopoverContent,
+  PopoverTrigger,
+} from "~/components/ui/popover";
+import { type SliceSelector, useControls } from "~/context/controls";
+import useFlexRadio, {
+  type MeterState,
+  type PanadapterState,
+  type SliceState,
+} from "~/context/flexradio";
+import { usePanafall } from "~/context/panafall";
+import { type SliceTxMeter, usePreferences } from "~/context/preferences";
+import { useRuntime } from "~/context/runtime";
+import { onlyAncestorMutations } from "~/lib/element-bounds";
+import { cn, degToRad, radToDeg, roundToDevicePixels } from "~/lib/utils";
+import MaterialSymbolsChevronLeft from "~icons/material-symbols/chevron-left";
+import MaterialSymbolsChevronRight from "~icons/material-symbols/chevron-right";
+import MdiLock from "~icons/material-symbols/lock-open-circle-outline";
+import SplitIcon from "~icons/material-symbols/split-scene-left-outline";
+import SwapIcon from "~icons/material-symbols/swap-horiz";
+import MaterialSymbolsVolumeOff from "~icons/material-symbols/volume-off";
+import MaterialSymbolsVolumeUp from "~icons/material-symbols/volume-up";
+import MdiClose from "~icons/mdi/close-circle-outline";
+import MdiPlay from "~icons/mdi/play-circle-outline";
+import MdiRecord from "~icons/mdi/record-circle-outline";
+import MdiSettings from "~icons/mdi/settings";
+import MdiStop from "~icons/mdi/stop-circle-outline";
+import { FrequencyInput } from "./frequency-input";
+import { LevelMeter } from "./level-meter";
+import { Button } from "./ui/button";
+import {
+  NumberField,
+  NumberFieldDecrementTrigger,
+  NumberFieldGroup,
+  NumberFieldIncrementTrigger,
+  NumberFieldInput,
+  NumberFieldLabel,
+} from "./ui/number-field";
 import {
   SegmentedControl,
   SegmentedControlGroup,
@@ -63,28 +66,21 @@ import {
   SegmentedControlItemsList,
   SegmentedControlLabel,
 } from "./ui/segmented-control";
-import { cn, degToRad, radToDeg, roundToDevicePixels } from "~/lib/utils";
-import { FrequencyInput } from "./frequency-input";
-import { SliderToggle } from "./ui/slider-toggle";
-import { SimpleSwitch } from "./ui/simple-switch";
-import { SimpleSlider } from "./ui/simple-slider";
 import {
-  NumberField,
-  NumberFieldDecrementTrigger,
-  NumberFieldGroup,
-  NumberFieldIncrementTrigger,
-  NumberFieldInput,
-  NumberFieldLabel,
-} from "./ui/number-field";
-import { LevelMeter } from "./level-meter";
-import { SliceController } from "@repo/flexlib";
-import { usePanafall } from "~/context/panafall";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
 import { Separator } from "./ui/separator";
-import { SliceTxMeter, usePreferences } from "~/context/preferences";
-import { useRuntime } from "~/context/runtime";
-import { SliceSelector, useControls } from "~/context/controls";
+import { SimpleSlider } from "./ui/simple-slider";
+import { SimpleSwitch } from "./ui/simple-switch";
+import { Slider, SliderFill, SliderThumb, SliderTrack } from "./ui/slider";
+import { SliderToggle } from "./ui/slider-toggle";
+import { ToggleGroup, ToggleGroupItem } from "./ui/toggle-group";
 import { TxMeter } from "./ui/tx-meter";
-import { PolymorphicProps } from "@kobalte/core";
 
 const FILTER_MAX_HZ = 12_000;
 const FILTER_MIN_HZ = -FILTER_MAX_HZ;
@@ -435,7 +431,7 @@ export function FilterControls(props: {
         -halfWidth + clamp + offset,
         halfWidth + clamp + offset,
       );
-    } else if (mode === "DIGL" || mode == "FDVL") {
+    } else if (mode === "DIGL" || mode === "FDVL") {
       const clamp = Math.max(offset, halfWidth) - offset;
       props.controller.setFilter(
         -halfWidth - clamp - offset,
@@ -476,7 +472,7 @@ export function FilterControls(props: {
       const clamp = Math.max(offset, -lowCut) - offset;
       return [lowCut + clamp + offset, highCut + clamp + offset];
     }
-    if (mode === "DIGL" || mode == "FDVL") {
+    if (mode === "DIGL" || mode === "FDVL") {
       const offset = props.slice.diglOffsetHz;
       const clamp = Math.max(offset, highCut) - offset;
       return [lowCut - clamp - offset, highCut - clamp - offset];

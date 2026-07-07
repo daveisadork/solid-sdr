@@ -17,11 +17,7 @@ export interface ValueSetEntry {
 }
 
 const MIN_VALUE_LENGTH = 4;
-const VALUE_DENYLIST = new Set([
-  "0.0.0.0",
-  "255.255.255.0",
-  "255.255.255.255",
-]);
+const VALUE_DENYLIST = new Set(["0.0.0.0", "255.255.255.0", "255.255.255.255"]);
 
 interface RawCollection {
   category: Category;
@@ -146,7 +142,9 @@ function collectMacs(state: unknown): string[] {
   const out: string[] = [];
   const radio = asString(getPath(state, ["status", "radio", "macAddress"]));
   if (radio) out.push(radio);
-  const license = asString(getPath(state, ["status", "featureLicense", "radioId"]));
+  const license = asString(
+    getPath(state, ["status", "featureLicense", "radioId"]),
+  );
   if (license) out.push(license);
   for (const r of eachRecordValue(getPath(state, ["discoveredRadios"]))) {
     const v = asString(r.radioLicenseId);

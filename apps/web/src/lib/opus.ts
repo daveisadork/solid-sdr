@@ -108,30 +108,4 @@ export class OpusPlayer {
     src.start(when);
     this.playheadTime = when + buffer.duration;
   }
-
-  /** Minimal OpusHead blob for WebCodecs description. */
-  private static makeOpusHead(
-    channels: number,
-    inputSampleRate: number,
-  ): ArrayBuffer {
-    // RFC 7845 §5.1 (mapping=0): 19 bytes
-    const b = new Uint8Array(19);
-    b.set([0x4f, 0x70, 0x75, 0x73, 0x48, 0x65, 0x61, 0x64], 0); // "OpusHead"
-    b[8] = 1; // version
-    b[9] = channels & 0xff; // channel count
-    // pre-skip (LE). If you know your encoder pre-skip, set it; 0 keeps latency simplest.
-    b[10] = 0;
-    b[11] = 0;
-    // input sample rate (LE)
-    b[12] = inputSampleRate & 0xff;
-    b[13] = (inputSampleRate >> 8) & 0xff;
-    b[14] = (inputSampleRate >> 16) & 0xff;
-    b[15] = (inputSampleRate >> 24) & 0xff;
-    // output gain (Q7.8, LE)
-    b[16] = 0;
-    b[17] = 0;
-    // channel mapping (0 = single stream, RTP order)
-    b[18] = 0;
-    return b.buffer;
-  }
 }

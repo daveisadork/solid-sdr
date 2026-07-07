@@ -1,13 +1,9 @@
-import { TypedEventEmitter, type Subscription } from "../util/events.js";
-import { FlexStateUnavailableError } from "./errors.js";
-import type {
-  ApdSamplerPort,
-  ApdSnapshot,
-  ApdTxAntenna,
-} from "./state/apd.js";
-import type { ApdStateChange } from "./state/index.js";
+import { type Subscription, TypedEventEmitter } from "../util/events.js";
 import { formatBooleanFlag } from "./controller-helpers.js";
+import { FlexStateUnavailableError } from "./errors.js";
 import type { RadioSession } from "./radio-core.js";
+import type { ApdSamplerPort, ApdSnapshot, ApdTxAntenna } from "./state/apd.js";
+import type { ApdStateChange } from "./state/index.js";
 
 export interface ApdControllerEvents {
   readonly change: ApdStateChange;

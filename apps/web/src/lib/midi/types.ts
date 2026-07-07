@@ -1,4 +1,4 @@
-import { ControlTarget, SliceSelector } from "~/context/controls";
+import type { ControlTarget, SliceSelector } from "~/context/controls";
 
 export enum MIDICommand {
   NoteOff = 8,

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { decodeDiscoveryPayload } from "../../src/flex/discovery.js";
 import type { FlexRadioDescriptor } from "../../src/flex/adapters.js";
+import { decodeDiscoveryPayload } from "../../src/flex/discovery.js";
 import { parseVitaPacket } from "../../src/vita/parser.js";
 
 function loadPacket(filename: string): Uint8Array {
@@ -14,7 +14,7 @@ function loadPacket(filename: string): Uint8Array {
 
 function parseDescriptorFromPacket(data: Uint8Array): FlexRadioDescriptor {
   const parsed = parseVitaPacket(data);
-  if (!parsed || parsed.kind !== "discovery") {
+  if (parsed?.kind !== "discovery") {
     throw new Error("Not a discovery packet");
   }
   return decodeDiscoveryPayload(parsed.payload, Date.now());

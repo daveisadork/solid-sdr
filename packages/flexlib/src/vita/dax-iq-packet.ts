@@ -2,15 +2,15 @@
 // scaled by 1/32768 to match the official ONE_OVER_ZERO_DBFS reference.
 
 import {
-  type VitaHeader,
-  type VitaClassId,
-  VitaPacketType,
-  VitaTimeStampIntegerType,
-  VitaTimeStampFractionalType,
   createPacketContext,
-  type VitaPacketContext,
-  VITA_FLEX_OUI,
   VITA_FLEX_INFO_CLASS,
+  VITA_FLEX_OUI,
+  type VitaClassId,
+  type VitaHeader,
+  type VitaPacketContext,
+  VitaPacketType,
+  VitaTimeStampFractionalType,
+  VitaTimeStampIntegerType,
 } from "./common";
 
 /** DAX IQ packet class codes (one per supported sample rate). */

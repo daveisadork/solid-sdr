@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { FlexClient } from "../../src/flex/flex-client.js";
 import { FlexCommandRejectedError } from "../../src/flex/errors.js";
+import { FlexClient } from "../../src/flex/flex-client.js";
 import { MockFlexTransport } from "../helpers.js";
 
 describe("FlexClient", () => {

@@ -58,7 +58,9 @@ describe("APD controller", () => {
     expect(controller.equalizerActive).toBe(false);
 
     await controller.setSamplerPort("ANT1", "XVTA");
-    expect(connection.lastCommand()).toBe("apd sampler tx_ant=ANT1 sample_port=XVTA");
+    expect(connection.lastCommand()).toBe(
+      "apd sampler tx_ant=ANT1 sample_port=XVTA",
+    );
     expect(controller.selectedSamplerPortAnt1).toBe("XVTA");
   });
 });

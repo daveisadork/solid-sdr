@@ -81,7 +81,7 @@ export function createDvkSnapshot(
   const isDeleted = "deleted" in attributes;
 
   if (isAdded || isDeleted) {
-    const recId = attributes["id"];
+    const recId = attributes.id;
     if (recId) {
       const prevRecordings = previous?.recordings ?? EMPTY_RECORDINGS;
       if (isDeleted) {
@@ -90,8 +90,8 @@ export function createDvkSnapshot(
           partial.recordings = Object.freeze(filtered);
         }
       } else {
-        const name = attributes["name"] ?? "";
-        const durationMs = parseInteger(attributes["duration"]) ?? 0;
+        const name = attributes.name ?? "";
+        const durationMs = parseInteger(attributes.duration) ?? 0;
         const existing = prevRecordings.findIndex((r) => r.id === recId);
         const recording: DvkRecording = Object.freeze({
           id: recId,

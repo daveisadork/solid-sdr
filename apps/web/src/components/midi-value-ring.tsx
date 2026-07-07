@@ -1,5 +1,5 @@
 import { createEffect, createSignal, onCleanup, Show } from "solid-js";
-import { ParsedMidiMessage } from "~/lib/midi";
+import type { ParsedMidiMessage } from "~/lib/midi";
 
 const SIZE = 120;
 const STROKE = 16;

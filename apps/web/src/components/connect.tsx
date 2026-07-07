@@ -1,10 +1,20 @@
+import * as ButtonPrimitive from "@kobalte/core/button";
+import { getModelInfo } from "@repo/flexlib";
+import { Key } from "@solid-primitives/keyed";
 import {
-  ComponentProps,
+  type ComponentProps,
   createEffect,
   createSignal,
   For,
   Show,
 } from "solid-js";
+import { Dynamic } from "solid-js/web";
+import useFlexRadio, { ConnectionState } from "~/context/flexradio";
+import MdiCheckNetworkOutline from "~icons/mdi/check-network-outline";
+import MdiCloseNetworkOutline from "~icons/mdi/close-network-outline";
+import MdiMinusNetworkOutline from "~icons/mdi/minus-network-outline";
+import MdiPlusNetworkOutline from "~icons/mdi/plus-network-outline";
+import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import {
@@ -14,16 +24,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "./ui/dialog";
-import { Skeleton } from "./ui/skeleton";
-import useFlexRadio, { ConnectionState } from "~/context/flexradio";
-import { ProgressCircle } from "./ui/progress-circle";
-import { getModelInfo } from "@repo/flexlib";
-import { Badge } from "./ui/badge";
-import MdiCheckNetworkOutline from "~icons/mdi/check-network-outline";
-import MdiCloseNetworkOutline from "~icons/mdi/close-network-outline";
-import MdiPlusNetworkOutline from "~icons/mdi/plus-network-outline";
-import MdiMinusNetworkOutline from "~icons/mdi/minus-network-outline";
-import * as ButtonPrimitive from "@kobalte/core/button";
 import {
   DropdownMenu,
   DropdownMenuArrow,
@@ -33,8 +33,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
-import { Key } from "@solid-primitives/keyed";
-import { Dynamic } from "solid-js/web";
+import { ProgressCircle } from "./ui/progress-circle";
+import { Skeleton } from "./ui/skeleton";
 
 const STATUS_MAP: Record<string, ComponentProps<typeof Badge>["variant"]> = {
   Available: "success",

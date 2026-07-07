@@ -1,29 +1,4 @@
-import {
-  FillStyle,
-  PanadapterSettingsStyle,
-  PeakStyle,
-  usePreferences,
-} from "../../context/preferences";
-import { APP_VERSION } from "~/lib/version";
-import { InfoItem } from "./common";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "../ui/card";
-import { SimpleSwitch } from "../ui/simple-switch";
-import {
-  SegmentedControl,
-  SegmentedControlGroup,
-  SegmentedControlIndicator,
-  SegmentedControlItem,
-  SegmentedControlItemLabel,
-  SegmentedControlItemsList,
-  SegmentedControlLabel,
-} from "../ui/segmented-control";
+import { useColorMode } from "@kobalte/core";
 import {
   createEffect,
   createMemo,
@@ -33,15 +8,30 @@ import {
   onCleanup,
   Show,
 } from "solid-js";
-import { useColorMode } from "@kobalte/core";
-import {
-  TextField,
-  TextFieldDescription,
-  TextFieldInput,
-  TextFieldLabel,
-} from "../ui/text-field";
+import { reconcile } from "solid-js/store";
 import useFlexRadio from "~/context/flexradio";
 import { useRtc } from "~/context/rtc";
+import { APP_VERSION } from "~/lib/version";
+import Download from "~icons/material-symbols/download";
+import MaterialSymbolsLicense from "~icons/material-symbols/license";
+import Upload from "~icons/material-symbols/upload";
+import MdiGithub from "~icons/mdi/github";
+import {
+  type FillStyle,
+  type PanadapterSettingsStyle,
+  type PeakStyle,
+  usePreferences,
+} from "../../context/preferences";
+import { Button } from "../ui/button";
+import { Callout, CalloutContent, CalloutTitle } from "../ui/callout";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "../ui/card";
 import {
   Dialog,
   DialogContent,
@@ -50,11 +40,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "../ui/dialog";
-import { SimpleSlider } from "../ui/simple-slider";
-import Upload from "~icons/material-symbols/upload";
-import Download from "~icons/material-symbols/download";
-import { Button } from "../ui/button";
-import { Callout, CalloutContent, CalloutTitle } from "../ui/callout";
 import {
   FileField,
   FileFieldDropzone,
@@ -64,10 +49,25 @@ import {
   FileFieldItemName,
   FileFieldItemSize,
 } from "../ui/file-field";
-import { reconcile } from "solid-js/store";
+import {
+  SegmentedControl,
+  SegmentedControlGroup,
+  SegmentedControlIndicator,
+  SegmentedControlItem,
+  SegmentedControlItemLabel,
+  SegmentedControlItemsList,
+  SegmentedControlLabel,
+} from "../ui/segmented-control";
+import { SimpleSlider } from "../ui/simple-slider";
+import { SimpleSwitch } from "../ui/simple-switch";
+import {
+  TextField,
+  TextFieldDescription,
+  TextFieldInput,
+  TextFieldLabel,
+} from "../ui/text-field";
 import { showToast } from "../ui/toast";
-import MdiGithub from "~icons/mdi/github";
-import MaterialSymbolsLicense from "~icons/material-symbols/license";
+import { InfoItem } from "./common";
 
 const LicenseInfo = () => {
   const [open, setOpen] = createSignal(false);
@@ -189,7 +189,11 @@ export function AppSettings() {
           </CardHeader>
           <CardContent class="flex flex-col gap-2 text-sm">
             <Show when={newRelease()}>
-              <a href={currentRelease().html_url} target="_blank">
+              <a
+                href={currentRelease().html_url}
+                target="_blank"
+                rel="noopener"
+              >
                 <Callout>
                   <CalloutTitle>
                     SolidSDR {currentRelease().name} is available!

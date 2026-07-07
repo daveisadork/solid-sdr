@@ -171,14 +171,14 @@ function applySamplerAttributes(
   partial: Mutable<Partial<ApdSnapshot>>,
   previous?: ApdSnapshot,
 ): void {
-  const txAntenna = attributes["tx_ant"]?.toUpperCase();
+  const txAntenna = attributes.tx_ant?.toUpperCase();
   if (!txAntenna) return;
 
   const samplerState = resolveSamplerState(txAntenna, previous);
   if (!samplerState) return;
 
   const nextAvailable = normalizeAvailableSamplerPorts(
-    attributes["valid_samplers"],
+    attributes.valid_samplers,
     samplerState.available,
   );
   if (!arraysShallowEqual(samplerState.available, nextAvailable)) {
@@ -189,12 +189,13 @@ function applySamplerAttributes(
 
   if ("selected_sampler" in attributes) {
     const selected = normalizeSelectedSamplerPort(
-      attributes["selected_sampler"],
+      attributes.selected_sampler,
       nextAvailable,
       "valid_samplers" in attributes,
     );
     if (selected !== samplerState.selected) {
-      partial[samplerState.selectedKey] = selected as ApdSnapshot[typeof samplerState.selectedKey];
+      partial[samplerState.selectedKey] =
+        selected as ApdSnapshot[typeof samplerState.selectedKey];
     }
   }
 }

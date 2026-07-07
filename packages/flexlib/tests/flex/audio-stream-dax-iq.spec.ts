@@ -1,10 +1,7 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { DaxIqAudioStreamControllerImpl } from "../../src/flex/audio-stream";
 
-function fakeRadio(opts: {
-  daxIqSampleRates: number[];
-  model?: string;
-}): any {
+function fakeRadio(opts: { daxIqSampleRates: number[]; model?: string }): any {
   return {
     modelInfo: {
       daxIqSampleRates: opts.daxIqSampleRates,
@@ -26,7 +23,9 @@ function fakeRadio(opts: {
 
 describe("DaxIqAudioStreamControllerImpl.setSampleRate", () => {
   it("sends the wire command for a supported rate", async () => {
-    const radio = fakeRadio({ daxIqSampleRates: [24000, 48000, 96000, 192000] });
+    const radio = fakeRadio({
+      daxIqSampleRates: [24000, 48000, 96000, 192000],
+    });
     const ctrl = new DaxIqAudioStreamControllerImpl(radio, "0x05000001");
     await ctrl.setSampleRate(96000);
     expect(radio.command).toHaveBeenCalledWith(

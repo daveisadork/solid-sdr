@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { FlexStateUnavailableError } from "../../src/flex/errors.js";
 import { scaleMeterRawValue } from "../../src/flex/meter.js";
-import { createConnectedRadio } from "../helpers.js";
 import type { RadioStateChange } from "../../src/flex/state/index.js";
+import { createConnectedRadio } from "../helpers.js";
 
 describe("Meter controller", () => {
   it("tracks meter state and emits change events", async () => {

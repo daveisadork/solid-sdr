@@ -3,9 +3,9 @@ import {
   freezeAttributes,
   logParseError,
   logUnknownAttribute,
+  parseArgb,
   parseFloatSafe,
   parseInteger,
-  parseArgb,
 } from "./common.js";
 
 /**

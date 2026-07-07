@@ -1,3 +1,6 @@
+import type { FlexStatusMessage } from "../src/flex/protocol.js";
+import { parseFlexMessage } from "../src/flex/protocol.js";
+import { Radio } from "../src/flex/radio-core.js";
 import type {
   FileDownloadReceiver,
   FlexConnection,
@@ -8,9 +11,6 @@ import type {
 } from "../src/flex/transport.js";
 import type { Subscription } from "../src/util/events.js";
 import { TypedEventEmitter } from "../src/util/events.js";
-import type { FlexStatusMessage } from "../src/flex/protocol.js";
-import { parseFlexMessage } from "../src/flex/protocol.js";
-import { Radio } from "../src/flex/radio-core.js";
 
 // ---------------------------------------------------------------------------
 // Mock FlexConnection
@@ -102,7 +102,9 @@ export class MockFlexConnection
     }
   }
 
-  async prepareDownload(_endpoint: RadioEndpoint): Promise<FileDownloadReceiver> {
+  async prepareDownload(
+    _endpoint: RadioEndpoint,
+  ): Promise<FileDownloadReceiver> {
     if (this.downloadReceiver) return this.downloadReceiver;
     // Default stub: accept is a no-op; result never resolves (tests must supply a receiver)
     return {
@@ -120,7 +122,7 @@ export class MockFlexConnection
 
   /** Emit a raw TCP line (appends newline if missing). */
   emitTcpLine(line: string): void {
-    const data = line.endsWith("\n") ? line : line + "\n";
+    const data = line.endsWith("\n") ? line : `${line}\n`;
     this.emit("tcpData", data);
   }
 
@@ -233,13 +235,11 @@ export const DEFAULT_DESCRIPTOR = {
  * The mock auto-responds to handshake commands with success.
  * Returns the radio and mock connection for emitting status lines.
  */
-export async function createConnectedRadio(
-  options?: {
-    serial?: string;
-    host?: string;
-    port?: number;
-  },
-): Promise<{ radio: Radio; connection: MockFlexConnection }> {
+export async function createConnectedRadio(options?: {
+  serial?: string;
+  host?: string;
+  port?: number;
+}): Promise<{ radio: Radio; connection: MockFlexConnection }> {
   const transport = new MockFlexTransport();
   const radio = new Radio(
     options?.serial ?? DEFAULT_DESCRIPTOR.serial,
@@ -261,7 +261,7 @@ export async function createConnectedRadio(
 /** Parse a raw status string into a FlexStatusMessage. Throws if invalid. */
 export function makeStatus(raw: string): FlexStatusMessage {
   const parsed = parseFlexMessage(raw, Date.now());
-  if (!parsed || parsed.kind !== "status")
+  if (parsed?.kind !== "status")
     throw new Error(`failed to parse status: ${raw}`);
   return parsed;
 }

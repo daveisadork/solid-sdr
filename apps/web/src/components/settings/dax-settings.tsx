@@ -1,8 +1,17 @@
-import { usePreferences } from "../../context/preferences";
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-import { SimpleSwitch } from "../ui/simple-switch";
+import { createMicrophones, createSpeakers } from "@solid-primitives/devices";
 import { createEffect, For, Match, Show, Switch } from "solid-js";
+import { Dynamic } from "solid-js/web";
+import { useAudio } from "~/context/audio";
 import useFlexRadio from "~/context/flexradio";
+import type { DaxChannelMode } from "~/lib/dax-audio-sink/types";
+import { createPermission } from "~/lib/permission";
+import Stereo from "~icons/qlementine-icons/stereo-16";
+import Left from "~icons/qlementine-icons/stereo-left-16";
+import Right from "~icons/qlementine-icons/stereo-right-16";
+import { usePreferences } from "../../context/preferences";
+import { AudioLevelMeter } from "../ui/audio-level-meter";
+import { Callout, CalloutContent, CalloutTitle } from "../ui/callout";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import {
   Select,
@@ -12,23 +21,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
-import { DaxChannelMode } from "~/lib/dax-audio-sink/types";
-import { createMicrophones, createSpeakers } from "@solid-primitives/devices";
-import { Dynamic } from "solid-js/web";
-import Left from "~icons/qlementine-icons/stereo-left-16";
-import Right from "~icons/qlementine-icons/stereo-right-16";
-import Stereo from "~icons/qlementine-icons/stereo-16";
+import { SimpleSlider } from "../ui/simple-slider";
+import { SimpleSwitch } from "../ui/simple-switch";
 import {
-  Switch as SwitchRoot,
   SwitchControl,
   SwitchLabel,
+  Switch as SwitchRoot,
   SwitchThumb,
 } from "../ui/switch";
-import { useAudio } from "~/context/audio";
-import { AudioLevelMeter } from "../ui/audio-level-meter";
-import { Callout, CalloutContent, CalloutTitle } from "../ui/callout";
-import { createPermission } from "~/lib/permission";
-import { SimpleSlider } from "../ui/simple-slider";
 
 const CHANNEL_MODE_ICONS = {
   left: Left,

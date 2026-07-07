@@ -1,3 +1,5 @@
+import { type ComponentProps, type JSX, Show, splitProps } from "solid-js";
+import { cn } from "../../lib/utils";
 import {
   Switch,
   SwitchControl,
@@ -6,8 +8,6 @@ import {
   SwitchThumb,
 } from "./switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip";
-import { ComponentProps, JSX, Show, splitProps } from "solid-js";
-import { cn } from "../../lib/utils";
 
 type TooltipProps = ComponentProps<typeof Tooltip>;
 

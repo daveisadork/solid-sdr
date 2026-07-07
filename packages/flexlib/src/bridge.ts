@@ -22,11 +22,12 @@
 export { FlexClient, type FlexClientOptions } from "./flex/flex-client.js";
 export { Radio } from "./flex/radio-core.js";
 export * from "./flex/transport.js";
-import { FlexClient } from "./flex/flex-client.js";
+
 import {
-  BridgeTransport,
   type BridgePeerConnection,
+  BridgeTransport,
 } from "./flex/bridge-transport.js";
+import { FlexClient } from "./flex/flex-client.js";
 
 /**
  * Create a FlexClient pre-wired with WebRTC bridge transport.
@@ -41,5 +42,5 @@ export function createFlexClient(
   });
 }
 
-export { BridgeTransport } from "./flex/bridge-transport.js";
 export type { BridgePeerConnection } from "./flex/bridge-transport.js";
+export { BridgeTransport } from "./flex/bridge-transport.js";

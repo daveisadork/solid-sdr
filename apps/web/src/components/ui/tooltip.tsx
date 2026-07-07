@@ -1,8 +1,7 @@
-import type { ValidComponent } from "solid-js";
-import { splitProps, type Component } from "solid-js";
-
 import type { PolymorphicProps } from "@kobalte/core/polymorphic";
 import * as TooltipPrimitive from "@kobalte/core/tooltip";
+import type { ValidComponent } from "solid-js";
+import { type Component, splitProps } from "solid-js";
 
 import { cn } from "~/lib/utils";
 
@@ -33,4 +32,4 @@ const TooltipContent = <T extends ValidComponent = "div">(
   );
 };
 
-export { Tooltip, TooltipTrigger, TooltipContent, TooltipArrow };
+export { Tooltip, TooltipArrow, TooltipContent, TooltipTrigger };

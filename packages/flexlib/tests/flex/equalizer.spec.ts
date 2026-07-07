@@ -29,9 +29,7 @@ describe("Equalizer controller", () => {
 
     // when setLevels is called with multiple bands (values clamped to [-10, 10])
     await controller.setLevels({ "250Hz": -12, "4000Hz": 15 });
-    expect(connection.lastCommand()).toBe(
-      "eq txsc 250Hz=-10 4000Hz=10",
-    );
+    expect(connection.lastCommand()).toBe("eq txsc 250Hz=-10 4000Hz=10");
     expect(controller.bands["250Hz"]).toBe(-10);
     expect(controller.bands["4000Hz"]).toBe(10);
 

@@ -3,14 +3,14 @@ import {
   VitaDaxAudioPacket,
   VitaDaxReducedBwPacket,
 } from "@repo/flexlib";
-import {
-  DAX_AUDIO_RING_FRAMES as RING_FRAMES,
-  DAX_AUDIO_SAMPLE_RATE as SAMPLE_RATE,
-  type DaxChannelMode,
-  type SinkMessage,
-} from "./types";
 import sabWorkletURL from "../sab-ring-sink.worklet.ts?worker&url";
 import sinkWorkerURL from "./dax-audio-sink.worker.ts?worker&url";
+import {
+  type DaxChannelMode,
+  DAX_AUDIO_RING_FRAMES as RING_FRAMES,
+  DAX_AUDIO_SAMPLE_RATE as SAMPLE_RATE,
+  type SinkMessage,
+} from "./types";
 
 // const sinkWorkerURL = new URL("./dax-audio-sink.worker.ts", import.meta.url);
 

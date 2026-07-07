@@ -1,11 +1,11 @@
-import { describe, it, expect, vi } from "vitest";
-import { createConnectedRadio } from "../helpers.js";
-import type { FileDownloadReceiver } from "../../src/flex/transport.js";
+import { describe, expect, it, vi } from "vitest";
 import {
-  toAsyncIterable,
   resolveTotalBytes,
+  toAsyncIterable,
   type UploadFileOptions,
 } from "../../src/flex/file-transfer.js";
+import type { FileDownloadReceiver } from "../../src/flex/transport.js";
+import { createConnectedRadio } from "../helpers.js";
 
 // ---------------------------------------------------------------------------
 // toAsyncIterable
@@ -75,10 +75,16 @@ describe("Radio.uploadFile", () => {
     connection.prepareResponse("file upload", { message: "4995" });
 
     const data = new Uint8Array([0xde, 0xad]);
-    await radio.uploadFile({ filename: "test.wfp", target: "new_waveform", data });
+    await radio.uploadFile({
+      filename: "test.wfp",
+      target: "new_waveform",
+      data,
+    });
 
     expect(connection.commands).toContain("file filename test.wfp");
-    const uploadCmd = connection.commands.find((c) => c.startsWith("file upload"));
+    const uploadCmd = connection.commands.find((c) =>
+      c.startsWith("file upload"),
+    );
     expect(uploadCmd).toBe("file upload 2 new_waveform");
   });
 
@@ -86,10 +92,18 @@ describe("Radio.uploadFile", () => {
     const { radio, connection } = await createConnectedRadio();
     connection.prepareResponse("file upload", { message: "4995" });
 
-    await radio.uploadFile({ filename: "my.wfp", target: "waveform_docker_image", data: new Uint8Array(2) });
+    await radio.uploadFile({
+      filename: "my.wfp",
+      target: "waveform_docker_image",
+      data: new Uint8Array(2),
+    });
 
-    expect(connection.commands.some((c) => c.startsWith("file filename"))).toBe(false);
-    const uploadCmd = connection.commands.find((c) => c.startsWith("file upload"));
+    expect(connection.commands.some((c) => c.startsWith("file filename"))).toBe(
+      false,
+    );
+    const uploadCmd = connection.commands.find((c) =>
+      c.startsWith("file upload"),
+    );
     expect(uploadCmd).toBe("file upload 2 waveform_docker_image my.wfp");
   });
 
@@ -99,7 +113,9 @@ describe("Radio.uploadFile", () => {
 
     await radio.uploadFile({ target: "update", data: new Uint8Array(1) });
 
-    expect(connection.commands.some((c) => c.startsWith("file filename"))).toBe(false);
+    expect(connection.commands.some((c) => c.startsWith("file filename"))).toBe(
+      false,
+    );
   });
 
   it("streams bytes to the transport", async () => {
@@ -111,7 +127,9 @@ describe("Radio.uploadFile", () => {
 
     await new Promise<void>((resolve) => upload.on("done", () => resolve()));
 
-    const received = Buffer.concat(connection.uploadedChunks.map((c) => Buffer.from(c)));
+    const received = Buffer.concat(
+      connection.uploadedChunks.map((c) => Buffer.from(c)),
+    );
     expect(received).toEqual(Buffer.from(data));
   });
 
@@ -119,7 +137,10 @@ describe("Radio.uploadFile", () => {
     const { radio, connection } = await createConnectedRadio();
     connection.prepareResponse("file upload", { message: "4995" });
 
-    const upload = await radio.uploadFile({ target: "update", data: new Uint8Array(1) });
+    const upload = await radio.uploadFile({
+      target: "update",
+      data: new Uint8Array(1),
+    });
 
     const progress: number[] = [];
     upload.on("progress", (p) => progress.push(p));
@@ -134,7 +155,10 @@ describe("Radio.uploadFile", () => {
     const { radio, connection } = await createConnectedRadio();
     connection.prepareResponse("file upload", { message: "4995" });
 
-    const upload = await radio.uploadFile({ target: "update", data: new Uint8Array(1) });
+    const upload = await radio.uploadFile({
+      target: "update",
+      data: new Uint8Array(1),
+    });
 
     const failures: Array<{ reason?: string }> = [];
     upload.on("failed", (f) => failures.push(f));

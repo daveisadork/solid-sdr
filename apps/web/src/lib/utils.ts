@@ -104,7 +104,7 @@ export async function loadGradientPNG(
 }
 
 export function dbmToWatts(dbm: number, decimalPlaces?: number) {
-  const watts = Math.pow(10, (dbm - 30) / 10);
+  const watts = 10 ** ((dbm - 30) / 10);
   return roundToDecimals(watts, decimalPlaces);
 }
 

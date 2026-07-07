@@ -1,3 +1,4 @@
+import type { VitaWaterfallPacket, WaterfallController } from "@repo/flexlib";
 import { createElementSize } from "@solid-primitives/resize-observer";
 import {
   batch,
@@ -7,13 +8,12 @@ import {
   onCleanup,
   Show,
 } from "solid-js";
-import { type PanadapterState, type WaterfallState } from "~/context/flexradio";
-import { LinearScale } from "../linear-scale";
-import type { VitaWaterfallPacket, WaterfallController } from "@repo/flexlib";
-import { usePreferences } from "~/context/preferences";
+import type { PanadapterState, WaterfallState } from "~/context/flexradio";
 import { usePanafall } from "~/context/panafall";
-import { roundToDevicePixels } from "~/lib/utils";
+import { usePreferences } from "~/context/preferences";
 import { useRuntime } from "~/context/runtime";
+import { roundToDevicePixels } from "~/lib/utils";
+import { LinearScale } from "../linear-scale";
 
 export function Waterfall(props: {
   waterfall: WaterfallState;
@@ -57,7 +57,7 @@ export function Waterfall(props: {
     // translate the configured color gain into a colorMax value
     const colorGain = props.waterfall.colorGain;
     const range = 1 - colorMin();
-    const gain = Math.pow(1 - colorGain / 100, 3);
+    const gain = (1 - colorGain / 100) ** 3;
     setColorMax(colorMin() + range * gain);
   });
 
@@ -285,12 +285,12 @@ export function Waterfall(props: {
           const idx = (bins[x] / paletteDivisor) | 0; // 0..4095
           stripRow![x] = pal32[idx];
         }
-        strip32!.set(stripRow!, 0);
+        strip32?.set(stripRow!, 0);
         let filled = w;
         const total = w * h;
         while (filled < total) {
           const copyCount = Math.min(filled, total - filled);
-          strip32!.copyWithin(filled, 0, copyCount);
+          strip32?.copyWithin(filled, 0, copyCount);
           filled += copyCount;
         }
 

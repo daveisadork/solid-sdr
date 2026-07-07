@@ -19,7 +19,7 @@ class DaxIqSinkWorker {
   private lastSeqExt = -1;
 
   onMessage(m: SinkMessage): void {
-    if (!m || !m.type) return;
+    if (!m?.type) return;
     if (m.type === "init") {
       this.channels = m.channels | 0;
       this.framesCap = m.framesPerChannel | 0;

@@ -8,41 +8,9 @@
  * @module
  */
 
-import { TypedEventEmitter, type Subscription } from "../util/events.js";
-import type {
-  FlexConnection,
-  FlexTransport,
-  RadioEndpoint,
-} from "./transport.js";
-import type { Logger, FlexRadioDescriptor } from "./adapters.js";
-import type {
-  FlexWireMessage,
-  FlexStatusMessage,
-  FlexReplyMessage,
-  FlexReplyCodeLevel,
-  FlexNoticeMessage,
-} from "./protocol.js";
-import { parseFlexMessage } from "./protocol.js";
-import {
-  createRadioStateStore,
-  type RadioStateStore,
-  type RadioStateSnapshot,
-  type RadioStateChange,
-  type RadioSnapshot,
-  type RadioCwIambicMode,
-  type RadioFilterSharpnessMode,
-  type RadioOscillatorSetting,
-  type RadioStatusContext,
-} from "./state/index.js";
-import { FlexClientClosedError, FlexCommandRejectedError } from "./errors.js";
-import { FlexError } from "./errors.js";
-import { describeResponseCode } from "./response-codes.js";
-import {
-  buildRadioListAttributes,
-  parseRadioInfoReply,
-  parseRadioVersionReply,
-} from "./radio-replies.js";
+import { type Subscription, TypedEventEmitter } from "../util/events.js";
 import { parseBooleanFlag } from "../util/parsers.js";
+import type { FlexRadioDescriptor, Logger } from "./adapters.js";
 import {
   clampInteger,
   ensureFinite,
@@ -50,6 +18,41 @@ import {
   formatMegahertz,
   toInteger,
 } from "./controller-helpers.js";
+import {
+  FlexClientClosedError,
+  FlexCommandRejectedError,
+  FlexError,
+} from "./errors.js";
+import type {
+  FlexNoticeMessage,
+  FlexReplyCodeLevel,
+  FlexReplyMessage,
+  FlexStatusMessage,
+  FlexWireMessage,
+} from "./protocol.js";
+import { parseFlexMessage } from "./protocol.js";
+import {
+  buildRadioListAttributes,
+  parseRadioInfoReply,
+  parseRadioVersionReply,
+} from "./radio-replies.js";
+import { describeResponseCode } from "./response-codes.js";
+import {
+  createRadioStateStore,
+  type RadioCwIambicMode,
+  type RadioFilterSharpnessMode,
+  type RadioOscillatorSetting,
+  type RadioSnapshot,
+  type RadioStateChange,
+  type RadioStateSnapshot,
+  type RadioStateStore,
+  type RadioStatusContext,
+} from "./state/index.js";
+import type {
+  FlexConnection,
+  FlexTransport,
+  RadioEndpoint,
+} from "./transport.js";
 export interface RadioRequestSliceOptions {
   /** Panadapter stream id that should host the new slice, e.g. "0x40000000". */
   readonly panadapterStreamId?: string;
@@ -62,97 +65,98 @@ export interface RadioRequestSliceOptions {
   /** Restores persisted slice settings when available. */
   readonly loadPersistence?: boolean;
 }
-import { type SliceController, SliceControllerImpl } from "./slice.js";
+
+import { VitaMeterPacket } from "../vita/meter-packet.js";
 import {
-  type PanadapterController,
-  PanadapterControllerImpl,
-} from "./panadapter.js";
-import {
-  type WaterfallController,
-  WaterfallControllerImpl,
-} from "./waterfall.js";
-import { type MeterController, MeterControllerImpl } from "./meter.js";
+  type ParseVitaPacketOptions,
+  parseVitaPacket,
+  type VitaPacket,
+} from "../vita/parser.js";
+import { type ApdController, ApdControllerImpl } from "./apd.js";
 import {
   type AudioStreamController,
-  type DaxRxAudioStreamController,
-  type DaxTxAudioStreamController,
-  type DaxIqAudioStreamController,
-  type AudioStreamTxController,
-  type RemoteAudioTxStreamController,
   AudioStreamControllerImpl,
-  AudioStreamTxControllerImpl,
-  DaxRxAudioStreamControllerImpl,
-  DaxTxAudioStreamControllerImpl,
+  type AudioStreamTxController,
+  type AudioStreamTxControllerImpl,
+  type DaxIqAudioStreamController,
   DaxIqAudioStreamControllerImpl,
+  type DaxRxAudioStreamController,
+  DaxRxAudioStreamControllerImpl,
+  type DaxTxAudioStreamController,
+  DaxTxAudioStreamControllerImpl,
+  type RemoteAudioTxStreamController,
   RemoteAudioTxStreamControllerImpl,
 } from "./audio-stream.js";
+import { type CwxController, CwxControllerImpl } from "./cwx.js";
+import {
+  type DisplayMarkerController,
+  DisplayMarkerControllerImpl,
+} from "./display-marker.js";
+import { type DvkController, DvkControllerImpl } from "./dvk.js";
 import {
   type EqualizerController,
   EqualizerControllerImpl,
 } from "./equalizer.js";
 import {
-  type TxBandSettingController,
-  TxBandSettingControllerImpl,
-} from "./tx-band-settings.js";
-import { type ApdController, ApdControllerImpl } from "./apd.js";
-import { type XvtrController, XvtrControllerImpl } from "./xvtr.js";
-import { type TnfController, TnfControllerImpl } from "./tnf.js";
-import { type MemoryController, MemoryControllerImpl } from "./memory.js";
+  type FeatureLicenseController,
+  FeatureLicenseControllerImpl,
+} from "./feature-license.js";
 import {
-  type DisplayMarkerController,
-  DisplayMarkerControllerImpl,
-} from "./display-marker.js";
-import {
-  type SpotController,
-  type SpotTriggeredEvent,
-  SpotControllerImpl,
-} from "./spot.js";
-import { type CwxController, CwxControllerImpl } from "./cwx.js";
-import { type DvkController, DvkControllerImpl } from "./dvk.js";
+  type FileDownload,
+  FileDownloadImpl,
+  type FileUpload,
+  FileUploadImpl,
+  resolveTotalBytes,
+  toAsyncIterable,
+  type UploadFileOptions,
+} from "./file-transfer.js";
 import {
   type FilterPresetController,
   FilterPresetControllerImpl,
 } from "./filter-preset.js";
-import { type WaveformController, WaveformControllerImpl } from "./waveform.js";
-import {
-  type FileUpload,
-  type FileDownload,
-  type UploadFileOptions,
-  FileUploadImpl,
-  FileDownloadImpl,
-  toAsyncIterable,
-  resolveTotalBytes,
-} from "./file-transfer.js";
-import {
-  type FeatureLicenseController,
-  FeatureLicenseControllerImpl,
-} from "./feature-license.js";
-import type {
-  EqualizerId,
-  EqualizerStateChange,
-  TxBandSettingStateChange,
-  ApdStateChange,
-  XvtrStateChange,
-  DisplayMarkerStateChange,
-  SpotStateChange,
-  TnfStateChange,
-  MemoryStateChange,
-  CwxStateChange,
-  DvkStateChange,
-  FilterPresetStateChange,
-  WaveformStateChange,
-} from "./state/index.js";
-import {
-  parseVitaPacket,
-  type VitaPacket,
-  type ParseVitaPacketOptions,
-} from "../vita/parser.js";
-import { VitaMeterPacket } from "../vita/meter-packet.js";
+import { type MemoryController, MemoryControllerImpl } from "./memory.js";
+import { type MeterController, MeterControllerImpl } from "./meter.js";
 import { getModelInfo, type RadioModelInfo } from "./model-info.js";
 import {
-  RadioNetworkDiagnosticsTracker,
   type RadioNetworkDiagnosticsSnapshot,
+  RadioNetworkDiagnosticsTracker,
 } from "./network-diagnostics.js";
+import {
+  type PanadapterController,
+  PanadapterControllerImpl,
+} from "./panadapter.js";
+import { type SliceController, SliceControllerImpl } from "./slice.js";
+import {
+  type SpotController,
+  SpotControllerImpl,
+  type SpotTriggeredEvent,
+} from "./spot.js";
+import type {
+  ApdStateChange,
+  CwxStateChange,
+  DisplayMarkerStateChange,
+  DvkStateChange,
+  EqualizerId,
+  EqualizerStateChange,
+  FilterPresetStateChange,
+  MemoryStateChange,
+  SpotStateChange,
+  TnfStateChange,
+  TxBandSettingStateChange,
+  WaveformStateChange,
+  XvtrStateChange,
+} from "./state/index.js";
+import { type TnfController, TnfControllerImpl } from "./tnf.js";
+import {
+  type TxBandSettingController,
+  TxBandSettingControllerImpl,
+} from "./tx-band-settings.js";
+import {
+  type WaterfallController,
+  WaterfallControllerImpl,
+} from "./waterfall.js";
+import { type WaveformController, WaveformControllerImpl } from "./waveform.js";
+import { type XvtrController, XvtrControllerImpl } from "./xvtr.js";
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -2719,7 +2723,7 @@ class RadioImpl {
     const id = message.identifier;
     if (!id) return;
 
-    const panadapterStreamId = message.attributes["pan"];
+    const panadapterStreamId = message.attributes.pan;
     const event: SpotTriggeredEvent = { spotId: id, panadapterStreamId };
 
     // Emit on the individual spot controller if it exists
@@ -2734,9 +2738,9 @@ class RadioImpl {
     const upload = this.activeUpload;
     if (!upload) return;
 
-    const transfer = msg.attributes["transfer"];
-    const failed = msg.attributes["failed"];
-    const reason = msg.attributes["reason"];
+    const transfer = msg.attributes.transfer;
+    const failed = msg.attributes.failed;
+    const reason = msg.attributes.reason;
 
     if (transfer !== undefined) {
       const pct = parseFloat(transfer);

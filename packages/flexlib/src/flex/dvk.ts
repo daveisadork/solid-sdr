@@ -1,11 +1,11 @@
-import { TypedEventEmitter, type Subscription } from "../util/events.js";
+import { type Subscription, TypedEventEmitter } from "../util/events.js";
 import { FlexStateUnavailableError } from "./errors.js";
+import type { RadioSession } from "./radio-core.js";
 import type {
+  DvkRecording,
   DvkSnapshot,
   DvkStateChange,
-  DvkRecording,
 } from "./state/index.js";
-import type { RadioSession } from "./radio-core.js";
 
 /** Events emitted by a {@link DvkController}. */
 export interface DvkControllerEvents {

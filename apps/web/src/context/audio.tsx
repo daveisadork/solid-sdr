@@ -1,32 +1,32 @@
+import type {
+  AudioStreamController,
+  AudioStreamTxController,
+  DaxIqAudioStreamController,
+  DaxRxAudioStreamController,
+  RemoteAudioTxStreamController,
+} from "@repo/flexlib";
+import { createMicrophones } from "@solid-primitives/devices";
+import { ReactiveMap } from "@solid-primitives/map";
 import {
+  type Accessor,
   batch,
   createContext,
   createEffect,
   createMemo,
   createSignal,
   onCleanup,
-  ParentComponent,
+  type ParentComponent,
   untrack,
   useContext,
-  type Accessor,
 } from "solid-js";
-import { ReactiveMap } from "@solid-primitives/map";
-import { createMicrophones } from "@solid-primitives/devices";
-import { useRtc } from "./rtc";
+import { showToast } from "~/components/ui/toast";
+import { DaxAudioSink } from "~/lib/dax-audio-sink";
+import { DaxAudioTx } from "~/lib/dax-audio-tx";
+import { DaxIqAudioSink } from "~/lib/dax-iq-audio-sink";
+import { createPermission } from "~/lib/permission";
 import useFlexRadio from "./flexradio";
 import { usePreferences } from "./preferences";
-import {
-  DaxRxAudioStreamController,
-  type AudioStreamController,
-  type AudioStreamTxController,
-  type DaxIqAudioStreamController,
-  type RemoteAudioTxStreamController,
-} from "@repo/flexlib";
-import { DaxAudioSink } from "~/lib/dax-audio-sink";
-import { DaxIqAudioSink } from "~/lib/dax-iq-audio-sink";
-import { DaxAudioTx } from "~/lib/dax-audio-tx";
-import { showToast } from "~/components/ui/toast";
-import { createPermission } from "~/lib/permission";
+import { useRtc } from "./rtc";
 
 interface AudioContextValue {
   daxSinks: ReactiveMap<number, DaxAudioSink>;

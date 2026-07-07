@@ -1,30 +1,29 @@
-import useFlexRadio, { FlexRadioProvider } from "./context/flexradio";
 import { StatusBar } from "./components/statusbar";
 import { SidebarProvider, SidebarTrigger } from "./components/ui/sidebar";
-
 import { Toaster } from "./components/ui/toast";
+import useFlexRadio, { FlexRadioProvider } from "./context/flexradio";
 import "./app.css";
-import { RtcProvider } from "./context/rtc";
-import { AudioProvider } from "./context/audio";
 import {
   ColorModeProvider,
   ColorModeScript,
   createLocalStorageManager,
 } from "@kobalte/core/color-mode";
-import { RightSidebar } from "./components/right-sidebar";
-import BaselineViewSidebar from "~icons/ic/baseline-view-sidebar";
-import { PreferencesProvider, usePreferences } from "./context/preferences";
-import { Panafalls } from "./components/panafall/panafalls";
-import { FPSCounter } from "./components/fps";
-import { RuntimeProvider } from "./context/runtime";
 import { Show } from "solid-js";
-import { ControlsProvider } from "./context/controls";
-import { Callout, CalloutContent, CalloutTitle } from "./components/ui/callout";
-import { Button } from "./components/ui/button";
+import BaselineViewSidebar from "~icons/ic/baseline-view-sidebar";
 import MaterialSymbolsOpenInNew from "~icons/material-symbols/open-in-new";
-import { ReleaseNotification } from "./components/release-notification";
-import { DebugModeProvider } from "./context/debug-mode";
 import { DebugBanner } from "./components/debug-mode/banner";
+import { FPSCounter } from "./components/fps";
+import { Panafalls } from "./components/panafall/panafalls";
+import { ReleaseNotification } from "./components/release-notification";
+import { RightSidebar } from "./components/right-sidebar";
+import { Button } from "./components/ui/button";
+import { Callout, CalloutContent, CalloutTitle } from "./components/ui/callout";
+import { AudioProvider } from "./context/audio";
+import { ControlsProvider } from "./context/controls";
+import { DebugModeProvider } from "./context/debug-mode";
+import { PreferencesProvider, usePreferences } from "./context/preferences";
+import { RtcProvider } from "./context/rtc";
+import { RuntimeProvider } from "./context/runtime";
 
 function AppInner() {
   const { preferences, setPreferences } = usePreferences();

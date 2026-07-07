@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { FlexStateUnavailableError } from "../../src/flex/errors.js";
-import { createConnectedRadio, makeStatus } from "../helpers.js";
-import { createRadioStateStore } from "../../src/flex/state/index.js";
 import type { RadioStateChange } from "../../src/flex/state/index.js";
+import { createRadioStateStore } from "../../src/flex/state/index.js";
 import { createTnfSnapshot } from "../../src/flex/state/tnf.js";
+import { createConnectedRadio, makeStatus } from "../helpers.js";
 
 describe("TNF snapshot", () => {
   it("parses all wire attributes on first creation", () => {

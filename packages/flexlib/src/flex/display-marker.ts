@@ -1,10 +1,10 @@
-import { TypedEventEmitter, type Subscription } from "../util/events.js";
+import { type Subscription, TypedEventEmitter } from "../util/events.js";
 import { FlexStateUnavailableError } from "./errors.js";
+import type { RadioSession } from "./radio-core.js";
 import type {
   DisplayMarkerSnapshot,
   DisplayMarkerStateChange,
 } from "./state/index.js";
-import type { RadioSession } from "./radio-core.js";
 
 /** Events emitted by a {@link DisplayMarkerController}. */
 export interface DisplayMarkerControllerEvents {
@@ -78,7 +78,9 @@ export class DisplayMarkerControllerImpl implements DisplayMarkerController {
   }
 
   private current(): DisplayMarkerSnapshot {
-    const snapshot = this.radio.getStore().getDisplayMarker(this.group, this.id);
+    const snapshot = this.radio
+      .getStore()
+      .getDisplayMarker(this.group, this.id);
     if (!snapshot) {
       throw new FlexStateUnavailableError(
         `Display marker ${this.group}/${this.id} is no longer available`,

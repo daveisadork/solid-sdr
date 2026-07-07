@@ -1,18 +1,18 @@
-import type { RadioSession } from "./radio-core.js";
-import type {
-  SliceSnapshot,
-  SliceStateChange,
-  SliceAgcMode,
-  SliceToneMode,
-  SliceRepeaterOffsetDirection,
-} from "./state/index.js";
-import { TypedEventEmitter, type Subscription } from "../util/events.js";
-import { FlexError, FlexStateUnavailableError } from "./errors.js";
+import { type Subscription, TypedEventEmitter } from "../util/events.js";
 import {
   formatBooleanFlag,
   formatInteger,
   formatMegahertz,
 } from "./controller-helpers.js";
+import { FlexError, FlexStateUnavailableError } from "./errors.js";
+import type { RadioSession } from "./radio-core.js";
+import type {
+  SliceAgcMode,
+  SliceRepeaterOffsetDirection,
+  SliceSnapshot,
+  SliceStateChange,
+  SliceToneMode,
+} from "./state/index.js";
 
 export interface SliceControllerEvents {
   readonly change: SliceStateChange;

@@ -1,9 +1,8 @@
-import type { JSX, ValidComponent } from "solid-js";
-import { splitProps } from "solid-js";
-
 import type { PolymorphicProps } from "@kobalte/core/polymorphic";
 import * as SelectPrimitive from "@kobalte/core/select";
 import { cva } from "class-variance-authority";
+import type { JSX, ValidComponent } from "solid-js";
+import { splitProps } from "solid-js";
 
 import { cn } from "~/lib/utils";
 
@@ -187,12 +186,12 @@ const SelectErrorMessage = <T extends ValidComponent = "div">(
 
 export {
   Select,
-  SelectValue,
-  SelectHiddenSelect,
-  SelectTrigger,
   SelectContent,
-  SelectItem,
-  SelectLabel,
   SelectDescription,
   SelectErrorMessage,
+  SelectHiddenSelect,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
 };

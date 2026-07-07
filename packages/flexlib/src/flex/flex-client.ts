@@ -8,16 +8,15 @@
  * @module
  */
 
-import { TypedEventEmitter, type Subscription } from "../util/events.js";
-import type { FlexTransport, RadioEndpoint } from "./transport.js";
-import type { Logger } from "./adapters.js";
-import type { FlexRadioDescriptor } from "./adapters.js";
-import { Radio, type RadioConnectOptions } from "./radio-core.js";
-import { FlexCommandRejectedError } from "./errors.js";
+import { type Subscription, TypedEventEmitter } from "../util/events.js";
 import { parseVitaPacket } from "../vita/parser.js";
+import type { FlexRadioDescriptor, Logger } from "./adapters.js";
 import { decodeDiscoveryPayload } from "./discovery.js";
+import { FlexCommandRejectedError } from "./errors.js";
+import { type FlexReplyMessage, parseFlexMessage } from "./protocol.js";
+import { Radio, type RadioConnectOptions } from "./radio-core.js";
 import { describeResponseCode } from "./response-codes.js";
-import { parseFlexMessage, type FlexReplyMessage } from "./protocol.js";
+import type { FlexTransport, RadioEndpoint } from "./transport.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -271,7 +270,7 @@ export class FlexClient {
   private handleDiscoveryData(data: Uint8Array): void {
     try {
       const parsed = parseVitaPacket(data);
-      if (!parsed || parsed.kind !== "discovery") return;
+      if (parsed?.kind !== "discovery") return;
 
       const descriptor = decodeDiscoveryPayload(parsed.payload, Date.now());
 

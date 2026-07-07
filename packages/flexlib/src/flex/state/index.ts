@@ -1,27 +1,45 @@
+import type { Logger } from "../adapters.js";
 import type { FlexStatusMessage } from "../protocol.js";
 import type { RfGainInfo } from "../rf-gain.js";
-import type { Logger } from "../adapters.js";
+import { type ApdSnapshot, createApdSnapshot } from "./apd.js";
+import type { AudioStreamKind, AudioStreamSnapshot } from "./audio-stream.js";
+import {
+  AUDIO_STREAM_TYPES,
+  createAudioStreamSnapshot,
+} from "./audio-stream.js";
+import type { SnapshotDiff } from "./common.js";
 import {
   parseInteger,
   parseIntegerHex,
   setRadioStateLogger,
 } from "./common.js";
-import type { SnapshotDiff } from "./common.js";
+import { type CwxSnapshot, createCwxSnapshot } from "./cwx.js";
 import {
-  AUDIO_STREAM_TYPES,
-  createAudioStreamSnapshot,
-} from "./audio-stream.js";
-import type { AudioStreamKind, AudioStreamSnapshot } from "./audio-stream.js";
-import {
-  createFeatureLicenseSnapshot,
-  type FeatureLicenseSnapshot,
-} from "./feature-license.js";
-import { createApdSnapshot, type ApdSnapshot } from "./apd.js";
+  createDisplayMarkerSnapshot,
+  type DisplayMarkerSnapshot,
+} from "./display-marker.js";
+import { createDvkSnapshot, type DvkSnapshot } from "./dvk.js";
 import {
   createEqualizerSnapshot,
   type EqualizerId,
   type EqualizerSnapshot,
 } from "./equalizer.js";
+import {
+  createFeatureLicenseSnapshot,
+  type FeatureLicenseSnapshot,
+} from "./feature-license.js";
+import {
+  createFilterPresetSnapshot,
+  FILTER_PRESET_COUNT,
+  type FilterPresetModeGroup,
+  type FilterPresetSnapshot,
+  parseFilterPresetModeGroup,
+} from "./filter-preset.js";
+import {
+  createGuiClientSnapshot,
+  type GuiClientSnapshot,
+} from "./gui-client.js";
+import { createMemorySnapshot, type MemorySnapshot } from "./memory.js";
 import { createMeterSnapshot, type MeterSnapshot } from "./meter.js";
 import {
   createPanadapterSnapshot,
@@ -33,86 +51,68 @@ import {
   type RadioStatusContext,
 } from "./radio.js";
 import { createSliceSnapshot, type SliceSnapshot } from "./slice.js";
-import {
-  createWaterfallSnapshot,
-  type WaterfallSnapshot,
-} from "./waterfall.js";
-import {
-  createGuiClientSnapshot,
-  type GuiClientSnapshot,
-} from "./gui-client.js";
+import { createSpotSnapshot, type SpotSnapshot } from "./spot.js";
+import { createTnfSnapshot, type TnfSnapshot } from "./tnf.js";
 import {
   createTxBandSettingSnapshot,
   type TxBandSettingSnapshot,
 } from "./tx-band-settings.js";
-import { createXvtrSnapshot, type XvtrSnapshot } from "./xvtr.js";
-import { createSpotSnapshot, type SpotSnapshot } from "./spot.js";
-import { createCwxSnapshot, type CwxSnapshot } from "./cwx.js";
-import { createDvkSnapshot, type DvkSnapshot } from "./dvk.js";
-import { createTnfSnapshot, type TnfSnapshot } from "./tnf.js";
-import { createMemorySnapshot, type MemorySnapshot } from "./memory.js";
 import {
-  createDisplayMarkerSnapshot,
-  type DisplayMarkerSnapshot,
-} from "./display-marker.js";
-import {
-  createFilterPresetSnapshot,
-  FILTER_PRESET_COUNT,
-  parseFilterPresetModeGroup,
-  type FilterPresetModeGroup,
-  type FilterPresetSnapshot,
-} from "./filter-preset.js";
+  createWaterfallSnapshot,
+  type WaterfallSnapshot,
+} from "./waterfall.js";
 import {
   createWaveformId,
   createWaveformSnapshot,
   parseLegacyWaveformList,
   type WaveformSnapshot,
 } from "./waveform.js";
+import { createXvtrSnapshot, type XvtrSnapshot } from "./xvtr.js";
 
-export type { SnapshotDiff } from "./common.js";
-export { FILTER_PRESET_COUNT } from "./filter-preset.js";
-export type {
-  SliceSnapshot,
-  SliceAgcMode,
-  SliceToneMode,
-  SliceRepeaterOffsetDirection,
-} from "./slice.js";
-export type { PanadapterSnapshot } from "./panadapter.js";
-export type { WaterfallSnapshot } from "./waterfall.js";
-export type { AudioStreamKind, AudioStreamSnapshot } from "./audio-stream.js";
-export type { FeatureLicenseSnapshot } from "./feature-license.js";
 export type { ApdSamplerPort, ApdSnapshot, ApdTxAntenna } from "./apd.js";
-export type { EqualizerSnapshot, EqualizerId } from "./equalizer.js";
-export type { KnownMeterUnits, MeterSnapshot, MeterUnits } from "./meter.js";
-export type { TxBandSettingSnapshot } from "./tx-band-settings.js";
-export type { XvtrSnapshot } from "./xvtr.js";
-export type { SpotSnapshot } from "./spot.js";
+export type { AudioStreamKind, AudioStreamSnapshot } from "./audio-stream.js";
+export type { SnapshotDiff } from "./common.js";
 export type { CwxSnapshot } from "./cwx.js";
-export type { DvkSnapshot, DvkRecording, DvkStatus } from "./dvk.js";
-export type { TnfSnapshot } from "./tnf.js";
-export type { MemorySnapshot } from "./memory.js";
 export type { DisplayMarkerSnapshot } from "./display-marker.js";
+export type { DvkRecording, DvkSnapshot, DvkStatus } from "./dvk.js";
+export type { EqualizerId, EqualizerSnapshot } from "./equalizer.js";
+export type { FeatureLicenseSnapshot } from "./feature-license.js";
 export type {
   FilterPresetEntry,
   FilterPresetModeGroup,
   FilterPresetSnapshot,
 } from "./filter-preset.js";
+export { FILTER_PRESET_COUNT } from "./filter-preset.js";
+export type { GuiClientSnapshot } from "./gui-client.js";
+export type { MemorySnapshot } from "./memory.js";
+export type { KnownMeterUnits, MeterSnapshot, MeterUnits } from "./meter.js";
+export { KNOWN_METER_UNITS } from "./meter.js";
+export type { PanadapterSnapshot } from "./panadapter.js";
 export type {
   RadioAtuTuneStatus,
-  RadioFilterSharpnessMode,
-  RadioOscillatorSetting,
-  RadioScreensaverMode,
-  RadioLogModule,
-  RadioInterlockState,
-  RadioInterlockReason,
-  RadioPttSource,
   RadioCwIambicMode,
+  RadioFilterSharpnessMode,
+  RadioInterlockReason,
+  RadioInterlockState,
+  RadioLogModule,
+  RadioOscillatorSetting,
+  RadioPttSource,
+  RadioScreensaverMode,
   RadioSnapshot,
   RadioStatusContext,
 } from "./radio.js";
-export { KNOWN_METER_UNITS } from "./meter.js";
-export type { GuiClientSnapshot } from "./gui-client.js";
+export type {
+  SliceAgcMode,
+  SliceRepeaterOffsetDirection,
+  SliceSnapshot,
+  SliceToneMode,
+} from "./slice.js";
+export type { SpotSnapshot } from "./spot.js";
+export type { TnfSnapshot } from "./tnf.js";
+export type { TxBandSettingSnapshot } from "./tx-band-settings.js";
+export type { WaterfallSnapshot } from "./waterfall.js";
 export type { WaveformSnapshot } from "./waveform.js";
+export type { XvtrSnapshot } from "./xvtr.js";
 
 type ChangeMetadata<TSnapshot> = {
   readonly diff?: SnapshotDiff<TSnapshot>;
@@ -726,7 +726,7 @@ export function createRadioStateStore(
   };
 
   function handleSlice(message: FlexStatusMessage): RadioStateChange[] {
-    const id = resolveIdentifier(message, message.attributes["index"]);
+    const id = resolveIdentifier(message, message.attributes.index);
     if (!id) {
       return [
         {
@@ -835,7 +835,7 @@ export function createRadioStateStore(
       message.positional.some((token) => token === "equalizer_reset") ||
       message.identifier === "equalizer_reset";
     if (hasResetToken && !("equalizer_reset" in attributes)) {
-      attributes["equalizer_reset"] = "";
+      attributes.equalizer_reset = "";
     }
     const { snapshot, diff } = createApdSnapshot(attributes, apd);
     const diffKeys = Object.keys(diff as Record<string, unknown>);
@@ -849,7 +849,7 @@ export function createRadioStateStore(
   }
 
   function shouldAcceptApdStatus(attributes: Record<string, string>): boolean {
-    const parsed = parseIntegerHex(attributes["client_handle"]);
+    const parsed = parseIntegerHex(attributes.client_handle);
     return parsed ? localClientHandle === parsed : true;
   }
 
@@ -878,9 +878,9 @@ export function createRadioStateStore(
     const id = resolveIdentifier(
       message,
       streamHint,
-      message.attributes["stream_id"],
-      message.attributes["stream"],
-      message.attributes["client_handle"],
+      message.attributes.stream_id,
+      message.attributes.stream,
+      message.attributes.client_handle,
     );
     if (!id) {
       return {
@@ -918,8 +918,8 @@ export function createRadioStateStore(
   function handleStream(message: FlexStatusMessage): RadioStateChange {
     const id = resolveIdentifier(
       message,
-      message.attributes["stream_id"],
-      message.attributes["stream"],
+      message.attributes.stream_id,
+      message.attributes.stream,
     );
     if (!id) {
       return {
@@ -939,7 +939,7 @@ export function createRadioStateStore(
     }
 
     const existing = audioStreams.get(id);
-    const typeToken = message.attributes["type"] ?? existing?.type;
+    const typeToken = message.attributes.type ?? existing?.type;
     const normalizedType = typeToken?.toLowerCase() as
       | AudioStreamKind
       | undefined;
@@ -957,11 +957,11 @@ export function createRadioStateStore(
     const attributePatch: Record<string, string> = {
       ...message.attributes,
     };
-    if (typeToken && attributePatch["type"] === undefined) {
-      attributePatch["type"] = typeToken;
+    if (typeToken && attributePatch.type === undefined) {
+      attributePatch.type = typeToken;
     }
-    if (attributePatch["stream_id"] === undefined && id) {
-      attributePatch["stream_id"] = id;
+    if (attributePatch.stream_id === undefined && id) {
+      attributePatch.stream_id = id;
     }
     const { snapshot, diff } = createAudioStreamSnapshot(
       id,
@@ -982,8 +982,8 @@ export function createRadioStateStore(
   ): RadioStateChange | undefined {
     const id =
       message.positional[0] ??
-      message.attributes["band_id"] ??
-      message.attributes["id"];
+      message.attributes.band_id ??
+      message.attributes.id;
     if (!id) {
       return {
         entity: "unknown",
@@ -1067,7 +1067,7 @@ export function createRadioStateStore(
     }
 
     if (action === "connected") {
-      const clientIdAttr = message.attributes["client_id"];
+      const clientIdAttr = message.attributes.client_id;
       if (!clientIdAttr) {
         return [
           {
@@ -1122,8 +1122,8 @@ export function createRadioStateStore(
     const id = resolveIdentifier(
       message,
       streamHint,
-      message.attributes["stream_id"],
-      message.attributes["stream"],
+      message.attributes.stream_id,
+      message.attributes.stream,
     );
     if (!id) {
       return {
@@ -1134,7 +1134,7 @@ export function createRadioStateStore(
       };
     }
 
-    if (message.identifier === "waterfall" || message.attributes["pan"]) {
+    if (message.identifier === "waterfall" || message.attributes.pan) {
       if (isMarkedDeleted(message)) {
         waterfalls.delete(id);
         return {
@@ -1173,7 +1173,7 @@ export function createRadioStateStore(
     const id = resolveIdentifier(
       message,
       message.identifier,
-      message.attributes["num"],
+      message.attributes.num,
     );
     if (!id) {
       return {
@@ -1282,7 +1282,7 @@ export function createRadioStateStore(
   ): void {
     if (prevPan && prevPan !== nextPan) {
       const pan = panadapters.get(prevPan);
-      if (pan && pan.attachedSlices.includes(sliceId)) {
+      if (pan?.attachedSlices.includes(sliceId)) {
         const filtered = pan.attachedSlices.filter(
           (attachedId: string) => attachedId !== sliceId,
         );
@@ -1394,7 +1394,7 @@ export function createRadioStateStore(
     attributes: Record<string, string>,
   ): PanadapterStateChange | undefined {
     const previous = panadapters.get(id);
-    const stream = attributes["stream_id"] ?? previous?.streamId ?? id;
+    const stream = attributes.stream_id ?? previous?.streamId ?? id;
     const { snapshot, diff } = createPanadapterSnapshot(
       id,
       { stream_id: stream, ...attributes },
@@ -1445,7 +1445,7 @@ export function createRadioStateStore(
     attributes: Record<string, string>,
   ): WaterfallStateChange | undefined {
     const previous = waterfalls.get(id);
-    const stream = attributes["stream_id"] ?? previous?.streamId ?? id;
+    const stream = attributes.stream_id ?? previous?.streamId ?? id;
     const { snapshot, diff } = createWaterfallSnapshot(
       id,
       { stream_id: stream, ...attributes },
@@ -1474,13 +1474,13 @@ export function createRadioStateStore(
     attributes: Record<string, string>,
   ): AudioStreamStateChange | undefined {
     const previous = audioStreams.get(id);
-    const typeToken = attributes["type"] ?? previous?.type;
+    const typeToken = attributes.type ?? previous?.type;
     const attributePatch: Record<string, string> =
-      typeToken && attributes["type"] === undefined
+      typeToken && attributes.type === undefined
         ? { ...attributes, type: typeToken }
         : { ...attributes };
-    if (attributePatch["stream_id"] === undefined) {
-      attributePatch["stream_id"] = previous?.streamId ?? id;
+    if (attributePatch.stream_id === undefined) {
+      attributePatch.stream_id = previous?.streamId ?? id;
     }
     const { snapshot, diff } = createAudioStreamSnapshot(
       id,
@@ -1723,7 +1723,7 @@ export function createRadioStateStore(
       message.attributes,
       previous,
     );
-    getDisplayMarkerGroup(group, true)!.set(id, snapshot);
+    getDisplayMarkerGroup(group, true)?.set(id, snapshot);
     return {
       entity: "displayMarker",
       group,
@@ -1747,7 +1747,7 @@ export function createRadioStateStore(
       previous,
     );
     const diffKeys = Object.keys(diff as Record<string, unknown>);
-    getDisplayMarkerGroup(group, true)!.set(id, snapshot);
+    getDisplayMarkerGroup(group, true)?.set(id, snapshot);
     if (diffKeys.length === 0) return undefined;
     return {
       entity: "displayMarker",
@@ -2021,8 +2021,8 @@ export function createRadioStateStore(
     const allTokens = [message.identifier, ...message.positional].map((t) =>
       t?.toLowerCase(),
     );
-    if (allTokens.includes("added")) attributes["added"] = "";
-    if (allTokens.includes("deleted")) attributes["deleted"] = "";
+    if (allTokens.includes("added")) attributes.added = "";
+    if (allTokens.includes("deleted")) attributes.deleted = "";
     const { snapshot, diff } = createDvkSnapshot(attributes, dvk);
     const diffKeys = Object.keys(diff as Record<string, unknown>);
     dvk = snapshot;

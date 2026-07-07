@@ -1,20 +1,20 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
-  VitaPacketType,
-  VitaTimeStampIntegerType,
-  VitaTimeStampFractionalType,
-  writeHeaderBE,
-  writeClassIdBE,
-  VITA_FLEX_OUI,
   VITA_FLEX_INFO_CLASS,
+  VITA_FLEX_OUI,
+  VitaPacketType,
+  VitaTimeStampFractionalType,
+  VitaTimeStampIntegerType,
+  writeClassIdBE,
+  writeHeaderBE,
 } from "../../src/vita/common";
 import {
-  VitaDaxIqPacket,
+  sampleRateForClass,
   VITA_FLEX_DAX_IQ_24_CLASS,
   VITA_FLEX_DAX_IQ_48_CLASS,
   VITA_FLEX_DAX_IQ_96_CLASS,
   VITA_FLEX_DAX_IQ_192_CLASS,
-  sampleRateForClass,
+  VitaDaxIqPacket,
 } from "../../src/vita/dax-iq-packet";
 import { parseVitaPacket } from "../../src/vita/parser";
 
@@ -25,7 +25,8 @@ function buildIqPacket(
   iSamples: number[],
   qSamples: number[],
 ): Uint8Array {
-  if (iSamples.length !== qSamples.length) throw new Error("I/Q length mismatch");
+  if (iSamples.length !== qSamples.length)
+    throw new Error("I/Q length mismatch");
   const frames = iSamples.length;
   const payloadBytes = frames * 8; // 4 bytes I + 4 bytes Q per frame
   const totalBytes = 28 + payloadBytes;

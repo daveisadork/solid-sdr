@@ -1,3 +1,6 @@
+import { parseColor } from "@kobalte/core/colors";
+import type { PanadapterController, VitaFFTPacket } from "@repo/flexlib";
+import { debounce } from "@solid-primitives/scheduled";
 import {
   createEffect,
   createMemo,
@@ -7,25 +10,18 @@ import {
   Show,
 } from "solid-js";
 import useFlexRadio, {
-  PanadapterState,
-  WaterfallState,
+  type PanadapterState,
+  type WaterfallState,
 } from "~/context/flexradio";
-import { DetachedSlices, Slice } from "../slice";
-import { debounce } from "@solid-primitives/scheduled";
-import { LinearScale } from "../linear-scale";
-import type { LinearScaleTick } from "../linear-scale";
-import { PanadapterGrid } from "./panadapter-grid";
-import { buildFrequencyGrid } from "./scale";
-import type { FrequencyGridTick } from "./scale";
-import { parseColor } from "@kobalte/core/colors";
-import type { PanadapterController, VitaFFTPacket } from "@repo/flexlib";
 import { usePanafall } from "~/context/panafall";
 import { usePreferences } from "~/context/preferences";
-import { Spots } from "./spots";
-import { Tnf } from "./tnf";
 import { useRuntime } from "~/context/runtime";
-import { DisplayMarkers } from "./display-markers";
 import { deviceScale, pixelDensity } from "~/lib/device-scale";
+import type { LinearScaleTick } from "../linear-scale";
+import { LinearScale } from "../linear-scale";
+import { DetachedSlices, Slice } from "../slice";
+import { DisplayMarkers } from "./display-markers";
+import { PanadapterGrid } from "./panadapter-grid";
 import {
   CONTROL_BINS,
   CONTROL_BUF,
@@ -37,6 +33,10 @@ import {
   NUM_BUFFERS,
   SAB_BYTES,
 } from "./panadapter-protocol";
+import type { FrequencyGridTick } from "./scale";
+import { buildFrequencyGrid } from "./scale";
+import { Spots } from "./spots";
+import { Tnf } from "./tnf";
 
 export function Panadapter(props: {
   pan: PanadapterState;
@@ -135,10 +135,9 @@ export function Panadapter(props: {
   createEffect(() => {
     const canvas = canvasRef();
     if (!canvas) return;
-    const w = new Worker(
-      new URL("./panadapter.worker.ts", import.meta.url),
-      { type: "module" },
-    );
+    const w = new Worker(new URL("./panadapter.worker.ts", import.meta.url), {
+      type: "module",
+    });
     const offscreen = canvas.transferControlToOffscreen();
     w.postMessage({ type: "init", canvas: offscreen, sab }, [offscreen]);
     w.onmessage = (event: MessageEvent) => {
@@ -192,24 +191,30 @@ export function Panadapter(props: {
   createEffect(() => {
     const w = worker();
     if (!w) return;
-    const subscription = props.controller.on("data", (packet: VitaFFTPacket) => {
-      const numBins = packet.numBins;
-      if (numBins === 0) return;
-      const startBin = packet.startBinIndex;
-      const totalBins = packet.totalBinsInFrame;
-      const end = startBin + numBins;
-      if (end > MAX_BINS) return;
+    const subscription = props.controller.on(
+      "data",
+      (packet: VitaFFTPacket) => {
+        const numBins = packet.numBins;
+        if (numBins === 0) return;
+        const startBin = packet.startBinIndex;
+        const totalBins = packet.totalBinsInFrame;
+        const end = startBin + numBins;
+        if (end > MAX_BINS) return;
 
-      fftData.set(packet.payload.subarray(0, numBins), writeBuf * MAX_BINS + startBin);
+        fftData.set(
+          packet.payload.subarray(0, numBins),
+          writeBuf * MAX_BINS + startBin,
+        );
 
-      if (end >= totalBins) {
-        Atomics.store(control, CONTROL_BUF, writeBuf);
-        Atomics.store(control, CONTROL_BINS, totalBins);
-        Atomics.store(control, CONTROL_SEQ, ++frameSeq);
-        Atomics.notify(control, CONTROL_SEQ);
-        writeBuf = (writeBuf + 1) % NUM_BUFFERS;
-      }
-    });
+        if (end >= totalBins) {
+          Atomics.store(control, CONTROL_BUF, writeBuf);
+          Atomics.store(control, CONTROL_BINS, totalBins);
+          Atomics.store(control, CONTROL_SEQ, ++frameSeq);
+          Atomics.notify(control, CONTROL_SEQ);
+          writeBuf = (writeBuf + 1) % NUM_BUFFERS;
+        }
+      },
+    );
     if (!subscription) return;
     onCleanup(subscription.unsubscribe);
   });

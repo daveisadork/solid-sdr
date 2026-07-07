@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
-import { createRadioStateStore } from "../../src/flex/state/index.js";
-import { createGuiClientSnapshot } from "../../src/flex/state/gui-client.js";
 import {
   buildRadioListAttributes,
   parseRadioInfoReply,
   parseRadioVersionReply,
 } from "../../src/flex/radio-replies.js";
+import { createGuiClientSnapshot } from "../../src/flex/state/gui-client.js";
+import { createRadioStateStore } from "../../src/flex/state/index.js";
 import { lineSpeedToDurationMs } from "../../src/flex/waterfall-line-speed.js";
 import { makeStatus } from "../helpers.js";
 
@@ -46,7 +46,7 @@ describe("createRadioStateStore", () => {
       "XVTA",
       "XVTB",
     ]);
-    expect(pan?.raw["pre"]).toBe("+8dB");
+    expect(pan?.raw.pre).toBe("+8dB");
 
     store.apply(makeStatus(SLICE_STATUS));
     const slice = store.getSlice("0");
@@ -101,7 +101,7 @@ describe("createRadioStateStore", () => {
     expect(slice?.rxErrorMilliHz).toBeCloseTo(-31.677248);
     expect(slice?.playbackAvailable).toBe(false);
     expect(slice?.playbackEnabled).toBe(false);
-    expect(slice?.raw["mode_list"]).toBe(
+    expect(slice?.raw.mode_list).toBe(
       "LSB,USB,AM,CW,DIGL,DIGU,SAM,FM,NFM,DFM,RTTY",
     );
     expect(slice?.nrlEnabled).toBe(true);
@@ -257,10 +257,10 @@ describe("createRadioStateStore", () => {
     );
 
     license = store.getFeatureLicense();
-    expect(license?.features["smartlink"]?.enabled).toBe(true);
-    expect(license?.features["smartlink"]?.reason).toBe("license_file");
-    expect(license?.features["auto_tune"]?.enabled).toBe(false);
-    expect(license?.features["auto_tune"]?.reason).toBe("plus");
+    expect(license?.features.smartlink?.enabled).toBe(true);
+    expect(license?.features.smartlink?.reason).toBe("license_file");
+    expect(license?.features.auto_tune?.enabled).toBe(false);
+    expect(license?.features.auto_tune?.reason).toBe("plus");
     expect(license?.smartSdrPlusActive).toBe(true);
     expect(license?.smartSdrPlusExpiration?.toISOString()).toBe(
       "2099-03-15T00:00:00.000Z",
@@ -285,7 +285,7 @@ describe("createRadioStateStore", () => {
     expect(waterfall?.lineDurationMs).toBe(lineSpeedToDurationMs(100));
     expect(waterfall?.colorGain).toBe(50);
     expect(waterfall?.autoBlackLevelEnabled).toBe(true);
-    expect(waterfall?.raw["x_pixels"]).toBe("50");
+    expect(waterfall?.raw.x_pixels).toBe("50");
     expect(waterfall?.clientHandle).toBe(977_344_129);
   });
 
@@ -329,7 +329,7 @@ describe("createRadioStateStore", () => {
   it("tracks APD status", () => {
     const store = createRadioStateStore();
     store.apply(makeStatus(APD_SLICE_STATUS));
-    store.setLocalClientHandle(parseInt("7F7C21E0", 16));
+    store.setLocalClientHandle(0x7f7c21e0);
     store.apply(makeStatus("S1|apd enable=1 configurable=1"));
     store.apply(makeStatus("S1|apd freq=0.000000 tx_error_mHz=0.500000"));
     store.apply(
@@ -389,13 +389,13 @@ describe("createRadioStateStore", () => {
     expect(radio?.gpsStatus).toBe("Fine Lock");
     expect(radio?.gpsUtcTime).toBe("11:22:37Z");
     expect(radio?.gpsTrack).toBeCloseTo(0, 6);
-    expect(radio?.raw["lat"]).toBe("38.433865");
-    expect(radio?.raw["freq_error"]).toBe("-1 ppb");
+    expect(radio?.raw.lat).toBe("38.433865");
+    expect(radio?.raw.freq_error).toBe("-1 ppb");
 
     store.apply(makeStatus(gnssStatus));
     radio = store.getRadio();
     expect(radio?.gpsGnssPoweredAntenna).toBe(false);
-    expect(radio?.raw["gnss_powered_ant"]).toBe("false");
+    expect(radio?.raw.gnss_powered_ant).toBe("false");
 
     store.apply(makeStatus(installStatus));
     radio = store.getRadio();
@@ -442,18 +442,18 @@ describe("createRadioStateStore", () => {
     expect(radio?.oscillatorGpsdoPresent).toBe(true);
     expect(radio?.oscillatorTcxoPresent).toBe(true);
 
-    expect(radio?.raw["filter_sharpness"]).toBeUndefined();
-    expect(radio?.raw["oscillator"]).toBeUndefined();
-    expect(radio?.raw["state"]).toBe("gpsdo");
-    expect(radio?.raw["setting"]).toBe("auto");
-    expect(radio?.raw["locked"]).toBe("1");
-    expect(radio?.raw["ext_present"]).toBe("0");
-    expect(radio?.raw["gnss_present"]).toBe("0");
-    expect(radio?.raw["gpsdo_present"]).toBe("1");
-    expect(radio?.raw["tcxo_present"]).toBe("1");
-    expect(radio?.raw["ip"]).toBe("");
-    expect(radio?.raw["gateway"]).toBe("");
-    expect(radio?.raw["netmask"]).toBe("");
+    expect(radio?.raw.filter_sharpness).toBeUndefined();
+    expect(radio?.raw.oscillator).toBeUndefined();
+    expect(radio?.raw.state).toBe("gpsdo");
+    expect(radio?.raw.setting).toBe("auto");
+    expect(radio?.raw.locked).toBe("1");
+    expect(radio?.raw.ext_present).toBe("0");
+    expect(radio?.raw.gnss_present).toBe("0");
+    expect(radio?.raw.gpsdo_present).toBe("1");
+    expect(radio?.raw.tcxo_present).toBe("1");
+    expect(radio?.raw.ip).toBe("");
+    expect(radio?.raw.gateway).toBe("");
+    expect(radio?.raw.netmask).toBe("");
   });
 
   it("tracks network MTU updates from radio status", () => {
@@ -463,7 +463,7 @@ describe("createRadioStateStore", () => {
 
     const radio = store.getRadio();
     expect(radio?.networkMtu).toBe(1472);
-    expect(radio?.raw["network_mtu"]).toBe("1472");
+    expect(radio?.raw.network_mtu).toBe("1472");
   });
 
   it("tracks ATU status updates", () => {
@@ -482,7 +482,7 @@ describe("createRadioStateStore", () => {
     expect(radio?.atuEnabled).toBe(true);
     expect(radio?.atuMemoriesEnabled).toBe(true);
     expect(radio?.atuUsingMemory).toBe(true);
-    expect(radio?.raw["status"]).toBe("TUNE_SUCCESSFUL");
+    expect(radio?.raw.status).toBe("TUNE_SUCCESSFUL");
 
     store.apply(makeStatus(secondStatus));
     radio = store.getRadio();
@@ -539,9 +539,9 @@ describe("createRadioStateStore", () => {
     expect(radio?.wfpPowered).toBe(true);
     expect(radio?.wfpReady).toBe(true);
     expect(radio?.wfpIpAddress).toBe("10.16.83.234");
-    expect(radio?.raw["power"]).toBe("on");
-    expect(radio?.raw["ready"]).toBe("true");
-    expect(radio?.raw["ipaddr"]).toBe("10.16.83.234");
+    expect(radio?.raw.power).toBe("on");
+    expect(radio?.raw.ready).toBe("true");
+    expect(radio?.raw.ipaddr).toBe("10.16.83.234");
   });
 
   it("applies info, version, and list replies to radio properties", () => {
@@ -678,9 +678,9 @@ describe("createRadioStateStore", () => {
     expect(snapshot.clientId).toBe("ABCD1234");
     expect(snapshot.program).toBe("SmartSDR");
     expect(snapshot.station).toBe("Home Office");
-    expect(snapshot.raw["client_id"]).toBe("ABCD1234");
-    expect(snapshot.raw["program"]).toBe("SmartSDR");
-    expect(snapshot.raw["station"]).toBe("Home Office");
+    expect(snapshot.raw.client_id).toBe("ABCD1234");
+    expect(snapshot.raw.program).toBe("SmartSDR");
+    expect(snapshot.raw.station).toBe("Home Office");
   });
 
   it("tracks log available levels and modules", () => {

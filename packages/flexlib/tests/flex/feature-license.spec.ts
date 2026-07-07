@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { makeStatus } from "../helpers.js";
 import { createRadioStateStore } from "../../src/flex/state/index.js";
+import { makeStatus } from "../helpers.js";
 
 function futureDate(): string {
   return new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
@@ -98,7 +98,9 @@ describe("FeatureLicense subscription expiration", () => {
 
     // when a smartsdr+ subscription arrives with an unparseable expiration
     store.apply(
-      makeStatus("S1|license subscription name=smartsdr+ expiration=not-a-date"),
+      makeStatus(
+        "S1|license subscription name=smartsdr+ expiration=not-a-date",
+      ),
     );
 
     // then the plus flag is inactive

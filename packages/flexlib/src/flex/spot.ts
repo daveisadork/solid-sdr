@@ -1,7 +1,7 @@
-import { TypedEventEmitter, type Subscription } from "../util/events.js";
+import { type Subscription, TypedEventEmitter } from "../util/events.js";
 import { FlexStateUnavailableError } from "./errors.js";
-import type { SpotSnapshot, SpotStateChange } from "./state/index.js";
 import type { RadioSession } from "./radio-core.js";
+import type { SpotSnapshot, SpotStateChange } from "./state/index.js";
 
 /** Payload for the spot "triggered" event. */
 export interface SpotTriggeredEvent {

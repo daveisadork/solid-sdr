@@ -1,20 +1,20 @@
 // VITA-49 Extended Data packet for Meters (id:uint16, value:int16 pairs)
 
 import {
-  type VitaHeader,
-  type VitaClassId,
-  type VitaTrailer,
-  VitaPacketType,
-  VitaTimeStampIntegerType,
-  VitaTimeStampFractionalType,
-  emptyTrailer,
-  writeBigUint64BE as writeU64,
-  writeHeaderBE,
-  writeClassIdBE,
-  readTrailerAtEndBE,
-  writeTrailerBE,
   createPacketContext,
+  emptyTrailer,
+  readTrailerAtEndBE,
+  type VitaClassId,
+  type VitaHeader,
   type VitaPacketContext,
+  VitaPacketType,
+  VitaTimeStampFractionalType,
+  VitaTimeStampIntegerType,
+  type VitaTrailer,
+  writeClassIdBE,
+  writeHeaderBE,
+  writeTrailerBE,
+  writeBigUint64BE as writeU64,
 } from "./common";
 
 export class VitaMeterPacket {

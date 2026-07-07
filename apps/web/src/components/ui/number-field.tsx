@@ -1,8 +1,7 @@
-import type { Component, ComponentProps, JSX, ValidComponent } from "solid-js";
-import { Show, splitProps } from "solid-js";
-
 import * as NumberFieldPrimitive from "@kobalte/core/number-field";
 import type { PolymorphicProps } from "@kobalte/core/polymorphic";
+import type { Component, ComponentProps, JSX, ValidComponent } from "solid-js";
+import { Show, splitProps } from "solid-js";
 
 import { cn } from "~/lib/utils";
 
@@ -209,11 +208,11 @@ const NumberFieldErrorMessage = <T extends ValidComponent = "div">(
 
 export {
   NumberField,
-  NumberFieldGroup,
-  NumberFieldLabel,
-  NumberFieldInput,
-  NumberFieldIncrementTrigger,
   NumberFieldDecrementTrigger,
   NumberFieldDescription,
   NumberFieldErrorMessage,
+  NumberFieldGroup,
+  NumberFieldIncrementTrigger,
+  NumberFieldInput,
+  NumberFieldLabel,
 };

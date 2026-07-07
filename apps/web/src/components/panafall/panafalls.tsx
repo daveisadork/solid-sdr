@@ -1,12 +1,12 @@
 import { createMemo, For, Match, Switch } from "solid-js";
 import useFlexRadio from "~/context/flexradio";
 import { PanafallProvider } from "~/context/panafall";
-import { SidebarProvider, SidebarTrigger } from "../ui/sidebar";
-import { PanafallSettingsSidebar, PanSettings } from "./settings";
-import { Panafall } from "./panafall";
-import BaselineDisplaySettings from "~icons/ic/baseline-display-settings";
 import { usePreferences } from "~/context/preferences";
+import BaselineDisplaySettings from "~icons/ic/baseline-display-settings";
 import { TuningPanel } from "../tuning-panel";
+import { SidebarProvider, SidebarTrigger } from "../ui/sidebar";
+import { Panafall } from "./panafall";
+import { PanafallSettingsSidebar, PanSettings } from "./settings";
 
 export function Panafalls() {
   const { state } = useFlexRadio();

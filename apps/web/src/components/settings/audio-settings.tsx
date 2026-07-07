@@ -1,8 +1,20 @@
-import { usePreferences } from "../../context/preferences";
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-import { SimpleSwitch } from "../ui/simple-switch";
+import { ToggleButton } from "@kobalte/core/toggle-button";
+import { createMicrophones, createSpeakers } from "@solid-primitives/devices";
 import { createEffect, Match, Show, Switch } from "solid-js";
+import { Dynamic } from "solid-js/web";
+import { useAudio } from "~/context/audio";
 import useFlexRadio from "~/context/flexradio";
+import { createPermission } from "~/lib/permission";
+import MaterialSymbolsMic from "~icons/material-symbols/mic";
+import MaterialSymbolsSpeaker from "~icons/material-symbols/speaker";
+import MdiHeadphones from "~icons/mdi/headphones";
+import MdiHeadphonesOff from "~icons/mdi/headphones-off";
+import MdiSpeaker from "~icons/mdi/speaker";
+import MdiSpeakerOff from "~icons/mdi/speaker-off";
+import { usePreferences } from "../../context/preferences";
+import { AudioLevelMeter } from "../ui/audio-level-meter";
+import { Callout, CalloutContent, CalloutTitle } from "../ui/callout";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import {
   Select,
@@ -12,26 +24,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
-import { createMicrophones, createSpeakers } from "@solid-primitives/devices";
+import { SimpleSlider } from "../ui/simple-slider";
+import { SimpleSwitch } from "../ui/simple-switch";
 import {
-  Switch as SwitchRoot,
   SwitchControl,
   SwitchLabel,
+  Switch as SwitchRoot,
   SwitchThumb,
 } from "../ui/switch";
-import { useAudio } from "~/context/audio";
-import { AudioLevelMeter } from "../ui/audio-level-meter";
-import MaterialSymbolsMic from "~icons/material-symbols/mic";
-import MaterialSymbolsSpeaker from "~icons/material-symbols/speaker";
-import { Callout, CalloutContent, CalloutTitle } from "../ui/callout";
-import { createPermission } from "~/lib/permission";
-import { ToggleButton } from "@kobalte/core/toggle-button";
-import { SimpleSlider } from "../ui/simple-slider";
-import MdiSpeaker from "~icons/mdi/speaker";
-import MdiSpeakerOff from "~icons/mdi/speaker-off";
-import MdiHeadphones from "~icons/mdi/headphones";
-import MdiHeadphonesOff from "~icons/mdi/headphones-off";
-import { Dynamic } from "solid-js/web";
 
 const supportedConstraints = navigator.mediaDevices.getSupportedConstraints();
 
@@ -180,7 +180,9 @@ export function AudioSettings() {
   createEffect(() => {
     if (audioPermission() === "prompt") {
       navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
-        stream.getTracks().forEach((track) => track.stop());
+        for (const track of stream.getTracks()) {
+          track.stop();
+        }
       });
     }
   });

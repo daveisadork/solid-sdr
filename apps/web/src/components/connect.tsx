@@ -120,6 +120,7 @@ export default function Connect() {
                     <div class="flex flex-col items-center shrink basis-0 not-sm:hidden">
                       <img
                         src={`images/radios/${getModelInfo(radio.model).imageName}`}
+                        alt={getModelInfo(radio.model).modelName}
                         class="shrink"
                       />
                       <div class="min-w-20 flex justify-around">

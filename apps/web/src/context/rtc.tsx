@@ -100,7 +100,8 @@ export const RtcProvider: ParentComponent = (props) => {
 
   async function onNegotiationNeeded(this: RTCPeerConnection) {
     const offer = await this.createOffer();
-    const sdp = forceStereoInSDP(offer.sdp!);
+    if (!offer.sdp) return;
+    const sdp = forceStereoInSDP(offer.sdp);
     await this.setLocalDescription({ ...offer, sdp });
     signalingWs.send(
       JSON.stringify({

@@ -197,9 +197,11 @@ export function SimpleMeter(props: MeterProps) {
             {(() => {
               let peakEl!: HTMLDivElement;
               createEffect(() => {
+                const peak = props.peakValue;
+                if (peak === undefined) return;
                 peakEl?.style.setProperty(
                   "--peak-position",
-                  calculatePeakOffset()(props.peakValue!),
+                  calculatePeakOffset()(peak),
                 );
               });
               return (

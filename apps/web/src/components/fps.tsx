@@ -24,6 +24,7 @@ export function FPSCounter() {
   const [running, setRunning] = createSignal(true);
   const { runtime, setRuntime } = useRuntime();
   const { setPreferences } = usePreferences();
+  // biome-ignore lint/correctness/noUnusedVariables: Solid.js directive, referenced via use:draggable in JSX
   const { draggable } = createDraggable();
   let lastTime = performance.now();
   const frameTimes: number[] = [];

@@ -50,6 +50,7 @@ const ResizableHandle = <T extends ValidComponent = "button">(
       <Show when={props.withHandle}>
         <div class="z-10 flex h-4 w-3 items-center justify-center rounded-sm border bg-border">
           <svg
+            aria-hidden="true"
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
             fill="none"

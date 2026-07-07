@@ -23,6 +23,7 @@ const Checkbox = <T extends ValidComponent = "div">(
           <Switch>
             <Match when={!others.indeterminate}>
               <svg
+                aria-hidden="true"
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
                 fill="none"
@@ -37,6 +38,7 @@ const Checkbox = <T extends ValidComponent = "div">(
             </Match>
             <Match when={others.indeterminate}>
               <svg
+                aria-hidden="true"
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
                 fill="none"

@@ -161,6 +161,7 @@ function SpotCluster(props: { layout: ClusterLayout; pan: PanadapterState }) {
         <PopoverContent class="flex flex-wrap gap-2 font-mono overflow-visible">
           <PopoverArrow />
           <button
+            type="button"
             /* this is here to steal focus so the child tooltips don't open by default */
             class="absolute size-0"
           />

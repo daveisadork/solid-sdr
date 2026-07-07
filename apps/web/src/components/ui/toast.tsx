@@ -91,6 +91,7 @@ const ToastClose = <T extends ValidComponent = "button">(
       {...others}
     >
       <svg
+        aria-hidden="true"
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 24 24"
         fill="none"
@@ -185,10 +186,10 @@ function showToastPromise<T, U>(
       <Switch>
         <Match when={props.state === "pending"}>{options.loading}</Match>
         <Match when={props.state === "fulfilled"}>
-          {options.success?.(props.data!)}
+          {props.data !== undefined && options.success?.(props.data)}
         </Match>
         <Match when={props.state === "rejected"}>
-          {options.error?.(props.error!)}
+          {props.error !== undefined && options.error?.(props.error)}
         </Match>
       </Switch>
     </Toast>

@@ -42,6 +42,7 @@ const RadioGroupItem = <T extends ValidComponent = "div">(
       <RadioGroupPrimitive.ItemControl class="aspect-square size-4 rounded-full border border-primary text-primary ring-offset-background focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
         <RadioGroupPrimitive.ItemIndicator class="flex h-full items-center justify-center ">
           <svg
+            aria-hidden="true"
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
             fill="none"

@@ -475,6 +475,7 @@ body,
     var(--tnf-transparency-color) 1px,
     var(--tnf-transparency-color) calc(12px / var(--tnf-depth, 1))
   );
+  /* biome-ignore lint/suspicious/noDuplicateProperties: Safari requires the -webkit- prefix for repeating-linear-gradient */
   background-image: -webkit-repeating-linear-gradient(
     135deg,
     var(--tnf-color),

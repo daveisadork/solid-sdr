@@ -620,13 +620,11 @@ function AddMappingDialog(props: { class?: string | undefined }) {
       setLastMessage(parsed);
     };
 
-    inputs.forEach((input) =>
-      input.addEventListener("midimessage", handleMessage),
-    );
+    for (const input of inputs.values())
+      input.addEventListener("midimessage", handleMessage);
     onCleanup(() => {
-      inputs.forEach((input) =>
-        input.removeEventListener("midimessage", handleMessage),
-      );
+      for (const input of inputs.values())
+        input.removeEventListener("midimessage", handleMessage);
     });
   });
 

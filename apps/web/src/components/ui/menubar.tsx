@@ -98,6 +98,7 @@ const MenubarSubTrigger = <T extends ValidComponent = "div">(
     >
       {local.children}
       <svg
+        aria-hidden="true"
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 24 24"
         fill="none"
@@ -186,6 +187,7 @@ const MenubarCheckboxItem = <T extends ValidComponent = "div">(
       <span class="absolute left-2 flex size-3.5 items-center justify-center">
         <MenubarPrimitive.ItemIndicator>
           <svg
+            aria-hidden="true"
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
             fill="none"
@@ -228,6 +230,7 @@ const MenubarRadioItem = <T extends ValidComponent = "div">(
       <span class="absolute left-2 flex size-3.5 items-center justify-center">
         <MenubarPrimitive.ItemIndicator>
           <svg
+            aria-hidden="true"
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
             fill="none"

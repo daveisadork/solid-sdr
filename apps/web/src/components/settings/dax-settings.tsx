@@ -308,7 +308,7 @@ export function DaxSettings() {
   createEffect(() => {
     if (audioPermission() === "prompt")
       navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
-        stream.getTracks().forEach((track) => track.stop());
+        for (const track of stream.getTracks()) track.stop();
       });
   });
 

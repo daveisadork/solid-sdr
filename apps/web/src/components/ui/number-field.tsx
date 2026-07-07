@@ -105,6 +105,7 @@ const NumberFieldIncrementTrigger = <T extends ValidComponent = "button">(
         when={local.children}
         fallback={
           <svg
+            aria-hidden="true"
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
             fill="none"
@@ -149,6 +150,7 @@ const NumberFieldDecrementTrigger = <T extends ValidComponent = "button">(
         when={local.children}
         fallback={
           <svg
+            aria-hidden="true"
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
             fill="none"

@@ -121,7 +121,10 @@ export const synchronizeMaps = <K, V>(
   target: Map<K, V>,
   source?: ReadonlyMap<K, V> | null,
 ): void => {
-  if (!source) return target.clear();
+  if (!source) {
+    target.clear();
+    return;
+  }
   for (const key of target.keys()) {
     if (!source.has(key)) target.delete(key);
   }

@@ -1335,11 +1335,8 @@ function RadioSettingsInner(props: { radio: Radio }) {
           <Button
             onClick={() => {
               const ctrl = props.radio.filterPresets();
-              filterPresets
-                .map((p) => ({ ...p }))
-                .forEach((preset) =>
-                  ctrl.save(filterModeGroup(), preset.index, preset),
-                );
+              for (const preset of filterPresets.map((p) => ({ ...p })))
+                ctrl.save(filterModeGroup(), preset.index, preset);
             }}
           >
             Save

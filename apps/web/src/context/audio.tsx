@@ -83,9 +83,9 @@ export const AudioProvider: ParentComponent = (props) => {
       Object.values(preferences.dax.rx).some((c) => c.enabled);
     Object.values(preferences.dax.iq).some((c) => c.enabled);
     if (!audioEnabled) return;
-    navigator.mediaDevices
-      .getUserMedia({ audio: true })
-      .then((stream) => stream.getTracks().forEach((t) => t.stop()));
+    navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+      for (const t of stream.getTracks()) t.stop();
+    });
   });
 
   // Track which radio audio stream IDs belong to this client
@@ -197,7 +197,7 @@ export const AudioProvider: ParentComponent = (props) => {
     onCleanup(() =>
       promise.then((stream) => {
         setRemoteAudioTxStream(undefined);
-        stream.getTracks().forEach((t) => t.stop());
+        for (const t of stream.getTracks()) t.stop();
       }),
     );
   });
@@ -424,7 +424,7 @@ export const AudioProvider: ParentComponent = (props) => {
       daxPromise.then((tx) => tx?.close().catch(console.error));
       streamPromise.then((stream) => {
         setDaxTxStream(undefined);
-        stream.getTracks().forEach((t) => t.stop());
+        for (const t of stream.getTracks()) t.stop();
         resolve();
       });
     });

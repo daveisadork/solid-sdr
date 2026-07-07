@@ -1729,9 +1729,14 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
   };
 
   createEffect(() => {
+    const { left: sLeft, right: sRight } = sentinelBounds;
+    const { left: pLeft, right: pRight } = panafallBounds;
     const detached =
-      sentinelBounds.left! < panafallBounds.left ||
-      sentinelBounds.right! > panafallBounds.right!;
+      sLeft !== null &&
+      pLeft !== null &&
+      sRight !== null &&
+      pRight !== null &&
+      (sLeft < pLeft || sRight > pRight);
     if (detached === props.slice.isDetached) return;
     setState("status", "slice", props.slice.id, "isDetached", detached);
   });
@@ -1758,6 +1763,8 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
   return (
     <>
       <Show when={!props.slice.isDetached}>
+        {/* biome-ignore lint/a11y/noStaticElementInteractions: keyboard activation is handled via focus on child controls */
+        /* biome-ignore lint/a11y/useKeyWithClickEvents: keyboard activation is handled via focus on child controls */}
         <div
           class="absolute inset-y-0 translate-x-(--slice-offset) z-10"
           classList={{
@@ -1856,6 +1863,7 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
                 "--flag-offset": `${sentinelBounds.left}px`,
               }}
             >
+              {/* biome-ignore lint/a11y/noStaticElementInteractions: pointer-events-none panel; onMouseDown only stops propagation from children, not user interaction */}
               <div
                 class="absolute top-0 pt-1 pb-4 px-1 z-20 overflow-visible pointer-events-none w-max"
                 classList={{

@@ -127,6 +127,7 @@ const DropdownMenuSubTrigger = <T extends ValidComponent = "div">(
     >
       {props.children}
       <svg
+        aria-hidden="true"
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 24 24"
         fill="none"
@@ -186,6 +187,7 @@ const DropdownMenuCheckboxItem = <T extends ValidComponent = "div">(
       <span class="absolute left-2 flex size-3.5 items-center justify-center">
         <DropdownMenuPrimitive.ItemIndicator>
           <svg
+            aria-hidden="true"
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
             fill="none"
@@ -245,6 +247,7 @@ const DropdownMenuRadioItem = <T extends ValidComponent = "div">(
       <span class="absolute left-2 flex size-3.5 items-center justify-center">
         <DropdownMenuPrimitive.ItemIndicator>
           <svg
+            aria-hidden="true"
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
             fill="none"

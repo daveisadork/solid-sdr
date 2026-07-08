@@ -1,4 +1,4 @@
-// internal/nat/natmap.go
+// Package nat maps UDP ports on the local gateway via NAT-PMP/UPnP.
 package nat
 
 import (
@@ -48,7 +48,7 @@ func Discover() (*Mapper, string, error) {
 	return &Mapper{nat: n, stop: make(chan struct{})}, ip.String(), nil
 }
 
-// Map a UDP port. If external==0, most implementations will pick same as internal.
+// MapUDP maps a UDP port. If external==0, most implementations will pick same as internal.
 func (m *Mapper) MapUDP(internal int, desc string, ttl time.Duration) error {
 	if m == nil || m.nat == nil {
 		return errNATMapperNotReady
@@ -60,7 +60,7 @@ func (m *Mapper) MapUDP(internal int, desc string, ttl time.Duration) error {
 
 	external, err := m.nat.AddPortMapping("udp", internal, desc, ttl)
 	if err != nil {
-		return err
+		return fmt.Errorf("map udp port %d: %w", internal, err)
 	}
 
 	log.Printf("[nat] mapped udp %d->%d (%s) ttl %s", internal, external, desc, ttl)
@@ -71,7 +71,7 @@ func (m *Mapper) MapUDP(internal int, desc string, ttl time.Duration) error {
 	return nil
 }
 
-// Start a refresher that renews all mappings before TTL expiry.
+// StartRefresher starts a refresher that renews all mappings before TTL expiry.
 func (m *Mapper) StartRefresher(interval time.Duration) {
 	if m == nil || m.nat == nil {
 		return
@@ -92,7 +92,8 @@ func (m *Mapper) StartRefresher(interval time.Duration) {
 			case <-t.C:
 				for _, mp := range m.maps {
 					// re-add to extend TTL
-					if external, err := m.nat.AddPortMapping(mp.Proto, mp.Internal, mp.Description, mp.TTL); err != nil {
+					external, err := m.nat.AddPortMapping(mp.Proto, mp.Internal, mp.Description, mp.TTL)
+					if err != nil {
 						log.Printf("[nat] refresh %s %d->%d failed: %v", mp.Proto, mp.Internal, mp.External, err)
 					} else {
 						mp.External = external // in case it changed

@@ -161,7 +161,10 @@ func (cs *clientSession) handleVersion(raw json.RawMessage) {
 		return
 	}
 
-	log.Printf("[rtc] client %s connected with version %s", cs.clientIP, p.Version)
+	// %q escapes control characters (including newlines) in the client-supplied
+	// version string, which is what neutralizes log injection; gosec's taint
+	// tracker just can't see that format-verb escaping.
+	log.Printf("[rtc] client %s connected with version %q", cs.clientIP, p.Version) //nolint:gosec // escaped via %q
 }
 
 func (cs *clientSession) reportServerToRadioDiagnostics(
@@ -286,11 +289,11 @@ func (cs *clientSession) setupPeerConnection(ctx context.Context) {
 		case "discovery":
 			go cs.serveDiscovery(ctx, dc)
 		case "tcp":
-			dc.OnOpen(func() { cs.openTCP(dc) })
+			dc.OnOpen(func() { cs.openTCP(ctx, dc) })
 		case "udp":
 			dc.OnOpen(func() { cs.openUDP(dc) })
 		case "upload":
-			dc.OnOpen(func() { go cs.openUploadProxy(dc) })
+			dc.OnOpen(func() { go cs.openUploadProxy(ctx, dc) })
 		case "download":
 			dc.OnOpen(func() {
 				cs.mu.Lock()
@@ -333,8 +336,8 @@ func (cs *clientSession) serveDiscovery(ctx context.Context, dc *webrtc.DataChan
 	}
 }
 
-func (cs *clientSession) openTCP(dc *webrtc.DataChannel) {
-	rc, err := newRadioConn(dc, dc.Label(), cs.reportServerToRadioDiagnostics)
+func (cs *clientSession) openTCP(ctx context.Context, dc *webrtc.DataChannel) {
+	rc, err := newRadioConn(ctx, dc, dc.Label(), cs.reportServerToRadioDiagnostics)
 	if err != nil {
 		log.Printf("[rtc] tcp dial %q: %v", dc.Label(), err)
 		_ = dc.Close()
@@ -360,7 +363,8 @@ func (cs *clientSession) openTCP(dc *webrtc.DataChannel) {
 
 		r.noteOutgoingCommand(msg.Data)
 
-		if err := r.writeTCP(msg.Data); err != nil {
+		err := r.writeTCP(msg.Data)
+		if err != nil {
 			log.Printf("[rtc] tcp write: %v", err)
 
 			_ = dc.Close()
@@ -409,7 +413,8 @@ func (cs *clientSession) openUDP(dc *webrtc.DataChannel) {
 			return
 		}
 
-		if _, err := u.WriteToUDP(msg.Data, raddr); err != nil {
+		_, err := u.WriteToUDP(msg.Data, raddr)
+		if err != nil {
 			log.Printf("[rtc] udp write: %v", err)
 
 			_ = dc.Close()
@@ -452,7 +457,9 @@ func (cs *clientSession) handleTXTrack(track *webrtc.TrackRemote) {
 		}
 
 		pkt := buildTXOpusPacket(streamID, count, packet.Payload)
-		if _, err := u.WriteToUDP(pkt, raddr); err != nil {
+
+		_, err = u.WriteToUDP(pkt, raddr)
+		if err != nil {
 			return
 		}
 	}
@@ -460,10 +467,12 @@ func (cs *clientSession) handleTXTrack(track *webrtc.TrackRemote) {
 
 // openUploadProxy dials the radio's upload TCP port, signals the client when
 // ready, and forwards incoming data channel messages to the TCP connection.
-func (cs *clientSession) openUploadProxy(dc *webrtc.DataChannel) {
+func (cs *clientSession) openUploadProxy(ctx context.Context, dc *webrtc.DataChannel) {
 	addr := dc.Label()
 
-	tcp, err := net.DialTimeout("tcp", addr, 10*time.Second)
+	dialer := net.Dialer{Timeout: 10 * time.Second}
+
+	tcp, err := dialer.DialContext(ctx, "tcp", addr)
 	if err != nil {
 		log.Printf("[rtc] upload dial %q: %v", addr, err)
 		_ = dc.SendText("error:" + err.Error())
@@ -492,7 +501,8 @@ func (cs *clientSession) openUploadProxy(dc *webrtc.DataChannel) {
 	})
 
 	// Single null byte signals the client that the TCP connection is open.
-	if err := dc.Send([]byte{0}); err != nil {
+	err = dc.Send([]byte{0})
+	if err != nil {
 		log.Printf("[rtc] upload ready signal: %v", err)
 
 		_ = tcp.Close()
@@ -553,7 +563,8 @@ func parsePotentialIP(raw string) string {
 		return ""
 	}
 
-	if host, _, err := net.SplitHostPort(v); err == nil {
+	host, _, err := net.SplitHostPort(v)
+	if err == nil {
 		v = host
 	}
 

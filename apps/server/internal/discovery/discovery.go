@@ -70,7 +70,7 @@ func (s *Service) Run(ctx context.Context) error {
 			select {
 			case <-time.After(backoff):
 			case <-ctx.Done():
-				return ctx.Err()
+				return fmt.Errorf("discovery bind: %w", ctx.Err())
 			}
 
 			continue
@@ -85,6 +85,51 @@ func (s *Service) Run(ctx context.Context) error {
 			}
 
 			log.Printf("[discovery] serve ended: %v", err)
+		}
+	}
+}
+
+// Subscribe returns a channel of discovery payloads for the WS handler.
+func (s *Service) Subscribe() chan []byte {
+	ch := make(chan []byte, 256)
+
+	s.subMu.Lock()
+	s.subs[ch] = struct{}{}
+	s.subMu.Unlock()
+
+	return ch
+}
+
+func (s *Service) Unsubscribe(ch chan []byte) {
+	s.subMu.Lock()
+	delete(s.subs, ch)
+	close(ch)
+	s.subMu.Unlock()
+}
+
+// WSHandler streams discovery packets to a websocket client as binary frames.
+func (s *Service) WSHandler(w http.ResponseWriter, r *http.Request) {
+	up := websocket.Upgrader{
+		CheckOrigin:       func(*http.Request) bool { return true },
+		EnableCompression: false, // disabled due to interoperability/perf issues
+	}
+
+	ws, err := up.Upgrade(w, r, nil)
+	if err != nil {
+		return
+	}
+
+	defer func() { _ = ws.Close() }()
+
+	ch := s.Subscribe()
+	defer s.Unsubscribe(ch)
+
+	for pkt := range ch {
+		_ = ws.SetWriteDeadline(time.Now().Add(10 * time.Second))
+
+		err := ws.WriteMessage(websocket.BinaryMessage, pkt)
+		if err != nil {
+			return
 		}
 	}
 }
@@ -108,8 +153,9 @@ func (s *Service) bindAll(ctx context.Context) error {
 	lc := net.ListenConfig{Control: applyUDPSocketOptions}
 
 	// 1) Try dual-stack UDP6 first
-	if c6, err := lc.ListenPacket(ctx, "udp6", addr); err == nil {
-		s.c6 = c6
+	dual, err := lc.ListenPacket(ctx, "udp6", addr)
+	if err == nil {
+		s.c6 = dual
 		s.lastPktUnix.Store(time.Now().UnixNano())
 
 		return nil
@@ -169,7 +215,7 @@ func (s *Service) serve(ctx context.Context) error {
 			close(done)
 			s.closeAll()
 
-			return ctx.Err()
+			return fmt.Errorf("discovery read loop: %w", ctx.Err())
 		}
 	}
 }
@@ -235,51 +281,6 @@ func (s *Service) closeAll() {
 		s.c6 = nil
 	}
 	s.mu.Unlock()
-}
-
-// Subscription API for WS handler.
-func (s *Service) Subscribe() chan []byte {
-	ch := make(chan []byte, 256)
-
-	s.subMu.Lock()
-	s.subs[ch] = struct{}{}
-	s.subMu.Unlock()
-
-	return ch
-}
-
-func (s *Service) Unsubscribe(ch chan []byte) {
-	s.subMu.Lock()
-	delete(s.subs, ch)
-	close(ch)
-	s.subMu.Unlock()
-}
-
-// WSHandler streams discovery packets to a websocket client as binary frames.
-func (s *Service) WSHandler(w http.ResponseWriter, r *http.Request) {
-	up := websocket.Upgrader{
-		CheckOrigin:       func(*http.Request) bool { return true },
-		EnableCompression: false, // disabled due to interoperability/perf issues
-	}
-
-	ws, err := up.Upgrade(w, r, nil)
-	if err != nil {
-		return
-	}
-
-	defer func() { _ = ws.Close() }()
-
-	ch := s.Subscribe()
-	defer s.Unsubscribe(ch)
-
-	for pkt := range ch {
-		_ = ws.SetWriteDeadline(time.Now().Add(10 * time.Second))
-
-		err := ws.WriteMessage(websocket.BinaryMessage, pkt)
-		if err != nil {
-			return
-		}
-	}
 }
 
 // helpers

@@ -5,6 +5,9 @@ import (
 	"strings"
 )
 
+// compressionOPUS is the radio's compression token for Opus-encoded audio streams.
+const compressionOPUS = "OPUS"
+
 type audioStream struct {
 	StreamID     uint32
 	Type         string

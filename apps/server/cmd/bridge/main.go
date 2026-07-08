@@ -117,16 +117,23 @@ func makeDefaultsHandler(path string) http.HandlerFunc {
 
 		if path == "" {
 			_, _ = w.Write([]byte("{}"))
+
 			return
 		}
-		data, err := os.ReadFile(path)
+
+		// path is cfg.DefaultsFile, an operator-configured startup value that is
+		// identical for every request and never derived from r — so the file
+		// inclusion G304 warns about cannot occur.
+		data, err := os.ReadFile(path) //nolint:gosec // operator-configured path, not request-derived
 		if err != nil {
 			if os.IsNotExist(err) {
 				http.NotFound(w, r)
+
 				return
 			}
 
 			http.Error(w, "failed to read defaults file", http.StatusInternalServerError)
+
 			return
 		}
 

@@ -19,6 +19,10 @@ linters:
     - nonamedreturns
     - varnamelen
     - wsl
+    # Our unit tests deliberately live in-package to exercise unexported
+    # symbols (nextTXPacket, parseAudioStream, etc.); an external _test
+    # package would force exporting internals purely to satisfy the linter.
+    - testpackage
   settings:
     revive:
       rules:

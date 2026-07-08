@@ -13,6 +13,10 @@ linters:
   #   - arangolint
   # Disable specific linters.
   disable:
+    # Deprecated since v2.12.0 and replaced by gomodguard_v2 (which default:all
+    # already enables); disabling the old one silences the deprecation warning.
+    # Both are inert for us anyway — we configure no module blocklist.
+    - gomodguard
     - depguard
     - exhaustruct
     - mnd
@@ -23,6 +27,13 @@ linters:
     # symbols (nextTXPacket, parseAudioStream, etc.); an external _test
     # package would force exporting internals purely to satisfy the linter.
     - testpackage
+    # gocognit (kept) is our complexity signal — it weights nesting, which is
+    # what actually hurts readability. cyclop double-counts every boolean guard
+    # (`a || b` scores 2), and funlen just counts lines/statements; both flag
+    # inherently branchy parsers and linear setup code without indicating a
+    # real problem.
+    - cyclop
+    - funlen
   settings:
     revive:
       rules:

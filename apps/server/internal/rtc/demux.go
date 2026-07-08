@@ -11,7 +11,6 @@ import (
 func startUDPDemux(rc *radioConn, audioTrack *webrtc.TrackLocalStaticSample) {
 	rc.mu.RLock()
 	u := rc.udpConn
-	raddr := rc.udpRaddr
 	rc.mu.RUnlock()
 
 	if u == nil {
@@ -20,86 +19,112 @@ func startUDPDemux(rc *radioConn, audioTrack *webrtc.TrackLocalStaticSample) {
 		return
 	}
 
+	go rc.demuxLoop(audioTrack)
+}
+
+// demuxLoop reads VITA packets from the radio's UDP socket until the socket is
+// closed, routing Opus audio (class 0x8005) to the WebRTC track and everything
+// else to the client's UDP data channel.
+func (rc *radioConn) demuxLoop(audioTrack *webrtc.TrackLocalStaticSample) {
+	defer rc.closeUDP()
+
+	rc.mu.RLock()
+	raddr := rc.udpRaddr
+	rc.mu.RUnlock()
+
 	buf := make([]byte, 64*1024)
 
-	go func() {
-		defer func() {
-			rc.mu.Lock()
-			if rc.udpConn != nil {
-				_ = rc.udpConn.Close()
-				rc.udpConn = nil
-			}
-			rc.mu.Unlock()
-		}()
+	for {
+		rc.mu.RLock()
+		u := rc.udpConn
+		rc.mu.RUnlock()
 
-		for {
-			rc.mu.RLock()
-			u := rc.udpConn
-			rc.mu.RUnlock()
-
-			if u == nil {
-				return
-			}
-
-			_ = u.SetReadDeadline(time.Now().Add(30 * time.Second))
-
-			n, src, err := u.ReadFromUDP(buf)
-			if n == 0 && err != nil {
-				if ne, ok := err.(interface{ Timeout() bool }); ok && ne.Timeout() {
-					continue
-				}
-
-				return
-			}
-
-			// Accept packets from any source port the radio uses but only
-			// from the radio's IP.
-			if raddr != nil && !src.IP.Equal(raddr.IP) {
-				continue
-			}
-
-			p := buf[:n]
-
-			v, perr := parseVITA(p)
-			if perr != nil {
-				continue
-			}
-
-			if v.ClassCode == 0x8005 {
-				if audioTrack == nil || len(v.Payload) == 0 {
-					continue
-				}
-
-				frames := opusFrameCount(v.Payload)
-				if frames <= 0 {
-					frames = 1
-				}
-
-				_ = audioTrack.WriteSample(media.Sample{
-					Data:     append([]byte(nil), v.Payload...),
-					Duration: time.Duration(frames) * 10 * time.Millisecond,
-				})
-
-				continue
-			}
-
-			rc.mu.RLock()
-			dc := rc.udpDC
-			rc.mu.RUnlock()
-
-			if dc != nil && dc.ReadyState() == webrtc.DataChannelStateOpen {
-				for dc.BufferedAmount() > (1 << 20) {
-					time.Sleep(2 * time.Millisecond)
-				}
-
-				const chunk = 16 * 1024
-				for off := 0; off < len(p); off += chunk {
-					end := min(off+chunk, len(p))
-					_ = dc.Send(p[off:end])
-				}
-			}
+		if u == nil {
+			return
 		}
-	}()
+
+		_ = u.SetReadDeadline(time.Now().Add(30 * time.Second))
+
+		n, src, err := u.ReadFromUDP(buf)
+		if n == 0 && err != nil {
+			if ne, ok := err.(interface{ Timeout() bool }); ok && ne.Timeout() {
+				continue
+			}
+
+			return
+		}
+
+		// Accept packets from any source port the radio uses but only
+		// from the radio's IP.
+		if raddr != nil && !src.IP.Equal(raddr.IP) {
+			continue
+		}
+
+		p := buf[:n]
+
+		v, perr := parseVITA(p)
+		if perr != nil {
+			continue
+		}
+
+		if v.ClassCode == 0x8005 {
+			writeAudioSample(v, audioTrack)
+
+			continue
+		}
+
+		rc.forwardToDataChannel(p)
+	}
+}
+
+// closeUDP closes and clears the radio's UDP socket. Safe to call more than once.
+func (rc *radioConn) closeUDP() {
+	rc.mu.Lock()
+	if rc.udpConn != nil {
+		_ = rc.udpConn.Close()
+		rc.udpConn = nil
+	}
+	rc.mu.Unlock()
+}
+
+// writeAudioSample decodes the Opus frame count from a VITA audio payload and
+// writes it to the WebRTC track. No-op when there is no track or payload.
+func writeAudioSample(v vitaView, audioTrack *webrtc.TrackLocalStaticSample) {
+	if audioTrack == nil || len(v.Payload) == 0 {
+		return
+	}
+
+	frames := opusFrameCount(v.Payload)
+	if frames <= 0 {
+		frames = 1
+	}
+
+	_ = audioTrack.WriteSample(media.Sample{
+		Data:     append([]byte(nil), v.Payload...),
+		Duration: time.Duration(frames) * 10 * time.Millisecond,
+	})
+}
+
+// forwardToDataChannel relays a raw packet to the client's UDP data channel in
+// chunks, applying backpressure when the channel's send buffer is full.
+func (rc *radioConn) forwardToDataChannel(p []byte) {
+	rc.mu.RLock()
+	dc := rc.udpDC
+	rc.mu.RUnlock()
+
+	if dc == nil || dc.ReadyState() != webrtc.DataChannelStateOpen {
+		return
+	}
+
+	for dc.BufferedAmount() > (1 << 20) {
+		time.Sleep(2 * time.Millisecond)
+	}
+
+	const chunk = 16 * 1024
+	for off := 0; off < len(p); off += chunk {
+		end := min(off+chunk, len(p))
+		_ = dc.Send(p[off:end])
+	}
 }
 
 func opusFrameCount(b []byte) int {

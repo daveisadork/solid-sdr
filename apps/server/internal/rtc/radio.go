@@ -76,8 +76,11 @@ func (rc *radioConn) writeTCP(data []byte) error {
 	defer rc.tcpWriteMu.Unlock()
 
 	_, err := tcp.Write(data)
+	if err != nil {
+		return fmt.Errorf("write to radio: %w", err)
+	}
 
-	return err
+	return nil
 }
 
 func (rc *radioConn) writeTCPString(line string) error {
@@ -106,7 +109,7 @@ func (rc *radioConn) noteStreamCreated(streamID uint32, typ, compression string)
 
 	switch typ {
 	case "remote_audio_tx":
-		if compression != "OPUS" {
+		if compression != compressionOPUS {
 			return
 		}
 
@@ -116,7 +119,7 @@ func (rc *radioConn) noteStreamCreated(streamID uint32, typ, compression string)
 		rc.mu.Unlock()
 		log.Printf("[rtc] tx audio stream %s registered (handle 0x%s)", stream, rc.handleHex)
 	case "remote_audio_rx":
-		if compression != "OPUS" {
+		if compression != compressionOPUS {
 			return
 		}
 
@@ -146,13 +149,16 @@ func (rc *radioConn) noteStreamRemoved(streamID uint32) {
 // newRadioConn dials TCP to addr, reads the 2-line radio handshake, and starts
 // the TCP forwarder goroutine. dc must be the "tcp" data channel.
 func newRadioConn(
+	ctx context.Context,
 	dc *webrtc.DataChannel,
 	addr string,
 	onNetworkDiagnostics func(serverRadioNetworkDiagnostics),
 ) (*radioConn, error) {
-	tcp, err := net.DialTimeout("tcp", addr, 10*time.Second)
+	dialer := net.Dialer{Timeout: 10 * time.Second}
+
+	tcp, err := dialer.DialContext(ctx, "tcp", addr)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("dial radio %s: %w", addr, err)
 	}
 
 	rd := bufio.NewReader(tcp)
@@ -183,7 +189,7 @@ func newRadioConn(
 
 	handleHex := strings.ToUpper(strings.TrimPrefix(handleLine, "H"))
 	handleU32, _ := strconv.ParseUint(handleHex, 16, 32)
-	pingCtx, pingCancel := context.WithCancel(context.Background())
+	pingCtx, pingCancel := context.WithCancel(ctx)
 
 	rc := &radioConn{
 		handleHex:            handleHex,
@@ -200,7 +206,7 @@ func newRadioConn(
 
 	log.Printf("[rtc] radio connected handle=0x%s", handleHex)
 
-	go rc.tcpForwarder(rd)
+	go rc.tcpForwarder(ctx, rd)
 	go rc.internalPingLoop(pingCtx)
 
 	return rc, nil
@@ -214,12 +220,12 @@ func newRadioConn(
 func (rc *radioConn) openUDP(dc *webrtc.DataChannel, addr string) error {
 	raddr, err := net.ResolveUDPAddr("udp", addr)
 	if err != nil {
-		return err
+		return fmt.Errorf("resolve radio udp addr %s: %w", addr, err)
 	}
 
 	u, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.IPv4zero, Port: 0})
 	if err != nil {
-		return err
+		return fmt.Errorf("listen udp: %w", err)
 	}
 
 	rc.mu.Lock()
@@ -271,14 +277,17 @@ var (
 // and records the sequence number of any `file download` command.
 func (rc *radioConn) noteOutgoingCommand(data []byte) {
 	line := strings.TrimRight(string(data), "\r\n")
+
 	m := reFileDownloadCmd.FindStringSubmatch(line)
 	if m == nil {
 		return
 	}
+
 	seq, err := strconv.ParseUint(m[1], 10, 32)
 	if err != nil {
 		return
 	}
+
 	rc.mu.Lock()
 	rc.pendingDownloadSeq = uint32(seq)
 	rc.pendingDownloadSeqOk = true
@@ -288,21 +297,25 @@ func (rc *radioConn) noteOutgoingCommand(data []byte) {
 // serveDownload listens on port, accepts one connection from the radio, and
 // relays the received bytes to the client's download data channel in chunks.
 // An empty Send signals EOF.
-func (rc *radioConn) serveDownload(port int, dc *webrtc.DataChannel) {
-	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+func (rc *radioConn) serveDownload(ctx context.Context, port int, dc *webrtc.DataChannel) {
+	var lc net.ListenConfig
+
+	ln, err := lc.Listen(ctx, "tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		log.Printf("[rtc] download listen :%d: %v", port, err)
 		_ = dc.Send([]byte("error:" + err.Error()))
+
 		return
 	}
-	defer ln.Close()
+	defer func() { _ = ln.Close() }()
 
 	conn, err := ln.Accept()
 	if err != nil {
 		log.Printf("[rtc] download accept: %v", err)
+
 		return
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	buf := make([]byte, 32*1024)
 	for {
@@ -310,11 +323,15 @@ func (rc *radioConn) serveDownload(port int, dc *webrtc.DataChannel) {
 		if n > 0 {
 			chunk := make([]byte, n)
 			copy(chunk, buf[:n])
-			if sendErr := dc.Send(chunk); sendErr != nil {
+
+			sendErr := dc.Send(chunk)
+			if sendErr != nil {
 				log.Printf("[rtc] download dc send: %v", sendErr)
+
 				return
 			}
 		}
+
 		if readErr != nil {
 			break
 		}
@@ -326,7 +343,7 @@ func (rc *radioConn) serveDownload(port int, dc *webrtc.DataChannel) {
 
 // tcpForwarder reads lines from the radio, forwards to the TCP data channel,
 // and watches for stream announcements.
-func (rc *radioConn) tcpForwarder(rd *bufio.Reader) {
+func (rc *radioConn) tcpForwarder(ctx context.Context, rd *bufio.Reader) {
 	for {
 		b, err := rd.ReadString('\n')
 		if err != nil {
@@ -348,6 +365,7 @@ func (rc *radioConn) tcpForwarder(rd *bufio.Reader) {
 
 			rc.mu.Lock()
 			match := rc.pendingDownloadSeqOk && rc.pendingDownloadSeq == uint32(seq)
+
 			dc := rc.downloadDC
 			if match {
 				rc.pendingDownloadSeqOk = false
@@ -355,7 +373,7 @@ func (rc *radioConn) tcpForwarder(rd *bufio.Reader) {
 			rc.mu.Unlock()
 
 			if match && dc != nil && port > 0 {
-				go rc.serveDownload(port, dc)
+				go rc.serveDownload(ctx, port, dc)
 			}
 		}
 
@@ -407,9 +425,10 @@ func (rc *radioConn) sendInternalPing(now time.Time) {
 		return
 	}
 
-	if err := rc.writeTCPString(
+	err := rc.writeTCPString(
 		fmt.Sprintf("C%d|ping ms_timestamp=%d\n", internalPingSequence, now.UnixMilli()),
-	); err != nil {
+	)
+	if err != nil {
 		return
 	}
 
@@ -424,13 +443,16 @@ func (rc *radioConn) consumeInternalPingReply(line string, now time.Time) bool {
 	}
 
 	rc.mu.Lock()
+
 	sentAt := rc.internalPingSentAt
 	if sentAt.IsZero() {
 		rc.mu.Unlock()
+
 		return false
 	}
 
 	rc.internalPingSentAt = time.Time{}
+
 	rtt := now.Sub(sentAt)
 	if rtt > rc.serverToRadioRTTMax {
 		rc.serverToRadioRTTMax = rtt

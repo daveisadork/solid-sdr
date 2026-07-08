@@ -3,6 +3,8 @@ package rtc
 import "testing"
 
 func TestParseAudioStream_RX(t *testing.T) {
+	t.Parallel()
+
 	line := "S591502EF|stream 0x04000008 type=remote_audio_rx compression=OPUS client_handle=0x591502EF"
 
 	s, ok := parseAudioStream(line)
@@ -18,7 +20,7 @@ func TestParseAudioStream_RX(t *testing.T) {
 		t.Errorf("Type: got %q", s.Type)
 	}
 
-	if s.Compression != "OPUS" {
+	if s.Compression != compressionOPUS {
 		t.Errorf("Compression: got %q", s.Compression)
 	}
 
@@ -32,6 +34,8 @@ func TestParseAudioStream_RX(t *testing.T) {
 }
 
 func TestParseAudioStream_Removed(t *testing.T) {
+	t.Parallel()
+
 	line := "S591502EF|stream 0x04000008 removed"
 
 	s, ok := parseAudioStream(line)
@@ -49,6 +53,8 @@ func TestParseAudioStream_Removed(t *testing.T) {
 }
 
 func TestParseAudioStream_NoMatch(t *testing.T) {
+	t.Parallel()
+
 	_, ok := parseAudioStream("some random line with no stream")
 	if ok {
 		t.Error("expected ok=false for non-stream line")
@@ -56,6 +62,8 @@ func TestParseAudioStream_NoMatch(t *testing.T) {
 }
 
 func TestParseAudioStream_TX(t *testing.T) {
+	t.Parallel()
+
 	line := "S591502EF|stream 0x08000001 type=remote_audio_tx compression=OPUS client_handle=0x591502EF"
 
 	s, ok := parseAudioStream(line)

@@ -5,7 +5,11 @@ import (
 	"time"
 )
 
+const testHandleHex = "TEST"
+
 func TestNextTXPacket_NoStream(t *testing.T) {
+	t.Parallel()
+
 	rc := &radioConn{}
 
 	_, _, ok := rc.nextTXPacket()
@@ -15,6 +19,8 @@ func TestNextTXPacket_NoStream(t *testing.T) {
 }
 
 func TestNextTXPacket_IncrementsCount(t *testing.T) {
+	t.Parallel()
+
 	rc := &radioConn{activeTXStream: 0x12345678}
 	for i := range 16 {
 		id, count, ok := rc.nextTXPacket()
@@ -33,6 +39,8 @@ func TestNextTXPacket_IncrementsCount(t *testing.T) {
 }
 
 func TestNextTXPacket_WrapsAt16(t *testing.T) {
+	t.Parallel()
+
 	rc := &radioConn{activeTXStream: 0x12345678}
 	for range 16 {
 		rc.nextTXPacket()
@@ -45,8 +53,10 @@ func TestNextTXPacket_WrapsAt16(t *testing.T) {
 }
 
 func TestNoteStreamCreated_RX(t *testing.T) {
-	rc := &radioConn{handleHex: "TEST"}
-	rc.noteStreamCreated(0x04000008, "remote_audio_rx", "OPUS")
+	t.Parallel()
+
+	rc := &radioConn{handleHex: testHandleHex}
+	rc.noteStreamCreated(0x04000008, "remote_audio_rx", compressionOPUS)
 
 	if rc.activeRXStream != 0x04000008 {
 		t.Errorf("activeRXStream: got 0x%08X", rc.activeRXStream)
@@ -58,8 +68,10 @@ func TestNoteStreamCreated_RX(t *testing.T) {
 }
 
 func TestNoteStreamCreated_TX(t *testing.T) {
-	rc := &radioConn{handleHex: "TEST"}
-	rc.noteStreamCreated(0x08000001, "remote_audio_tx", "OPUS")
+	t.Parallel()
+
+	rc := &radioConn{handleHex: testHandleHex}
+	rc.noteStreamCreated(0x08000001, "remote_audio_tx", compressionOPUS)
 
 	if rc.activeTXStream != 0x08000001 {
 		t.Errorf("activeTXStream: got 0x%08X", rc.activeTXStream)
@@ -71,7 +83,9 @@ func TestNoteStreamCreated_TX(t *testing.T) {
 }
 
 func TestNoteStreamCreated_NonOpusIgnored(t *testing.T) {
-	rc := &radioConn{handleHex: "TEST"}
+	t.Parallel()
+
+	rc := &radioConn{handleHex: testHandleHex}
 	rc.noteStreamCreated(0x04000008, "remote_audio_rx", "PCM")
 
 	if rc.activeRXStream != 0 {
@@ -80,7 +94,9 @@ func TestNoteStreamCreated_NonOpusIgnored(t *testing.T) {
 }
 
 func TestNoteStreamRemoved_ClearsRX(t *testing.T) {
-	rc := &radioConn{handleHex: "TEST", activeRXStream: 0x100, activeTXStream: 0x200}
+	t.Parallel()
+
+	rc := &radioConn{handleHex: testHandleHex, activeRXStream: 0x100, activeTXStream: 0x200}
 	rc.noteStreamRemoved(0x100)
 
 	if rc.activeRXStream != 0 {
@@ -93,7 +109,9 @@ func TestNoteStreamRemoved_ClearsRX(t *testing.T) {
 }
 
 func TestNoteStreamRemoved_ClearsTX(t *testing.T) {
-	rc := &radioConn{handleHex: "TEST", activeRXStream: 0x100, activeTXStream: 0x200, txPacketCount: 5}
+	t.Parallel()
+
+	rc := &radioConn{handleHex: testHandleHex, activeRXStream: 0x100, activeTXStream: 0x200, txPacketCount: 5}
 	rc.noteStreamRemoved(0x200)
 
 	if rc.activeTXStream != 0 {
@@ -110,7 +128,9 @@ func TestNoteStreamRemoved_ClearsTX(t *testing.T) {
 }
 
 func TestNoteStreamRemoved_WrongID(t *testing.T) {
-	rc := &radioConn{handleHex: "TEST", activeRXStream: 0x100}
+	t.Parallel()
+
+	rc := &radioConn{handleHex: testHandleHex, activeRXStream: 0x100}
 	rc.noteStreamRemoved(0x999)
 
 	if rc.activeRXStream != 0x100 {
@@ -119,7 +139,10 @@ func TestNoteStreamRemoved_WrongID(t *testing.T) {
 }
 
 func TestConsumeInternalPingReply_ReportsRTT(t *testing.T) {
+	t.Parallel()
+
 	var got serverRadioNetworkDiagnostics
+
 	rc := &radioConn{
 		onNetworkDiagnostics: func(d serverRadioNetworkDiagnostics) {
 			got = d
@@ -128,6 +151,7 @@ func TestConsumeInternalPingReply_ReportsRTT(t *testing.T) {
 	}
 
 	now := time.Unix(0, int64(25*time.Millisecond))
+
 	handled := rc.consumeInternalPingReply("R2147483647|00000000|", now)
 	if !handled {
 		t.Fatal("expected internal ping reply to be handled")
@@ -147,6 +171,8 @@ func TestConsumeInternalPingReply_ReportsRTT(t *testing.T) {
 }
 
 func TestConsumeInternalPingReply_IgnoresNonInternalReply(t *testing.T) {
+	t.Parallel()
+
 	called := false
 	rc := &radioConn{
 		onNetworkDiagnostics: func(serverRadioNetworkDiagnostics) {

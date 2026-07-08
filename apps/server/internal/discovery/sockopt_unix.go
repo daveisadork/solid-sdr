@@ -15,7 +15,7 @@ func applyUDPSocketOptions(network, _ string, rc syscall.RawConn) error {
 	var retErr error
 
 	_ = rc.Control(func(fd uintptr) {
-		fdInt := int(fd) //nolint:gosec
+		fdInt := int(fd)
 		// SO_REUSEADDR (always, ignore errors)
 		err := unix.SetsockoptInt(fdInt, unix.SOL_SOCKET, unix.SO_REUSEADDR, 1)
 		if err != nil && retErr == nil {

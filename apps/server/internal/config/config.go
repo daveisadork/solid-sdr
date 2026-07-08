@@ -39,7 +39,8 @@ type Config struct {
 }
 
 func defaultAPILogPath() string {
-	if _, err := os.Stat(filepath.Join("apps", "server")); err == nil {
+	_, err := os.Stat(filepath.Join("apps", "server"))
+	if err == nil {
 		return filepath.Join("apps", "server", "messages.txt")
 	}
 

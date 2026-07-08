@@ -6,10 +6,9 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
-    "dev:web": "turbo run dev:web",
     "dev:server": "turbo run dev:server",
-    "dev:app": "turbo run dev:app",
     "lint": "turbo run lint",
+    "test": "turbo run test",
     "format": "biome check --write .",
     "check-types": "turbo run check-types",
     "release:build": "goreleaser build --snapshot --clean && rm -rf apps/server/internal/static/web",
@@ -18,10 +17,10 @@
   "devDependencies": {
     "@biomejs/biome": "2.5.2",
     "turbo": "^2.5.8",
-    "typescript": "5.8.2"
+    "typescript": "^5.9.3"
   },
   "packageManager": "pnpm@10.18.3",
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   }
 }

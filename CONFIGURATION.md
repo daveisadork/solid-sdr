@@ -1,16 +1,4 @@
-# Running solid-sdr-server
-
-## Quick start
-
-1. Download the archive for your platform from the Releases page.
-2. Extract it.
-3. Run the binary:
-   ```sh
-   ./solid-sdr-server
-   ```
-4. Open http://localhost:8080 in your browser.
-
-## Configuration
+# Configuration
 
 solid-sdr-server reads configuration from three sources, in order of precedence:
 

@@ -12,6 +12,10 @@ possible available to any device that can run a web browser.
 2. Extract and run `solid-sdr-server`
 3. Use a web browser to navigate to <http://localhost:8080>
 
+The server works out of the box with no configuration. For all flags and
+environment variables, firewall ports, and running as a systemd service, see
+[CONFIGURATION.md](CONFIGURATION.md).
+
 ## Installation Notes
 
 The server must be run on the same network as the radio. SmartLink is not
@@ -49,6 +53,11 @@ curl -fsSL https://raw.githubusercontent.com/daveisadork/solid-sdr/main/scripts/
 This will download the correct build into `~/Downloads/solid-sdr-server` and
 extract it there. Open that folder and double click `solid-sdr-server` to
 start the server in Terminal, then navigate to <http://localhost:8080>.
+
+## Contributing
+
+Want to hack on SolidSDR? [CONTRIBUTING.md](CONTRIBUTING.md) covers dev
+environment setup and the development workflow.
 
 ## License
 

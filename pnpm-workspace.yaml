@@ -6,5 +6,4 @@ onlyBuiltDependencies:
   - '@swc/core'
   - '@tailwindcss/oxide'
   - bufferutil
-  - electron
   - esbuild

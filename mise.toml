@@ -1,0 +1,13 @@
+[tools]
+# Node 20 matches .github/workflows/release.yml
+node = "20"
+# pnpm pinned to the same version as "packageManager" in package.json
+pnpm = "10.18.3"
+# Go tracks the toolchain in apps/server/go.mod
+go = "1.25"
+# Live reload for the Go server (pnpm dev)
+air = "latest"
+# Go linter (pnpm lint), configured by apps/server/.golangci.yml
+golangci-lint = "latest"
+# Only needed for release builds (pnpm release:build)
+goreleaser = "latest"

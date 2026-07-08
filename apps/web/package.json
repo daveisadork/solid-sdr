@@ -7,7 +7,6 @@
   "scripts": {
     "start": "vite",
     "dev": "vite",
-    "dev:web": "vite",
     "dev:server": "vite build --watch",
     "build": "vite build",
     "serve": "vite preview",
@@ -20,6 +19,7 @@
   "devDependencies": {
     "@biomejs/biome": "2.5.2",
     "@iconify/json": "^2.2.438",
+    "@types/node": "^22.19.11",
     "@repo/tailwind-config": "workspace:*",
     "@tailwindcss/vite": "^4.1.18",
     "rollup-plugin-visualizer": "^6.0.5",
@@ -54,7 +54,6 @@
     "@solid-primitives/workers": "^0.4.3",
     "@solidjs/router": "^0.15.4",
     "@tanstack/solid-table": "^8.21.3",
-    "@types/node": "^22.19.11",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "fflate": "^0.8.2",

@@ -257,4 +257,6 @@ export function MidiControl() {
       }),
     );
   });
+
+  return null;
 }

@@ -1,11 +1,11 @@
-import type { FlexRadioDescriptor } from "./adapters.js";
-import { parseDiscoveredGuiClients } from "./gui-client.js";
 import {
   parseBooleanFlag,
   parseCsvList,
   parseInteger as parseOptionalInteger,
   valueOrUndefined,
 } from "../util/parsers.js";
+import type { FlexRadioDescriptor } from "./adapters.js";
+import { parseDiscoveredGuiClients } from "./gui-client.js";
 
 export function parseDiscoveryPayload(payload: string): Map<string, string> {
   const map = new Map<string, string>();

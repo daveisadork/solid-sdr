@@ -1,17 +1,26 @@
+import type { Radio } from "@repo/flexlib";
+import { unzip, zip } from "fflate";
 import {
   createEffect,
   createMemo,
   createResource,
   createSignal,
   For,
-  JSX,
+  type JSX,
   Show,
 } from "solid-js";
 import type { SetStoreFunction } from "solid-js/store";
 import { createStore } from "solid-js/store";
-import { unzip, zip } from "fflate";
-
+import { Dynamic } from "solid-js/web";
 import useFlexRadio from "~/context/flexradio";
+import { cn } from "~/lib/utils";
+import Download from "~icons/material-symbols/download";
+import Upload from "~icons/material-symbols/upload";
+import Spinner from "~icons/svg-spinners/180-ring";
+import { Button } from "../ui/button";
+import { Callout, CalloutContent, CalloutTitle } from "../ui/callout";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { Checkbox } from "../ui/checkbox";
 import {
   DialogContent,
   DialogDescription,
@@ -19,28 +28,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
-import { Radio } from "@repo/flexlib";
-import { Button } from "../ui/button";
-import { Checkbox } from "../ui/checkbox";
-import { Label } from "../ui/label";
-import { cn } from "~/lib/utils";
-import Upload from "~icons/material-symbols/upload";
-import Download from "~icons/material-symbols/download";
-import Spinner from "~icons/svg-spinners/180-ring";
-import { Dynamic } from "solid-js/web";
-import { showToast } from "../ui/toast";
 import {
   FileField,
-  FileFieldHiddenInput,
   FileFieldDropzone,
-  FileFieldItemList,
+  FileFieldHiddenInput,
   FileFieldItem,
-  FileFieldItemSize,
+  FileFieldItemList,
   FileFieldItemName,
+  FileFieldItemSize,
 } from "../ui/file-field";
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-import { Callout, CalloutContent, CalloutTitle } from "../ui/callout";
+import { Label } from "../ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
+import { showToast } from "../ui/toast";
 
 // --- Types ---
 

@@ -1,18 +1,17 @@
-import type { ValidComponent } from "solid-js"
-import { Match, splitProps, Switch } from "solid-js"
+import * as CheckboxPrimitive from "@kobalte/core/checkbox";
+import type { PolymorphicProps } from "@kobalte/core/polymorphic";
+import type { ValidComponent } from "solid-js";
+import { Match, Switch, splitProps } from "solid-js";
 
-import * as CheckboxPrimitive from "@kobalte/core/checkbox"
-import type { PolymorphicProps } from "@kobalte/core/polymorphic"
-
-import { cn } from "~/lib/utils"
+import { cn } from "~/lib/utils";
 
 type CheckboxRootProps<T extends ValidComponent = "div"> =
-  CheckboxPrimitive.CheckboxRootProps<T> & { class?: string | undefined }
+  CheckboxPrimitive.CheckboxRootProps<T> & { class?: string | undefined };
 
 const Checkbox = <T extends ValidComponent = "div">(
-  props: PolymorphicProps<T, CheckboxRootProps<T>>
+  props: PolymorphicProps<T, CheckboxRootProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as CheckboxRootProps, ["class"])
+  const [local, others] = splitProps(props as CheckboxRootProps, ["class"]);
   return (
     <CheckboxPrimitive.Root
       class={cn("items-top group relative flex space-x-2", local.class)}
@@ -24,6 +23,7 @@ const Checkbox = <T extends ValidComponent = "div">(
           <Switch>
             <Match when={!others.indeterminate}>
               <svg
+                aria-hidden="true"
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
                 fill="none"
@@ -38,6 +38,7 @@ const Checkbox = <T extends ValidComponent = "div">(
             </Match>
             <Match when={others.indeterminate}>
               <svg
+                aria-hidden="true"
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
                 fill="none"
@@ -54,7 +55,7 @@ const Checkbox = <T extends ValidComponent = "div">(
         </CheckboxPrimitive.Indicator>
       </CheckboxPrimitive.Control>
     </CheckboxPrimitive.Root>
-  )
-}
+  );
+};
 
-export { Checkbox }
+export { Checkbox };

@@ -1,8 +1,7 @@
-import type { Component, ComponentProps, JSX, ValidComponent } from "solid-js";
-import { Show, splitProps } from "solid-js";
-
 import * as DialogPrimitive from "@kobalte/core/dialog";
 import type { PolymorphicProps } from "@kobalte/core/polymorphic";
+import type { Component, ComponentProps, JSX, ValidComponent } from "solid-js";
+import { Show, splitProps } from "solid-js";
 
 import { cn } from "~/lib/utils";
 
@@ -68,6 +67,7 @@ const DialogContent = <T extends ValidComponent = "div">(
         {props.children}
         <DialogPrimitive.CloseButton class="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-expanded:bg-accent data-expanded:text-muted-foreground">
           <svg
+            aria-hidden="true"
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
             fill="none"
@@ -152,10 +152,10 @@ const DialogDescription = <T extends ValidComponent = "p">(
 
 export {
   Dialog,
-  DialogTrigger,
   DialogContent,
-  DialogHeader,
-  DialogFooter,
-  DialogTitle,
   DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
 };

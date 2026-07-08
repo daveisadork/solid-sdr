@@ -1,7 +1,7 @@
-import { SimpleMeter } from "./simple-meter";
-import type { DaxChannelMode } from "~/lib/dax-audio-sink/types";
 import type { MeterState } from "~/context/flexradio";
+import type { DaxChannelMode } from "~/lib/dax-audio-sink/types";
 import { createStreamLevel } from "~/lib/stream-level";
+import { SimpleMeter } from "./simple-meter";
 
 const METER: MeterState = {
   id: "",

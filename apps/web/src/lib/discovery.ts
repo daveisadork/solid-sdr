@@ -1,4 +1,4 @@
-import dgram, { RemoteInfo, Socket } from "node:dgram";
+import dgram, { type RemoteInfo, type Socket } from "node:dgram";
 import { EventEmitter } from "node:events";
 import { networkInterfaces } from "node:os";
 
@@ -114,8 +114,8 @@ export class UdpDiscovery extends EventEmitter {
       const upIfaces = Object.values(ifaces)
         .flat()
         .filter(Boolean)
-        .filter((n) => !n!.internal)
-        .map((n) => `${n!.address}/${n!.family}`)
+        .filter((n) => !n?.internal)
+        .map((n) => `${n?.address}/${n?.family}`)
         .join(", ");
       console.log(
         `[udp] listening on ${port} (ifaces: ${upIfaces || "unknown"})`,

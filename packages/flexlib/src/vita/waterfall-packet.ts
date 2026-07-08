@@ -1,25 +1,25 @@
 // VITA-49 Extended Data packet for waterfall tiles — performance tuned
 
+import { VitaFrequency } from "../util/vita-frequency";
+import type { WaterfallTile } from "../util/waterfall-tile";
 import {
-  type VitaHeader,
-  type VitaClassId,
-  type VitaTrailer,
-  VitaPacketType,
-  VitaTimeStampIntegerType,
-  VitaTimeStampFractionalType,
+  createPacketContext,
   emptyTrailer,
   readBigInt64BE as readI64,
-  writeBigInt64BE as writeI64,
-  writeBigUint64BE as writeU64,
-  writeHeaderBE,
-  writeClassIdBE,
   readTrailerAtEndBE,
-  writeTrailerBE,
-  createPacketContext,
+  type VitaClassId,
+  type VitaHeader,
   type VitaPacketContext,
+  VitaPacketType,
+  VitaTimeStampFractionalType,
+  VitaTimeStampIntegerType,
+  type VitaTrailer,
+  writeClassIdBE,
+  writeHeaderBE,
+  writeBigInt64BE as writeI64,
+  writeTrailerBE,
+  writeBigUint64BE as writeU64,
 } from "./common";
-import type { WaterfallTile } from "../util/waterfall-tile";
-import { VitaFrequency } from "../util/vita-frequency";
 
 const TILE_HEADER_BYTES = 36; // 8+8+4+2+2+4+4+2+2
 
@@ -190,10 +190,9 @@ export class VitaWaterfallPacket {
       tile.autoBlackLevel = 0;
       tile.totalBinsInFrame = 0;
       tile.firstBinIndex = 0;
-      tile.data =
-        out?.data && out.data.length
-          ? out.data.subarray(0, 0)
-          : new Uint16Array(0);
+      tile.data = out?.data?.length
+        ? out.data.subarray(0, 0)
+        : new Uint16Array(0);
       this.trailer =
         ctx.trailerPos >= 0
           ? readTrailerAtEndBE(view, ctx.trailerPos)

@@ -1,8 +1,8 @@
 import {
-  Component,
-  JSX,
+  type Component,
   createEffect,
   createSignal,
+  type JSX,
   splitProps,
 } from "solid-js";
 
@@ -23,7 +23,10 @@ const sanitizeDigits = (value: string): string => {
 };
 
 const canonicalDigitsFromHz = (hz: number | undefined): string => {
-  const safe = Number.isFinite(hz) ? Math.max(0, Math.round(hz!)) : 0;
+  const safe =
+    typeof hz === "number" && Number.isFinite(hz)
+      ? Math.max(0, Math.round(hz))
+      : 0;
   return sanitizeDigits(String(safe));
 };
 
@@ -46,7 +49,7 @@ const displayIndexToDigitIndex = (
   let digitsSeen = 0;
   const limit = Math.min(displayIndex, display.length);
   for (let i = 0; i < limit; i++) {
-    if (digitPattern.test(display[i]!)) {
+    if (digitPattern.test(display.charAt(i))) {
       digitsSeen++;
     }
   }
@@ -56,7 +59,7 @@ const displayIndexToDigitIndex = (
 const buildDigitPositions = (display: string): number[] => {
   const positions: number[] = [];
   for (let i = 0; i < display.length; i++) {
-    if (digitPattern.test(display[i]!)) {
+    if (digitPattern.test(display.charAt(i))) {
       positions.push(i);
     }
   }
@@ -74,7 +77,7 @@ const digitIndexToCaretPosition = (
     return display.length;
   }
   let caret = positions[digitIndex - 1] + 1;
-  while (caret < display.length && !digitPattern.test(display[caret]!)) {
+  while (caret < display.length && !digitPattern.test(display.charAt(caret))) {
     caret++;
   }
   return caret;

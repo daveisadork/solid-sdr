@@ -1,11 +1,9 @@
-import type { JSX, ValidComponent } from "solid-js";
-import { Show, splitProps } from "solid-js";
-
 import * as ComboboxPrimitive from "@kobalte/core/combobox";
 import type { PolymorphicProps } from "@kobalte/core/polymorphic";
-
-import { cn } from "~/lib/utils";
 import { cva } from "class-variance-authority";
+import type { JSX, ValidComponent } from "solid-js";
+import { Show, splitProps } from "solid-js";
+import { cn } from "~/lib/utils";
 
 const Combobox = ComboboxPrimitive.Root;
 const ComboboxItemLabel = ComboboxPrimitive.ItemLabel;
@@ -50,6 +48,7 @@ const ComboboxItemIndicator = <T extends ValidComponent = "div">(
         when={local.children}
         fallback={
           <svg
+            aria-hidden="true"
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
             fill="none"
@@ -152,6 +151,7 @@ const ComboboxTrigger = <T extends ValidComponent = "button">(
           when={local.children}
           fallback={
             <svg
+              aria-hidden="true"
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
               fill="none"
@@ -230,16 +230,16 @@ const ComboboxLabel = <T extends ValidComponent = "label">(
 
 export {
   Combobox,
-  ComboboxItem,
-  ComboboxItemLabel,
-  ComboboxItemIndicator,
-  ComboboxSection,
-  ComboboxControl,
-  ComboboxTrigger,
-  ComboboxInput,
-  ComboboxHiddenSelect,
+  ComboboxArrow,
   ComboboxContent,
+  ComboboxControl,
+  ComboboxHiddenSelect,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxItemIndicator,
+  ComboboxItemLabel,
   ComboboxLabel,
   ComboboxListbox,
-  ComboboxArrow,
+  ComboboxSection,
+  ComboboxTrigger,
 };

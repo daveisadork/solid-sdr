@@ -1,21 +1,21 @@
 import {
-  createContext,
-  useContext,
-  ParentComponent,
-  createSignal,
-  onCleanup,
-  createEffect,
-  batch,
-} from "solid-js";
-import type { Accessor, Setter } from "solid-js";
-import { APP_VERSION } from "~/lib/version";
-import {
   createReconnectingWS,
   createWSState,
   makeHeartbeatWS,
   type ReconnectingWebSocket,
 } from "@solid-primitives/websocket";
+import type { Accessor, Setter } from "solid-js";
+import {
+  batch,
+  createContext,
+  createEffect,
+  createSignal,
+  onCleanup,
+  type ParentComponent,
+  useContext,
+} from "solid-js";
 import { createStore } from "solid-js/store";
+import { APP_VERSION } from "~/lib/version";
 
 const RtcCtx = createContext<RtcContextValue>();
 
@@ -100,7 +100,8 @@ export const RtcProvider: ParentComponent = (props) => {
 
   async function onNegotiationNeeded(this: RTCPeerConnection) {
     const offer = await this.createOffer();
-    const sdp = forceStereoInSDP(offer.sdp!);
+    if (!offer.sdp) return;
+    const sdp = forceStereoInSDP(offer.sdp);
     await this.setLocalDescription({ ...offer, sdp });
     signalingWs.send(
       JSON.stringify({
@@ -262,7 +263,7 @@ function forceStereoInSDP(sdp: string): string {
   const sections = sdp.split("\r\nm=");
   for (let i = 0; i < sections.length; i++) {
     const isFirst = i === 0;
-    const sec = isFirst ? sections[i] : "m=" + sections[i];
+    const sec = isFirst ? sections[i] : `m=${sections[i]}`;
     if (!sec.startsWith("m=audio")) continue;
 
     // Find opus payload type (rtpmap)
@@ -281,7 +282,7 @@ function forceStereoInSDP(sdp: string): string {
         let p = params || "";
         const add = (k: string) => {
           if (!new RegExp(`(^|;)\\s*${k}(=|;|$)`, "i").test(p)) {
-            p = p ? p + `;${k}` : k;
+            p = p ? `${p};${k}` : k;
           }
         };
         add("stereo=1");

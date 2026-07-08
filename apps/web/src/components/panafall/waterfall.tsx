@@ -1,3 +1,4 @@
+import type { VitaWaterfallPacket, WaterfallController } from "@repo/flexlib";
 import { createElementSize } from "@solid-primitives/resize-observer";
 import {
   batch,
@@ -7,13 +8,12 @@ import {
   onCleanup,
   Show,
 } from "solid-js";
-import { type PanadapterState, type WaterfallState } from "~/context/flexradio";
-import { LinearScale } from "../linear-scale";
-import type { VitaWaterfallPacket, WaterfallController } from "@repo/flexlib";
-import { usePreferences } from "~/context/preferences";
+import type { PanadapterState, WaterfallState } from "~/context/flexradio";
 import { usePanafall } from "~/context/panafall";
-import { roundToDevicePixels } from "~/lib/utils";
+import { usePreferences } from "~/context/preferences";
 import { useRuntime } from "~/context/runtime";
+import { roundToDevicePixels } from "~/lib/utils";
+import { LinearScale } from "../linear-scale";
 
 export function Waterfall(props: {
   waterfall: WaterfallState;
@@ -57,7 +57,7 @@ export function Waterfall(props: {
     // translate the configured color gain into a colorMax value
     const colorGain = props.waterfall.colorGain;
     const range = 1 - colorMin();
-    const gain = Math.pow(1 - colorGain / 100, 3);
+    const gain = (1 - colorGain / 100) ** 3;
     setColorMax(colorMin() + range * gain);
   });
 
@@ -172,16 +172,26 @@ export function Waterfall(props: {
     let stripRow: Uint32Array | null = null;
     let stripW = 0;
     let stripH = 0;
-    const ensureStrip = (w: number, h: number) => {
-      if (!stripImageData || stripW !== w || stripH !== h) {
-        stripImageData = offscreenCtx.createImageData(w, h);
-        strip32 = new Uint32Array(stripImageData.data.buffer);
+    const ensureStrip = (
+      w: number,
+      h: number,
+    ): [ImageData, Uint32Array, Uint32Array] => {
+      let imageData = stripImageData;
+      let s32 = strip32;
+      if (!imageData || !s32 || stripW !== w || stripH !== h) {
+        imageData = offscreenCtx.createImageData(w, h);
+        s32 = new Uint32Array(imageData.data.buffer);
+        stripImageData = imageData;
+        strip32 = s32;
         stripW = w;
         stripH = h;
       }
-      if (!stripRow || stripRow.length !== w) {
-        stripRow = new Uint32Array(w);
+      let row = stripRow;
+      if (!row || row.length !== w) {
+        row = new Uint32Array(w);
+        stripRow = row;
       }
+      return [imageData, s32, row];
     };
 
     let paintScheduled = false;
@@ -277,25 +287,25 @@ export function Waterfall(props: {
         const pal32 = palette32();
         const w = binsInThisFrame;
         const h = height;
-        ensureStrip(w, h);
+        const [imgData, s32, row] = ensureStrip(w, h);
 
         // Fill the strip: replicate each bin color vertically for 'height' rows
         // line layout is row-major: [row][x]
         for (let x = 0; x < w; x++) {
           const idx = (bins[x] / paletteDivisor) | 0; // 0..4095
-          stripRow![x] = pal32[idx];
+          row[x] = pal32[idx];
         }
-        strip32!.set(stripRow!, 0);
+        s32.set(row, 0);
         let filled = w;
         const total = w * h;
         while (filled < total) {
           const copyCount = Math.min(filled, total - filled);
-          strip32!.copyWithin(filled, 0, copyCount);
+          s32.copyWithin(filled, 0, copyCount);
           filled += copyCount;
         }
 
         offscreenCtx.putImageData(
-          stripImageData!,
+          imgData,
           startingBin + preferences.waterfallOffset,
           yOffset,
         );

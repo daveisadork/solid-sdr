@@ -1,7 +1,10 @@
-import { usePreferences } from "../../context/preferences";
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { createSpeakers } from "@solid-primitives/devices";
 import { createEffect, For, Match, Show, Switch } from "solid-js";
 import useFlexRadio from "~/context/flexradio";
+import { createPermission } from "~/lib/permission";
+import { usePreferences } from "../../context/preferences";
+import { Callout, CalloutContent, CalloutTitle } from "../ui/callout";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import {
   Select,
@@ -11,15 +14,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
-import { createSpeakers } from "@solid-primitives/devices";
 import {
-  Switch as SwitchRoot,
   SwitchControl,
   SwitchLabel,
+  Switch as SwitchRoot,
   SwitchThumb,
 } from "../ui/switch";
-import { createPermission } from "~/lib/permission";
-import { Callout, CalloutContent, CalloutTitle } from "../ui/callout";
 
 export function InnerDaxIqSettings() {
   const { preferences, setPreferences } = usePreferences();
@@ -149,7 +149,9 @@ export function DaxIqSettings() {
   createEffect(() => {
     if (audioPermission() === "prompt")
       navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
-        stream.getTracks().forEach((track) => track.stop());
+        for (const track of stream.getTracks()) {
+          track.stop();
+        }
       });
   });
 

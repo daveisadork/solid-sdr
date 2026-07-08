@@ -1,13 +1,13 @@
+import * as MeterPrimitive from "@kobalte/core/meter";
 import {
   createEffect,
   createMemo,
   createSignal,
   For,
-  JSX,
+  type JSX,
   onCleanup,
   Show,
 } from "solid-js";
-import * as MeterPrimitive from "@kobalte/core/meter";
 
 import useFlexRadio, { type MeterState } from "~/context/flexradio";
 import { cn, range } from "~/lib/utils";
@@ -197,9 +197,11 @@ export function SimpleMeter(props: MeterProps) {
             {(() => {
               let peakEl!: HTMLDivElement;
               createEffect(() => {
+                const peak = props.peakValue;
+                if (peak === undefined) return;
                 peakEl?.style.setProperty(
                   "--peak-position",
-                  calculatePeakOffset()(props.peakValue!),
+                  calculatePeakOffset()(peak),
                 );
               });
               return (

@@ -1,22 +1,22 @@
-import { ConfigColorMode } from "@kobalte/core";
+import type { ConfigColorMode } from "@kobalte/core";
 import { makePersisted } from "@solid-primitives/storage";
 import {
   createContext,
-  type ParentComponent,
-  useContext,
   createEffect,
   createResource,
+  type ParentComponent,
   Show,
+  useContext,
 } from "solid-js";
 import {
   createStore,
   reconcile,
-  SetStoreFunction,
+  type SetStoreFunction,
   unwrap,
 } from "solid-js/store";
 import { showToast } from "~/components/ui/toast";
-import { DaxChannelMode } from "~/lib/dax-audio-sink/types";
-import { MidiMapping } from "~/lib/midi";
+import type { DaxChannelMode } from "~/lib/dax-audio-sink/types";
+import type { MidiMapping } from "~/lib/midi";
 
 export type PeakStyle = "none" | "points" | "line";
 export type FillStyle = "none" | "solid" | "gradient";

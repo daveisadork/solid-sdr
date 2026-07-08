@@ -1,32 +1,32 @@
+import type {
+  AudioStreamController,
+  AudioStreamTxController,
+  DaxIqAudioStreamController,
+  DaxRxAudioStreamController,
+  RemoteAudioTxStreamController,
+} from "@repo/flexlib";
+import { createMicrophones } from "@solid-primitives/devices";
+import { ReactiveMap } from "@solid-primitives/map";
 import {
+  type Accessor,
   batch,
   createContext,
   createEffect,
   createMemo,
   createSignal,
   onCleanup,
-  ParentComponent,
+  type ParentComponent,
   untrack,
   useContext,
-  type Accessor,
 } from "solid-js";
-import { ReactiveMap } from "@solid-primitives/map";
-import { createMicrophones } from "@solid-primitives/devices";
-import { useRtc } from "./rtc";
+import { showToast } from "~/components/ui/toast";
+import { DaxAudioSink } from "~/lib/dax-audio-sink";
+import { DaxAudioTx } from "~/lib/dax-audio-tx";
+import { DaxIqAudioSink } from "~/lib/dax-iq-audio-sink";
+import { createPermission } from "~/lib/permission";
 import useFlexRadio from "./flexradio";
 import { usePreferences } from "./preferences";
-import {
-  DaxRxAudioStreamController,
-  type AudioStreamController,
-  type AudioStreamTxController,
-  type DaxIqAudioStreamController,
-  type RemoteAudioTxStreamController,
-} from "@repo/flexlib";
-import { DaxAudioSink } from "~/lib/dax-audio-sink";
-import { DaxIqAudioSink } from "~/lib/dax-iq-audio-sink";
-import { DaxAudioTx } from "~/lib/dax-audio-tx";
-import { showToast } from "~/components/ui/toast";
-import { createPermission } from "~/lib/permission";
+import { useRtc } from "./rtc";
 
 interface AudioContextValue {
   daxSinks: ReactiveMap<number, DaxAudioSink>;
@@ -83,9 +83,9 @@ export const AudioProvider: ParentComponent = (props) => {
       Object.values(preferences.dax.rx).some((c) => c.enabled);
     Object.values(preferences.dax.iq).some((c) => c.enabled);
     if (!audioEnabled) return;
-    navigator.mediaDevices
-      .getUserMedia({ audio: true })
-      .then((stream) => stream.getTracks().forEach((t) => t.stop()));
+    navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+      for (const t of stream.getTracks()) t.stop();
+    });
   });
 
   // Track which radio audio stream IDs belong to this client
@@ -197,7 +197,7 @@ export const AudioProvider: ParentComponent = (props) => {
     onCleanup(() =>
       promise.then((stream) => {
         setRemoteAudioTxStream(undefined);
-        stream.getTracks().forEach((t) => t.stop());
+        for (const t of stream.getTracks()) t.stop();
       }),
     );
   });
@@ -424,7 +424,7 @@ export const AudioProvider: ParentComponent = (props) => {
       daxPromise.then((tx) => tx?.close().catch(console.error));
       streamPromise.then((stream) => {
         setDaxTxStream(undefined);
-        stream.getTracks().forEach((t) => t.stop());
+        for (const t of stream.getTracks()) t.stop();
         resolve();
       });
     });

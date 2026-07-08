@@ -2,8 +2,8 @@ import type {
   FlexConnection,
   FlexConnectionEvents,
   FlexTransport,
-  Subscription,
   RadioEndpoint,
+  Subscription,
 } from "@repo/flexlib";
 import type { CaptureBuffers } from "./buffers";
 

@@ -6,12 +6,12 @@ import {
   onMount,
   Show,
 } from "solid-js";
-import { Callout, CalloutContent, CalloutTitle } from "./ui/callout";
-import { Button } from "./ui/button";
-import { APP_VERSION } from "~/lib/version";
-import createPresence from "solid-presence";
 import { Portal } from "solid-js/web";
+import createPresence from "solid-presence";
+import { APP_VERSION } from "~/lib/version";
 import MaterialSymbolsOpenInNew from "~icons/material-symbols/open-in-new";
+import { Button } from "./ui/button";
+import { Callout, CalloutContent, CalloutTitle } from "./ui/callout";
 
 export function ReleaseNotification() {
   const [hasNewVersion, setHasNewVersion] = createSignal(false);

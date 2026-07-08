@@ -1,10 +1,9 @@
-import type { JSX, ValidComponent } from "solid-js";
-import { children, splitProps } from "solid-js";
-
 import * as FileFieldPrimitive from "@kobalte/core/file-field";
 import type { PolymorphicProps } from "@kobalte/core/polymorphic";
 import { isFunction } from "@kobalte/utils";
 import { cva } from "class-variance-authority";
+import type { JSX, ValidComponent } from "solid-js";
+import { children, splitProps } from "solid-js";
 
 import { cn } from "~/lib/utils";
 
@@ -243,17 +242,17 @@ const FileFieldItemPreviewImage = <T extends ValidComponent = "img">(
 
 export {
   FileField,
-  FileFieldLabel,
   FileFieldDescription,
-  FileFieldErrorMessage,
-  FileFieldTrigger,
-  FileFieldHiddenInput,
   FileFieldDropzone,
-  FileFieldItemList,
+  FileFieldErrorMessage,
+  FileFieldHiddenInput,
   FileFieldItem,
-  FileFieldItemName,
-  FileFieldItemSize,
   FileFieldItemDeleteTrigger,
+  FileFieldItemList,
+  FileFieldItemName,
   FileFieldItemPreview,
   FileFieldItemPreviewImage,
+  FileFieldItemSize,
+  FileFieldLabel,
+  FileFieldTrigger,
 };

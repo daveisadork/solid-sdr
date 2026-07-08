@@ -1,12 +1,12 @@
 // VITA-49 "preamble" (header + optional streamId, classId, timestamps)
 
 import {
-  type VitaHeader,
-  type VitaClassId,
-  VitaPacketType,
-  VitaTimeStampIntegerType,
-  VitaTimeStampFractionalType,
   readBigUint64BE,
+  type VitaClassId,
+  type VitaHeader,
+  VitaPacketType,
+  VitaTimeStampFractionalType,
+  VitaTimeStampIntegerType,
   writeBigUint64BE,
 } from "./common";
 

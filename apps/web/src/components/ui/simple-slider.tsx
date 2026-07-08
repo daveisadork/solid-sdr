@@ -1,4 +1,12 @@
 import {
+  type ComponentProps,
+  createMemo,
+  type JSX,
+  Show,
+  splitProps,
+} from "solid-js";
+import { cn } from "../../lib/utils";
+import {
   Slider,
   SliderDescription,
   SliderFill,
@@ -8,8 +16,6 @@ import {
   SliderValueLabel,
 } from "./slider";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip";
-import { ComponentProps, createMemo, JSX, Show, splitProps } from "solid-js";
-import { cn } from "../../lib/utils";
 
 type TooltipProps = ComponentProps<typeof Tooltip>;
 

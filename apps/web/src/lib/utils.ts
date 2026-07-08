@@ -104,7 +104,7 @@ export async function loadGradientPNG(
 }
 
 export function dbmToWatts(dbm: number, decimalPlaces?: number) {
-  const watts = Math.pow(10, (dbm - 30) / 10);
+  const watts = 10 ** ((dbm - 30) / 10);
   return roundToDecimals(watts, decimalPlaces);
 }
 
@@ -121,7 +121,10 @@ export const synchronizeMaps = <K, V>(
   target: Map<K, V>,
   source?: ReadonlyMap<K, V> | null,
 ): void => {
-  if (!source) return target.clear();
+  if (!source) {
+    target.clear();
+    return;
+  }
   for (const key of target.keys()) {
     if (!source.has(key)) target.delete(key);
   }

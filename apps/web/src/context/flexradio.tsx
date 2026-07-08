@@ -1,31 +1,16 @@
-import {
-  Accessor,
-  batch,
-  createContext,
-  createEffect,
-  createMemo,
-  createSignal,
-  onCleanup,
-  ParentComponent,
-  Show,
-  useContext,
-} from "solid-js";
-import {
-  createStore,
-  produce,
-  reconcile,
-  SetStoreFunction,
-} from "solid-js/store";
-import { showToast } from "~/components/ui/toast";
-import { FlexCommandRejectedError, FlexClient, Radio } from "@repo/flexlib";
+import * as ToastPrimitive from "@kobalte/core/toast";
 import type {
   ApdSnapshot,
   AudioStreamSnapshot,
   ConnectionProgressDetail,
   CwxSnapshot,
+  DisconnectedReason,
+  DisplayMarkerSnapshot,
+  DisplayMarkerStateChange,
   DvkSnapshot,
   EqualizerSnapshot,
   FeatureLicenseSnapshot,
+  FilterPresetSnapshot,
   FlexWireMessage,
   GuiClientSnapshot,
   MemorySnapshot,
@@ -40,29 +25,48 @@ import type {
   TnfSnapshot,
   TxBandSettingSnapshot,
   WaterfallSnapshot,
-  XvtrSnapshot,
   WaveformSnapshot,
-  DisplayMarkerSnapshot,
-  DisplayMarkerStateChange,
-  FilterPresetSnapshot,
-  DisconnectedReason,
+  XvtrSnapshot,
+} from "@repo/flexlib";
+import {
+  FlexClient,
+  FlexCommandRejectedError,
+  type FlexRadioDescriptor,
+  type Radio,
 } from "@repo/flexlib";
 import { BridgeTransport } from "@repo/flexlib/bridge";
-import { useRtc } from "./rtc";
-import { usePreferences } from "./preferences";
-import { useDebugMode } from "./debug-mode";
-import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
-import { Timeline } from "~/components/ui/timeline";
-import { InfoItem } from "~/components/settings/common";
 import { ReactiveMap } from "@solid-primitives/map";
-import { FlexRadioDescriptor } from "@repo/flexlib";
+import {
+  type Accessor,
+  batch,
+  createContext,
+  createEffect,
+  createMemo,
+  createSignal,
+  onCleanup,
+  type ParentComponent,
+  Show,
+  useContext,
+} from "solid-js";
+import {
+  createStore,
+  produce,
+  reconcile,
+  type SetStoreFunction,
+} from "solid-js/store";
+import { InfoItem } from "~/components/settings/common";
 import {
   AlertDialog,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogTitle,
 } from "~/components/ui/alert-dialog";
-import * as ToastPrimitive from "@kobalte/core/toast";
+import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
+import { Timeline } from "~/components/ui/timeline";
+import { showToast } from "~/components/ui/toast";
+import { useDebugMode } from "./debug-mode";
+import { usePreferences } from "./preferences";
+import { useRtc } from "./rtc";
 
 export enum ConnectionState {
   disconnected,

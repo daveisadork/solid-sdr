@@ -24,44 +24,44 @@ describe("Waterfall controller", () => {
     expect(controller).toBeDefined();
 
     // when setLineSpeed is called
-    await controller!.setLineSpeed(55);
+    await controller?.setLineSpeed(55);
     // then the correct command is sent and local state updates
     expect(connection.lastCommand()).toBe(
       "display panafall set 0x50000000 line_duration=55",
     );
-    expect(controller!.lineSpeed).toBe(55);
-    expect(controller!.lineDurationMs).toBe(lineSpeedToDurationMs(55));
+    expect(controller?.lineSpeed).toBe(55);
+    expect(controller?.lineDurationMs).toBe(lineSpeedToDurationMs(55));
 
     // when setBlackLevel is called
-    await controller!.setBlackLevel(1250);
+    await controller?.setBlackLevel(1250);
     expect(connection.lastCommand()).toBe(
       "display panafall set 0x50000000 black_level=1250",
     );
-    expect(controller!.blackLevel).toBe(1250);
+    expect(controller?.blackLevel).toBe(1250);
 
     // when setColorGain is called
-    await controller!.setColorGain(45);
+    await controller?.setColorGain(45);
     expect(connection.lastCommand()).toBe(
       "display panafall set 0x50000000 color_gain=45",
     );
-    expect(controller!.colorGain).toBe(45);
+    expect(controller?.colorGain).toBe(45);
 
     // when setAutoBlackLevelEnabled is called
-    await controller!.setAutoBlackLevelEnabled(false);
+    await controller?.setAutoBlackLevelEnabled(false);
     expect(connection.lastCommand()).toBe(
       "display panafall set 0x50000000 auto_black=0",
     );
-    expect(controller!.autoBlackLevelEnabled).toBe(false);
+    expect(controller?.autoBlackLevelEnabled).toBe(false);
 
     // when setGradientIndex is called
-    await controller!.setGradientIndex(6);
+    await controller?.setGradientIndex(6);
     expect(connection.lastCommand()).toBe(
       "display panafall set 0x50000000 gradient_index=6",
     );
-    expect(controller!.gradientIndex).toBe(6);
+    expect(controller?.gradientIndex).toBe(6);
 
     // when update() is called with multiple fields
-    await controller!.update({
+    await controller?.update({
       colorGain: 55,
       autoBlackLevelEnabled: true,
       gradientIndex: 4,
@@ -73,12 +73,12 @@ describe("Waterfall controller", () => {
     );
     expect(updateCommand).toContain("color_gain=55");
     expect(updateCommand).toContain("auto_black=1");
-    expect(controller!.colorGain).toBe(55);
-    expect(controller!.autoBlackLevelEnabled).toBe(true);
-    expect(controller!.gradientIndex).toBe(4);
+    expect(controller?.colorGain).toBe(55);
+    expect(controller?.autoBlackLevelEnabled).toBe(true);
+    expect(controller?.gradientIndex).toBe(4);
 
     // when close() is called
-    await controller!.close();
+    await controller?.close();
     expect(connection.lastCommand()).toBe("display panafall remove 0x50000000");
 
     // when a removal status arrives, the controller is gone

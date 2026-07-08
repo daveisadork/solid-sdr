@@ -1,4 +1,5 @@
 import { createSignal } from "solid-js";
+import { usePanafall } from "~/context/panafall";
 import {
   Select,
   SelectContent,
@@ -6,7 +7,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import { usePanafall } from "~/context/panafall";
 
 type colorSpace =
   | "srgb"

@@ -1,5 +1,20 @@
+import type { WaveformController } from "@repo/flexlib";
 import { createEffect, createSignal, For, Show } from "solid-js";
-
+import { Dynamic } from "solid-js/web";
+import useFlexRadio from "~/context/flexradio";
+import BaselineDelete from "~icons/ic/baseline-delete";
+import MdiRefresh from "~icons/mdi/refresh";
+import SvgSpinners180Ring from "~icons/svg-spinners/180-ring";
+import { Badge } from "../ui/badge";
+import { Button } from "../ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import {
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../ui/dialog";
+import { Progress, ProgressLabel, ProgressValueLabel } from "../ui/progress";
 import {
   Table,
   TableBody,
@@ -8,23 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from "../ui/table";
-import useFlexRadio from "~/context/flexradio";
-import {
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "../ui/dialog";
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-import { Badge } from "../ui/badge";
-import BaselineDelete from "~icons/ic/baseline-delete";
-import MdiRefresh from "~icons/mdi/refresh";
-import SvgSpinners180Ring from "~icons/svg-spinners/180-ring";
-import { Button } from "../ui/button";
-import { WaveformController } from "@repo/flexlib";
-import { Dynamic } from "solid-js/web";
 import { showToast } from "../ui/toast";
-import { Progress, ProgressLabel, ProgressValueLabel } from "../ui/progress";
 
 const UninstallButton = (props: { ctrl: WaveformController }) => {
   const [working, setWorking] = createSignal(false);

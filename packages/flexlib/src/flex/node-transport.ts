@@ -5,12 +5,12 @@
  * @module
  */
 
-import { Socket, createServer, type Server } from "node:net";
 import {
   createSocket,
   type Socket as DgramSocket,
   type RemoteInfo,
 } from "node:dgram";
+import { createServer, type Server, Socket } from "node:net";
 import type { Subscription } from "../util/events.js";
 import { TypedEventEmitter } from "../util/events.js";
 import type {
@@ -158,7 +158,9 @@ export class NodeConnection
     }
   }
 
-  async prepareDownload(_endpoint: RadioEndpoint): Promise<FileDownloadReceiver> {
+  async prepareDownload(
+    _endpoint: RadioEndpoint,
+  ): Promise<FileDownloadReceiver> {
     if (this.closed) throw new Error("Connection is closed");
 
     let resolveData!: (data: Uint8Array) => void;

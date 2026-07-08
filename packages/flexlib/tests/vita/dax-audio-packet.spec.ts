@@ -1,16 +1,16 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
-  VitaPacketType,
-  VitaTimeStampIntegerType,
-  VitaTimeStampFractionalType,
-  VITA_FLEX_OUI,
   VITA_FLEX_INFO_CLASS,
+  VITA_FLEX_OUI,
+  VitaPacketType,
+  VitaTimeStampFractionalType,
+  VitaTimeStampIntegerType,
 } from "../../src/vita/common";
 import {
-  VitaDaxAudioPacket,
-  VitaDaxReducedBwPacket,
   VITA_FLEX_DAX_AUDIO_CLASS,
   VITA_FLEX_DAX_REDUCED_BW_CLASS,
+  VitaDaxAudioPacket,
+  VitaDaxReducedBwPacket,
 } from "../../src/vita/dax-audio-packet";
 
 // ---------------------------------------------------------------------------
@@ -39,8 +39,14 @@ describe("VitaDaxAudioPacket: round-trip (128 frames)", () => {
     const p1 = new VitaDaxAudioPacket();
     p1.streamId = 0xdeadbeef;
     p1.header.packetCount = 7;
-    p1.left = Float32Array.from({ length: FRAMES }, (_, i) => (i / FRAMES) * 2 - 1);
-    p1.right = Float32Array.from({ length: FRAMES }, (_, i) => -(i / FRAMES) * 2 + 1);
+    p1.left = Float32Array.from(
+      { length: FRAMES },
+      (_, i) => (i / FRAMES) * 2 - 1,
+    );
+    p1.right = Float32Array.from(
+      { length: FRAMES },
+      (_, i) => -(i / FRAMES) * 2 + 1,
+    );
 
     const bytes = p1.toBytes();
     const p2 = new VitaDaxAudioPacket(bytes);

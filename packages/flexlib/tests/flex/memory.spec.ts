@@ -1,10 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { createMemorySnapshot } from "../../src/flex/state/memory.js";
-import { createRadioStateStore } from "../../src/flex/state/index.js";
-import { makeStatus } from "../helpers.js";
-import type { RadioStateChange } from "../../src/flex/state/index.js";
 import { FlexStateUnavailableError } from "../../src/flex/errors.js";
-import { createConnectedRadio } from "../helpers.js";
+import type { RadioStateChange } from "../../src/flex/state/index.js";
+import { createRadioStateStore } from "../../src/flex/state/index.js";
+import { createMemorySnapshot } from "../../src/flex/state/memory.js";
+import { createConnectedRadio, makeStatus } from "../helpers.js";
 
 describe("MemorySnapshot parser", () => {
   it("parses all wire attributes on first creation", () => {
@@ -51,7 +50,7 @@ describe("MemorySnapshot parser", () => {
     expect(snapshot.diglOffsetHz).toBe(0);
     expect(snapshot.diguOffsetHz).toBe(0);
     expect(diff.id).toBe("0");
-    expect(snapshot.raw["owner"]).toBe("KF0SMY");
+    expect(snapshot.raw.owner).toBe("KF0SMY");
   });
 
   it("incrementally updates from a previous snapshot", () => {
@@ -222,7 +221,8 @@ describe("Memory controller", () => {
         "rx_filter_low=0 rx_filter_high=2800 rtty_mark=0 rtty_shift=0 " +
         "digl_offset=0 digu_offset=0",
     );
-    const controller = radio.memory("0")!;
+    const controller = radio.memory("0");
+    if (!controller) throw new Error("expected memory controller");
 
     const promise = controller.setFrequency(14.2);
     expect(controller.frequencyMHz).toBeCloseTo(14.2);
@@ -237,7 +237,8 @@ describe("Memory controller", () => {
         "rx_filter_low=0 rx_filter_high=2800 rtty_mark=0 rtty_shift=0 " +
         "digl_offset=0 digu_offset=0",
     );
-    const controller = radio.memory("0")!;
+    const controller = radio.memory("0");
+    if (!controller) throw new Error("expected memory controller");
 
     connection.prepareResponse("memory set", { code: 0x50000001 });
     await expect(controller.setFrequency(14.2)).rejects.toThrow();
@@ -253,7 +254,8 @@ describe("Memory controller", () => {
         "rx_filter_low=0 rx_filter_high=2800 rtty_mark=0 rtty_shift=0 " +
         "digl_offset=0 digu_offset=0",
     );
-    const controller = radio.memory("0")!;
+    const controller = radio.memory("0");
+    if (!controller) throw new Error("expected memory controller");
 
     await controller.setFrequency(14.2);
     expect(connection.lastCommand()).toBe("memory set 0 freq=14.200000");
@@ -320,7 +322,8 @@ describe("Memory controller", () => {
         "rx_filter_low=0 rx_filter_high=2800 rtty_mark=0 rtty_shift=0 " +
         "digl_offset=0 digu_offset=0",
     );
-    const controller = radio.memory("0")!;
+    const controller = radio.memory("0");
+    if (!controller) throw new Error("expected memory controller");
 
     const changes: RadioStateChange[] = [];
     radio.on("change", (c) => changes.push(c));
@@ -339,7 +342,8 @@ describe("Memory controller", () => {
         "rx_filter_low=0 rx_filter_high=2800 rtty_mark=0 rtty_shift=0 " +
         "digl_offset=0 digu_offset=0",
     );
-    const controller = radio.memory("0")!;
+    const controller = radio.memory("0");
+    if (!controller) throw new Error("expected memory controller");
 
     await controller.remove();
 

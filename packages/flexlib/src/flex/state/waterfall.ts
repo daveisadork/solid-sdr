@@ -1,5 +1,5 @@
-import type { Mutable, SnapshotUpdate } from "./common.js";
 import { lineSpeedToDurationMs } from "../waterfall-line-speed.js";
+import type { Mutable, SnapshotUpdate } from "./common.js";
 import {
   arraysShallowEqual,
   freezeAttributes,
@@ -8,8 +8,8 @@ import {
   logUnknownAttribute,
   parseFloatSafe,
   parseInteger,
-  parseIntegerList,
   parseIntegerHex,
+  parseIntegerList,
   parseMegahertz,
 } from "./common.js";
 

@@ -1,12 +1,12 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+import { VitaFrequency } from "../../src/util/vita-frequency";
 import {
   VitaPacketType,
-  VitaTimeStampIntegerType,
   VitaTimeStampFractionalType,
+  VitaTimeStampIntegerType,
   type VitaTrailer,
 } from "../../src/vita/common";
 import { VitaWaterfallPacket } from "../../src/vita/waterfall-packet";
-import { VitaFrequency } from "../../src/util/vita-frequency";
 
 function makeTileData(len: number, start = 1000): Uint16Array {
   const a = new Uint16Array(len);

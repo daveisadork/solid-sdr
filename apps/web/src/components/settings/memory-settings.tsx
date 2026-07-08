@@ -1,20 +1,28 @@
-import { createMemo, createSignal, For, JSX, Show, splitProps } from "solid-js";
-
+import * as NumberFieldPrimitive from "@kobalte/core/number-field";
+import * as SelectPrimitive from "@kobalte/core/select";
+import * as TextFieldPrimitive from "@kobalte/core/text-field";
 import type {
   ColumnFiltersState,
   SortingState,
   VisibilityState,
 } from "@tanstack/solid-table";
 import {
+  type ColumnDef,
   createSolidTable,
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
-  type ColumnDef,
 } from "@tanstack/solid-table";
-import IconChevronDown from "~icons/mdi/chevron-down";
+import {
+  createMemo,
+  createSignal,
+  For,
+  type JSX,
+  Show,
+  splitProps,
+} from "solid-js";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
 import {
@@ -31,22 +39,19 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
-import useFlexRadio, { MemoryState } from "~/context/flexradio";
-
-import * as TextFieldPrimitive from "@kobalte/core/text-field";
-import * as NumberFieldPrimitive from "@kobalte/core/number-field";
-import * as SelectPrimitive from "@kobalte/core/select";
+import useFlexRadio, { type MemoryState } from "~/context/flexradio";
 import { cn } from "~/lib/utils";
-import { SelectContent, SelectItem } from "../ui/select";
-import { ConfirmButton } from "../ui/confirm-button";
 import IcBaselinePlayCircleOutline from "~icons/ic/baseline-play-circle-outline";
+import IconChevronDown from "~icons/mdi/chevron-down";
 import { toneValues } from "../slice";
+import { ConfirmButton } from "../ui/confirm-button";
 import {
   DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "../ui/dialog";
+import { SelectContent, SelectItem } from "../ui/select";
 
 const TextFieldCell = (
   props: TextFieldPrimitive.TextFieldRootProps & {
@@ -199,7 +204,7 @@ function MemorySettingsInner() {
           options={modeList()}
           value={props.row.original.mode?.trim()}
           onChange={(value?: string) => {
-            if (!value || value == props.row.original.mode) return;
+            if (!value || value === props.row.original.mode) return;
             radio().memory(props.row.original.id)?.setMode(value);
           }}
           itemComponent={(props) => {
@@ -245,7 +250,7 @@ function MemorySettingsInner() {
           options={["DOWN", "SIMPLEX", "UP"]}
           value={props.row.original.repeaterOffsetDirection}
           onChange={(value?: string) => {
-            if (!value || value == props.row.original.repeaterOffsetDirection)
+            if (!value || value === props.row.original.repeaterOffsetDirection)
               return;
             radio()
               .memory(props.row.original.id)
@@ -287,7 +292,7 @@ function MemorySettingsInner() {
           options={["OFF", "CTCSS_TX"]}
           value={props.row.original.fmToneMode}
           onChange={(value?: string) => {
-            if (!value || value == props.row.original.fmToneMode) return;
+            if (!value || value === props.row.original.fmToneMode) return;
             radio().memory(props.row.original.id)?.setFmToneMode(value);
           }}
           itemComponent={(props) => {
@@ -314,7 +319,7 @@ function MemorySettingsInner() {
           options={toneValues.map((v) => v.hz)}
           value={props.row.original.fmToneValue}
           onChange={(value?: string) => {
-            if (!value || value == props.row.original.fmToneValue) return;
+            if (!value || value === props.row.original.fmToneValue) return;
             radio().memory(props.row.original.id)?.setFmToneMode(value);
           }}
           itemComponent={(props) => (

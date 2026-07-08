@@ -1,8 +1,7 @@
-import type { ValidComponent } from "solid-js";
-import { splitProps } from "solid-js";
-
 import type { PolymorphicProps } from "@kobalte/core/polymorphic";
 import * as TabsPrimitive from "@kobalte/core/tabs";
+import type { ValidComponent } from "solid-js";
+import { splitProps } from "solid-js";
 
 import { cn } from "~/lib/utils";
 
@@ -88,4 +87,4 @@ const TabsIndicator = <T extends ValidComponent = "div">(
   );
 };
 
-export { Tabs, TabsList, TabsTrigger, TabsContent, TabsIndicator };
+export { Tabs, TabsContent, TabsIndicator, TabsList, TabsTrigger };

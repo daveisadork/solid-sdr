@@ -1,20 +1,19 @@
+import type { PolymorphicProps } from "@kobalte/core";
+import { ToggleButton } from "@kobalte/core/toggle-button";
+import type { TooltipTriggerProps } from "@kobalte/core/tooltip";
+import { createFullscreen } from "@solid-primitives/fullscreen";
 import {
   createEffect,
   createSignal,
   Show,
   splitProps,
-  ValidComponent,
+  type ValidComponent,
 } from "solid-js";
+import { Dynamic } from "solid-js/web";
 import { cn } from "~/lib/utils";
-import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
-
 import Fullscreen from "~icons/material-symbols/fullscreen";
 import FullscreenExit from "~icons/material-symbols/fullscreen-exit";
-import { createFullscreen } from "@solid-primitives/fullscreen";
-import { Dynamic } from "solid-js/web";
-import { TooltipTriggerProps } from "@kobalte/core/tooltip";
-import { ToggleButton } from "@kobalte/core/toggle-button";
-import { PolymorphicProps } from "@kobalte/core";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
 type FullscreenButtonProps<T extends ValidComponent = "button"> =
   PolymorphicProps<T, TooltipTriggerProps<T>> & {

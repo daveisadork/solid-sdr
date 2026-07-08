@@ -1,3 +1,7 @@
+import type { PolymorphicProps } from "@kobalte/core/polymorphic";
+import { Polymorphic } from "@kobalte/core/polymorphic";
+import type { VariantProps } from "class-variance-authority";
+import { cva } from "class-variance-authority";
 import type {
   Accessor,
   Component,
@@ -14,17 +18,10 @@ import {
   mergeProps,
   onCleanup,
   Show,
-  splitProps,
   Switch,
+  splitProps,
   useContext,
 } from "solid-js";
-
-import type { PolymorphicProps } from "@kobalte/core/polymorphic";
-import { Polymorphic } from "@kobalte/core/polymorphic";
-import type { VariantProps } from "class-variance-authority";
-import { cva } from "class-variance-authority";
-
-import { cn } from "~/lib/utils";
 import type { ButtonProps } from "~/components/ui/button";
 import { Button } from "~/components/ui/button";
 import { Separator } from "~/components/ui/separator";
@@ -36,10 +33,9 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "~/components/ui/tooltip";
+import { cn } from "~/lib/utils";
 
 const MOBILE_BREAKPOINT = 768;
-const SIDEBAR_COOKIE_NAME = "sidebar:state";
-const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
 const SIDEBAR_WIDTH = "16rem";
 const SIDEBAR_WIDTH_MOBILE = "18rem";
 const SIDEBAR_WIDTH_ICON = "3rem";
@@ -114,9 +110,6 @@ const SidebarProvider: Component<SidebarProviderProps> = (rawProps) => {
       );
     }
     _setOpen(value);
-
-    // This sets the cookie to keep the sidebar state.
-    document.cookie = `${SIDEBAR_COOKIE_NAME}=${open()}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
   };
 
   // Helper to toggle the sidebar.
@@ -312,6 +305,7 @@ const SidebarTrigger = <T extends ValidComponent = "button">(
         fallback={
           <>
             <svg
+              aria-hidden="true"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"

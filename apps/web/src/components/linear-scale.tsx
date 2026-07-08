@@ -1,12 +1,12 @@
-import {
-  createMemo,
-  For,
-  mergeProps,
-  createSignal,
-  createEffect,
-  JSX,
-} from "solid-js";
 import { createElementSize } from "@solid-primitives/resize-observer";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  type JSX,
+  mergeProps,
+} from "solid-js";
 import { cn } from "~/lib/utils";
 
 export type LinearScaleProps = {

@@ -1,28 +1,28 @@
+import { createPageVisibility } from "@solid-primitives/page-visibility";
 import {
   createContext,
   createEffect,
   createSignal,
   onCleanup,
-  ParentComponent,
+  type ParentComponent,
   useContext,
 } from "solid-js";
 import {
   createStore,
   produce,
   reconcile,
-  SetStoreFunction,
+  type SetStoreFunction,
 } from "solid-js/store";
-import useFlexRadio from "./flexradio";
-import { usePreferences } from "./preferences";
-import { useRtc } from "./rtc";
-import { createPageVisibility } from "@solid-primitives/page-visibility";
 import {
   createInitialNetworkState,
-  NetworkTelemetryAggregator,
   type NetworkQuality,
+  NetworkTelemetryAggregator,
   type RuntimeNetworkState,
   type ServerNetworkDiagnosticsPayload,
 } from "~/lib/network-telemetry";
+import useFlexRadio from "./flexradio";
+import { usePreferences } from "./preferences";
+import { useRtc } from "./rtc";
 
 const RTC_STATS_INTERVAL_MS = 1_000;
 const END_TO_END_PING_INTERVAL_MS = 2_000;

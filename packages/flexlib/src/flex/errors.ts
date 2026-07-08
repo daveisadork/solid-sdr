@@ -1,8 +1,5 @@
 export class FlexError extends Error {
   override readonly name: string = "FlexError";
-  constructor(message: string) {
-    super(message);
-  }
 }
 
 export class FlexCommandRejectedError extends FlexError {
@@ -39,7 +36,4 @@ export class FlexDiscoveryUnavailableError extends FlexError {
 
 export class FlexStateUnavailableError extends FlexError {
   override readonly name: string = "FlexStateUnavailableError";
-  constructor(message: string) {
-    super(message);
-  }
 }

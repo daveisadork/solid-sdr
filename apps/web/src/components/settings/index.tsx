@@ -1,29 +1,29 @@
-import { Dialog } from "../ui/dialog";
-import MdiSettings from "~icons/mdi/settings";
-import { AppSettings } from "./app-settings";
-import { RadioSettings } from "./radio-settings";
 import { Button } from "@kobalte/core/button";
-import { SpotsSettings } from "./spots-settings";
-import { MemorySettings } from "./memory-settings";
-import { MidiSettings } from "./midi-settings";
+import { createSignal } from "solid-js";
+import { Dynamic } from "solid-js/web";
+import useFlexRadio from "~/context/flexradio";
+import MdiSettings from "~icons/mdi/settings";
+import { Dialog } from "../ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
-import { createSignal } from "solid-js";
-import { Dynamic } from "solid-js/web";
-import { DaxSettings } from "./dax-settings";
-import { DaxIqSettings } from "./dax-iq-settings";
+import { AppSettings } from "./app-settings";
 import { AudioSettings } from "./audio-settings";
+import { DaxIqSettings } from "./dax-iq-settings";
+import { DaxSettings } from "./dax-settings";
+import { ImportExport } from "./import-export";
+import { MemorySettings } from "./memory-settings";
+import { Meters } from "./meters";
+import { MidiSettings } from "./midi-settings";
 import { MultiflexSettings } from "./multiflex-settings";
 import { NetworkStats } from "./network-stats";
-import { WaveformSettings } from "./waveform-settings";
-import { Meters } from "./meters";
 import { ProfileSettings } from "./profile-settings";
-import { ImportExport } from "./import-export";
-import useFlexRadio from "~/context/flexradio";
+import { RadioSettings } from "./radio-settings";
+import { SpotsSettings } from "./spots-settings";
+import { WaveformSettings } from "./waveform-settings";
 
 const tabs = {
   app: AppSettings,

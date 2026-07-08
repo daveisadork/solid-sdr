@@ -1,57 +1,57 @@
-import useFlexRadio from "~/context/flexradio";
-import { Resizable, ResizablePanel } from "../ui/resizable";
-import {
-  batch,
-  createEffect,
-  createSignal,
-  Show,
-  JSX,
-  ComponentProps,
-  splitProps,
-  ValidComponent,
-  For,
-} from "solid-js";
-import { Panadapter } from "./panadapter";
-import { Waterfall } from "./waterfall";
-import { Scale } from "./scale";
 import { createMousePosition } from "@solid-primitives/mouse";
 import { createPointerListeners } from "@solid-primitives/pointer";
+import { createWindowSize } from "@solid-primitives/resize-observer";
 import { debounce } from "@solid-primitives/scheduled";
+import {
+  batch,
+  type ComponentProps,
+  createEffect,
+  createSignal,
+  For,
+  type JSX,
+  Show,
+  splitProps,
+  type ValidComponent,
+} from "solid-js";
 import { createStore } from "solid-js/store";
-import ArrowCollapseHorizontal from "~icons/mdi/arrow-collapse-horizontal";
-import ArrowExpandHorizontal from "~icons/mdi/arrow-expand-horizontal";
-import MaterialSymbolsAddCommentOutlineRounded from "~icons/material-symbols/add-comment-outline-rounded";
-import MdiFilterPlus from "~icons/mdi/filter-plus";
-import { Button } from "../ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
+import { useControls } from "~/context/controls";
+import useFlexRadio from "~/context/flexradio";
+import { usePanafall } from "~/context/panafall";
+import { usePreferences } from "~/context/preferences";
 import {
   cn,
   frequencyToLabel,
   roundToDecimals,
   roundToDevicePixels,
 } from "~/lib/utils";
+import MaterialSymbolsAddCommentOutlineRounded from "~icons/material-symbols/add-comment-outline-rounded";
+import ArrowCollapseHorizontal from "~icons/mdi/arrow-collapse-horizontal";
+import ArrowExpandHorizontal from "~icons/mdi/arrow-expand-horizontal";
+import MdiFilterPlus from "~icons/mdi/filter-plus";
+import { CreateProfileDialog } from "../settings/profile-settings";
+import { Button } from "../ui/button";
 import {
   ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger,
-  ContextMenuPortal,
   ContextMenuCheckboxItem,
+  ContextMenuContent,
   ContextMenuGroup,
-  ContextMenuSeparator,
-  ContextMenuSub,
-  ContextMenuSubTrigger,
-  ContextMenuSubContent,
+  ContextMenuItem,
+  ContextMenuPortal,
   ContextMenuRadioGroup,
   ContextMenuRadioItem,
+  ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
+  ContextMenuTrigger,
 } from "../ui/context-menu";
-import { usePanafall } from "~/context/panafall";
-import { createWindowSize } from "@solid-primitives/resize-observer";
-import { usePreferences } from "~/context/preferences";
+import { Resizable, ResizablePanel } from "../ui/resizable";
 import { Toggle } from "../ui/toggle";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { PanafallControl } from "./controls";
-import { CreateProfileDialog } from "../settings/profile-settings";
-import { useControls } from "~/context/controls";
+import { Panadapter } from "./panadapter";
+import { Scale } from "./scale";
+import { Waterfall } from "./waterfall";
 
 type PanafallButtonProps<T extends ValidComponent = "button"> = ComponentProps<
   typeof TooltipTrigger<T>
@@ -363,8 +363,9 @@ export function Panafall(props: { index: number }) {
                       6,
                     );
                     if (
-                      isNaN(panHeight) ||
-                      panHeight === preferences.panadapterSizes[props.index]?.[0]
+                      Number.isNaN(panHeight) ||
+                      panHeight ===
+                        preferences.panadapterSizes[props.index]?.[0]
                     ) {
                       return;
                     }

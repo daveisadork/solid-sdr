@@ -1,8 +1,8 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   VitaPacketType,
-  VitaTimeStampIntegerType,
   VitaTimeStampFractionalType,
+  VitaTimeStampIntegerType,
   type VitaTrailer,
 } from "../../src/vita/common";
 import { VitaMeterPacket } from "../../src/vita/meter-packet";

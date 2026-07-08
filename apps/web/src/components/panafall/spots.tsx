@@ -1,35 +1,35 @@
+import { Key } from "@solid-primitives/keyed";
+import { createElementSize } from "@solid-primitives/resize-observer";
+import { throttle } from "@solid-primitives/scheduled";
+import { cva } from "class-variance-authority";
 import {
   createEffect,
   createMemo,
   createSignal,
   For,
-  JSX,
+  type JSX,
   onCleanup,
   Show,
   untrack,
 } from "solid-js";
 import useFlexRadio, {
-  SpotState,
   type PanadapterState,
+  type SpotState,
 } from "~/context/flexradio";
 import { usePanafall } from "~/context/panafall";
 import { usePreferences } from "~/context/preferences";
-import {
-  Tooltip,
-  TooltipArrow,
-  TooltipContent,
-  TooltipTrigger,
-} from "../ui/tooltip";
-import { Key } from "@solid-primitives/keyed";
-import { cva } from "class-variance-authority";
 import {
   Popover,
   PopoverArrow,
   PopoverContent,
   PopoverTrigger,
 } from "../ui/popover";
-import { createElementSize } from "@solid-primitives/resize-observer";
-import { throttle } from "@solid-primitives/scheduled";
+import {
+  Tooltip,
+  TooltipArrow,
+  TooltipContent,
+  TooltipTrigger,
+} from "../ui/tooltip";
 
 const FONT_SIZES = [
   "text-xs",
@@ -161,6 +161,7 @@ function SpotCluster(props: { layout: ClusterLayout; pan: PanadapterState }) {
         <PopoverContent class="flex flex-wrap gap-2 font-mono overflow-visible">
           <PopoverArrow />
           <button
+            type="button"
             /* this is here to steal focus so the child tooltips don't open by default */
             class="absolute size-0"
           />

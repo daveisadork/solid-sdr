@@ -1,13 +1,21 @@
+import type * as DialogPrimitive from "@kobalte/core/dialog";
+import { createDisclosureState } from "@kobalte/core/primitives/create-disclosure-state";
+import { RadioGroup } from "@kobalte/core/radio-group";
+import type { Radio } from "@repo/flexlib";
 import {
   createEffect,
   createSignal,
   For,
-  JSX,
+  type JSX,
   Show,
   splitProps,
 } from "solid-js";
-
 import useFlexRadio from "~/context/flexradio";
+import MaterialSymbolsDelete from "~icons/material-symbols/delete";
+import MaterialSymbolsDeviceReset from "~icons/material-symbols/device-reset";
+import MaterialSymbolsSave from "~icons/material-symbols/save";
+import { Button } from "../ui/button";
+import { ConfirmButton } from "../ui/confirm-button";
 import {
   Dialog,
   DialogContent,
@@ -16,11 +24,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "../ui/dialog";
-import { Radio } from "@repo/flexlib";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { SimpleSwitch } from "../ui/simple-switch";
-import { Button } from "../ui/button";
-import { TextField, TextFieldInput, TextFieldLabel } from "../ui/text-field";
 import {
   Table,
   TableBody,
@@ -29,13 +33,8 @@ import {
   TableHeader,
   TableRow,
 } from "../ui/table";
-import { RadioGroup } from "@kobalte/core/radio-group";
-import MaterialSymbolsDeviceReset from "~icons/material-symbols/device-reset";
-import MaterialSymbolsSave from "~icons/material-symbols/save";
-import MaterialSymbolsDelete from "~icons/material-symbols/delete";
-import { ConfirmButton } from "../ui/confirm-button";
-import * as DialogPrimitive from "@kobalte/core/dialog";
-import { createDisclosureState } from "@kobalte/core/primitives/create-disclosure-state";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
+import { TextField, TextFieldInput, TextFieldLabel } from "../ui/text-field";
 
 const LABELS = {
   global: "Global",
@@ -148,6 +147,7 @@ function GlobalProfiles(props: { radio: Radio }) {
                   <RadioGroup.ItemControl class="aspect-square size-4 rounded-full border border-primary text-primary ring-offset-background focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
                     <RadioGroup.ItemIndicator class="flex h-full items-center justify-center ">
                       <svg
+                        aria-hidden="true"
                         xmlns="http://www.w3.org/2000/svg"
                         viewBox="0 0 24 24"
                         fill="none"
@@ -217,6 +217,7 @@ function TxProfiles(props: { radio: Radio }) {
                   <RadioGroup.ItemControl class="aspect-square size-4 rounded-full border border-primary text-primary ring-offset-background focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
                     <RadioGroup.ItemIndicator class="flex h-full items-center justify-center ">
                       <svg
+                        aria-hidden="true"
                         xmlns="http://www.w3.org/2000/svg"
                         viewBox="0 0 24 24"
                         fill="none"
@@ -298,6 +299,7 @@ function MicProfiles(props: { radio: Radio }) {
                   <RadioGroup.ItemControl class="aspect-square size-4 rounded-full border border-primary text-primary ring-offset-background focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
                     <RadioGroup.ItemIndicator class="flex h-full items-center justify-center ">
                       <svg
+                        aria-hidden="true"
                         xmlns="http://www.w3.org/2000/svg"
                         viewBox="0 0 24 24"
                         fill="none"

@@ -1,6 +1,7 @@
-import { TypedEventEmitter, type Subscription } from "../util/events.js";
+import { type Subscription, TypedEventEmitter } from "../util/events.js";
 import { clampInteger, ensureFinite, toInteger } from "./controller-helpers.js";
 import { FlexError, FlexStateUnavailableError } from "./errors.js";
+import type { RadioSession } from "./radio-core.js";
 import { FILTER_PRESET_COUNT } from "./state/filter-preset.js";
 import type {
   FilterPresetEntry,
@@ -8,7 +9,6 @@ import type {
   FilterPresetSnapshot,
   FilterPresetStateChange,
 } from "./state/index.js";
-import type { RadioSession } from "./radio-core.js";
 
 /** Events emitted by a {@link FilterPresetController}. */
 export interface FilterPresetControllerEvents {

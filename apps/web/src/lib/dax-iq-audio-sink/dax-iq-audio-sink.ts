@@ -1,7 +1,7 @@
 import { type AudioStreamDataEvent, VitaDaxIqPacket } from "@repo/flexlib";
-import { DAX_IQ_RING_FRAMES as RING_FRAMES, type SinkMessage } from "./types";
 import sabWorkletURL from "../sab-ring-sink.worklet.ts?worker&url";
 import sinkWorkerURL from "./dax-iq-audio-sink.worker.ts?worker&url";
+import { DAX_IQ_RING_FRAMES as RING_FRAMES, type SinkMessage } from "./types";
 
 export interface DaxIqAudioSinkOptions {
   sampleRate: number;

@@ -1,12 +1,12 @@
-import { TypedEventEmitter, type Subscription } from "../util/events.js";
+import { type Subscription, TypedEventEmitter } from "../util/events.js";
 import {
   formatBooleanFlag,
   formatInteger,
   formatMegahertz,
 } from "./controller-helpers.js";
 import { FlexStateUnavailableError } from "./errors.js";
-import type { MemorySnapshot, MemoryStateChange } from "./state/index.js";
 import type { RadioSession } from "./radio-core.js";
+import type { MemorySnapshot, MemoryStateChange } from "./state/index.js";
 import type {
   MemoryRepeaterOffsetDirection,
   MemoryToneMode,
@@ -24,9 +24,8 @@ export interface MemoryControllerEvents {
  * update settings. Each setter sends the appropriate `memory set` command
  * to the radio and optimistically patches the local store.
  */
-export interface MemoryController extends Readonly<
-  Omit<MemorySnapshot, "raw">
-> {
+export interface MemoryController
+  extends Readonly<Omit<MemorySnapshot, "raw">> {
   /** Returns the current snapshot of this memory's state. */
   snapshot(): MemorySnapshot;
 

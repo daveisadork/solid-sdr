@@ -1,5 +1,48 @@
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  Match,
+  onCleanup,
+  Show,
+  Switch,
+} from "solid-js";
+import { reconcile } from "solid-js/store";
+import {
+  CONTROL_DEFINITIONS,
+  CONTROL_REGISTRY,
+  type ControlTarget,
+  type SliceSelector,
+  useControls,
+} from "~/context/controls";
+import useFlexRadio from "~/context/flexradio";
+import {
+  createMIDIPorts,
+  type MidiMapping,
+  type MidiSource,
+  type ParsedMidiMessage,
+  parseMidiMessage,
+} from "~/lib/midi";
+import BaselineDelete from "~icons/ic/baseline-delete";
+import MdiRefresh from "~icons/mdi/refresh";
+import SvgSpinners180Ring from "~icons/svg-spinners/180-ring";
 import { usePreferences } from "../../context/preferences";
+import { MidiValueRing } from "../midi-value-ring";
 import { Button } from "../ui/button";
+import { Card, CardHeader, CardTitle } from "../ui/card";
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxControl,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxItemIndicator,
+  ComboboxItemLabel,
+  ComboboxLabel,
+  ComboboxSection,
+  ComboboxTrigger,
+} from "../ui/combobox";
 import {
   Dialog,
   DialogContent,
@@ -8,17 +51,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "../ui/dialog";
-import { Card, CardHeader, CardTitle } from "../ui/card";
-import {
-  createEffect,
-  createMemo,
-  createSignal,
-  For,
-  onCleanup,
-  Show,
-  Switch,
-  Match,
-} from "solid-js";
 import {
   NumberField,
   NumberFieldDecrementTrigger,
@@ -27,26 +59,6 @@ import {
   NumberFieldInput,
   NumberFieldLabel,
 } from "../ui/number-field";
-
-import { SimpleSwitch } from "../ui/simple-switch";
-import { SimpleSlider } from "../ui/simple-slider";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "../ui/table";
-import {
-  createMIDIPorts,
-  MidiMapping,
-  MidiSource,
-  ParsedMidiMessage,
-  parseMidiMessage,
-} from "~/lib/midi";
-import { Timeline } from "../ui/timeline";
-import SvgSpinners180Ring from "~icons/svg-spinners/180-ring";
 import {
   Select,
   SelectContent,
@@ -56,30 +68,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
+import { SimpleSlider } from "../ui/simple-slider";
+import { SimpleSwitch } from "../ui/simple-switch";
 import {
-  CONTROL_DEFINITIONS,
-  CONTROL_REGISTRY,
-  type ControlTarget,
-  type SliceSelector,
-  useControls,
-} from "~/context/controls";
-import BaselineDelete from "~icons/ic/baseline-delete";
-import MdiRefresh from "~icons/mdi/refresh";
-import { MidiValueRing } from "../midi-value-ring";
-import { reconcile } from "solid-js/store";
-import useFlexRadio from "~/context/flexradio";
-import {
-  Combobox,
-  ComboboxControl,
-  ComboboxInput,
-  ComboboxItem,
-  ComboboxItemIndicator,
-  ComboboxItemLabel,
-  ComboboxLabel,
-  ComboboxSection,
-  ComboboxTrigger,
-  ComboboxContent,
-} from "../ui/combobox";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../ui/table";
+import { Timeline } from "../ui/timeline";
 
 type InputType = MidiMapping["input"];
 type Behavior = MidiMapping["behavior"];
@@ -402,7 +401,7 @@ function AddMappingDialog(props: { class?: string | undefined }) {
           options: [],
         });
       }
-      categories.get(category)!.options.push({
+      categories.get(category)?.options.push({
         value: target,
         label,
         disabled: !supportsInput(target, input),
@@ -621,13 +620,11 @@ function AddMappingDialog(props: { class?: string | undefined }) {
       setLastMessage(parsed);
     };
 
-    inputs.forEach((input) =>
-      input.addEventListener("midimessage", handleMessage),
-    );
+    for (const input of inputs.values())
+      input.addEventListener("midimessage", handleMessage);
     onCleanup(() => {
-      inputs.forEach((input) =>
-        input.removeEventListener("midimessage", handleMessage),
-      );
+      for (const input of inputs.values())
+        input.removeEventListener("midimessage", handleMessage);
     });
   });
 

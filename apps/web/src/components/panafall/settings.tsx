@@ -1,7 +1,9 @@
-import useFlexRadio, {
-  PanadapterState,
-  WaterfallState,
-} from "~/context/flexradio";
+import { ColorSwatch } from "@kobalte/core/color-swatch";
+import { parseColor } from "@kobalte/core/colors";
+import * as SelectPrimitive from "@kobalte/core/select";
+import { DismissableLayer } from "@kobalte/core/src/dismissable-layer/index.js";
+import { ToggleButton } from "@kobalte/core/toggle-button";
+import type { PanadapterController, WaterfallController } from "@repo/flexlib";
 import {
   createEffect,
   createMemo,
@@ -11,6 +13,32 @@ import {
   Show,
   Switch,
 } from "solid-js";
+import useFlexRadio, {
+  type PanadapterState,
+  type WaterfallState,
+} from "~/context/flexradio";
+import { usePanafall } from "~/context/panafall";
+import {
+  type FillStyle,
+  type GradientStyle,
+  type PeakStyle,
+  usePreferences,
+} from "~/context/preferences";
+import BaselineDisplaySettings from "~icons/ic/baseline-display-settings";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "../ui/accordion";
+import { Button } from "../ui/button";
+import { Card, CardContent } from "../ui/card";
+import {
+  ColorField,
+  ColorFieldInput,
+  ColorFieldLabel,
+} from "../ui/color-field";
+import { ConfirmButton } from "../ui/confirm-button";
 import {
   NumberField,
   NumberFieldDecrementTrigger,
@@ -20,15 +48,6 @@ import {
   NumberFieldLabel,
 } from "../ui/number-field";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "../ui/select";
-import * as SelectPrimitive from "@kobalte/core/select";
-import {
   SegmentedControl,
   SegmentedControlGroup,
   SegmentedControlIndicator,
@@ -37,42 +56,21 @@ import {
   SegmentedControlItemsList,
   SegmentedControlLabel,
 } from "../ui/segmented-control";
-
-import { SliderToggle } from "../ui/slider-toggle";
-import { SimpleSwitch } from "../ui/simple-switch";
-import { SimpleSlider } from "../ui/simple-slider";
-import { Button } from "../ui/button";
-
 import {
-  ColorField,
-  ColorFieldInput,
-  ColorFieldLabel,
-} from "../ui/color-field";
-import { ColorSwatch } from "@kobalte/core/color-swatch";
-import { parseColor } from "@kobalte/core/colors";
-import { PanadapterController, WaterfallController } from "@repo/flexlib";
-import {
-  FillStyle,
-  GradientStyle,
-  PeakStyle,
-  usePreferences,
-} from "~/context/preferences";
-import { Sidebar, SidebarContent, SidebarRail } from "../ui/sidebar";
-import { usePanafall } from "~/context/panafall";
-import BaselineDisplaySettings from "~icons/ic/baseline-display-settings";
-import { Card, CardContent } from "../ui/card";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
 import { Separator } from "../ui/separator";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "../ui/accordion";
-import { ToggleGroup, ToggleGroupItem } from "../ui/toggle-group";
-import { ToggleButton } from "@kobalte/core/toggle-button";
+import { Sidebar, SidebarContent, SidebarRail } from "../ui/sidebar";
+import { SimpleSlider } from "../ui/simple-slider";
+import { SimpleSwitch } from "../ui/simple-switch";
+import { SliderToggle } from "../ui/slider-toggle";
 import { showToast } from "../ui/toast";
-import { ConfirmButton } from "../ui/confirm-button";
-import { DismissableLayer } from "@kobalte/core/src/dismissable-layer/index.js";
+import { ToggleGroup, ToggleGroupItem } from "../ui/toggle-group";
 
 export const BANDS: { id: string; label: string }[] = [
   { id: "160", label: "160m" },
@@ -414,8 +412,7 @@ function DisplaySettings(props: {
           props.waterfallController.setColorGain(Math.floor(value));
         }}
         getValueLabel={(params) => {
-          const gain =
-            20 * Math.log10(1 / Math.pow(1 - params.values[0] / 100, 3));
+          const gain = 20 * Math.log10(1 / (1 - params.values[0] / 100) ** 3);
           return `${Math.round(gain * 10) / 10} dB`;
         }}
         label="Color Gain"

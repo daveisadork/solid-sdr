@@ -1,4 +1,4 @@
-import { TypedEventEmitter, type Subscription } from "../util/events.js";
+import { type Subscription, TypedEventEmitter } from "../util/events.js";
 
 // ---------------------------------------------------------------------------
 // FileUpload

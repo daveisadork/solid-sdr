@@ -1,6 +1,6 @@
 import ResizablePrimitive, {
-  DynamicProps,
-  HandleProps,
+  type DynamicProps,
+  type HandleProps,
 } from "@corvu/resizable";
 import { createElementSize } from "@solid-primitives/resize-observer";
 import {
@@ -8,9 +8,9 @@ import {
   createSignal,
   For,
   splitProps,
-  ValidComponent,
+  type ValidComponent,
 } from "solid-js";
-import { type PanadapterState } from "~/context/flexradio";
+import type { PanadapterState } from "~/context/flexradio";
 import { usePreferences } from "~/context/preferences";
 import { cn } from "~/lib/utils";
 

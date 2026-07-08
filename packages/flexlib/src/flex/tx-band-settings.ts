@@ -1,11 +1,11 @@
-import { TypedEventEmitter, type Subscription } from "../util/events.js";
+import { type Subscription, TypedEventEmitter } from "../util/events.js";
 import { clampInteger, formatBooleanFlag } from "./controller-helpers.js";
 import { FlexStateUnavailableError } from "./errors.js";
+import type { RadioSession } from "./radio-core.js";
 import type {
   TxBandSettingSnapshot,
   TxBandSettingStateChange,
 } from "./state/index.js";
-import type { RadioSession } from "./radio-core.js";
 
 export interface TxBandSettingControllerEvents {
   readonly change: TxBandSettingStateChange;

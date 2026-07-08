@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { FlexStateUnavailableError } from "../../src/flex/errors.js";
-import { createConnectedRadio, makeStatus } from "../helpers.js";
-import { createRadioStateStore } from "../../src/flex/state/index.js";
 import type { RadioStateChange } from "../../src/flex/state/index.js";
+import { createRadioStateStore } from "../../src/flex/state/index.js";
+import { createConnectedRadio, makeStatus } from "../helpers.js";
 
 describe("Spot store integration", () => {
   it("handles spot create, update, and remove", () => {

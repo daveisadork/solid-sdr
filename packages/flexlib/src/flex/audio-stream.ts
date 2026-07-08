@@ -1,17 +1,17 @@
-import { TypedEventEmitter, type Subscription } from "../util/events.js";
-import { clampInteger } from "./controller-helpers.js";
-import { FlexStateUnavailableError } from "./errors.js";
-import type {
-  AudioStreamSnapshot,
-  AudioStreamStateChange,
-} from "./state/index.js";
-import type { RadioSession } from "./radio-core.js";
-import type { VitaPacket } from "../vita/parser.js";
+import { type Subscription, TypedEventEmitter } from "../util/events.js";
 import {
   VitaDaxAudioPacket,
   VitaDaxReducedBwPacket,
 } from "../vita/dax-audio-packet.js";
 import { VitaOpusPacket } from "../vita/opus-packet.js";
+import type { VitaPacket } from "../vita/parser.js";
+import { clampInteger } from "./controller-helpers.js";
+import { FlexStateUnavailableError } from "./errors.js";
+import type { RadioSession } from "./radio-core.js";
+import type {
+  AudioStreamSnapshot,
+  AudioStreamStateChange,
+} from "./state/index.js";
 
 export type AudioStreamDataEvent = VitaPacket;
 
@@ -239,9 +239,9 @@ export class AudioStreamControllerImpl implements AudioStreamController {
   private ensureDataPipeline(): void {
     if (this.dataSubscription) return;
     const streamNumericId = parseStreamIdentifier(this.id);
-    if (!Number.isFinite(streamNumericId)) return;
+    if (streamNumericId === undefined) return;
     this.dataSubscription = this.radio.registerStreamHandler(
-      streamNumericId!,
+      streamNumericId,
       (packet) => {
         this.events.emit("data", packet);
       },

@@ -1,8 +1,7 @@
-import type { Component, JSX, ValidComponent } from "solid-js";
-import { splitProps } from "solid-js";
-
 import type { PolymorphicProps } from "@kobalte/core/polymorphic";
 import * as PopoverPrimitive from "@kobalte/core/popover";
+import type { Component, JSX, ValidComponent } from "solid-js";
+import { splitProps } from "solid-js";
 
 import { cn } from "~/lib/utils";
 
@@ -34,6 +33,7 @@ const PopoverCloseButton = <T extends ValidComponent = "button">(
       {local.children ?? (
         <>
           <svg
+            aria-hidden="true"
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
             fill="none"
@@ -79,9 +79,9 @@ const PopoverContent = <T extends ValidComponent = "div">(
 
 export {
   Popover,
-  PopoverTrigger,
-  PopoverContent,
   PopoverAnchor,
   PopoverArrow,
   PopoverCloseButton,
+  PopoverContent,
+  PopoverTrigger,
 };

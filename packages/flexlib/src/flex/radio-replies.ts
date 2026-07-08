@@ -52,9 +52,7 @@ function normalizeCommaSeparatedValues(input: string): string {
     .join(",");
 }
 
-export function parseRadioInfoReply(
-  message: string,
-): Record<string, string> {
+export function parseRadioInfoReply(message: string): Record<string, string> {
   const attributes = Object.create(null) as Record<string, string>;
   for (const { key, value } of splitKeyValuePairs(message)) {
     attributes[key] = value;
@@ -109,4 +107,3 @@ export function buildRadioListAttributes(
   attributes[attribute] = normalizeCommaSeparatedValues(message ?? "");
   return attributes;
 }
-

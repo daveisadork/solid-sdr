@@ -1,4 +1,4 @@
-import { TypedEventEmitter, type Subscription } from "../util/events.js";
+import { type Subscription, TypedEventEmitter } from "../util/events.js";
 import { FlexError, FlexStateUnavailableError } from "./errors.js";
 import type { RadioCommandOptions, RadioSession } from "./radio-core.js";
 import type { WaveformSnapshot, WaveformStateChange } from "./state/index.js";

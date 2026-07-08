@@ -177,7 +177,7 @@ export class BridgeConnection
   async sendTcp(data: string): Promise<void> {
     if (this.closed) throw new Error("Connection is closed");
     const dc = this.tcpChannel;
-    if (!dc || dc.readyState !== "open") {
+    if (dc?.readyState !== "open") {
       throw new Error("TCP data channel is not connected");
     }
     dc.send(data);
@@ -186,7 +186,7 @@ export class BridgeConnection
   async sendUdp(data: Uint8Array): Promise<void> {
     if (this.closed) throw new Error("Connection is closed");
     const dc = this.udpChannel;
-    if (!dc || dc.readyState !== "open") {
+    if (dc?.readyState !== "open") {
       throw new Error("UDP data channel is not connected");
     }
     dc.send(data);

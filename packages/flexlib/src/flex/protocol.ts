@@ -139,11 +139,11 @@ function parseStatus(
   }
 
   if (
-    !attributes["stream_id"] &&
+    !attributes.stream_id &&
     positionalTokens.length > 0 &&
     positionalTokens[0].toLowerCase().startsWith("0x")
   ) {
-    attributes["stream_id"] = positionalTokens[0];
+    attributes.stream_id = positionalTokens[0];
   }
 
   return {
@@ -171,7 +171,7 @@ function parseReply(
   const message = payload[1]?.trim();
 
   if (sequence === undefined || code === undefined) return undefined;
-  let level: FlexReplyCodeLevel | undefined = undefined;
+  let level: FlexReplyCodeLevel | undefined;
   if (code === _FlexReplyCodeLevel.Success) {
     level = "success";
   } else if ((code & _FlexReplyCodeLevel.Fatal) === _FlexReplyCodeLevel.Fatal) {
@@ -254,7 +254,6 @@ function parseReplyCode(value: string | undefined): number | undefined {
   const parsed = Number.parseInt(trimmed, 16);
   return Number.isFinite(parsed) ? parsed : undefined;
 }
-
 
 function parseAttributes(
   source: string,
@@ -375,4 +374,3 @@ function normalizeStatusAttributeValue(value: string): string {
   }
   return v.replace(/\u007f/g, " ").trim();
 }
-

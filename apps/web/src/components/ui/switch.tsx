@@ -1,8 +1,7 @@
-import type { JSX, ValidComponent } from "solid-js";
-import { splitProps } from "solid-js";
-
 import type { PolymorphicProps } from "@kobalte/core/polymorphic";
 import * as SwitchPrimitive from "@kobalte/core/switch";
+import type { JSX, ValidComponent } from "solid-js";
+import { splitProps } from "solid-js";
 
 import { cn } from "~/lib/utils";
 
@@ -101,8 +100,8 @@ const SwitchLabel = <T extends ValidComponent = "label">(
 export {
   Switch,
   SwitchControl,
-  SwitchThumb,
-  SwitchLabel,
   SwitchDescription,
   SwitchErrorMessage,
+  SwitchLabel,
+  SwitchThumb,
 };

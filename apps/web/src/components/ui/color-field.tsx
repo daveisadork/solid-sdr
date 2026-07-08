@@ -1,9 +1,8 @@
+import * as ColorFieldPrimitive from "@kobalte/core/color-field";
+import type { PolymorphicProps } from "@kobalte/core/polymorphic";
+import { cva } from "class-variance-authority";
 import type { ValidComponent } from "solid-js";
 import { mergeProps, splitProps } from "solid-js";
-
-import type { PolymorphicProps } from "@kobalte/core/polymorphic";
-import * as ColorFieldPrimitive from "@kobalte/core/color-field";
-import { cva } from "class-variance-authority";
 
 import { cn } from "~/lib/utils";
 
@@ -146,8 +145,8 @@ const ColorFieldErrorMessage = <T extends ValidComponent = "div">(
 
 export {
   ColorField,
-  ColorFieldInput,
-  ColorFieldLabel,
   ColorFieldDescription,
   ColorFieldErrorMessage,
+  ColorFieldInput,
+  ColorFieldLabel,
 };

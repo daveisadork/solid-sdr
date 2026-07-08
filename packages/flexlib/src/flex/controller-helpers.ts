@@ -28,11 +28,7 @@ export function formatInteger(value: number, label = "value"): string {
 /**
  * Clamps a value within optional minimum and maximum bounds.
  */
-export function clampNumber(
-  value: number,
-  min?: number,
-  max?: number,
-): number {
+export function clampNumber(value: number, min?: number, max?: number): number {
   let result = value;
   if (min !== undefined && result < min) result = min;
   if (max !== undefined && result > max) result = max;

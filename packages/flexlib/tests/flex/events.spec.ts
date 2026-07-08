@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
-  TypedEventEmitter,
   type ListenerErrorInfo,
   type Subscription,
+  TypedEventEmitter,
 } from "../../src/util/events.js";
 
 interface TestEvents extends Record<string, unknown> {
@@ -62,7 +62,7 @@ describe("TypedEventEmitter", () => {
     emitter.emit("bar", 1);
 
     emitter.removeAll();
-    subscriptions.forEach((subscription) => subscription.unsubscribe());
+    for (const subscription of subscriptions) subscription.unsubscribe();
 
     emitter.emit("foo", "b");
     emitter.emit("bar", 2);

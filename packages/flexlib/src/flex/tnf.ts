@@ -1,4 +1,4 @@
-import { TypedEventEmitter, type Subscription } from "../util/events.js";
+import { type Subscription, TypedEventEmitter } from "../util/events.js";
 import {
   clampInteger,
   ensureFinite,
@@ -6,8 +6,8 @@ import {
   formatMegahertz,
 } from "./controller-helpers.js";
 import { FlexStateUnavailableError } from "./errors.js";
-import type { TnfSnapshot, TnfStateChange } from "./state/index.js";
 import type { RadioSession } from "./radio-core.js";
+import type { TnfSnapshot, TnfStateChange } from "./state/index.js";
 
 /** Events emitted by a {@link TnfController}. */
 export interface TnfControllerEvents {

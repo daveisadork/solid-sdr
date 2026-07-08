@@ -1,4 +1,4 @@
-import { createEffect, createSignal, onCleanup, type Accessor } from "solid-js";
+import { type Accessor, createEffect, createSignal, onCleanup } from "solid-js";
 import type { DaxChannelMode } from "~/lib/dax-audio-sink/types";
 
 const PEAK_HOLD = 120;

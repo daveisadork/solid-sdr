@@ -1,10 +1,5 @@
-import type {
-  PanadapterSnapshot,
-  PanadapterStateChange,
-} from "./state/index.js";
-import { TypedEventEmitter, type Subscription } from "../util/events.js";
-import { FlexError, FlexStateUnavailableError } from "./errors.js";
-import { parseRfGainInfo } from "./rf-gain.js";
+import { type Subscription, TypedEventEmitter } from "../util/events.js";
+import type { VitaFFTPacket } from "../vita/fft-packet.js";
 import {
   buildDisplaySetCommand,
   clampInteger,
@@ -14,8 +9,13 @@ import {
   formatInteger,
   formatMegahertz,
 } from "./controller-helpers.js";
+import { FlexError, FlexStateUnavailableError } from "./errors.js";
 import type { RadioSession } from "./radio-core.js";
-import type { VitaFFTPacket } from "../vita/fft-packet.js";
+import { parseRfGainInfo } from "./rf-gain.js";
+import type {
+  PanadapterSnapshot,
+  PanadapterStateChange,
+} from "./state/index.js";
 
 export interface PanadapterControllerEvents {
   readonly change: PanadapterStateChange;

@@ -1,8 +1,7 @@
+import { Key } from "@solid-primitives/keyed";
 import { Show } from "solid-js";
-
 import useFlexRadio from "~/context/flexradio";
 import { DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
-import { Key } from "@solid-primitives/keyed";
 import { SimpleMeter } from "../ui/simple-meter";
 
 function MetersInner() {

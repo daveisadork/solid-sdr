@@ -7,7 +7,7 @@ import {
   parseInteger,
   parseMegahertz,
 } from "./common.js";
-import type { SliceToneMode, SliceRepeaterOffsetDirection } from "./slice.js";
+import type { SliceRepeaterOffsetDirection, SliceToneMode } from "./slice.js";
 
 export type MemoryToneMode = SliceToneMode;
 export type MemoryRepeaterOffsetDirection = SliceRepeaterOffsetDirection;

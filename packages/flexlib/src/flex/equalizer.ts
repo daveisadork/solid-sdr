@@ -1,4 +1,5 @@
-import { TypedEventEmitter, type Subscription } from "../util/events.js";
+import { type Subscription, TypedEventEmitter } from "../util/events.js";
+import { clampInteger, formatBooleanFlag } from "./controller-helpers.js";
 import { FlexStateUnavailableError } from "./errors.js";
 import type { RadioSession } from "./radio-core.js";
 import {
@@ -11,7 +12,6 @@ import type {
   EqualizerSnapshot,
   EqualizerStateChange,
 } from "./state/index.js";
-import { clampInteger, formatBooleanFlag } from "./controller-helpers.js";
 
 const LEVEL_MIN = -10;
 const LEVEL_MAX = 10;

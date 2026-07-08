@@ -1,5 +1,5 @@
 import {
-  Component,
+  type Component,
   createEffect,
   createMemo,
   createSignal,
@@ -9,10 +9,10 @@ import {
 } from "solid-js";
 import useFlexRadio from "~/context/flexradio";
 import { useRuntime } from "~/context/runtime";
-import { Sheet, SheetContent, SheetTitle } from "./ui/sheet";
-import { Button } from "./ui/button";
-import MaterialSymbolsKeyboardArrowUp from "~icons/material-symbols/keyboard-arrow-up";
 import MaterialSymbolsKeyboardArrowDown from "~icons/material-symbols/keyboard-arrow-down";
+import MaterialSymbolsKeyboardArrowUp from "~icons/material-symbols/keyboard-arrow-up";
+import { Button } from "./ui/button";
+import { Sheet, SheetContent, SheetTitle } from "./ui/sheet";
 
 const digitCount = (value: number) =>
   value < 10 ? 1 : Math.floor(Math.log10(value)) + 1;

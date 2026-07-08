@@ -1,22 +1,22 @@
 import { createPacketContext } from "./common";
-import { VitaMeterPacket } from "./meter-packet";
-import { VitaFFTPacket } from "./fft-packet";
-import { VitaWaterfallPacket } from "./waterfall-packet";
-import { VitaDiscoveryPacket } from "./discovery";
-import { VitaOpusPacket } from "./opus-packet";
 import {
-  VitaDaxAudioPacket,
-  VitaDaxReducedBwPacket,
   VITA_FLEX_DAX_AUDIO_CLASS,
   VITA_FLEX_DAX_REDUCED_BW_CLASS,
+  VitaDaxAudioPacket,
+  VitaDaxReducedBwPacket,
 } from "./dax-audio-packet";
 import {
-  VitaDaxIqPacket,
   VITA_FLEX_DAX_IQ_24_CLASS,
   VITA_FLEX_DAX_IQ_48_CLASS,
   VITA_FLEX_DAX_IQ_96_CLASS,
   VITA_FLEX_DAX_IQ_192_CLASS,
+  VitaDaxIqPacket,
 } from "./dax-iq-packet";
+import { VitaDiscoveryPacket } from "./discovery";
+import { VitaFFTPacket } from "./fft-packet";
+import { VitaMeterPacket } from "./meter-packet";
+import { VitaOpusPacket } from "./opus-packet";
+import { VitaWaterfallPacket } from "./waterfall-packet";
 
 export type VitaPacket =
   | VitaMeterPacket

@@ -68,7 +68,10 @@ export const createPermission = (
       navigator.mediaDevices.getUserMedia = (constraints) =>
         constraints?.[constraint]
           ? getUserMedia(constraints)
-              .then((stream: MediaStream) => (setPermission("granted"), stream))
+              .then((stream: MediaStream) => {
+                setPermission("granted");
+                return stream;
+              })
               .catch((error: DOMException) => {
                 if (/not allowed/.test(error.message)) {
                   setPermission("denied");

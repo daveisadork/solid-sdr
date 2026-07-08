@@ -1,8 +1,8 @@
-import { TypedEventEmitter, type Subscription } from "../util/events.js";
+import { type Subscription, TypedEventEmitter } from "../util/events.js";
 import { clampInteger, formatBooleanFlag } from "./controller-helpers.js";
 import { FlexStateUnavailableError } from "./errors.js";
-import type { CwxSnapshot, CwxStateChange } from "./state/index.js";
 import type { RadioSession } from "./radio-core.js";
+import type { CwxSnapshot, CwxStateChange } from "./state/index.js";
 
 /** Events emitted by a {@link CwxController}. */
 export interface CwxControllerEvents {

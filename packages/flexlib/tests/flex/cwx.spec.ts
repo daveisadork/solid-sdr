@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { createConnectedRadio, makeStatus } from "../helpers.js";
-import { createRadioStateStore } from "../../src/flex/state/index.js";
 import type { RadioStateChange } from "../../src/flex/state/index.js";
+import { createRadioStateStore } from "../../src/flex/state/index.js";
+import { createConnectedRadio, makeStatus } from "../helpers.js";
 
 describe("CWX snapshot", () => {
   it("parses break_in_delay, wpm, qsk_enabled, and macros", () => {
@@ -9,9 +9,7 @@ describe("CWX snapshot", () => {
     const store = createRadioStateStore();
 
     // when cwx status arrives
-    store.apply(
-      makeStatus("S1|cwx break_in_delay=250 wpm=25 qsk_enabled=1"),
-    );
+    store.apply(makeStatus("S1|cwx break_in_delay=250 wpm=25 qsk_enabled=1"));
 
     // then cwx state is tracked
     const cwx = store.getCwx();

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { FlexStateUnavailableError } from "../../src/flex/errors.js";
-import { createConnectedRadio, makeStatus } from "../helpers.js";
-import { createRadioStateStore } from "../../src/flex/state/index.js";
 import type { RadioStateChange } from "../../src/flex/state/index.js";
+import { createRadioStateStore } from "../../src/flex/state/index.js";
 import { createXvtrSnapshot } from "../../src/flex/state/xvtr.js";
+import { createConnectedRadio, makeStatus } from "../helpers.js";
 
 describe("XVTR snapshot", () => {
   it("parses all wire attributes on first creation", () => {
@@ -236,7 +236,8 @@ describe("XVTR controller", () => {
     connection.emitStatus(
       "S1|xvtr 0 name=2M rf_freq=144.000000 if_freq=28.000000 lo_error=0.000000 rx_gain=10.00 rx_only=0 max_power=5.00 order=0 is_valid=1",
     );
-    const controller = radio.xvtr("0")!;
+    const controller = radio.xvtr("0");
+    if (!controller) throw new Error("expected xvtr controller");
 
     // when we set properties
     await controller.setName("70cm");
@@ -270,7 +271,8 @@ describe("XVTR controller", () => {
     connection.emitStatus(
       "S1|xvtr 0 name=2M rf_freq=144.000000 if_freq=28.000000",
     );
-    const controller = radio.xvtr("0")!;
+    const controller = radio.xvtr("0");
+    if (!controller) throw new Error("expected xvtr controller");
 
     // when we set a name longer than 4 characters
     await controller.setName("LongName");
@@ -285,7 +287,8 @@ describe("XVTR controller", () => {
     connection.emitStatus(
       "S1|xvtr 0 name=2M rf_freq=144.000000 if_freq=28.000000",
     );
-    const controller = radio.xvtr("0")!;
+    const controller = radio.xvtr("0");
+    if (!controller) throw new Error("expected xvtr controller");
 
     // when we remove the xvtr
     await controller.remove();
@@ -324,20 +327,20 @@ describe("XVTR controller", () => {
     { model: "FLEX-6400", ifFreqMHz: 100, input: 20, expected: "8.00" },
     { model: "FLEX-6400", ifFreqMHz: 28, input: 5, expected: "5.00" },
     { model: "FLEX-6400", ifFreqMHz: 28, input: -20, expected: "-10.00" },
-  ])(
-    "clamps max power: $model + IF=$ifFreqMHz MHz, input=$input → $expected",
-    async ({ model, ifFreqMHz, input, expected }) => {
-      const { radio, connection } = await createConnectedRadio();
-      connection.emitStatus(`S1|radio model=${model}`);
-      connection.emitStatus(
-        `S2|xvtr 0 name=2M rf_freq=144.000000 if_freq=${ifFreqMHz}.000000 max_power=0.00`,
-      );
+  ])("clamps max power: $model + IF=$ifFreqMHz MHz, input=$input → $expected", async ({
+    model,
+    ifFreqMHz,
+    input,
+    expected,
+  }) => {
+    const { radio, connection } = await createConnectedRadio();
+    connection.emitStatus(`S1|radio model=${model}`);
+    connection.emitStatus(
+      `S2|xvtr 0 name=2M rf_freq=144.000000 if_freq=${ifFreqMHz}.000000 max_power=0.00`,
+    );
 
-      await radio.xvtr("0")!.setMaxPowerDbm(input);
+    await radio.xvtr("0")?.setMaxPowerDbm(input);
 
-      expect(connection.lastCommand()).toBe(
-        `xvtr set 0 max_power=${expected}`,
-      );
-    },
-  );
+    expect(connection.lastCommand()).toBe(`xvtr set 0 max_power=${expected}`);
+  });
 });

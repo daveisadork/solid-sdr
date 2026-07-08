@@ -1,9 +1,8 @@
+import type { PolymorphicProps } from "@kobalte/core/polymorphic";
+import type * as RadioGroupPrimitive from "@kobalte/core/radio-group";
+import * as SegmentedControlPrimitive from "@kobalte/core/segmented-control";
 import type { Component, ComponentProps, JSX, ValidComponent } from "solid-js";
 import { splitProps } from "solid-js";
-
-import type { PolymorphicProps } from "@kobalte/core/polymorphic";
-import * as SegmentedControlPrimitive from "@kobalte/core/segmented-control";
-import * as RadioGroupPrimitive from "@kobalte/core/radio-group";
 
 import { cn } from "~/lib/utils";
 
@@ -149,10 +148,10 @@ const SegmentedControlItem = <T extends ValidComponent = "div">(
 
 export {
   SegmentedControl,
-  SegmentedControlItemsList,
   SegmentedControlGroup,
   SegmentedControlIndicator,
-  SegmentedControlLabel,
   SegmentedControlItem,
   SegmentedControlItemLabel,
+  SegmentedControlItemsList,
+  SegmentedControlLabel,
 };

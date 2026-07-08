@@ -1,3 +1,5 @@
+import type { EqualizerBand } from "@repo/flexlib/flex/state/equalizer";
+import { debounce } from "@solid-primitives/scheduled";
 import {
   createEffect,
   createMemo,
@@ -6,40 +8,27 @@ import {
   onCleanup,
   Show,
 } from "solid-js";
-import { Sidebar, SidebarContent } from "~/components/ui/sidebar";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "~/components/ui/accordion";
-
-import useFlexRadio from "~/context/flexradio";
-import { SimpleSlider } from "./ui/simple-slider";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "./ui/select";
-import { SimpleSwitch } from "./ui/simple-switch";
-import { dbmToWatts, roundToDecimals } from "~/lib/utils";
-import { debounce } from "@solid-primitives/scheduled";
-import { SimpleMeter } from "./ui/simple-meter";
+import { Sidebar, SidebarContent } from "~/components/ui/sidebar";
 import { useAudio } from "~/context/audio";
-import { createStreamLevel } from "~/lib/stream-level";
-import { SliderToggle } from "./ui/slider-toggle";
-import {
-  SegmentedControl,
-  SegmentedControlGroup,
-  SegmentedControlIndicator,
-  SegmentedControlItem,
-  SegmentedControlItemLabel,
-  SegmentedControlItemsList,
-} from "./ui/segmented-control";
+import useFlexRadio from "~/context/flexradio";
 import { usePreferences } from "~/context/preferences";
+import { createStreamLevel } from "~/lib/stream-level";
+import { dbmToWatts, roundToDecimals } from "~/lib/utils";
+import MaterialSymbolsMoreVert from "~icons/material-symbols/more-vert";
+import { CreateProfileDialog } from "./settings/profile-settings";
+import { Button } from "./ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
 import {
   NumberField,
   NumberFieldDecrementTrigger,
@@ -49,6 +38,25 @@ import {
   NumberFieldLabel,
 } from "./ui/number-field";
 import {
+  SegmentedControl,
+  SegmentedControlGroup,
+  SegmentedControlIndicator,
+  SegmentedControlItem,
+  SegmentedControlItemLabel,
+  SegmentedControlItemsList,
+} from "./ui/segmented-control";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
+import { SimpleMeter } from "./ui/simple-meter";
+import { SimpleSlider } from "./ui/simple-slider";
+import { SimpleSwitch } from "./ui/simple-switch";
+import {
   Slider,
   SliderFill,
   SliderLabel,
@@ -56,17 +64,8 @@ import {
   SliderTrack,
   SliderValueLabel,
 } from "./ui/slider";
+import { SliderToggle } from "./ui/slider-toggle";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import { EqualizerBand } from "@repo/flexlib/flex/state/equalizer";
-import { Button } from "./ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "./ui/dropdown-menu";
-import MaterialSymbolsMoreVert from "~icons/material-symbols/more-vert";
-import { CreateProfileDialog } from "./settings/profile-settings";
 
 const PROCESSOR_LEVELS = ["Norm", "DX", "DX+"];
 const VOICE_MODES = new Set(["USB", "LSB", "AM", "SAM", "FM", "NFM"]);

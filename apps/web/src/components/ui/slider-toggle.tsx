@@ -1,7 +1,6 @@
-import { Show, splitProps } from "solid-js";
-
 import type { Component, ComponentProps, JSX } from "solid-js";
-
+import { Show, splitProps } from "solid-js";
+import { cn } from "../../lib/utils";
 import {
   Slider,
   SliderFill,
@@ -10,10 +9,8 @@ import {
   SliderTrack,
   SliderValueLabel,
 } from "./slider";
-
 import { Switch, SwitchControl, SwitchThumb } from "./switch";
-import { cn } from "../../lib/utils";
-import { Tooltip, TooltipTrigger, TooltipContent } from "./tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip";
 
 type SliderToggleProps = ComponentProps<typeof Slider> & {
   label: JSX.Element;

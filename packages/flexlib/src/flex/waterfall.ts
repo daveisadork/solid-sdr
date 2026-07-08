@@ -1,17 +1,17 @@
-import type { WaterfallSnapshot, WaterfallStateChange } from "./state/index.js";
-import { TypedEventEmitter, type Subscription } from "../util/events.js";
-import { FlexStateUnavailableError } from "./errors.js";
+import { type Subscription, TypedEventEmitter } from "../util/events.js";
+import type { VitaWaterfallPacket } from "../vita/waterfall-packet.js";
 import {
   buildDisplaySetCommand,
   formatBooleanFlag,
   formatInteger,
 } from "./controller-helpers.js";
+import { FlexStateUnavailableError } from "./errors.js";
+import type { RadioSession, StreamPacketHandler } from "./radio-core.js";
+import type { WaterfallSnapshot, WaterfallStateChange } from "./state/index.js";
 import {
   clampLineSpeed,
   lineSpeedToDurationMs,
 } from "./waterfall-line-speed.js";
-import type { RadioSession, StreamPacketHandler } from "./radio-core.js";
-import type { VitaWaterfallPacket } from "../vita/waterfall-packet.js";
 
 export interface WaterfallControllerEvents {
   readonly change: WaterfallStateChange;

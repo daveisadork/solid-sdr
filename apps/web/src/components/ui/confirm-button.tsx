@@ -1,12 +1,12 @@
-import { createSignal, splitProps, ValidComponent } from "solid-js";
-import { Button, ButtonProps } from "./button";
+import type { PolymorphicProps } from "@kobalte/core";
+import { createSignal, splitProps, type ValidComponent } from "solid-js";
+import { Button, type ButtonProps } from "./button";
 import {
   Popover,
-  PopoverContent,
   PopoverArrow,
+  PopoverContent,
   PopoverTrigger,
 } from "./popover";
-import { PolymorphicProps } from "@kobalte/core";
 
 type ConfirmButtonProps<T extends ValidComponent = "button"> =
   ButtonProps<T> & {
@@ -46,5 +46,5 @@ const ConfirmButton = <T extends ValidComponent = "button">(
   );
 };
 
-export { ConfirmButton };
 export type { ConfirmButtonProps };
+export { ConfirmButton };

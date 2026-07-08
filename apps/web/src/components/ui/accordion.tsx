@@ -1,8 +1,7 @@
-import type { JSX, ValidComponent } from "solid-js";
-import { splitProps } from "solid-js";
-
 import * as AccordionPrimitive from "@kobalte/core/accordion";
 import type { PolymorphicProps } from "@kobalte/core/polymorphic";
+import type { JSX, ValidComponent } from "solid-js";
+import { splitProps } from "solid-js";
 
 import { cn } from "~/lib/utils";
 
@@ -46,6 +45,7 @@ const AccordionTrigger = <T extends ValidComponent = "button">(
       >
         {local.children}
         <svg
+          aria-hidden="true"
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 24 24"
           fill="none"
@@ -88,4 +88,4 @@ const AccordionContent = <T extends ValidComponent = "div">(
   );
 };
 
-export { Accordion, AccordionItem, AccordionTrigger, AccordionContent };
+export { Accordion, AccordionContent, AccordionItem, AccordionTrigger };

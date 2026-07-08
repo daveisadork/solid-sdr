@@ -43,7 +43,6 @@ class DaxAudioTxProcessor extends AudioWorkletProcessor {
       case "right":
         src = input[1] ?? input[0];
         break;
-      case "left":
       default:
         src = input[0];
         break;

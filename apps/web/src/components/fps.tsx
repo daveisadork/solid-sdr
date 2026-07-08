@@ -2,6 +2,7 @@ import { createDraggable } from "@neodrag/solid";
 import { createEffect, createSignal, For, onCleanup } from "solid-js";
 import { Portal } from "solid-js/web";
 import { Card, CardContent } from "~/components/ui/card";
+import { usePreferences } from "~/context/preferences";
 import { useRuntime } from "~/context/runtime";
 import {
   ContextMenu,
@@ -10,7 +11,6 @@ import {
   ContextMenuPortal,
   ContextMenuTrigger,
 } from "./ui/context-menu";
-import { usePreferences } from "~/context/preferences";
 
 const COLORS = [
   "text-amber-400",
@@ -24,6 +24,7 @@ export function FPSCounter() {
   const [running, setRunning] = createSignal(true);
   const { runtime, setRuntime } = useRuntime();
   const { setPreferences } = usePreferences();
+  // biome-ignore lint/correctness/noUnusedVariables: Solid.js directive, referenced via use:draggable in JSX
   const { draggable } = createDraggable();
   let lastTime = performance.now();
   const frameTimes: number[] = [];

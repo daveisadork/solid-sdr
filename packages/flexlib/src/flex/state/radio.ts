@@ -955,7 +955,7 @@ function applyLogAttributes(
   previous?: RadioSnapshot,
 ): void {
   if ("available_levels" in attributes) {
-    const parsed = parseCsv(attributes["available_levels"]) ?? [];
+    const parsed = parseCsv(attributes.available_levels) ?? [];
     if (!arraysShallowEqual(previous?.logLevels, parsed)) {
       partial.logLevels = Object.freeze(parsed);
     }
@@ -963,8 +963,8 @@ function applyLogAttributes(
 
   if ("module" in attributes) {
     assignLogModule(
-      attributes["module"] ?? "",
-      attributes["level"],
+      attributes.module ?? "",
+      attributes.level,
       partial,
       previous,
     );
@@ -1200,7 +1200,7 @@ function applyFilterSharpnessAttributes(
     return;
   }
 
-  const levelValue = attributes["level"];
+  const levelValue = attributes.level;
   if (levelValue !== undefined) {
     const parsed = parseInteger(levelValue);
     if (parsed !== undefined) {
@@ -1215,7 +1215,7 @@ function applyFilterSharpnessAttributes(
     }
   }
 
-  const autoValue = attributes["auto_level"];
+  const autoValue = attributes.auto_level;
   if (autoValue !== undefined) {
     assignFilterSharpnessAuto(partial, mode, isTruthy(autoValue));
   }
@@ -1226,31 +1226,23 @@ function applyStaticNetworkParams(
   partial: Mutable<Partial<RadioSnapshot>>,
 ): void {
   if ("ip" in attributes) {
-    const parsed = parseIpAddress(attributes["ip"]);
-    if (parsed === undefined && attributes["ip"]) {
-      logParseError("radio", "static_net_params.ip", attributes["ip"]);
+    const parsed = parseIpAddress(attributes.ip);
+    if (parsed === undefined && attributes.ip) {
+      logParseError("radio", "static_net_params.ip", attributes.ip);
     }
     partial.staticIp = parsed;
   }
   if ("gateway" in attributes) {
-    const parsed = parseIpAddress(attributes["gateway"]);
-    if (parsed === undefined && attributes["gateway"]) {
-      logParseError(
-        "radio",
-        "static_net_params.gateway",
-        attributes["gateway"],
-      );
+    const parsed = parseIpAddress(attributes.gateway);
+    if (parsed === undefined && attributes.gateway) {
+      logParseError("radio", "static_net_params.gateway", attributes.gateway);
     }
     partial.staticGateway = parsed;
   }
   if ("netmask" in attributes) {
-    const parsed = parseIpAddress(attributes["netmask"]);
-    if (parsed === undefined && attributes["netmask"]) {
-      logParseError(
-        "radio",
-        "static_net_params.netmask",
-        attributes["netmask"],
-      );
+    const parsed = parseIpAddress(attributes.netmask);
+    if (parsed === undefined && attributes.netmask) {
+      logParseError("radio", "static_net_params.netmask", attributes.netmask);
     }
     partial.staticNetmask = parsed;
   }

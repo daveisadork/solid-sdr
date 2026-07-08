@@ -1,17 +1,17 @@
 import {
-  Accessor,
+  type Accessor,
   batch,
   createContext,
   createMemo,
-  ParentComponent,
+  type ParentComponent,
   Show,
   useContext,
 } from "solid-js";
 import { produce } from "solid-js/store";
 import { MidiControl } from "~/components/midi-control";
 import useFlexRadio from "./flexradio";
-import { useRuntime } from "./runtime";
 import { usePreferences } from "./preferences";
+import { useRuntime } from "./runtime";
 
 export type SliceSelector = "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H";
 export type SliceMode = string;

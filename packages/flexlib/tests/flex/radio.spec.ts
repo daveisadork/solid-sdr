@@ -224,28 +224,28 @@ describe("Radio", () => {
     { input: 50, expected: 50 },
     { input: 150, expected: 100 },
     { input: -10, expected: 0 },
-  ])(
-    "clamps dax rx gain and resolves slice letter to numeric id: setRxGain($input) → $expected",
-    async ({ input, expected }) => {
-      const { radio, connection } = await createConnectedRadio();
-      // slice 1 has display letter B
-      connection.emitStatus("S1|slice 1 index_letter=B");
-      connection.prepareResponse("stream create", { message: "2000002" });
-      const creationPromise = radio.createDaxRxAudioStream({ daxChannel: 3 });
-      // stream status reports slice binding as the letter
-      connection.emitStatus(
-        "S1|stream 0x02000002 type=dax_rx dax_channel=3 slice=B client_handle=0x9ABC",
-      );
-      const stream = await creationPromise;
+  ])("clamps dax rx gain and resolves slice letter to numeric id: setRxGain($input) → $expected", async ({
+    input,
+    expected,
+  }) => {
+    const { radio, connection } = await createConnectedRadio();
+    // slice 1 has display letter B
+    connection.emitStatus("S1|slice 1 index_letter=B");
+    connection.prepareResponse("stream create", { message: "2000002" });
+    const creationPromise = radio.createDaxRxAudioStream({ daxChannel: 3 });
+    // stream status reports slice binding as the letter
+    connection.emitStatus(
+      "S1|stream 0x02000002 type=dax_rx dax_channel=3 slice=B client_handle=0x9ABC",
+    );
+    const stream = await creationPromise;
 
-      await stream.setRxGain(input);
+    await stream.setRxGain(input);
 
-      // wire command sends the numeric slice id, not the letter
-      expect(connection.lastCommand()).toBe(
-        `audio stream 0x02000002 slice 1 gain ${expected}`,
-      );
-    },
-  );
+    // wire command sends the numeric slice id, not the letter
+    expect(connection.lastCommand()).toBe(
+      `audio stream 0x02000002 slice 1 gain ${expected}`,
+    );
+  });
 
   it("throws when setting dax rx gain on a stream with no slice bound", async () => {
     const { radio, connection } = await createConnectedRadio();
@@ -344,7 +344,7 @@ describe("Radio", () => {
     });
 
     // the error should include the rejection reason
-    await expect(slice!.setMode("INVALID")).rejects.toSatisfy(
+    await expect(slice?.setMode("INVALID")).rejects.toSatisfy(
       (error: unknown) => {
         expect(error).toBeInstanceOf(FlexCommandRejectedError);
         const flexError = error as FlexCommandRejectedError;
@@ -390,7 +390,8 @@ describe("Radio", () => {
     const { radio, connection } = await createConnectedRadio();
     connection.emitStatus("S1|slice 0 mode=LSB pan=0x40000000");
 
-    const source = radio.slice("0")!;
+    const source = radio.slice("0");
+    if (!source) throw new Error("expected slice controller");
 
     // given the radio will return the cloned slice index and emit its status
     connection.emitStatus("S1|slice 1 mode=LSB pan=0x40000000");

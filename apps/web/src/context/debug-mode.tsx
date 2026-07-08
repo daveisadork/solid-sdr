@@ -1,3 +1,4 @@
+import type { FlexTransport } from "@repo/flexlib";
 import {
   createContext,
   createSignal,
@@ -6,12 +7,11 @@ import {
   useContext,
 } from "solid-js";
 import {
+  assembleReport,
   CaptureBuffers,
   installConsoleCapture,
   wrapTransport,
-  assembleReport,
 } from "~/lib/debug-mode";
-import type { FlexTransport } from "@repo/flexlib";
 import { APP_VERSION } from "~/lib/version";
 
 function readDebugFlag(): boolean {

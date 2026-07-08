@@ -1,19 +1,19 @@
-import useFlexRadio from "~/context/flexradio";
+import { writeClipboard } from "@solid-primitives/clipboard";
 import { For, Show } from "solid-js";
-import { Separator } from "./ui/separator";
+import useFlexRadio from "~/context/flexradio";
 import { cn } from "~/lib/utils";
+import MaterialSymbolsSatelliteAlt from "~icons/material-symbols/satellite-alt";
+import ClipboardOutline from "~icons/mdi/clipboard-text-outline";
+import { Button } from "./ui/button";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "./ui/hover-card";
-import { TextField, TextFieldInput, TextFieldLabel } from "./ui/text-field";
 import {
   NumberField,
   NumberFieldGroup,
-  NumberFieldLabel,
   NumberFieldInput,
+  NumberFieldLabel,
 } from "./ui/number-field";
-import MaterialSymbolsSatelliteAlt from "~icons/material-symbols/satellite-alt";
-import ClipboardOutline from "~icons/mdi/clipboard-text-outline";
-import { writeClipboard } from "@solid-primitives/clipboard";
-import { Button } from "./ui/button";
+import { Separator } from "./ui/separator";
+import { TextField, TextFieldInput, TextFieldLabel } from "./ui/text-field";
 
 export function GpsStatus(props: { class?: string }) {
   const { state } = useFlexRadio();

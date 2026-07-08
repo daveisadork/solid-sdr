@@ -1,36 +1,36 @@
-import useFlexRadio from "~/context/flexradio";
+import { Button } from "@kobalte/core/button";
+import { ToggleButton } from "@kobalte/core/toggle-button";
 import {
   createEffect,
   createMemo,
   createSignal,
-  JSXElement,
+  type JSXElement,
   onCleanup,
   Show,
-  ValidComponent,
+  type ValidComponent,
 } from "solid-js";
-import Connect from "./connect";
-import { GpsStatus } from "./gps-status";
+import { Dynamic } from "solid-js/web";
+import useFlexRadio from "~/context/flexradio";
 import { usePreferences } from "~/context/preferences";
-import { FullscreenButton } from "./fullscreen-button";
-import { Settings } from "./settings";
+import { type NetworkQuality, useRuntime } from "~/context/runtime";
+import { createPermission } from "~/lib/permission";
+import { formatKbps } from "~/lib/utils";
 import MaterialSymbolsAddChartOutline from "~icons/material-symbols/add-chart-outline";
-import { Button } from "@kobalte/core/button";
-import { ToggleButton } from "@kobalte/core/toggle-button";
-import MaterialSymbolsVolumeUp from "~icons/material-symbols/volume-up";
-import MaterialSymbolsVolumeOff from "~icons/material-symbols/volume-off";
-import MaterialSymbolsElectricBolt from "~icons/material-symbols/electric-bolt";
 import MaterialSymbolsDeviceThermostat from "~icons/material-symbols/device-thermostat";
-import MaterialSymbolsSignalWifi0Bar from "~icons/material-symbols/signal-wifi-0-bar";
+import MaterialSymbolsElectricBolt from "~icons/material-symbols/electric-bolt";
 import MaterialSymbolsSignalWifi1Bar from "~icons/material-symbols/network-wifi-1-bar";
 import MaterialSymbolsSignalWifi2Bar from "~icons/material-symbols/network-wifi-2-bar";
 import MaterialSymbolsSignalWifi3Bar from "~icons/material-symbols/network-wifi-3-bar";
+import MaterialSymbolsSignalWifi0Bar from "~icons/material-symbols/signal-wifi-0-bar";
 import MaterialSymbolsSignalWifi4Bar from "~icons/material-symbols/signal-wifi-4-bar";
 import MaterialSymbolsSignalWifiBadOutline from "~icons/material-symbols/signal-wifi-bad-outline";
-import { Dynamic } from "solid-js/web";
-import { createPermission } from "~/lib/permission";
-import { NetworkQuality, useRuntime } from "~/context/runtime";
+import MaterialSymbolsVolumeOff from "~icons/material-symbols/volume-off";
+import MaterialSymbolsVolumeUp from "~icons/material-symbols/volume-up";
+import Connect from "./connect";
+import { FullscreenButton } from "./fullscreen-button";
+import { GpsStatus } from "./gps-status";
+import { Settings } from "./settings";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "./ui/hover-card";
-import { formatKbps } from "~/lib/utils";
 
 function RemoteAudioToggle() {
   const { preferences, setPreferences } = usePreferences();

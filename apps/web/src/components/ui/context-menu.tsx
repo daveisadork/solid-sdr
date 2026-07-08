@@ -1,8 +1,7 @@
-import type { Component, ComponentProps, JSX, ValidComponent } from "solid-js";
-import { splitProps } from "solid-js";
-
 import * as ContextMenuPrimitive from "@kobalte/core/context-menu";
 import type { PolymorphicProps } from "@kobalte/core/polymorphic";
+import type { Component, ComponentProps, JSX, ValidComponent } from "solid-js";
+import { splitProps } from "solid-js";
 
 import { cn } from "~/lib/utils";
 
@@ -114,6 +113,7 @@ const ContextMenuSubTrigger = <T extends ValidComponent = "div">(
     >
       {local.children}
       <svg
+        aria-hidden="true"
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 24 24"
         fill="none"
@@ -175,6 +175,7 @@ const ContextMenuCheckboxItem = <T extends ValidComponent = "div">(
       <span class="absolute left-2 flex size-3.5 items-center justify-center">
         <ContextMenuPrimitive.ItemIndicator>
           <svg
+            aria-hidden="true"
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
             fill="none"
@@ -236,6 +237,7 @@ const ContextMenuRadioItem = <T extends ValidComponent = "div">(
       <span class="absolute left-2 flex size-3.5 items-center justify-center">
         <ContextMenuPrimitive.ItemIndicator>
           <svg
+            aria-hidden="true"
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
             fill="none"
@@ -256,18 +258,18 @@ const ContextMenuRadioItem = <T extends ValidComponent = "div">(
 
 export {
   ContextMenu,
-  ContextMenuTrigger,
-  ContextMenuPortal,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuShortcut,
-  ContextMenuSeparator,
-  ContextMenuSub,
-  ContextMenuSubTrigger,
-  ContextMenuSubContent,
   ContextMenuCheckboxItem,
+  ContextMenuContent,
   ContextMenuGroup,
   ContextMenuGroupLabel,
+  ContextMenuItem,
+  ContextMenuPortal,
   ContextMenuRadioGroup,
   ContextMenuRadioItem,
+  ContextMenuSeparator,
+  ContextMenuShortcut,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
+  ContextMenuTrigger,
 };

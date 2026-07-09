@@ -1,7 +1,7 @@
 [tools]
 node = "24"
 # pnpm pinned to the same version as "packageManager" in package.json
-pnpm = "10.18.3"
+pnpm = "11.10.0"
 # Go tracks the toolchain in apps/server/go.mod
 go = "1.25"
 # Live reload for the Go server (pnpm dev)

@@ -2,8 +2,6 @@ packages:
   - apps/*
   - packages/*
 
-onlyBuiltDependencies:
-  - '@swc/core'
-  - '@tailwindcss/oxide'
-  - bufferutil
-  - esbuild
+allowBuilds:
+  "@tailwindcss/oxide": true
+  esbuild: true

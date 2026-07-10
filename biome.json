@@ -3,16 +3,11 @@
   "vcs": {
     "enabled": true,
     "clientKind": "git",
-    "useIgnoreFile": true
+    "useIgnoreFile": true,
+    "defaultBranch": "main"
   },
   "files": {
-    "includes": [
-      "**",
-      "!**/dist/**",
-      "!**/node_modules/**",
-      "!**/.turbo/**",
-      "!**/apps/desktop/**"
-    ]
+    "includes": ["**", "!**/dist", "!**/node_modules", "!**/.turbo"]
   },
   "formatter": {
     "enabled": true,

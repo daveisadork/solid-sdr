@@ -88,6 +88,8 @@ export function filterPresetModeGroupFromSliceMode(
     case "digl":
     case "digu":
     case "fdv":
+    case "fdvu":
+    case "fdvl":
       return "digital";
     case "rtty":
       return "rtty";

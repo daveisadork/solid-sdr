@@ -82,7 +82,10 @@ export type {
   FilterPresetModeGroup,
   FilterPresetSnapshot,
 } from "./filter-preset.js";
-export { FILTER_PRESET_COUNT } from "./filter-preset.js";
+export {
+  FILTER_PRESET_COUNT,
+  filterPresetModeGroupFromSliceMode,
+} from "./filter-preset.js";
 export type { GuiClientSnapshot } from "./gui-client.js";
 export type { MemorySnapshot } from "./memory.js";
 export type { KnownMeterUnits, MeterSnapshot, MeterUnits } from "./meter.js";

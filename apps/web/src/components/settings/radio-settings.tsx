@@ -1222,127 +1222,137 @@ function RadioSettingsInner(props: { radio: Radio }) {
         </CardContent>
       </Card>
 
-      <Card class="bg-transparent">
-        <CardHeader>
-          <CardTitle>Filter Presets</CardTitle>
-        </CardHeader>
-        <CardContent class="flex flex-col gap-4">
-          <div class="flex flex-col gap-4 flex-1 min-w-0">
-            <Select
-              class="flex flex-col gap-2 select-none"
-              value={filterModeGroup()}
-              onChange={setFilterModeGroup}
-              options={Object.keys(state.status.filterPreset)}
-              itemComponent={(props) => {
-                return (
-                  <SelectItem item={props.item} class="uppercase">
-                    {props.item.rawValue.toString()}
-                  </SelectItem>
-                );
+      <Show
+        when={state.status.featureLicense.features.filter_preset_conf?.enabled}
+      >
+        <Card class="bg-transparent">
+          <CardHeader>
+            <CardTitle>Filter Presets</CardTitle>
+          </CardHeader>
+          <CardContent class="flex flex-col gap-4">
+            <div class="flex flex-col gap-4 flex-1 min-w-0">
+              <Select
+                class="flex flex-col gap-2 select-none"
+                value={filterModeGroup()}
+                onChange={setFilterModeGroup}
+                options={Object.keys(state.status.filterPreset)}
+                itemComponent={(props) => {
+                  return (
+                    <SelectItem item={props.item} class="uppercase">
+                      {props.item.rawValue.toString()}
+                    </SelectItem>
+                  );
+                }}
+              >
+                <SelectLabel>Mode Group</SelectLabel>
+                <SelectTrigger class="uppercase">
+                  <SelectValue<string>>
+                    {(state) => state.selectedOption()}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent />
+              </Select>
+              <Table class="overflow-auto shrink">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Low Hz</TableHead>
+                    <TableHead>High Hz</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <For each={filterPresets}>
+                    {(preset) => {
+                      return (
+                        <TableRow>
+                          <TableCell>
+                            <TextFieldPrimitive.Root
+                              value={preset.name}
+                              onChange={(name) => {
+                                if (name.length > 4) return;
+                                setFilterPresets(preset.index, "name", name);
+                              }}
+                            >
+                              <TextFieldPrimitive.Input size={4} class="px-1" />
+                            </TextFieldPrimitive.Root>
+                          </TableCell>
+                          <TableCell>
+                            <NumberFieldPrimitive.Root
+                              rawValue={preset.filterLowHz}
+                              onRawValueChange={(filterLowHz) =>
+                                setFilterPresets(
+                                  preset.index,
+                                  "filterLowHz",
+                                  filterLowHz,
+                                )
+                              }
+                              minValue={0}
+                              maxValue={preset.filterHighHz}
+                              format={false}
+                            >
+                              <NumberFieldPrimitive.Input
+                                size={5}
+                                class="px-1"
+                              />
+                            </NumberFieldPrimitive.Root>
+                          </TableCell>
+                          <TableCell>
+                            <NumberFieldPrimitive.Root
+                              rawValue={preset.filterHighHz}
+                              onRawValueChange={(filterHighHz) =>
+                                setFilterPresets(
+                                  preset.index,
+                                  "filterHighHz",
+                                  filterHighHz,
+                                )
+                              }
+                              minValue={preset.filterLowHz}
+                              maxValue={12_000}
+                              format={false}
+                            >
+                              <NumberFieldPrimitive.Input
+                                size={5}
+                                class="px-1"
+                              />
+                            </NumberFieldPrimitive.Root>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    }}
+                  </For>
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+          <CardFooter class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 items-stretch">
+            <Button
+              onClick={() =>
+                props.radio
+                  .filterPresets()
+                  .reset(filterModeGroup())
+                  .then(() =>
+                    setFilterPresets(
+                      state.status.filterPreset[filterModeGroup()].map((p) => ({
+                        ...p,
+                      })),
+                    ),
+                  )
+              }
+            >
+              Reset
+            </Button>
+            <Button
+              onClick={() => {
+                const ctrl = props.radio.filterPresets();
+                for (const preset of filterPresets.map((p) => ({ ...p })))
+                  ctrl.save(filterModeGroup(), preset.index, preset);
               }}
             >
-              <SelectLabel>Mode Group</SelectLabel>
-              <SelectTrigger class="uppercase">
-                <SelectValue<string>>
-                  {(state) => state.selectedOption()}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent />
-            </Select>
-            <Table class="overflow-auto shrink">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Low Hz</TableHead>
-                  <TableHead>High Hz</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <For each={filterPresets}>
-                  {(preset) => {
-                    return (
-                      <TableRow>
-                        <TableCell>
-                          <TextFieldPrimitive.Root
-                            value={preset.name}
-                            onChange={(name) => {
-                              if (name.length > 4) return;
-                              setFilterPresets(preset.index, "name", name);
-                            }}
-                          >
-                            <TextFieldPrimitive.Input size={4} class="px-1" />
-                          </TextFieldPrimitive.Root>
-                        </TableCell>
-                        <TableCell>
-                          <NumberFieldPrimitive.Root
-                            rawValue={preset.filterLowHz}
-                            onRawValueChange={(filterLowHz) =>
-                              setFilterPresets(
-                                preset.index,
-                                "filterLowHz",
-                                filterLowHz,
-                              )
-                            }
-                            minValue={0}
-                            maxValue={preset.filterHighHz}
-                            format={false}
-                          >
-                            <NumberFieldPrimitive.Input size={5} class="px-1" />
-                          </NumberFieldPrimitive.Root>
-                        </TableCell>
-                        <TableCell>
-                          <NumberFieldPrimitive.Root
-                            rawValue={preset.filterHighHz}
-                            onRawValueChange={(filterHighHz) =>
-                              setFilterPresets(
-                                preset.index,
-                                "filterHighHz",
-                                filterHighHz,
-                              )
-                            }
-                            minValue={preset.filterLowHz}
-                            maxValue={12_000}
-                            format={false}
-                          >
-                            <NumberFieldPrimitive.Input size={5} class="px-1" />
-                          </NumberFieldPrimitive.Root>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  }}
-                </For>
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-        <CardFooter class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 items-stretch">
-          <Button
-            onClick={() =>
-              props.radio
-                .filterPresets()
-                .reset(filterModeGroup())
-                .then(() =>
-                  setFilterPresets(
-                    state.status.filterPreset[filterModeGroup()].map((p) => ({
-                      ...p,
-                    })),
-                  ),
-                )
-            }
-          >
-            Reset
-          </Button>
-          <Button
-            onClick={() => {
-              const ctrl = props.radio.filterPresets();
-              for (const preset of filterPresets.map((p) => ({ ...p })))
-                ctrl.save(filterModeGroup(), preset.index, preset);
-            }}
-          >
-            Save
-          </Button>
-        </CardFooter>
-      </Card>
+              Save
+            </Button>
+          </CardFooter>
+        </Card>
+      </Show>
       <Card class="bg-transparent">
         <CardHeader>
           <CardTitle>XVTR</CardTitle>

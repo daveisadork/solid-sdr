@@ -1,7 +1,10 @@
 import type { PolymorphicProps } from "@kobalte/core";
 import { Trigger as SelectTriggerPrimitive } from "@kobalte/core/select";
 import { ToggleButton } from "@kobalte/core/toggle-button";
-import type { SliceController } from "@repo/flexlib";
+import {
+  filterPresetModeGroupFromSliceMode,
+  type SliceController,
+} from "@repo/flexlib";
 import { createElementBounds } from "@solid-primitives/bounds";
 import { createPointerListeners } from "@solid-primitives/pointer";
 import type { Component, ComponentProps, JSX, ValidComponent } from "solid-js";
@@ -84,145 +87,6 @@ import { TxMeter } from "./ui/tx-meter";
 
 const FILTER_MAX_HZ = 12_000;
 const FILTER_MIN_HZ = -FILTER_MAX_HZ;
-
-export interface FilterPreset {
-  name: string;
-  lowCut: number;
-  highCut: number;
-}
-
-export const filterPresets: Record<string, FilterPreset[]> = {
-  AM: [
-    { name: "5.6k", lowCut: -2800, highCut: 2800 },
-    { name: "6.0k", lowCut: -3000, highCut: 3000 },
-    { name: "8.0k", lowCut: -4000, highCut: 4000 },
-    { name: "10k", lowCut: -5000, highCut: 5000 },
-    { name: "12k", lowCut: -6000, highCut: 6000 },
-    { name: "14k", lowCut: -7000, highCut: 7000 },
-    { name: "16k", lowCut: -8000, highCut: 8000 },
-    { name: "20k", lowCut: -10000, highCut: 10000 },
-  ],
-  USB: [
-    { name: "1.8k", lowCut: 100, highCut: 1900 },
-    { name: "2.1k", lowCut: 100, highCut: 2200 },
-    { name: "2.4k", lowCut: 100, highCut: 2500 },
-    { name: "2.7k", lowCut: 100, highCut: 2800 },
-    { name: "2.9k", lowCut: 100, highCut: 3000 },
-    { name: "3.3k", lowCut: 100, highCut: 3400 },
-    { name: "4.0k", lowCut: 100, highCut: 4100 },
-    { name: "6.0k", lowCut: 100, highCut: 6100 },
-  ],
-  LSB: [
-    { name: "1.8k", lowCut: -1900, highCut: -100 },
-    { name: "2.1k", lowCut: -2200, highCut: -100 },
-    { name: "2.4k", lowCut: -2500, highCut: -100 },
-    { name: "2.7k", lowCut: -2800, highCut: -100 },
-    { name: "2.9k", lowCut: -3000, highCut: -100 },
-    { name: "3.3k", lowCut: -3400, highCut: -100 },
-    { name: "4.0k", lowCut: -4100, highCut: -100 },
-    { name: "6.0k", lowCut: -6100, highCut: -100 },
-  ],
-  DIGU: [
-    { name: "100", lowCut: -50, highCut: 50 },
-    { name: "300", lowCut: -150, highCut: 150 },
-    { name: "600", lowCut: -300, highCut: 300 },
-    { name: "1.0k", lowCut: -500, highCut: 500 },
-    { name: "1.5k", lowCut: -750, highCut: 750 },
-    { name: "2.0k", lowCut: -1000, highCut: 1000 },
-    { name: "3.0k", lowCut: -1500, highCut: 1500 },
-    { name: "6.0k", lowCut: -3000, highCut: 3000 },
-  ],
-  DIGL: [
-    { name: "100", lowCut: -50, highCut: 50 },
-    { name: "300", lowCut: -150, highCut: 150 },
-    { name: "600", lowCut: -300, highCut: 300 },
-    { name: "1.0k", lowCut: -500, highCut: 500 },
-    { name: "1.5k", lowCut: -750, highCut: 750 },
-    { name: "2.0k", lowCut: -1000, highCut: 1000 },
-    { name: "3.0k", lowCut: -1500, highCut: 1500 },
-    { name: "6.0k", lowCut: -3000, highCut: 3000 },
-  ],
-  FDVU: [
-    { name: "100", lowCut: -50, highCut: 50 },
-    { name: "300", lowCut: -150, highCut: 150 },
-    { name: "600", lowCut: -300, highCut: 300 },
-    { name: "1.0k", lowCut: -500, highCut: 500 },
-    { name: "1.5k", lowCut: -750, highCut: 750 },
-    { name: "2.0k", lowCut: -1000, highCut: 1000 },
-    { name: "3.0k", lowCut: -1500, highCut: 1500 },
-    { name: "6.0k", lowCut: -3000, highCut: 3000 },
-  ],
-  FDVL: [
-    { name: "100", lowCut: -50, highCut: 50 },
-    { name: "300", lowCut: -150, highCut: 150 },
-    { name: "600", lowCut: -300, highCut: 300 },
-    { name: "1.0k", lowCut: -500, highCut: 500 },
-    { name: "1.5k", lowCut: -750, highCut: 750 },
-    { name: "2.0k", lowCut: -1000, highCut: 1000 },
-    { name: "3.0k", lowCut: -1500, highCut: 1500 },
-    { name: "6.0k", lowCut: -3000, highCut: 3000 },
-  ],
-  // DIGU: [
-  //   { name: "100", lowCut: 1450, highCut: 1550 },
-  //   { name: "300", lowCut: 1350, highCut: 1650 },
-  //   { name: "600", lowCut: 1200, highCut: 1800 },
-  //   { name: "1.0k", lowCut: 1000, highCut: 2000 },
-  //   { name: "1.5k", lowCut: 750, highCut: 2250 },
-  //   { name: "2.0k", lowCut: 500, highCut: 2500 },
-  //   { name: "3.0k", lowCut: 0, highCut: 3000 },
-  //   { name: "6.0k", lowCut: 0, highCut: 6000 },
-  // ],
-  // DIGL: [
-  //   { name: "100", lowCut: -1550, highCut: -1450 },
-  //   { name: "300", lowCut: -1650, highCut: -1350 },
-  //   { name: "600", lowCut: -1800, highCut: -1200 },
-  //   { name: "1.0k", lowCut: -2000, highCut: -1000 },
-  //   { name: "1.5k", lowCut: -2250, highCut: -750 },
-  //   { name: "2.0k", lowCut: -2500, highCut: -500 },
-  //   { name: "3.0k", lowCut: -3000, highCut: 0 },
-  //   { name: "6.0k", lowCut: -6000, highCut: 0 },
-  // ],
-  RTTY: [
-    { name: "250", lowCut: -125, highCut: 125 },
-    { name: "300", lowCut: -150, highCut: 150 },
-    { name: "350", lowCut: -175, highCut: 175 },
-    { name: "400", lowCut: -200, highCut: 200 },
-    { name: "500", lowCut: -250, highCut: 250 },
-    { name: "1.0k", lowCut: -500, highCut: 500 },
-    { name: "1.5k", lowCut: -750, highCut: 750 },
-    { name: "3.0k", lowCut: -1500, highCut: 1500 },
-  ],
-  CW: [
-    { name: "50", lowCut: -25, highCut: 25 },
-    { name: "100", lowCut: -50, highCut: 50 },
-    { name: "250", lowCut: -125, highCut: 125 },
-    { name: "400", lowCut: -200, highCut: 200 },
-    { name: "500", lowCut: -250, highCut: 250 },
-    { name: "800", lowCut: -400, highCut: 400 },
-    { name: "1.0k", lowCut: -500, highCut: 500 },
-    { name: "3.0k", lowCut: -1500, highCut: 1500 },
-  ],
-  SAM: [
-    { name: "5.6k", lowCut: -2800, highCut: 2800 },
-    { name: "6.0k", lowCut: -3000, highCut: 3000 },
-    { name: "8.0k", lowCut: -4000, highCut: 4000 },
-    { name: "10k", lowCut: -5000, highCut: 5000 },
-    { name: "12k", lowCut: -6000, highCut: 6000 },
-    { name: "14k", lowCut: -7000, highCut: 7000 },
-    { name: "16k", lowCut: -8000, highCut: 8000 },
-    { name: "20k", lowCut: -10000, highCut: 10000 },
-  ],
-  DFM: [
-    { name: "6.0k", lowCut: -3000, highCut: 3000 },
-    { name: "8.0k", lowCut: -4000, highCut: 4000 },
-    { name: "10k", lowCut: -5000, highCut: 5000 },
-    { name: "12k", lowCut: -6000, highCut: 6000 },
-    { name: "14k", lowCut: -7000, highCut: 7000 },
-    { name: "16k", lowCut: -8000, highCut: 8000 },
-    { name: "18k", lowCut: -9000, highCut: 9000 },
-    { name: "20k", lowCut: -10000, highCut: 10000 },
-  ],
-};
 
 export interface FmTone {
   ns: string;
@@ -405,6 +269,8 @@ export function FilterControls(props: {
   slice: SliceState;
   controller: SliceController;
 }) {
+  const { state } = useFlexRadio();
+
   const [rawDiglOffset, setRawDiglOffset] = createSignal(
     props.slice.diglOffsetHz,
   );
@@ -462,11 +328,32 @@ export function FilterControls(props: {
       ? props.controller.setFilterHigh(rawFilterHigh())
       : null;
 
-  const applyPresetOffset = (
+  const modeGroup = createMemo(() =>
+    filterPresetModeGroupFromSliceMode(props.slice.mode),
+  );
+
+  const presetEntries = createMemo(() => {
+    const group = modeGroup();
+    return group ? state.status.filterPreset[group] : undefined;
+  });
+
+  // Presets are stored canonically for USB/DIGU/FDVU; LSB/DIGL/FDVL reflect
+  // them over the slice frequency before the DIGU/DIGL carrier offset shift.
+  const mirrorForMode = (
     lowCut: number,
     highCut: number,
+    mode: string,
+  ): [number, number] =>
+    mode === "LSB" || mode === "DIGL" || mode === "FDVL"
+      ? [-highCut, -lowCut]
+      : [lowCut, highCut];
+
+  const applyPresetTransform = (
+    filterLowHz: number,
+    filterHighHz: number,
   ): [number, number] => {
     const mode = props.slice.mode;
+    const [lowCut, highCut] = mirrorForMode(filterLowHz, filterHighHz, mode);
     if (mode === "DIGU" || mode === "FDVU") {
       const offset = props.slice.diguOffsetHz;
       const clamp = Math.max(offset, -lowCut) - offset;
@@ -481,8 +368,11 @@ export function FilterControls(props: {
   };
 
   const selectedPreset = createMemo(() =>
-    filterPresets[props.slice.mode]?.find((preset) => {
-      const [low, high] = applyPresetOffset(preset.lowCut, preset.highCut);
+    presetEntries()?.find((entry) => {
+      const [low, high] = applyPresetTransform(
+        entry.filterLowHz,
+        entry.filterHighHz,
+      );
       return (
         low === props.slice.filterLowHz && high === props.slice.filterHighHz
       );
@@ -537,29 +427,28 @@ export function FilterControls(props: {
           </NumberFieldGroup>
         </NumberField>
       </Show>
-      <Show when={filterPresets[props.slice.mode]}>
-        {(presets) => (
+      <Show when={presetEntries()}>
+        {(entries) => (
           <ToggleGroup
-            value={selectedPreset()?.name}
-            onChange={(preset: string) => {
-              const presetObj = presets().find((p) => p.name === preset);
-              if (!presetObj) return;
-              const [low, high] = applyPresetOffset(
-                presetObj.lowCut,
-                presetObj.highCut,
+            value={selectedPreset()?.index.toString()}
+            onChange={(value: string) => {
+              const entry = entries().find((e) => e.index.toString() === value);
+              if (!entry) return;
+              const [low, high] = applyPresetTransform(
+                entry.filterLowHz,
+                entry.filterHighHz,
               );
               props.controller.setFilter(low, high);
             }}
-            class="grid grid-cols-4"
+            class="grid grid-cols-3"
           >
-            <For each={presets()}>
-              {(preset) => (
+            <For each={entries()}>
+              {(entry) => (
                 <ToggleGroupItem
                   variant="outline"
-                  size="sm"
-                  value={preset.name}
+                  value={entry.index.toString()}
                 >
-                  {preset.name}
+                  {entry.name}
                 </ToggleGroupItem>
               )}
             </For>

@@ -1223,7 +1223,7 @@ function RadioSettingsInner(props: { radio: Radio }) {
       </Card>
 
       <Show
-        when={state.status.featureLicense.features.filter_preset_conf?.enabled}
+        when={state.status.featureLicense.features.FILTER_PRESET_CONF?.enabled}
       >
         <Card class="bg-transparent">
           <CardHeader>

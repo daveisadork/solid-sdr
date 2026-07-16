@@ -15,8 +15,8 @@
     "release": "goreleaser release --clean && rm -rf apps/server/internal/static/web"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.2",
-    "turbo": "^2.5.8",
+    "@biomejs/biome": "2.5.4",
+    "turbo": "^2.10.5",
     "typescript": "^5.9.3"
   },
   "packageManager": "pnpm@11.10.0",

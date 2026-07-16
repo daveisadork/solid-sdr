@@ -27,7 +27,7 @@
     "tailwindcss": "^4.1.18",
     "tailwindcss-animate": "^1.0.7",
     "typescript": "^5.9.3",
-    "unplugin-icons": "^22.5.0",
+    "unplugin-icons": "^23.0.1",
     "vite": "^6.4.3",
     "vite-plugin-solid": "^2.11.10"
   },

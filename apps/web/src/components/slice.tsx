@@ -338,7 +338,8 @@ export function FilterControls(props: {
   });
 
   // Presets are stored canonically for USB/DIGU/FDVU; LSB/DIGL/FDVL reflect
-  // them over the slice frequency before the DIGU/DIGL carrier offset shift.
+  // them over the slice frequency. The radio applies no carrier-offset shift
+  // when setting a preset (unlike manual Low/High Hz edits).
   const mirrorForMode = (
     lowCut: number,
     highCut: number,
@@ -348,30 +349,12 @@ export function FilterControls(props: {
       ? [-highCut, -lowCut]
       : [lowCut, highCut];
 
-  const applyPresetTransform = (
-    filterLowHz: number,
-    filterHighHz: number,
-  ): [number, number] => {
-    const mode = props.slice.mode;
-    const [lowCut, highCut] = mirrorForMode(filterLowHz, filterHighHz, mode);
-    if (mode === "DIGU" || mode === "FDVU") {
-      const offset = props.slice.diguOffsetHz;
-      const clamp = Math.max(offset, -lowCut) - offset;
-      return [lowCut + clamp + offset, highCut + clamp + offset];
-    }
-    if (mode === "DIGL" || mode === "FDVL") {
-      const offset = props.slice.diglOffsetHz;
-      const clamp = Math.max(offset, highCut) - offset;
-      return [lowCut - clamp - offset, highCut - clamp - offset];
-    }
-    return [lowCut, highCut];
-  };
-
   const selectedPreset = createMemo(() =>
     presetEntries()?.find((entry) => {
-      const [low, high] = applyPresetTransform(
+      const [low, high] = mirrorForMode(
         entry.filterLowHz,
         entry.filterHighHz,
+        props.slice.mode,
       );
       return (
         low === props.slice.filterLowHz && high === props.slice.filterHighHz
@@ -434,9 +417,10 @@ export function FilterControls(props: {
             onChange={(value: string) => {
               const entry = entries().find((e) => e.index.toString() === value);
               if (!entry) return;
-              const [low, high] = applyPresetTransform(
+              const [low, high] = mirrorForMode(
                 entry.filterLowHz,
                 entry.filterHighHz,
+                props.slice.mode,
               );
               props.controller.setFilter(low, high);
             }}

@@ -13,8 +13,7 @@
     "lint": "golangci-lint run",
     "clean": "pnpm -s run build:clean && go clean"
   },
-  "packageManager": "pnpm@10.18.3",
   "devDependencies": {
-    "rimraf": "^5.0.10"
+    "rimraf": "^6.1.3"
   }
 }

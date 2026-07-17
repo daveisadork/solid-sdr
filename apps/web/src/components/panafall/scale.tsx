@@ -136,21 +136,12 @@ export const Scale = <T extends ValidComponent = "button">(
   });
 
   return (
-    <div
-      class="relative overflow-visible w-full"
-      classList={{
-        "h-0": preferences.enableTransparencyEffects,
-        "h-4": !preferences.enableTransparencyEffects,
-      }}
-    >
+    <div class="relative overflow-visible w-full h-0">
       <ResizablePrimitive.Handle
         class={cn(
-          "fancy-bg-background flex items-center w-full h-4 justify-around select-none font-mono z-10 translate-x-(--drag-offset)",
+          "fancy-bg-background flex items-center w-full h-(--freq-scale-height) bottom-(--freq-scale-height) justify-around select-none font-mono z-10 translate-x-(--drag-offset)",
           local.class,
         )}
-        classList={{
-          "bottom-4": preferences.enableTransparencyEffects,
-        }}
         ref={setRef}
         {...rest}
       >

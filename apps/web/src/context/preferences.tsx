@@ -8,15 +8,15 @@ import {
   Show,
   useContext,
 } from "solid-js";
-import {
-  createStore,
-  reconcile,
-  type SetStoreFunction,
-  unwrap,
-} from "solid-js/store";
+import { createStore, reconcile, type SetStoreFunction } from "solid-js/store";
 import { showToast } from "~/components/ui/toast";
 import type { DaxChannelMode } from "~/lib/dax-audio-sink/types";
 import type { MidiMapping } from "~/lib/midi";
+import {
+  defaultPanafallLayoutPrefs,
+  migrateLegacyLayout,
+  type PanafallLayoutPrefs,
+} from "~/lib/panafall-layout";
 
 export type PeakStyle = "none" | "points" | "line";
 export type FillStyle = "none" | "solid" | "gradient";
@@ -108,8 +108,7 @@ export interface Preferences {
     rx: Record<number, DaxRxConfig>;
     iq: Record<number, DaxIqConfig>;
   };
-  panadapterSizes: number[][];
-  panadapterSettingsOpen: boolean[];
+  panafallLayout: PanafallLayoutPrefs;
   panadapterSettingsStyle: PanadapterSettingsStyle;
   radioPanelOpen: boolean;
   sidebarPanels: string[];
@@ -180,10 +179,9 @@ const getDefaults = (): Preferences => ({
   showTuningGuide: false,
   preventScreenSleep: false,
   panadapterSettingsStyle: "floating",
-  panadapterSizes: [],
+  panafallLayout: defaultPanafallLayoutPrefs(),
   radioPanelOpen: true,
   sidebarPanels: ["tx", "p-cw", "phone", "rx", "eq"],
-  panadapterSettingsOpen: [false, false, false, false],
   showTxFilterInPan: true,
   dax: {
     rx: defaultDaxRxConfig(),
@@ -430,14 +428,29 @@ const deepMerge = <T extends object>(target: T, source: Partial<T>): T => {
 export const PreferencesProviderInner: ParentComponent<{
   getDefaults: () => Preferences;
 }> = (props) => {
+  // Read the raw persisted payload before makePersisted merges it into the
+  // defaults-initialized store — after that merge, a defaults-filled key is
+  // indistinguishable from one the user actually had, which breaks the
+  // legacy-layout migration's idempotence check.
+  let rawPersisted: Record<string, unknown> = {};
+  try {
+    rawPersisted =
+      JSON.parse(localStorage.getItem("preferences") ?? "{}") ?? {};
+  } catch {
+    // corrupt payload; fall back to defaults
+  }
+
   const [store, setStore] = createStore(props.getDefaults());
   const [preferences, setPreferences] = makePersisted([store, setStore], {
     name: "preferences",
   });
 
   // populate any missing defaults, and clean up any deprecated/removed prefs
+  migrateLegacyLayout(rawPersisted);
   setPreferences(
-    reconcile(deepMerge(props.getDefaults(), unwrap(preferences))),
+    reconcile(
+      deepMerge(props.getDefaults(), rawPersisted as Partial<Preferences>),
+    ),
   );
 
   createEffect(() => {

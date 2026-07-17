@@ -1,61 +1,26 @@
-import { createMemo, For, Match, Switch } from "solid-js";
-import useFlexRadio from "~/context/flexradio";
-import { PanafallProvider } from "~/context/panafall";
-import { usePreferences } from "~/context/preferences";
-import BaselineDisplaySettings from "~icons/ic/baseline-display-settings";
+import { usePanafallLayout } from "~/context/panafall-layout";
+import { ALL_EDGES } from "~/lib/panafall-layout";
 import { TuningPanel } from "../tuning-panel";
-import { SidebarProvider, SidebarTrigger } from "../ui/sidebar";
-import { Panafall } from "./panafall";
-import { PanafallSettingsSidebar, PanSettings } from "./settings";
+import { LayoutNodeView } from "./layout-view";
+
+function PanafallLayoutView() {
+  const { layout } = usePanafallLayout();
+  return (
+    <div class="relative flex flex-col grow min-h-0 overflow-visible">
+      <LayoutNodeView
+        node={layout().root}
+        presetId={layout().id}
+        path=""
+        edges={ALL_EDGES}
+      />
+    </div>
+  );
+}
 
 export function Panafalls() {
-  const { state } = useFlexRadio();
-  const { preferences, setPreferences } = usePreferences();
-  const panafalls = createMemo(() =>
-    Object.values(state.status.panadapter)
-      .filter(
-        (p) =>
-          p.clientHandle === state.clientHandleInt &&
-          state.status.waterfall[p.waterfallStreamId]?.clientHandle ===
-            state.clientHandleInt,
-      )
-      .map((p) => p.id)
-      .toSorted(),
-  );
   return (
     <div class="flex flex-col relative size-full select-none">
-      <For each={panafalls()}>
-        {(streamId, index) => (
-          <PanafallProvider streamId={streamId}>
-            <SidebarProvider
-              open={
-                preferences.panadapterSettingsStyle === "sidebar" &&
-                Boolean(preferences.panadapterSettingsOpen[index()])
-              }
-              onOpenChange={(open) =>
-                setPreferences("panadapterSettingsOpen", index(), open)
-              }
-              class="relative grow h-auto overflow-visible min-h-0 bg-transparent select-none"
-            >
-              <Switch>
-                <Match when={preferences.panadapterSettingsStyle === "sidebar"}>
-                  <PanafallSettingsSidebar />
-                  <SidebarTrigger class="z-50 absolute left-4 top-4 select-none aspect-square fancy-bg-background size-10 not-pointer-coarse:size-5 pointer-coarse:border">
-                    <BaselineDisplaySettings />
-                  </SidebarTrigger>
-                </Match>
-                <Match
-                  when={preferences.panadapterSettingsStyle === "floating"}
-                >
-                  <PanSettings />
-                </Match>
-              </Switch>
-              <Panafall index={index()} />
-            </SidebarProvider>
-            {/* <TestThing /> */}
-          </PanafallProvider>
-        )}
-      </For>
+      <PanafallLayoutView />
       <TuningPanel />
     </div>
   );

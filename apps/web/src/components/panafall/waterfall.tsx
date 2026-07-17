@@ -25,7 +25,6 @@ export function Waterfall(props: {
   const { mhzToPx } = usePanafall();
 
   const [canvasWidth, setCanvasWidth] = createSignal(1);
-  const [canvasHeight, setCanvasHeight] = createSignal(1);
   const [binBandwidth, setBinBandwidth] = createSignal(1);
   const [canvasRef, setCanvasRef] = createSignal<HTMLCanvasElement>();
   const [wrapper, setWrapper] = createSignal<HTMLDivElement>();
@@ -50,6 +49,17 @@ export function Waterfall(props: {
   const paletteDivisor = Math.round(0x10000 / paletteCanvas.width);
 
   const wrapperSize = createElementSize(wrapper);
+
+  // Glass mode: canvases are screen-height, taller than any panel can be, and
+  // never resize with the pan/waterfall split — a canvas resize clears its
+  // contents, so the fixed height is what lets the split drag reveal/hide
+  // history instead of erasing it (the cell's overflow-clip hides the excess).
+  // Opaque mode is partly a "my device is too slow for glass" preference, so
+  // it deliberately keeps the cheap panel-sized canvas and accepts that the
+  // split drag erases history. Both are intentional tradeoffs.
+  const SCREEN_CANVAS_HEIGHT = Math.max(window.screen.height, 1080);
+  const [canvasHeight, setCanvasHeight] = createSignal(1);
+  const offscreen = new OffscreenCanvas(1, SCREEN_CANVAS_HEIGHT);
 
   const frameTimes: number[] = [];
 
@@ -144,7 +154,7 @@ export function Waterfall(props: {
 
   const targetCanvasHeight = createMemo(() =>
     preferences.enableTransparencyEffects
-      ? window.screen.height
+      ? SCREEN_CANVAS_HEIGHT
       : wrapperSize.height,
   );
 
@@ -156,8 +166,6 @@ export function Waterfall(props: {
     if (!screenCtx) return;
     screenCtx.imageSmoothingEnabled = false;
 
-    const offscreen = new OffscreenCanvas(canvas.width, canvas.height);
-    if (!offscreen) return;
     const offscreenCtx = offscreen.getContext("2d");
     if (!offscreenCtx) return;
     offscreenCtx.imageSmoothingEnabled = false;
@@ -362,7 +370,7 @@ export function Waterfall(props: {
   return (
     <div
       ref={setWrapper}
-      class="relative size-full flex justify-center overflow-visible select-none"
+      class="relative size-full flex justify-center overflow-clip select-none"
     >
       <canvas
         class="absolute shrink-0 select-none scale-x-(--width-multiplier) translate-x-(--waterfall-offset)"
@@ -374,10 +382,10 @@ export function Waterfall(props: {
           "--waterfall-offset": `calc(var(--drag-offset) + ${offset()}px)`,
         }}
       />
-      <div class="absolute inset-y-0 left-(--panafall-left) w-(--panafall-available-width) pointer-events-none">
+      <div class="absolute inset-y-0 left-(--cell-inset-left) w-(--cell-visible-width) pointer-events-none">
         <Show when={totalSeconds() > 0}>
           <div
-            class="pointer-events-none absolute top-0 right-0 h-(--canvas-height) w-10"
+            class="pointer-events-none absolute top-0 right-0 h-(--canvas-height) w-(--scale-gutter)"
             style={{ "--canvas-height": `${canvasHeight()}px` }}
           >
             <div class="relative h-full px-1.5 flex items-center">

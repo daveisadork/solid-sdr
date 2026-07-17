@@ -8,47 +8,61 @@ import {
   ColorModeScript,
   createLocalStorageManager,
 } from "@kobalte/core/color-mode";
-import { Show } from "solid-js";
+import { onMount, Show } from "solid-js";
 import BaselineViewSidebar from "~icons/ic/baseline-view-sidebar";
 import MaterialSymbolsOpenInNew from "~icons/material-symbols/open-in-new";
 import { DebugBanner } from "./components/debug-mode/banner";
 import { FPSCounter } from "./components/fps";
 import { Panafalls } from "./components/panafall/panafalls";
+import { RadioSidebar } from "./components/radio-sidebar";
 import { ReleaseNotification } from "./components/release-notification";
-import { RightSidebar } from "./components/right-sidebar";
 import { Button } from "./components/ui/button";
 import { Callout, CalloutContent, CalloutTitle } from "./components/ui/callout";
 import { AudioProvider } from "./context/audio";
+import { ChromeInsetsProvider } from "./context/chrome-insets";
 import { ControlsProvider } from "./context/controls";
 import { DebugModeProvider } from "./context/debug-mode";
+import { PanafallLayoutProvider } from "./context/panafall-layout";
 import { PreferencesProvider, usePreferences } from "./context/preferences";
 import { RtcProvider } from "./context/rtc";
 import { RuntimeProvider } from "./context/runtime";
+import { layoutCssVars } from "./lib/layout-constants";
 
 function AppInner() {
   const { preferences, setPreferences } = usePreferences();
   const { radio } = useFlexRadio();
+  onMount(() => {
+    // On the root element (not this component) so elements portaled to
+    // document.body resolve the same tokens.
+    for (const [name, value] of Object.entries(layoutCssVars())) {
+      document.documentElement.style.setProperty(name, value);
+    }
+  });
   return (
-    <div class="absolute inset-0 flex flex-col items-stretch">
-      <DebugBanner />
-      <SidebarProvider
-        class="relative grow h-auto overflow-visible min-h-0 bg-transparent"
-        open={!!preferences.radioPanelOpen}
-        onOpenChange={(open) => setPreferences("radioPanelOpen", open)}
-      >
-        <Panafalls />
-        <RightSidebar />
-        <Show when={radio()}>
-          <SidebarTrigger class="z-50 absolute right-4 top-4 select-none aspect-square fancy-bg-background size-10 not-pointer-coarse:size-5 pointer-coarse:border pointer-coarse:right-2 pointer-coarse:top-2">
-            <BaselineViewSidebar />
-          </SidebarTrigger>
-        </Show>
-      </SidebarProvider>
-      <StatusBar />
-      <Show when={preferences.showFps}>
-        <FPSCounter />
-      </Show>
-    </div>
+    <ChromeInsetsProvider>
+      <PanafallLayoutProvider>
+        <div class="absolute inset-0 flex flex-col items-stretch isolate">
+          <DebugBanner />
+          <SidebarProvider
+            class="relative grow h-auto overflow-visible min-h-0 bg-transparent"
+            open={!!preferences.radioPanelOpen}
+            onOpenChange={(open) => setPreferences("radioPanelOpen", open)}
+          >
+            <Panafalls />
+            <RadioSidebar />
+            <Show when={radio()}>
+              <SidebarTrigger class="z-(--z-chrome) absolute right-(--control-inset) top-(--control-inset) select-none aspect-square fancy-bg-background size-(--control-size) not-pointer-coarse:size-5 pointer-coarse:border pointer-coarse:right-2 pointer-coarse:top-2">
+                <BaselineViewSidebar />
+              </SidebarTrigger>
+            </Show>
+          </SidebarProvider>
+          <StatusBar />
+          <Show when={preferences.showFps}>
+            <FPSCounter />
+          </Show>
+        </div>
+      </PanafallLayoutProvider>
+    </ChromeInsetsProvider>
   );
 }
 

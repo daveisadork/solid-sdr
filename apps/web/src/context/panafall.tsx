@@ -1,17 +1,22 @@
 import type { PanadapterController, WaterfallController } from "@repo/flexlib";
-import { createElementBounds } from "@solid-primitives/bounds";
 import { createElementSize } from "@solid-primitives/resize-observer";
+import { debounce } from "@solid-primitives/scheduled";
 import {
   type Accessor,
   createContext,
+  createEffect,
   createMemo,
   createSignal,
+  on,
+  onCleanup,
   type ParentComponent,
   Show,
   useContext,
 } from "solid-js";
-import { onlyAncestorMutations } from "~/lib/element-bounds";
-import { roundToDecimals } from "~/lib/utils";
+import { LAYOUT } from "~/lib/layout-constants";
+import { ALL_EDGES, type CellEdges } from "~/lib/panafall-layout";
+import * as panMath from "~/lib/panafall-math";
+import { useChromeInsets } from "./chrome-insets";
 import useFlexRadio, {
   type PanadapterState,
   type SliceState,
@@ -28,20 +33,27 @@ export type PanafallSpot = SpotState & {
  * Context for a single panadapter/waterfall pair ("panafall").
  *
  * Coordinate system notes:
- * - **px** values are pixel offsets measured from the left edge of the panadapter canvas.
+ * - **px** values are cell-local: pixel offsets measured from the left edge of
+ *   the panadapter wrapper's content box, in every mode. Convert viewport
+ *   `clientX` values at event boundaries with `clientXToCellX`.
  * - **MHz** values are frequency widths (not absolute frequencies).
  * - **freq** values are absolute frequencies in MHz.
- *
- * When transparency effects are enabled, `x` coordinates are viewport-relative
- * (the canvas is full-screen). When disabled, they are element-relative.
  */
+export interface VisibleInsets {
+  /** Cell-local x where the visible (not-under-chrome) region starts. */
+  left: number;
+  /** Width of chrome overlaying the cell's right edge. */
+  right: number;
+  /** Width of the visible region. */
+  width: number;
+}
+
 const PanafallContext = createContext<{
   /** The currently active (transmit/receive focus) slice, if any. */
   activeSlice: Accessor<SliceState | undefined>;
-  /**
-   * Converts an absolute frequency (MHz) to an x pixel position on the canvas.
-   * Accounts for the transparency-effects offset when that preference is disabled.
-   */
+  /** Converts a viewport clientX to a cell-local x. */
+  clientXToCellX: (clientX: number) => number;
+  /** Converts an absolute frequency (MHz) to a cell-local x pixel position. */
   freqToX: (freq: number) => number;
   /** MHz represented by a single pixel — the inverse of `pxPerMHz`. */
   mhzPerPx: Accessor<number>;
@@ -59,8 +71,8 @@ const PanafallContext = createContext<{
   panadapterWrapperSize: ReturnType<typeof createElementSize>;
   /** Controller for sending commands to the panadapter (pan, zoom, etc.). */
   panadapterController: Accessor<PanadapterController>;
-  /** Reactive bounding rect of the panadapter/waterfall element. */
-  panafallBounds: ReturnType<typeof createElementBounds>;
+  /** Which viewport edges this cell touches in the layout tree. */
+  cellEdges: Accessor<CellEdges>;
   /** Pixels per MHz — how many pixels represent one MHz of bandwidth. */
   pxPerMHz: Accessor<number>;
   /** Converts a pixel width to a frequency width in MHz. */
@@ -80,17 +92,33 @@ const PanafallContext = createContext<{
   /** Controller for sending commands to the waterfall (speed, colors, etc.). */
   waterfallController: Accessor<WaterfallController>;
   /**
-   * Converts an x pixel position on the canvas to an absolute frequency (MHz).
-   * Accounts for the transparency-effects offset when that preference is disabled.
+   * Cell-local insets of the region not covered by chrome (sidebars) —
+   * derived from known chrome state and this cell's tree edges, never
+   * measured.
    */
+  visibleInsets: Accessor<VisibleInsets>;
+  /**
+   * visibleInsets gated by the chrome squeeze transition: updates settle one
+   * transition duration after the last change. Flag-side/detach math only, so
+   * flags flip when the sliding chrome settles instead of at animation start.
+   */
+  settledInsets: Accessor<VisibleInsets>;
+  /**
+   * Whether a slice's flag anchor sits under chrome / outside the cell —
+   * derived arithmetic, replaces the old sentinel rect observation.
+   */
+  isSliceDetached: (slice: SliceState) => boolean;
+  /** Converts a cell-local x pixel position to an absolute frequency (MHz). */
   xToFreq: (x: number) => number;
 }>();
 
-export const PanafallProvider: ParentComponent<{ streamId?: string }> = (
-  props,
-) => {
+export const PanafallProvider: ParentComponent<{
+  streamId?: string;
+  edges?: CellEdges;
+}> = (props) => {
   const { radio, state } = useFlexRadio();
   const { preferences } = usePreferences();
+  const chromeInsets = useChromeInsets();
   const [panafallPortalRef, setPanafallPortalRef] = createSignal<HTMLElement>();
   const [panafallControlsRef, setPanafallControlsRef] =
     createSignal<HTMLElement>();
@@ -100,9 +128,7 @@ export const PanafallProvider: ParentComponent<{ streamId?: string }> = (
     createSignal<HTMLElement>();
   const [panadapterWrapper, setPanadapterWrapper] = createSignal<HTMLElement>();
   const panadapterWrapperSize = createElementSize(panadapterWrapper);
-  const panafallBounds = createElementBounds(panafallControlsRef, {
-    trackMutation: onlyAncestorMutations(panafallControlsRef),
-  });
+  const cellEdges = () => props.edges ?? ALL_EDGES;
   const panadapter = createMemo(
     () => state.status.panadapter[props.streamId ?? state.selectedPanadapter],
   );
@@ -126,54 +152,67 @@ export const PanafallProvider: ParentComponent<{ streamId?: string }> = (
     slices().find((s) => s.isActive && s.isInUse),
   );
 
-  const pxPerMHz = createMemo(() => {
-    const pan = panadapter();
-    const width = panadapterWrapperSize.width;
-    if (!pan?.bandwidthMHz || !width) return 0;
-    return width / pan.bandwidthMHz;
+  const scale = (): panMath.PanScale => ({
+    width: panadapterWrapperSize.width ?? 0,
+    centerMHz: panadapter()?.centerFrequencyMHz ?? 0,
+    bandwidthMHz: panadapter()?.bandwidthMHz ?? 0,
   });
 
-  const mhzPerPx = createMemo(() => {
-    const pan = panadapter();
-    const width = panadapterWrapperSize.width;
-    if (!pan?.bandwidthMHz || !width) return 0;
-    return pan.bandwidthMHz / width;
+  /**
+   * Viewport x of the cell's left edge. Re-measured only when layout-affecting
+   * signals change — never per pointer event, to keep getBoundingClientRect
+   * off the hot paths.
+   */
+  const cellLeft = createMemo(
+    on(
+      () => [panadapterWrapperSize.width, panadapterWrapperSize.height],
+      () => panadapterWrapper()?.getBoundingClientRect().left ?? 0,
+    ),
+  );
+
+  const clientXToCellX = (clientX: number) => clientX - cellLeft();
+
+  const visibleInsets = createMemo((): VisibleInsets => {
+    const width = panadapterWrapperSize.width ?? 0;
+    const edges = cellEdges();
+    const left = edges.left ? chromeInsets.left() : 0;
+    const right = edges.right ? chromeInsets.right() : 0;
+    return { left, right, width: Math.max(0, width - left - right) };
   });
 
-  const mhzToPx = (mhz: number) => {
-    const pan = panadapter();
-    if (!pan?.bandwidthMHz || !panadapterWrapperSize.width) return 0;
-    return mhz * pxPerMHz();
+  const [settledInsets, setSettledInsets] = createSignal<VisibleInsets>({
+    left: 0,
+    right: 0,
+    width: 0,
+  });
+  const applySettledInsets = debounce(
+    (insets: VisibleInsets) => setSettledInsets(insets),
+    LAYOUT.layoutDurationMs,
+  );
+  createEffect(() => applySettledInsets(visibleInsets()));
+  onCleanup(() => applySettledInsets.clear());
+
+  const pxPerMHz = createMemo(() => panMath.pxPerMHz(scale()));
+  const mhzPerPx = createMemo(() => panMath.mhzPerPx(scale()));
+  const mhzToPx = (mhz: number) => panMath.mhzToPx(scale(), mhz);
+  const pxToMHz = (px: number) => panMath.pxToMHz(scale(), px);
+  const xToFreq = (x: number) => panMath.xToFreq(scale(), x);
+  const freqToX = (freq: number) => panMath.freqToX(scale(), freq);
+
+  /** Cell-local x of the slice's anchor line (diversity children anchor to their parent). */
+  const sliceAnchorX = (slice: SliceState) => {
+    const target = slice.diversityChild
+      ? (state.status.slice[slice.diversityIndex.toString()] ?? slice)
+      : slice;
+    return freqToX(target.frequencyMHz) + preferences.panadapterOffset;
   };
 
-  const pxToMHz = (px: number) => {
-    const pan = panadapter();
-    if (!pan?.bandwidthMHz || !panadapterWrapperSize.width) return 0;
-    return roundToDecimals(px * mhzPerPx(), 6);
-  };
-
-  const xToFreq = (x: number) => {
-    const pan = panadapter();
-    const width = panadapterWrapperSize.width;
-    if (!pan?.bandwidthMHz || !width) return 0;
-    const centerFreq = pan.centerFrequencyMHz;
-    const offsetPx = preferences.enableTransparencyEffects
-      ? x
-      : x - panafallBounds.left;
-    const offsetMHz = pxToMHz(offsetPx - width / 2);
-    return roundToDecimals(centerFreq + offsetMHz, 6);
-  };
-
-  const freqToX = (freq: number) => {
-    const pan = panadapter();
-    const width = panadapterWrapperSize.width;
-    if (!pan?.bandwidthMHz || !width) return 0;
-    const centerFreq = pan.centerFrequencyMHz;
-    const offsetMHz = freq - centerFreq;
-    const offsetPx = preferences.enableTransparencyEffects
-      ? 0
-      : panafallBounds.left;
-    return width / 2 + mhzToPx(offsetMHz) + offsetPx;
+  const isSliceDetached = (slice: SliceState): boolean => {
+    const width = panadapterWrapperSize.width ?? 0;
+    if (!width) return false;
+    const insets = settledInsets();
+    const x = sliceAnchorX(slice);
+    return x < insets.left || x > width - insets.right;
   };
 
   return (
@@ -188,6 +227,7 @@ export const PanafallProvider: ParentComponent<{ streamId?: string }> = (
       <PanafallContext.Provider
         value={{
           activeSlice,
+          clientXToCellX,
           freqToX,
           mhzPerPx,
           mhzToPx,
@@ -195,7 +235,7 @@ export const PanafallProvider: ParentComponent<{ streamId?: string }> = (
           setPanadapterWrapper,
           panadapterWrapperSize,
           panadapterController,
-          panafallBounds,
+          cellEdges,
           pxPerMHz,
           pxToMHz,
           setPanafallPortalRef,
@@ -209,6 +249,9 @@ export const PanafallProvider: ParentComponent<{ streamId?: string }> = (
           slices,
           waterfall,
           waterfallController,
+          visibleInsets,
+          settledInsets,
+          isSliceDetached,
           xToFreq,
         }}
       >

@@ -484,3 +484,31 @@ body,
     var(--tnf-transparency-color) calc(12px / var(--tnf-depth, 1))
   );
 }
+
+/*
+ * App-chrome insets — set on :root by ChromeInsetsProvider from known state.
+ * Registered so the custom properties themselves interpolate: the sliding
+ * sidebar and every cell inset read the identical mid-animation value.
+ */
+@property --inset-left {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 0px;
+}
+@property --inset-right {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 0px;
+}
+@property --inset-bottom {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 0px;
+}
+
+:root {
+  transition:
+    --inset-left var(--layout-duration, 200ms) linear,
+    --inset-right var(--layout-duration, 200ms) linear,
+    --inset-bottom var(--layout-duration, 200ms) linear;
+}

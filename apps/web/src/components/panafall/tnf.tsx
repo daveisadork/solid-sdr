@@ -44,7 +44,7 @@ function quantizeBandwidth(bandwidthMHz: number) {
 
 export function Tnf(props: { tnf: TnfState; pan: PanadapterState }) {
   const { radio, state } = useFlexRadio();
-  const { freqToX, mhzToPx, pxToMHz } = usePanafall();
+  const { freqToX, mhzToPx, pxToMHz, clientXToCellX } = usePanafall();
   const [dragState, setDragState] = createStore({
     down: false,
     dragging: false,
@@ -60,7 +60,9 @@ export function Tnf(props: { tnf: TnfState; pan: PanadapterState }) {
   createPointerListeners({
     async onMove(event) {
       if (!dragState.down) return;
-      const freq = dragState.originFreq + pxToMHz(event.x - dragState.originX);
+      const freq =
+        dragState.originFreq +
+        pxToMHz(clientXToCellX(event.x) - dragState.originX);
       const bandwidthChangeMHz =
         Math.round(-event.movementY * TNF_STEP) / 1_000_000;
       const bandwidth = quantizeBandwidth(
@@ -109,7 +111,7 @@ export function Tnf(props: { tnf: TnfState; pan: PanadapterState }) {
         if (contextMenuOpen()) return;
         setDragState({
           down: true,
-          originX: event.clientX,
+          originX: clientXToCellX(event.clientX),
           originFreq: props.tnf.frequencyMHz,
         });
       }}

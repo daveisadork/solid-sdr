@@ -5,8 +5,8 @@ import {
   filterPresetModeGroupFromSliceMode,
   type SliceController,
 } from "@repo/flexlib";
-import { createElementBounds } from "@solid-primitives/bounds";
 import { createPointerListeners } from "@solid-primitives/pointer";
+import { createElementSize } from "@solid-primitives/resize-observer";
 import type { Component, ComponentProps, JSX, ValidComponent } from "solid-js";
 import {
   batch,
@@ -35,7 +35,6 @@ import useFlexRadio, {
 import { usePanafall } from "~/context/panafall";
 import { type SliceTxMeter, usePreferences } from "~/context/preferences";
 import { useRuntime } from "~/context/runtime";
-import { onlyAncestorMutations } from "~/lib/element-bounds";
 import { cn, degToRad, radToDeg, roundToDevicePixels } from "~/lib/utils";
 import MaterialSymbolsChevronLeft from "~icons/material-symbols/chevron-left";
 import MaterialSymbolsChevronRight from "~icons/material-symbols/chevron-right";
@@ -236,13 +235,14 @@ export function DetachedSlices(props: {
   pan: PanadapterState;
   slices: SliceState[];
 }) {
+  const { isSliceDetached } = usePanafall();
   return (
-    <div class="flex absolute inset-0 pt-16 px-2 pointer-events-none">
+    <div class="flex absolute inset-0 pt-(--detached-clearance) px-2 pointer-events-none">
       <div class="flex flex-col gap-1">
         <For
           each={props.slices.filter(
             (slice) =>
-              slice.isDetached &&
+              isSliceDetached(slice) &&
               slice.frequencyMHz < props.pan.centerFrequencyMHz,
           )}
         >
@@ -254,7 +254,7 @@ export function DetachedSlices(props: {
         <For
           each={props.slices.filter(
             (slice) =>
-              slice.isDetached &&
+              isSliceDetached(slice) &&
               slice.frequencyMHz > props.pan.centerFrequencyMHz,
           )}
         >
@@ -1387,12 +1387,21 @@ const ExtraSliceControls = <T extends ValidComponent = "div">(
 };
 
 export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
-  const { radio, state, setState } = useFlexRadio();
-  const { panafallBounds, pxToMHz, panadapterController, freqToX, mhzToPx } =
-    usePanafall();
+  const { radio, state } = useFlexRadio();
+  const {
+    pxToMHz,
+    panadapterController,
+    freqToX,
+    mhzToPx,
+    clientXToCellX,
+    visibleInsets,
+    settledInsets,
+    isSliceDetached,
+    panadapterWrapperSize,
+    panafallPortalRef,
+  } = usePanafall();
   const sliceController = createMemo(() => radio()?.slice(props.slice.id));
   const [offset, setOffset] = createSignal(0);
-  const [sentinel, setSentinel] = createSignal<HTMLDivElement>();
   const [flag, setFlag] = createSignal<HTMLElement>();
   const [filterWidth, setFilterWidth] = createSignal(0);
   const [filterOffset, setFilterOffset] = createSignal(0);
@@ -1406,12 +1415,7 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
     offset: 0,
     contain: 0,
   });
-  const sentinelBounds = createElementBounds(sentinel, {
-    trackMutation: onlyAncestorMutations(sentinel),
-  });
-  const flagBounds = createElementBounds(flag, {
-    trackMutation: onlyAncestorMutations(flag),
-  });
+  const flagSize = createElementSize(flag);
   const { preferences } = usePreferences();
   const { runtime, setRuntime } = useRuntime();
   const { dispatch } = useControls();
@@ -1476,15 +1480,19 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
       return setFlagSide("right");
     }
 
-    if (
-      flagBounds.left < panafallBounds.left ||
-      flagBounds.right > panafallBounds.right
-    ) {
+    const width = panadapterWrapperSize.width ?? 0;
+    if (!width) return;
+    const insets = settledInsets();
+    const visRight = width - insets.right;
+    const anchorX = offset();
+    const flagWidth = flagSize.width ?? 0;
+    const overflows =
+      flagSide() === "left"
+        ? anchorX - flagWidth < insets.left
+        : anchorX + flagWidth > visRight;
+    if (overflows) {
       setFlagSide(
-        panafallBounds.right - sentinelBounds.left >=
-          sentinelBounds.left - panafallBounds.left
-          ? "right"
-          : "left",
+        visRight - anchorX >= anchorX - insets.left ? "right" : "left",
       );
     }
   });
@@ -1492,7 +1500,8 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
   createPointerListeners({
     onMove({ x }) {
       if (!dragState.dragging) return;
-      const newOffset = dragState.originX - x;
+      const localX = clientXToCellX(x);
+      const newOffset = dragState.originX - localX;
 
       // Round frequency to the nearest step
       const step = props.slice.tuneStepHz / 1e6; // Convert Hz to MHz
@@ -1504,8 +1513,9 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
         return;
       }
 
-      const offsetX = x - panafallBounds.left;
-      const xPercent = offsetX / panafallBounds.width;
+      const insets = visibleInsets();
+      const offsetX = localX - insets.left;
+      const xPercent = offsetX / insets.width;
       if (xPercent < 0.05 || xPercent > 0.95) {
         setDragState({
           contain: freq < props.pan.centerFrequencyMHz ? -1 : 1,
@@ -1602,19 +1612,6 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
   };
 
   createEffect(() => {
-    const { left: sLeft, right: sRight } = sentinelBounds;
-    const { left: pLeft, right: pRight } = panafallBounds;
-    const detached =
-      sLeft !== null &&
-      pLeft !== null &&
-      sRight !== null &&
-      pRight !== null &&
-      (sLeft < pLeft || sRight > pRight);
-    if (detached === props.slice.isDetached) return;
-    setState("status", "slice", props.slice.id, "isDetached", detached);
-  });
-
-  createEffect(() => {
     // we have to compute and set the tx offset since the radio doesn't do it for us.
     const ctrl = sliceController();
     if (!props.slice.mode.endsWith("FM")) {
@@ -1634,334 +1631,322 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
   });
 
   return (
-    <>
-      <Show when={!props.slice.isDetached}>
-        {/* biome-ignore lint/a11y/noStaticElementInteractions: keyboard activation is handled via focus on child controls */
-        /* biome-ignore lint/a11y/useKeyWithClickEvents: keyboard activation is handled via focus on child controls */}
-        <div
-          class="absolute inset-y-0 translate-x-(--slice-offset) z-10"
-          classList={{
-            "translate-z-1": isActive(),
-            "pointer-events-auto": !props.slice.diversityChild,
-          }}
-          style={{
-            "--slice-offset": `${offset()}px`,
-          }}
-          onClick={makeActive}
-        >
-          <Show when={!props.slice.diversityChild}>
-            <div
-              class="absolute inset-y-0 pointer-coarse:w-10 -translate-x-1/2 touch-none"
-              classList={{
-                "cursor-grab": !dragState.dragging,
-                "cursor-grabbing": dragState.dragging,
-              }}
-              onPointerDown={(event) => {
-                setDragState({
-                  dragging: true,
-                  originX: event.clientX,
-                  originFreq: props.slice.frequencyMHz,
-                  offset: 0,
-                });
-                makeActive();
-              }}
-            >
-              <div class="absolute inset-y-0 left-1/2">
-                <Show
-                  when={
-                    preferences.showTxFilterInPan &&
-                    props.slice.isTransmitEnabled
-                  }
-                >
-                  <div
-                    class="absolute inset-y-0 overflow-clip translate-x-(--tx-filter-offset) w-(--tx-filter-width) bg-radial from-red-500/25 to-red-500/20"
-                    style={{
-                      "--tx-filter-width": `${txFilterWidth()}px`,
-                      "--tx-filter-offset": `${txFilterOffset()}px`,
-                    }}
-                  >
-                    <div class="absolute inset-0 border-x border-x-background/40" />
-                  </div>
-                </Show>
+    <Show when={!isSliceDetached(props.slice)}>
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: keyboard activation is handled via focus on child controls */
+      /* biome-ignore lint/a11y/useKeyWithClickEvents: keyboard activation is handled via focus on child controls */}
+      <div
+        class="absolute inset-y-0 translate-x-(--slice-offset) z-10"
+        classList={{
+          "translate-z-1": isActive(),
+          "pointer-events-auto": !props.slice.diversityChild,
+        }}
+        style={{
+          "--slice-offset": `${offset()}px`,
+        }}
+        onClick={makeActive}
+      >
+        <Show when={!props.slice.diversityChild}>
+          <div
+            class="absolute inset-y-0 pointer-coarse:w-10 -translate-x-1/2 touch-none"
+            classList={{
+              "cursor-grab": !dragState.dragging,
+              "cursor-grabbing": dragState.dragging,
+            }}
+            onPointerDown={(event) => {
+              setDragState({
+                dragging: true,
+                originX: clientXToCellX(event.clientX),
+                originFreq: props.slice.frequencyMHz,
+                offset: 0,
+              });
+              makeActive();
+            }}
+          >
+            <div class="absolute inset-y-0 left-1/2">
+              <Show
+                when={
+                  preferences.showTxFilterInPan && props.slice.isTransmitEnabled
+                }
+              >
                 <div
-                  class="absolute inset-y-0 overflow-clip translate-x-(--filter-offset) w-(--filter-width) bg-radial from-sky-500/35 to-sky-500/25"
+                  class="absolute inset-y-0 overflow-clip translate-x-(--tx-filter-offset) w-(--tx-filter-width) bg-radial from-red-500/25 to-red-500/20"
                   style={{
-                    "--filter-width": `${filterWidth()}px`,
-                    "--filter-offset": `${filterOffset()}px`,
+                    "--tx-filter-width": `${txFilterWidth()}px`,
+                    "--tx-filter-offset": `${txFilterOffset()}px`,
                   }}
                 >
                   <div class="absolute inset-0 border-x border-x-background/40" />
                 </div>
+              </Show>
+              <div
+                class="absolute inset-y-0 overflow-clip translate-x-(--filter-offset) w-(--filter-width) bg-radial from-sky-500/35 to-sky-500/25"
+                style={{
+                  "--filter-width": `${filterWidth()}px`,
+                  "--filter-offset": `${filterOffset()}px`,
+                }}
+              >
+                <div class="absolute inset-0 border-x border-x-background/40" />
               </div>
             </div>
-          </Show>
-          <div
-            class="absolute inset-y-0 max-w-px w-px flex flex-col items-center m-auto top-0 pointer-events-none"
-            classList={{
-              "bg-yellow-300 z-10": props.slice.isActive,
-              "bg-red-500 -z-10":
-                !props.slice.isActive && !props.slice.diversityChild,
-            }}
-          >
-            <Show when={props.slice.isActive}>
+          </div>
+        </Show>
+        <div
+          class="absolute inset-y-0 max-w-px w-px flex flex-col items-center m-auto top-0 pointer-events-none"
+          classList={{
+            "bg-yellow-300 z-10": props.slice.isActive,
+            "bg-red-500 -z-10":
+              !props.slice.isActive && !props.slice.diversityChild,
+          }}
+        >
+          <Show when={props.slice.isActive}>
+            <Triangle
+              class="relative top-0"
+              classList={{
+                "bg-red-500 -z-10": props.slice.diversityChild,
+                "bg-yellow-300": !props.slice.diversityChild,
+              }}
+            />
+            <Show when={props.slice.diversityEnabled}>
               <Triangle
-                class="relative top-0"
+                class="relative -translate-y-1/2"
                 classList={{
-                  "bg-red-500 -z-10": props.slice.diversityChild,
-                  "bg-yellow-300": !props.slice.diversityChild,
+                  "bg-red-500 -z-10 -translate-z-1":
+                    props.slice.diversityParent,
+                  "bg-yellow-300": props.slice.diversityChild,
                 }}
               />
-              <Show when={props.slice.diversityEnabled}>
-                <Triangle
-                  class="relative -translate-y-1/2"
-                  classList={{
-                    "bg-red-500 -z-10 -translate-z-1":
-                      props.slice.diversityParent,
-                    "bg-yellow-300": props.slice.diversityChild,
-                  }}
-                />
-              </Show>
             </Show>
-          </div>
-          <Portal>
+          </Show>
+        </div>
+        <Portal mount={panafallPortalRef()}>
+          <div
+            class="absolute top-0 left-0 w-0 max-w-0 translate-x-(--flag-offset) overflow-visible"
+            classList={{
+              "z-20": isActive(),
+              "z-10": !isActive(),
+            }}
+            style={{
+              "--flag-offset": `calc(var(--drag-offset) + ${offset()}px)`,
+            }}
+          >
+            {/* biome-ignore lint/a11y/noStaticElementInteractions: pointer-events-none panel; onMouseDown only stops propagation from children, not user interaction */}
             <div
-              class="absolute top-0 left-0 w-0 max-w-0 translate-y-(--panafall-top) translate-x-(--flag-offset) overflow-visible"
+              class="absolute top-0 pt-1 pb-4 px-1 z-20 overflow-visible pointer-events-none w-max"
               classList={{
-                // "top-4": preferences.showDisplayMarkers,
-                "z-20": isActive(),
-                "z-10": !isActive(),
+                "left-px": flagSide() === "right",
+                "right-0": flagSide() === "left",
               }}
-              style={{
-                "--panafall-top": `${panafallBounds.top}px`,
-                "--flag-offset": `${sentinelBounds.left}px`,
-              }}
+              onMouseDown={(e) => e.stopPropagation()}
+              ref={setFlag}
             >
-              {/* biome-ignore lint/a11y/noStaticElementInteractions: pointer-events-none panel; onMouseDown only stops propagation from children, not user interaction */}
-              <div
-                class="absolute top-0 pt-1 pb-4 px-1 z-20 overflow-visible pointer-events-none w-max"
-                classList={{
-                  "left-px": flagSide() === "right",
-                  "right-0": flagSide() === "left",
-                }}
-                onMouseDown={(e) => e.stopPropagation()}
-                ref={setFlag}
-              >
-                <Show
-                  when={!compactLayout()}
-                  fallback={
-                    <div
-                      class="flex items-center gap-1 flex-row-reverse"
-                      classList={{
-                        "flex-row-reverse": flagSide() === "right",
-                      }}
-                    >
-                      <span class="font-mono font-normal text-xl text-shadow-black text-shadow-sm">
-                        {(props.slice.frequencyMHz * 1_000_000).toLocaleString(
-                          "de-DE",
-                        )}
-                      </span>
-                      <div class="flex flex-col items-center pointer-events-auto text-xs border rounded-sm overflow-clip font-extrabold">
-                        <ToggleButton
-                          pressed={compactLayout()}
-                          onChange={setCompactLayout}
-                          class="flex justify-around items-center bg-blue-500 p-0.5 w-full"
-                        >
-                          <span class="textbox-edge-cap-alphabetic textbox-trim-both">
-                            {props.slice.indexLetter}
-                          </span>
-                        </ToggleButton>
-                        <Separator />
-                        <ToggleButton
-                          class="flex justify-center items-center p-0.5 text-muted-foreground data-pressed:bg-red-500 data-pressed:text-foreground font-stretch-ultra-condensed"
-                          pressed={props.slice.isTransmitEnabled}
-                          onChange={(pressed) => {
-                            sliceController().enableTransmit(pressed);
-                          }}
-                        >
-                          <span class="leading-tight textbox-trim-both textbox-edge-cap-alphabetic">
-                            TX
-                          </span>
-                        </ToggleButton>
-                      </div>
-                    </div>
-                  }
-                >
+              <Show
+                when={!compactLayout()}
+                fallback={
                   <div
-                    class="flex gap-0.5 pointer-events-auto"
-                    classList={{ "flex-row-reverse": flagSide() === "right" }}
+                    class="flex items-center gap-1 flex-row-reverse"
+                    classList={{
+                      "flex-row-reverse": flagSide() === "right",
+                    }}
                   >
-                    <Show when={!props.slice.diversityChild}>
-                      <ExtraSliceControls
+                    <span class="font-mono font-normal text-xl text-shadow-black text-shadow-sm">
+                      {(props.slice.frequencyMHz * 1_000_000).toLocaleString(
+                        "de-DE",
+                      )}
+                    </span>
+                    <div class="flex flex-col items-center pointer-events-auto text-xs border rounded-sm overflow-clip font-extrabold">
+                      <ToggleButton
+                        pressed={compactLayout()}
+                        onChange={setCompactLayout}
+                        class="flex justify-around items-center bg-blue-500 p-0.5 w-full"
+                      >
+                        <span class="textbox-edge-cap-alphabetic textbox-trim-both">
+                          {props.slice.indexLetter}
+                        </span>
+                      </ToggleButton>
+                      <Separator />
+                      <ToggleButton
+                        class="flex justify-center items-center p-0.5 text-muted-foreground data-pressed:bg-red-500 data-pressed:text-foreground font-stretch-ultra-condensed"
+                        pressed={props.slice.isTransmitEnabled}
+                        onChange={(pressed) => {
+                          sliceController().enableTransmit(pressed);
+                        }}
+                      >
+                        <span class="leading-tight textbox-trim-both textbox-edge-cap-alphabetic">
+                          TX
+                        </span>
+                      </ToggleButton>
+                    </div>
+                  </div>
+                }
+              >
+                <div
+                  class="flex gap-0.5 pointer-events-auto"
+                  classList={{ "flex-row-reverse": flagSide() === "right" }}
+                >
+                  <Show when={!props.slice.diversityChild}>
+                    <ExtraSliceControls
+                      slice={props.slice}
+                      controller={sliceController()}
+                    />
+                  </Show>
+                  <div
+                    class="h-fit border rounded-md overflow-hidden flex flex-col p-1.5 gap-1 pointer-events-auto text-sm font-mono drop-shadow-black fancy-bg-background"
+                    classList={{
+                      "drop-shadow-lg": isActive(),
+                      "drop-shadow-md": !isActive(),
+                    }}
+                  >
+                    <div
+                      class="absolute top-0 left-0 right-0 bottom-0 pointer-events-none rounded-md"
+                      classList={{
+                        "bg-background/25": !isActive(),
+                      }}
+                    />
+                    <div class="flex justify-between items-center gap-1">
+                      <RxAntennaSelect
                         slice={props.slice}
                         controller={sliceController()}
                       />
+                      <TxAntennaSelect
+                        slice={props.slice}
+                        controller={sliceController()}
+                      />
+                      <SliceFilter
+                        slice={props.slice}
+                        controller={sliceController()}
+                      />
+                      <Show when={!splitParent()}>
+                        <ToggleButton
+                          disabled={splitDisabled()}
+                          class="flex justify-center items-center h-4.5 px-1 rounded-sm text-muted-foreground data-pressed:bg-red-500 data-pressed:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
+                          pressed={Boolean(splitChild())}
+                          onChange={(pressed) =>
+                            dispatch({
+                              target: "slice.split.enabled",
+                              slice: props.slice.indexLetter as SliceSelector,
+                              op: "set",
+                              value: pressed,
+                            })
+                          }
+                        >
+                          <SplitIcon />
+                        </ToggleButton>
+                      </Show>
+                      <Show when={splitParent()}>
+                        <ToggleButton
+                          class="flex justify-center items-center h-4.5 px-1 rounded-sm text-muted-foreground data-pressed:bg-red-500 data-pressed:text-foreground"
+                          pressed={Boolean(splitChild())}
+                          onChange={() =>
+                            dispatch({
+                              target: "slice.split.swap",
+                              slice: props.slice.indexLetter as SliceSelector,
+                            })
+                          }
+                        >
+                          <SwapIcon />
+                        </ToggleButton>
+                      </Show>
+                      <ToggleButton
+                        class="flex justify-center items-center h-4.5 font-extrabold px-1 rounded-sm text-muted-foreground data-pressed:bg-red-500 data-pressed:text-foreground"
+                        pressed={props.slice.isTransmitEnabled}
+                        onChange={(pressed) => {
+                          sliceController().enableTransmit(pressed);
+                        }}
+                      >
+                        <span class="leading-tight textbox-trim-both textbox-edge-cap-alphabetic">
+                          TX
+                        </span>
+                      </ToggleButton>
+                      <ToggleButton
+                        pressed={compactLayout()}
+                        onChange={setCompactLayout}
+                        class="flex items-center bg-blue-500 h-4.5 px-1 rounded-sm"
+                      >
+                        <span class="font-extrabold textbox-edge-cap-alphabetic textbox-trim-both">
+                          {props.slice.indexLetter}
+                        </span>
+                      </ToggleButton>
+                    </div>
+                    <Show when={!props.slice.diversityChild}>
+                      <div class="flex justify-between items-center">
+                        <ModeControls
+                          slice={props.slice}
+                          controller={sliceController()}
+                        />
+                        <FrequencyInput
+                          class="text-right bg-transparent text-lg/tight font-mono"
+                          size={14}
+                          valueHz={Math.round(props.slice.frequencyMHz * 1e6)}
+                          onCommit={tuneSlice}
+                          // `on:touchstart` binds directly to the element
+                          // (non-passive); the camelCase `onTouchStart` is
+                          // delegated to document, where Chrome forces passive
+                          // and preventDefault() is ignored. We need
+                          // preventDefault to open the panel instead of
+                          // focusing the input (which pops the soft keyboard).
+                          // Fires only on touch, so mouse/pen keep inline edit.
+                          on:touchstart={(event) => {
+                            event.preventDefault();
+                            makeActive();
+                            setRuntime("tuningPanelOpen", true);
+                          }}
+                        />
+                      </div>
                     </Show>
                     <div
-                      class="h-fit border rounded-md overflow-hidden flex flex-col p-1.5 gap-1 pointer-events-auto text-sm font-mono drop-shadow-black fancy-bg-background"
                       classList={{
-                        "drop-shadow-lg": isActive(),
-                        "drop-shadow-md": !isActive(),
+                        hidden:
+                          props.slice.isTransmitEnabled &&
+                          state.status.radio.interlockTxClientHandle ===
+                            state.clientHandleInt,
                       }}
                     >
-                      <div
-                        class="absolute top-0 left-0 right-0 bottom-0 pointer-events-none rounded-md"
-                        classList={{
-                          "bg-background/25": !isActive(),
-                        }}
+                      <LevelMeter
+                        meter={levelMeter()}
+                        compressionFactor={0.6}
+                        compressionThreshold={-73}
                       />
-                      <div class="flex justify-between items-center gap-1">
-                        <RxAntennaSelect
-                          slice={props.slice}
-                          controller={sliceController()}
-                        />
-                        <TxAntennaSelect
-                          slice={props.slice}
-                          controller={sliceController()}
-                        />
-                        <SliceFilter
-                          slice={props.slice}
-                          controller={sliceController()}
-                        />
-                        <Show when={!splitParent()}>
-                          <ToggleButton
-                            disabled={splitDisabled()}
-                            class="flex justify-center items-center h-4.5 px-1 rounded-sm text-muted-foreground data-pressed:bg-red-500 data-pressed:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
-                            pressed={Boolean(splitChild())}
-                            onChange={(pressed) =>
-                              dispatch({
-                                target: "slice.split.enabled",
-                                slice: props.slice.indexLetter as SliceSelector,
-                                op: "set",
-                                value: pressed,
-                              })
-                            }
-                          >
-                            <SplitIcon />
-                          </ToggleButton>
-                        </Show>
-                        <Show when={splitParent()}>
-                          <ToggleButton
-                            class="flex justify-center items-center h-4.5 px-1 rounded-sm text-muted-foreground data-pressed:bg-red-500 data-pressed:text-foreground"
-                            pressed={Boolean(splitChild())}
-                            onChange={() =>
-                              dispatch({
-                                target: "slice.split.swap",
-                                slice: props.slice.indexLetter as SliceSelector,
-                              })
-                            }
-                          >
-                            <SwapIcon />
-                          </ToggleButton>
-                        </Show>
-                        <ToggleButton
-                          class="flex justify-center items-center h-4.5 font-extrabold px-1 rounded-sm text-muted-foreground data-pressed:bg-red-500 data-pressed:text-foreground"
-                          pressed={props.slice.isTransmitEnabled}
-                          onChange={(pressed) => {
-                            sliceController().enableTransmit(pressed);
-                          }}
-                        >
-                          <span class="leading-tight textbox-trim-both textbox-edge-cap-alphabetic">
-                            TX
-                          </span>
-                        </ToggleButton>
-                        <ToggleButton
-                          pressed={compactLayout()}
-                          onChange={setCompactLayout}
-                          class="flex items-center bg-blue-500 h-4.5 px-1 rounded-sm"
-                        >
-                          <span class="font-extrabold textbox-edge-cap-alphabetic textbox-trim-both">
-                            {props.slice.indexLetter}
-                          </span>
-                        </ToggleButton>
-                      </div>
-                      <Show when={!props.slice.diversityChild}>
-                        <div class="flex justify-between items-center">
-                          <ModeControls
-                            slice={props.slice}
-                            controller={sliceController()}
-                          />
-                          <FrequencyInput
-                            class="text-right bg-transparent text-lg/tight font-mono"
-                            size={14}
-                            valueHz={Math.round(props.slice.frequencyMHz * 1e6)}
-                            onCommit={tuneSlice}
-                            // `on:touchstart` binds directly to the element
-                            // (non-passive); the camelCase `onTouchStart` is
-                            // delegated to document, where Chrome forces passive
-                            // and preventDefault() is ignored. We need
-                            // preventDefault to open the panel instead of
-                            // focusing the input (which pops the soft keyboard).
-                            // Fires only on touch, so mouse/pen keep inline edit.
-                            on:touchstart={(event) => {
-                              event.preventDefault();
-                              makeActive();
-                              setRuntime("tuningPanelOpen", true);
-                            }}
-                          />
-                        </div>
-                      </Show>
+                    </div>
+                    <Show when={props.slice.isTransmitEnabled}>
                       <div
                         classList={{
                           hidden:
-                            props.slice.isTransmitEnabled &&
-                            state.status.radio.interlockTxClientHandle ===
-                              state.clientHandleInt,
+                            state.status.radio.interlockTxClientHandle !==
+                            state.clientHandleInt,
                         }}
                       >
-                        <LevelMeter
-                          meter={levelMeter()}
-                          compressionFactor={0.6}
-                          compressionThreshold={-73}
-                        />
+                        <TxMeter />
                       </div>
-                      <Show when={props.slice.isTransmitEnabled}>
-                        <div
-                          classList={{
-                            hidden:
-                              state.status.radio.interlockTxClientHandle !==
-                              state.clientHandleInt,
-                          }}
-                        >
-                          <TxMeter />
-                        </div>
-                      </Show>
-                      <div class="grid grid-cols-5  text-xs h-3.5 font-medium justify-evenly *:flex *:justify-center *:items-center *:h-full *:basis-0 *:grow *:shrink *:min-w-0">
-                        <AudioControls
-                          slice={props.slice}
-                          controller={sliceController()}
-                        />
-                        <OptDspControls
-                          slice={props.slice}
-                          controller={sliceController()}
-                        />
-                        <RitControls
-                          slice={props.slice}
-                          controller={sliceController()}
-                        />
-                        <DaxChannelSelect
-                          slice={props.slice}
-                          controller={sliceController()}
-                        />
-                        <SliceSettings
-                          slice={props.slice}
-                          controller={sliceController()}
-                        />
-                      </div>
+                    </Show>
+                    <div class="grid grid-cols-5  text-xs h-3.5 font-medium justify-evenly *:flex *:justify-center *:items-center *:h-full *:basis-0 *:grow *:shrink *:min-w-0">
+                      <AudioControls
+                        slice={props.slice}
+                        controller={sliceController()}
+                      />
+                      <OptDspControls
+                        slice={props.slice}
+                        controller={sliceController()}
+                      />
+                      <RitControls
+                        slice={props.slice}
+                        controller={sliceController()}
+                      />
+                      <DaxChannelSelect
+                        slice={props.slice}
+                        controller={sliceController()}
+                      />
+                      <SliceSettings
+                        slice={props.slice}
+                        controller={sliceController()}
+                      />
                     </div>
                   </div>
-                </Show>
-              </div>
+                </div>
+              </Show>
             </div>
-          </Portal>
-        </div>
-      </Show>
-      <div
-        ref={setSentinel}
-        class="absolute translate-x-(--slice-offset) pointer-events-none"
-        style={{
-          "--slice-offset": `${offset()}px`,
-        }}
-      />
-    </>
+          </div>
+        </Portal>
+      </div>
+    </Show>
   );
 }

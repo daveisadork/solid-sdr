@@ -136,11 +136,16 @@ export function Panafall(props: { index: number }) {
     pxToMHz,
     mhzToPx,
     xToFreq,
+    clientXToCellX,
+    visibleInsets,
     setPanafallControlsRef,
-    panafallBounds,
     panadapterWrapperSize,
     setPanafallPortalRef,
+    panafallPortalRef,
   } = usePanafall();
+
+  /** Cell-local mouse x, converted once per position change. */
+  const cellPosX = () => clientXToCellX(pos.x);
 
   const { dispatch } = useControls();
 
@@ -186,8 +191,7 @@ export function Panafall(props: { index: number }) {
 
   const fitPanadapterToPanafallBounds = () => {
     const pan = panadapter();
-    const boundsWidth = panafallBounds.width;
-    const boundsLeft = panafallBounds.left;
+    const { left: boundsLeft, width: boundsWidth } = visibleInsets();
 
     const fullWidth = panadapterWrapperSize.width;
     if (!fullWidth) return;
@@ -208,8 +212,7 @@ export function Panafall(props: { index: number }) {
 
   const expandPanafallBoundsToFullPanadapter = () => {
     const pan = panadapter();
-    const boundsWidth = panafallBounds.width;
-    const boundsLeft = panafallBounds.left;
+    const { left: boundsLeft, width: boundsWidth } = visibleInsets();
 
     const fullWidth = panadapterWrapperSize.width;
     if (!fullWidth) return;
@@ -245,7 +248,7 @@ export function Panafall(props: { index: number }) {
         setDragState("originX", 0);
         return;
       }
-      const newOffset = event.x - dragState.originX;
+      const newOffset = clientXToCellX(event.x) - dragState.originX;
       const freq = dragState.originFreq - pxToMHz(newOffset);
       setPanCenter(freq);
     });
@@ -258,7 +261,7 @@ export function Panafall(props: { index: number }) {
 
       setDragState({
         down: true,
-        downX: x,
+        downX: clientXToCellX(x),
         originFreq: panadapter()?.centerFrequencyMHz,
       });
     },
@@ -270,7 +273,7 @@ export function Panafall(props: { index: number }) {
           originX: dragState.originX || dragState.downX,
         });
       }
-      const newOffset = event.x - dragState.originX;
+      const newOffset = clientXToCellX(event.x) - dragState.originX;
       const freq = dragState.originFreq - pxToMHz(newOffset);
       if (preferences.smoothScroll) {
         setDragState("offset", newOffset);
@@ -291,10 +294,10 @@ export function Panafall(props: { index: number }) {
         ? Math.round(dragState.offset + deltaPx)
         : 0;
     let originX = dragState.down ? dragState.originX - deltaPx : 0;
-    if (Math.abs(deltaPx) > (panafallBounds.width ?? 0)) {
+    if (Math.abs(deltaPx) > (panadapterWrapperSize.width ?? 0)) {
       // this typically happens when changing bands
       offset = 0;
-      originX = (panafallBounds.width ?? 0) / 2;
+      originX = (panadapterWrapperSize.width ?? 0) / 2;
     }
     setDragState({ offset, originX, originFreq: newCenter });
   };
@@ -313,28 +316,11 @@ export function Panafall(props: { index: number }) {
   });
 
   return (
-    <div
-      class="size-full overflow-visible"
-      classList={
-        {
-          // relative: !preferences.enableTransparencyEffects,
-        }
-      }
-    >
+    <div class="relative size-full overflow-clip">
       <div
-        class="absolute overflow-visible bg-background"
+        class="absolute inset-0 overflow-visible bg-background"
         ref={setPanafallPortalRef}
-        classList={{
-          "top-0 left-0 w-dvw h-full": preferences.enableTransparencyEffects,
-          "inset-0": !preferences.enableTransparencyEffects,
-        }}
         style={{
-          "--panafall-available-width": `${panafallBounds.width}px`,
-          "--panafall-available-height": `${panafallBounds.height}px`,
-          "--panafall-left": `${panafallBounds.left}px`,
-          "--panafall-top": `${panafallBounds.top}px`,
-          "--panafall-right": `${panafallBounds.right}px`,
-          "--panafall-bottom": `${panafallBounds.bottom}px`,
           "--drag-offset": `${dragState.offset}px`,
         }}
       >
@@ -351,28 +337,37 @@ export function Panafall(props: { index: number }) {
                 <Resizable
                   class="size-full overflow-visible select-none"
                   orientation="vertical"
-                  sizes={preferences.panadapterSizes[props.index]}
+                  sizes={
+                    preferences.panafallLayout.slots[props.index]
+                      ?.panWaterfallSplit
+                  }
                   initialSizes={[0.25, 0.75]}
                   onSizesChange={(sizes) => {
                     if (sizes?.length !== 2) return;
+                    const cellHeight = panafallPortalRef()?.clientHeight ?? 0;
+                    if (!cellHeight) return;
                     const targetHeight = roundToDevicePixels(
-                      sizes[0] * panafallBounds.height,
+                      sizes[0] * cellHeight,
                     );
                     const panHeight = roundToDecimals(
-                      targetHeight / panafallBounds.height,
+                      targetHeight / cellHeight,
                       6,
                     );
                     if (
                       Number.isNaN(panHeight) ||
                       panHeight ===
-                        preferences.panadapterSizes[props.index]?.[0]
+                        preferences.panafallLayout.slots[props.index]
+                          ?.panWaterfallSplit[0]
                     ) {
                       return;
                     }
-                    setPreferences("panadapterSizes", props.index, [
-                      panHeight,
-                      1 - panHeight,
-                    ]);
+                    setPreferences(
+                      "panafallLayout",
+                      "slots",
+                      props.index,
+                      "panWaterfallSplit",
+                      [panHeight, 1 - panHeight],
+                    );
                   }}
                 >
                   <ResizablePanel
@@ -386,7 +381,7 @@ export function Panafall(props: { index: number }) {
                     />
                   </ResizablePanel>
                   <Scale pan={pan()} />
-                  <ResizablePanel class="overflow-visible select-none">
+                  <ResizablePanel class="overflow-clip select-none">
                     <Show when={waterfall()}>
                       <Waterfall
                         pan={pan()}
@@ -431,7 +426,10 @@ export function Panafall(props: { index: number }) {
                         : ["DIGL", "FDVL"].includes(slice?.mode)
                           ? slice.diglOffsetHz
                           : 0;
-                      const freq = roundToDecimals(xToFreq(e.clientX), 3);
+                      const freq = roundToDecimals(
+                        xToFreq(clientXToCellX(e.clientX)),
+                        3,
+                      );
                       panadapterController()?.clickTune(
                         freq + offset / 1_000_000,
                       );
@@ -446,7 +444,10 @@ export function Panafall(props: { index: number }) {
                           onSelect={() => {
                             radio().requestSlice({
                               panadapterStreamId: pan().streamId,
-                              frequencyMHz: roundToDecimals(xToFreq(pos.x), 3),
+                              frequencyMHz: roundToDecimals(
+                                xToFreq(cellPosX()),
+                                3,
+                              ),
                             });
                           }}
                         >
@@ -454,20 +455,20 @@ export function Panafall(props: { index: number }) {
                             <MaterialSymbolsAddCommentOutlineRounded />
                           </div>
                           Create Slice at{" "}
-                          {`${roundToDecimals(xToFreq(pos.x), 3)}`} MHz
+                          {`${roundToDecimals(xToFreq(cellPosX()), 3)}`} MHz
                         </ContextMenuItem>
                         <ContextMenuItem
                           class="pl-8"
                           onSelect={() => {
                             radio().createTnf(
-                              roundToDecimals(xToFreq(pos.x), 6),
+                              roundToDecimals(xToFreq(cellPosX()), 6),
                             );
                           }}
                         >
                           <div class="absolute left-2 flex size-3.5 items-center justify-center">
                             <MdiFilterPlus />
                           </div>
-                          {`Create TNF at ${Math.round(xToFreq(pos.x) * 1_000_000).toLocaleString("de-DE")} Hz`}
+                          {`Create TNF at ${Math.round(xToFreq(cellPosX()) * 1_000_000).toLocaleString("de-DE")} Hz`}
                         </ContextMenuItem>
                       </ContextMenuGroup>
                       <ContextMenuSeparator />
@@ -687,12 +688,12 @@ export function Panafall(props: { index: number }) {
                       !preferences.enableTransparencyEffects,
                   }}
                   style={{
-                    "--cursor-x": `${pos.x}px`,
+                    "--cursor-x": `${cellPosX()}px`,
                     "--cursor-y": `${pos.y}px`,
                   }}
                 >
                   <div class="absolute border rounded-md fancy-bg-popover py-1 px-2 text-xs top-4 translate-y-(--cursor-y) pointer-events-none -translate-x-1/2 whitespace-nowrap font-mono z-50 shadow shadow-black">
-                    {`${Math.round(xToFreq(pos.x) * 1_000_000).toLocaleString("de-DE")} Hz`}
+                    {`${Math.round(xToFreq(cellPosX()) * 1_000_000).toLocaleString("de-DE")} Hz`}
                   </div>
                 </div>
               </Show>
@@ -702,7 +703,7 @@ export function Panafall(props: { index: number }) {
       </div>
       <div
         ref={setPanafallControlsRef}
-        class="relative size-full pointer-events-none *:pointer-events-auto"
+        class="absolute top-0 left-(--cell-inset-left) right-(--cell-inset-right) bottom-(--cell-inset-bottom) pointer-events-none *:pointer-events-auto"
       />
     </div>
   );

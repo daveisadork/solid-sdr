@@ -4,6 +4,7 @@ import {
   createEffect,
   createMemo,
   createSignal,
+  For,
   type JSXElement,
   onCleanup,
   Show,
@@ -11,8 +12,14 @@ import {
 } from "solid-js";
 import { Dynamic } from "solid-js/web";
 import useFlexRadio from "~/context/flexradio";
+import { usePanafallLayout } from "~/context/panafall-layout";
 import { usePreferences } from "~/context/preferences";
 import { type NetworkQuality, useRuntime } from "~/context/runtime";
+import {
+  LAYOUT_PRESETS,
+  type LayoutNode,
+  type PanCount,
+} from "~/lib/panafall-layout";
 import { createPermission } from "~/lib/permission";
 import { formatKbps } from "~/lib/utils";
 import MaterialSymbolsAddChartOutline from "~icons/material-symbols/add-chart-outline";
@@ -30,7 +37,117 @@ import Connect from "./connect";
 import { FullscreenButton } from "./fullscreen-button";
 import { GpsStatus } from "./gps-status";
 import { Settings } from "./settings";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "./ui/hover-card";
+
+function PresetGlyph(props: { node: LayoutNode; highlightSlot?: number }) {
+  return (
+    <Show
+      when={props.node.kind === "split" && props.node}
+      fallback={
+        <div
+          class="grow rounded-[1px]"
+          classList={{
+            "bg-primary":
+              props.node.kind === "cell" &&
+              props.node.slot === props.highlightSlot,
+            "bg-current opacity-50": !(
+              props.node.kind === "cell" &&
+              props.node.slot === props.highlightSlot
+            ),
+          }}
+        />
+      }
+    >
+      {(split) => (
+        <div
+          class="flex grow gap-px"
+          classList={{ "flex-col": split().dir === "col" }}
+        >
+          <For each={split().children}>
+            {(child) => (
+              <PresetGlyph node={child} highlightSlot={props.highlightSlot} />
+            )}
+          </For>
+        </div>
+      )}
+    </Show>
+  );
+}
+
+/**
+ * Add-panadapter button. With panafalls already open it becomes a menu of
+ * placements for the new one: each option is the count+1 preset whose extra
+ * slot (highlighted in the glyph) is where the new panafall will land —
+ * choosing a placement picks that preset and creates the panadapter.
+ */
+function AddPanafallButton() {
+  const { state, radio } = useFlexRadio();
+  const { panCount } = usePanafallLayout();
+  const { setPreferences } = usePreferences();
+  const disabled = () =>
+    !state.status.radio?.availablePanadapters || panCount() >= 4;
+  const placements = createMemo(() =>
+    Object.values(LAYOUT_PRESETS).filter((p) => p.capacity === panCount() + 1),
+  );
+  const create = () => radio().createPanadapter({ x: 200 }).catch(console.log);
+  return (
+    <Show
+      when={panCount() >= 1}
+      fallback={
+        <Button
+          disabled={disabled()}
+          onClick={create}
+          class="size-10 not-pointer-coarse:size-5 aspect-square disabled:opacity-50"
+        >
+          <MaterialSymbolsAddChartOutline class="size-full" />
+        </Button>
+      }
+    >
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          as={Button}
+          disabled={disabled()}
+          class="size-10 not-pointer-coarse:size-5 aspect-square disabled:opacity-50"
+          aria-label="Add panadapter"
+        >
+          <MaterialSymbolsAddChartOutline class="size-full" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <For each={placements()}>
+            {(preset) => (
+              <DropdownMenuItem
+                class="gap-2"
+                onSelect={() => {
+                  setPreferences(
+                    "panafallLayout",
+                    "presetByCount",
+                    (panCount() + 1) as PanCount,
+                    preset.id,
+                  );
+                  create();
+                }}
+              >
+                <div class="flex h-4 w-6 shrink-0">
+                  <PresetGlyph
+                    node={preset.root}
+                    highlightSlot={preset.capacity - 1}
+                  />
+                </div>
+                {preset.label}
+              </DropdownMenuItem>
+            )}
+          </For>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </Show>
+  );
+}
 
 function RemoteAudioToggle() {
   const { preferences, setPreferences } = usePreferences();
@@ -156,19 +273,13 @@ export function StatusBar() {
 
   return (
     <div
-      class="flex shrink-0 items-center w-full gap-4 py-2 px-3 not-sm:justify-around text-sm font-mono select-none z-0 fancy-bg-background"
+      class="absolute inset-x-0 bottom-0 h-(--statusbar-height) flex shrink-0 items-center w-full gap-4 px-3 not-sm:justify-around text-sm font-mono select-none z-(--z-chrome) fancy-bg-background"
       classList={{
         "border-t": !preferences.enableTransparencyEffects,
       }}
     >
       <Connect />
-      <Button
-        disabled={!state.status.radio?.availablePanadapters}
-        onClick={() => radio().createPanadapter({ x: 200 }).catch(console.log)}
-        class="size-10 not-pointer-coarse:size-5 aspect-square disabled:opacity-50"
-      >
-        <MaterialSymbolsAddChartOutline class="size-full" />
-      </Button>
+      <AddPanafallButton />
       <div class="flex items-center justify-around h-full not-pointer-coarse:gap-4 not-sm:hidden pointer-coarse:flex-col shrink-0">
         <Show when={voltage() !== undefined}>
           <span class="textbox-trim-both textbox-edge-cap-alphabetic flex gap-1 items-center">

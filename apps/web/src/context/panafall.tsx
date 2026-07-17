@@ -108,6 +108,12 @@ const PanafallContext = createContext<{
    */
   isSliceDetached: (slice: SliceState) => boolean;
   /**
+   * Which edge a detached slice sits beyond, positionally (tracks the
+   * mid-drag translate); null while the slice is visible. Drives which side
+   * the detached-slice arrows appear on.
+   */
+  sliceDetachedSide: (slice: SliceState) => "left" | "right" | null;
+  /**
    * The transient pan-drag translate (--drag-offset), in px. During a
    * smooth-scroll drag the debounced center-frequency update holds off while
    * the pointer keeps moving, so freqToX alone lags the visual position by
@@ -216,13 +222,18 @@ export const PanafallProvider: ParentComponent<{
     return freqToX(target.frequencyMHz) + preferences.panadapterOffset;
   };
 
-  const isSliceDetached = (slice: SliceState): boolean => {
+  const sliceDetachedSide = (slice: SliceState): "left" | "right" | null => {
     const width = panadapterWrapperSize.width ?? 0;
-    if (!width) return false;
+    if (!width) return null;
     const insets = settledInsets();
     const x = sliceAnchorX(slice) + dragOffset();
-    return x < insets.left || x > width - insets.right;
+    if (x < insets.left) return "left";
+    if (x > width - insets.right) return "right";
+    return null;
   };
+
+  const isSliceDetached = (slice: SliceState): boolean =>
+    sliceDetachedSide(slice) !== null;
 
   return (
     <Show
@@ -261,6 +272,7 @@ export const PanafallProvider: ParentComponent<{
           visibleInsets,
           settledInsets,
           isSliceDetached,
+          sliceDetachedSide,
           dragOffset,
           setDragOffset,
           xToFreq,

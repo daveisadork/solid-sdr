@@ -8,12 +8,24 @@ import {
   onCleanup,
   Show,
 } from "solid-js";
-import type { PanadapterState, WaterfallState } from "~/context/flexradio";
+import useFlexRadio, {
+  type PanadapterState,
+  type WaterfallState,
+} from "~/context/flexradio";
 import { usePanafall } from "~/context/panafall";
 import { usePreferences } from "~/context/preferences";
 import { useRuntime } from "~/context/runtime";
 import { roundToDevicePixels } from "~/lib/utils";
 import { LinearScale } from "../linear-scale";
+
+/**
+ * Waterfall history buffers, keyed by waterfall stream id. Module-scoped so
+ * history survives component remounts — adding or removing a panafall
+ * reshapes the layout tree and remounts every cell, which must not wipe the
+ * surviving panafalls' waterfalls. Entries for closed streams are pruned on
+ * the next mount.
+ */
+const historyBuffers = new Map<string, OffscreenCanvas>();
 
 export function Waterfall(props: {
   waterfall: WaterfallState;
@@ -23,8 +35,23 @@ export function Waterfall(props: {
   const { setRuntime } = useRuntime();
   const { preferences } = usePreferences();
   const { mhzToPx } = usePanafall();
+  const { state } = useFlexRadio();
 
-  const [canvasWidth, setCanvasWidth] = createSignal(1);
+  // Reclaim this stream's history buffer if it exists (cell remount), and
+  // drop buffers whose streams have closed.
+  for (const id of historyBuffers.keys()) {
+    if (!state.status.waterfall[id]) historyBuffers.delete(id);
+  }
+  const cachedOffscreen = historyBuffers.get(props.waterfall.streamId);
+  const offscreen =
+    cachedOffscreen ?? new OffscreenCanvas(1, window.screen.height);
+  if (!cachedOffscreen) {
+    historyBuffers.set(props.waterfall.streamId, offscreen);
+  }
+
+  const [canvasWidth, setCanvasWidth] = createSignal(
+    Math.max(1, offscreen.width),
+  );
   const [binBandwidth, setBinBandwidth] = createSignal(1);
   const [canvasRef, setCanvasRef] = createSignal<HTMLCanvasElement>();
   const [wrapper, setWrapper] = createSignal<HTMLDivElement>();
@@ -57,9 +84,9 @@ export function Waterfall(props: {
   // Opaque mode is partly a "my device is too slow for glass" preference, so
   // it deliberately keeps the cheap panel-sized canvas and accepts that the
   // split drag erases history. Both are intentional tradeoffs.
-  const SCREEN_CANVAS_HEIGHT = Math.max(window.screen.height, 1080);
-  const [canvasHeight, setCanvasHeight] = createSignal(1);
-  const offscreen = new OffscreenCanvas(1, SCREEN_CANVAS_HEIGHT);
+  const [canvasHeight, setCanvasHeight] = createSignal(
+    offscreen.width > 1 ? offscreen.height : 1,
+  );
 
   const frameTimes: number[] = [];
 
@@ -154,7 +181,7 @@ export function Waterfall(props: {
 
   const targetCanvasHeight = createMemo(() =>
     preferences.enableTransparencyEffects
-      ? SCREEN_CANVAS_HEIGHT
+      ? window.screen.height
       : wrapperSize.height,
   );
 
@@ -207,6 +234,12 @@ export function Waterfall(props: {
       paintScheduled = false;
       screenCtx.drawImage(offscreen, 0, 0, canvas.width, canvas.height);
     };
+
+    // Repaint reclaimed history right away after a cell remount instead of
+    // waiting for the next waterfall frame.
+    if (offscreen.width > 1) {
+      requestAnimationFrame(paint);
+    }
 
     return (packet: VitaWaterfallPacket) => {
       const tile = packet.tile;

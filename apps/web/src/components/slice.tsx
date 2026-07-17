@@ -190,6 +190,7 @@ const Triangle: Component<ComponentProps<"div">> = (props) => {
 export function DetachedSlice(props: {
   slice: SliceState;
   pan: PanadapterState;
+  side: "left" | "right";
 }) {
   const { radio } = useFlexRadio();
   const { panadapterController } = usePanafall();
@@ -200,8 +201,7 @@ export function DetachedSlice(props: {
       variant="outline"
       class="flex p-2 font-extrabold font-mono items-center z-10 pointer-events-auto text-shadow-md text-shadow-background gap-1 [&_svg]:size-8 hover:bg-muted border-none opacity-50"
       classList={{
-        "flex-row-reverse":
-          props.slice.frequencyMHz > props.pan.centerFrequencyMHz,
+        "flex-row-reverse": props.side === "right",
       }}
       onClick={() => {
         panadapterController()?.setCenterFrequency(props.slice.frequencyMHz);
@@ -210,7 +210,7 @@ export function DetachedSlice(props: {
     >
       <div class="flex w-3.5 max-w-3.5 justify-center">
         <Show
-          when={props.slice.frequencyMHz < props.pan.centerFrequencyMHz}
+          when={props.side === "left"}
           fallback={<MaterialSymbolsChevronRight />}
         >
           <MaterialSymbolsChevronLeft />
@@ -235,30 +235,30 @@ export function DetachedSlices(props: {
   pan: PanadapterState;
   slices: SliceState[];
 }) {
-  const { isSliceDetached } = usePanafall();
+  const { sliceDetachedSide } = usePanafall();
   return (
     <div class="flex absolute inset-0 pt-detached-clearance px-2 pointer-events-none">
       <div class="flex flex-col gap-1">
         <For
           each={props.slices.filter(
-            (slice) =>
-              isSliceDetached(slice) &&
-              slice.frequencyMHz < props.pan.centerFrequencyMHz,
+            (slice) => sliceDetachedSide(slice) === "left",
           )}
         >
-          {(slice) => <DetachedSlice slice={slice} pan={props.pan} />}
+          {(slice) => (
+            <DetachedSlice slice={slice} pan={props.pan} side="left" />
+          )}
         </For>
       </div>
       <div class="grow" />
       <div class="flex flex-col gap-1">
         <For
           each={props.slices.filter(
-            (slice) =>
-              isSliceDetached(slice) &&
-              slice.frequencyMHz > props.pan.centerFrequencyMHz,
+            (slice) => sliceDetachedSide(slice) === "right",
           )}
         >
-          {(slice) => <DetachedSlice slice={slice} pan={props.pan} />}
+          {(slice) => (
+            <DetachedSlice slice={slice} pan={props.pan} side="right" />
+          )}
         </For>
       </div>
     </div>

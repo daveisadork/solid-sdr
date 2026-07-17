@@ -35,7 +35,7 @@ import useFlexRadio, {
 import { usePanafall } from "~/context/panafall";
 import { type SliceTxMeter, usePreferences } from "~/context/preferences";
 import { useRuntime } from "~/context/runtime";
-import { cn, degToRad, radToDeg, roundToDevicePixels } from "~/lib/utils";
+import { cn, degToRad, radToDeg } from "~/lib/utils";
 import MaterialSymbolsChevronLeft from "~icons/material-symbols/chevron-left";
 import MaterialSymbolsChevronRight from "~icons/material-symbols/chevron-right";
 import MdiLock from "~icons/material-symbols/lock-open-circle-outline";
@@ -1397,18 +1397,17 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
     visibleInsets,
     settledInsets,
     isSliceDetached,
-    dragOffset,
+    sliceAnchorX,
+    visualAnchorX,
     panadapterWrapperSize,
     panafallPortalRef,
   } = usePanafall();
   const sliceController = createMemo(() => radio()?.slice(props.slice.id));
-  const [offset, setOffset] = createSignal(0);
   const [flag, setFlag] = createSignal<HTMLElement>();
   const [filterWidth, setFilterWidth] = createSignal(0);
   const [filterOffset, setFilterOffset] = createSignal(0);
   const [txFilterWidth, setTxFilterWidth] = createSignal(0);
   const [txFilterOffset, setTxFilterOffset] = createSignal(0);
-  const [flagSide, setFlagSide] = createSignal<"left" | "right">("left");
   const [dragState, setDragState] = createStore({
     dragging: false,
     originX: 0,
@@ -1465,42 +1464,34 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
     }
   });
 
-  createEffect(() => {
-    // Read the geometry unconditionally BEFORE any early return: a Solid
-    // effect only tracks the signals its latest run actually read, so a run
-    // that returned early would otherwise stop tracking these and the flag
-    // would go deaf to mid-drag position changes.
+  // Effect-mirrored so flagSide never pairs a new center frequency with the
+  // not-yet-rebased dragOffset (rebasing happens in a Panafall effect) —
+  // that transient would latch a spurious side flip.
+  const [anchorX, setAnchorX] = createSignal(0);
+  createEffect(() => setAnchorX(visualAnchorX(props.slice)));
+
+  // Hysteresis reducer: keeps the current side until the flag would poke past
+  // a visible edge, then flips to whichever side has more room.
+  const flagSide = createMemo<"left" | "right">((side) => {
+    if (props.slice.diversityParent) return "left";
+    if (props.slice.diversityChild) return "right";
+
+    if (splitPartner()?.frequencyMHz > props.slice.frequencyMHz) return "left";
+    if (splitPartner()?.frequencyMHz < props.slice.frequencyMHz) return "right";
+
     const width = panadapterWrapperSize.width ?? 0;
+    if (!width) return side;
     const insets = settledInsets();
-    const anchorX = offset() + dragOffset();
+    const x = anchorX();
     const flagWidth = flagSize.width ?? 0;
-    const side = flagSide();
-
-    if (props.slice.diversityParent) {
-      return setFlagSide("left");
-    }
-    if (props.slice.diversityChild) {
-      return setFlagSide("right");
-    }
-
-    if (splitPartner()?.frequencyMHz > props.slice.frequencyMHz) {
-      return setFlagSide("left");
-    }
-
-    if (splitPartner()?.frequencyMHz < props.slice.frequencyMHz) {
-      return setFlagSide("right");
-    }
-
-    if (!width) return;
     const visRight = width - insets.right;
-    const flagLeft = side === "left" ? anchorX - flagWidth : anchorX;
-    const flagRight = side === "left" ? anchorX : anchorX + flagWidth;
+    const flagLeft = side === "left" ? x - flagWidth : x;
+    const flagRight = side === "left" ? x : x + flagWidth;
     if (flagLeft < insets.left || flagRight > visRight) {
-      setFlagSide(
-        visRight - anchorX >= anchorX - insets.left ? "right" : "left",
-      );
+      return visRight - x >= x - insets.left ? "right" : "left";
     }
-  });
+    return side;
+  }, "left");
 
   createPointerListeners({
     onMove({ x }) {
@@ -1587,12 +1578,6 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
             : txFilterLow) / 1e6,
         ),
       );
-      setOffset(
-        roundToDevicePixels(
-          freqToX((diversityParent() ?? props.slice).frequencyMHz) +
-            preferences.panadapterOffset,
-        ),
-      );
     });
   });
 
@@ -1646,7 +1631,7 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
           "pointer-events-auto": !props.slice.diversityChild,
         }}
         style={{
-          "--slice-offset": `${offset()}px`,
+          "--slice-offset": `${sliceAnchorX(props.slice)}px`,
         }}
         onClick={makeActive}
       >
@@ -1731,7 +1716,7 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
               "z-10": !isActive(),
             }}
             style={{
-              "--flag-offset": `calc(var(--drag-offset) + ${offset()}px)`,
+              "--flag-offset": `calc(var(--drag-offset) + ${sliceAnchorX(props.slice)}px)`,
             }}
           >
             {/* biome-ignore lint/a11y/noStaticElementInteractions: pointer-events-none panel; onMouseDown only stops propagation from children, not user interaction */}

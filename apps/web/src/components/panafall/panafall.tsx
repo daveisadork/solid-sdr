@@ -121,7 +121,6 @@ export function Panafall(props: { index: number }) {
     downX: 0,
     originX: 0,
     originFreq: 0,
-    offset: 0,
   });
   const pos = createMousePosition(clickRef);
   const windowSize = createWindowSize();
@@ -142,16 +141,12 @@ export function Panafall(props: { index: number }) {
     panadapterWrapperSize,
     setPanafallPortalRef,
     panafallPortalRef,
+    dragOffset,
     setDragOffset,
   } = usePanafall();
 
   /** Cell-local mouse x, converted once per position change. */
   const cellPosX = () => clientXToCellX(pos.x);
-
-  // Mirror the transient drag translate into the context so detach/flag math
-  // tracks the visual position mid-drag (freqToX lags it while the debounced
-  // center-frequency update is held off by pointer movement).
-  createEffect(() => setDragOffset(dragState.offset));
 
   const { dispatch } = useControls();
 
@@ -161,13 +156,15 @@ export function Panafall(props: { index: number }) {
         windowSize.width !== lastSize.width ||
         windowSize.height !== lastSize.height
       ) {
-        setDragState({
-          down: false,
-          dragging: false,
-          downX: 0,
-          originX: 0,
-          originFreq: 0,
-          offset: 0,
+        batch(() => {
+          setDragState({
+            down: false,
+            dragging: false,
+            downX: 0,
+            originX: 0,
+            originFreq: 0,
+          });
+          setDragOffset(0);
         });
       }
       return { ...windowSize };
@@ -282,7 +279,7 @@ export function Panafall(props: { index: number }) {
       const newOffset = clientXToCellX(event.x) - dragState.originX;
       const freq = dragState.originFreq - pxToMHz(newOffset);
       if (preferences.smoothScroll) {
-        setDragState("offset", newOffset);
+        setDragOffset(newOffset);
       }
       setPanCenter(freq, preferences.smoothScroll);
     },
@@ -291,13 +288,13 @@ export function Panafall(props: { index: number }) {
   });
 
   const updateScroll = (prevCenter: number, newCenter: number) => {
-    if (dragState.offset === 0) {
+    if (dragOffset() === 0) {
       return;
     }
     const deltaPx = mhzToPx(newCenter - prevCenter);
     let offset =
       preferences.smoothScroll && dragState.down
-        ? Math.round(dragState.offset + deltaPx)
+        ? Math.round(dragOffset() + deltaPx)
         : 0;
     let originX = dragState.down ? dragState.originX - deltaPx : 0;
     if (Math.abs(deltaPx) > (panadapterWrapperSize.width ?? 0)) {
@@ -305,7 +302,10 @@ export function Panafall(props: { index: number }) {
       offset = 0;
       originX = (panadapterWrapperSize.width ?? 0) / 2;
     }
-    setDragState({ offset, originX, originFreq: newCenter });
+    batch(() => {
+      setDragOffset(offset);
+      setDragState({ originX, originFreq: newCenter });
+    });
   };
 
   createEffect((prev?: { center?: number; pxPerMHz?: number }) => {
@@ -314,7 +314,7 @@ export function Panafall(props: { index: number }) {
     const newCenter = panadapter()?.centerFrequencyMHz;
     if (prevPxPerMHz !== pxPerMHz()) {
       // bandwidth changed or screen resize
-      setDragState("offset", 0);
+      setDragOffset(0);
     } else if (prevCenter && newCenter && prevCenter !== newCenter) {
       updateScroll(prevCenter, newCenter);
     }
@@ -327,7 +327,7 @@ export function Panafall(props: { index: number }) {
         class="absolute inset-0 overflow-visible bg-background"
         ref={setPanafallPortalRef}
         style={{
-          "--drag-offset": `${dragState.offset}px`,
+          "--drag-offset": `${dragOffset()}px`,
         }}
       >
         <Show when={panadapter()}>

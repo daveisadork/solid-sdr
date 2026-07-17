@@ -22,6 +22,7 @@ import useFlexRadio, {
   type SpotState,
   type WaterfallState,
 } from "./flexradio";
+import { roundToDevicePixels } from "~/lib/utils";
 import { usePreferences } from "./preferences";
 
 export type PanafallSpot = SpotState & {
@@ -70,8 +71,6 @@ const PanafallContext = createContext<{
   panadapterWrapperSize: ReturnType<typeof createElementSize>;
   /** Controller for sending commands to the panadapter (pan, zoom, etc.). */
   panadapterController: Accessor<PanadapterController>;
-  /** Which viewport edges this cell touches in the layout tree. */
-  cellEdges: Accessor<CellEdges>;
   /** Pixels per MHz — how many pixels represent one MHz of bandwidth. */
   pxPerMHz: Accessor<number>;
   /** Converts a pixel width to a frequency width in MHz. */
@@ -114,10 +113,25 @@ const PanafallContext = createContext<{
    */
   sliceDetachedSide: (slice: SliceState) => "left" | "right" | null;
   /**
-   * The transient pan-drag translate (--drag-offset), in px. During a
-   * smooth-scroll drag the debounced center-frequency update holds off while
-   * the pointer keeps moving, so freqToX alone lags the visual position by
-   * this amount — detach/flag math must add it to flip mid-drag.
+   * Cell-local x of the slice's anchor line, rounded to device pixels
+   * (diversity children anchor to their parent). Layout-space: excludes the
+   * transient pan-drag translate, which CSS applies via --drag-offset — use
+   * this for values that feed CSS-translated elements.
+   */
+  sliceAnchorX: (slice: SliceState) => number;
+  /**
+   * Where the slice's anchor line is on screen right now: `sliceAnchorX` plus
+   * the transient pan-drag translate (--drag-offset). During a smooth-scroll
+   * drag the debounced center-frequency update holds off while the pointer
+   * keeps moving, so freqToX alone lags the visual position. All JS position
+   * math (detach, flag-side) must use this rather than reading the drag
+   * offset directly.
+   */
+  visualAnchorX: (slice: SliceState) => number;
+  /**
+   * The transient pan-drag translate, in px. The pan drag machinery owns this
+   * signal: it writes it via `setDragOffset` and renders it as --drag-offset.
+   * Position math must go through `visualAnchorX` instead of reading it.
    */
   dragOffset: Accessor<number>;
   setDragOffset: (px: number) => void;
@@ -214,19 +228,22 @@ export const PanafallProvider: ParentComponent<{
 
   const [dragOffset, setDragOffset] = createSignal(0);
 
-  /** Cell-local x of the slice's anchor line (diversity children anchor to their parent). */
   const sliceAnchorX = (slice: SliceState) => {
     const target = slice.diversityChild
       ? (state.status.slice[slice.diversityIndex.toString()] ?? slice)
       : slice;
-    return freqToX(target.frequencyMHz) + preferences.panadapterOffset;
+    return roundToDevicePixels(
+      freqToX(target.frequencyMHz) + preferences.panadapterOffset,
+    );
   };
+
+  const visualAnchorX = (slice: SliceState) => sliceAnchorX(slice) + dragOffset();
 
   const sliceDetachedSide = (slice: SliceState): "left" | "right" | null => {
     const width = panadapterWrapperSize.width ?? 0;
     if (!width) return null;
     const insets = settledInsets();
-    const x = sliceAnchorX(slice) + dragOffset();
+    const x = visualAnchorX(slice);
     if (x < insets.left) return "left";
     if (x > width - insets.right) return "right";
     return null;
@@ -255,7 +272,6 @@ export const PanafallProvider: ParentComponent<{
           setPanadapterWrapper,
           panadapterWrapperSize,
           panadapterController,
-          cellEdges,
           pxPerMHz,
           pxToMHz,
           setPanafallPortalRef,
@@ -273,6 +289,8 @@ export const PanafallProvider: ParentComponent<{
           settledInsets,
           isSliceDetached,
           sliceDetachedSide,
+          sliceAnchorX,
+          visualAnchorX,
           dragOffset,
           setDragOffset,
           xToFreq,

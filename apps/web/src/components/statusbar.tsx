@@ -103,7 +103,7 @@ function AddPanafallButton() {
         <Button
           disabled={disabled()}
           onClick={create}
-          class="size-10 not-pointer-coarse:size-5 aspect-square disabled:opacity-50"
+          class="size-control aspect-square disabled:opacity-50"
         >
           <MaterialSymbolsAddChartOutline class="size-full" />
         </Button>
@@ -113,7 +113,7 @@ function AddPanafallButton() {
         <DropdownMenuTrigger
           as={Button}
           disabled={disabled()}
-          class="size-10 not-pointer-coarse:size-5 aspect-square disabled:opacity-50"
+          class="size-control aspect-square disabled:opacity-50"
           aria-label="Add panadapter"
         >
           <MaterialSymbolsAddChartOutline class="size-full" />
@@ -155,7 +155,7 @@ function RemoteAudioToggle() {
 
   return (
     <ToggleButton
-      class="size-10 not-pointer-coarse:size-5 aspect-square"
+      class="size-control aspect-square"
       classList={{
         "text-error-foreground":
           preferences.remoteAudio.rx.enabled && audioPermission() === "denied",
@@ -202,7 +202,7 @@ function NetworkStatus() {
       <HoverCardTrigger as={"div"} class="flex gap-1 items-center font-mono">
         <Dynamic
           component={qualityIcons[runtime.network.overall.quality]}
-          class="size-10 not-pointer-coarse:size-5"
+          class="size-control"
           classList={{
             "text-yellow-500": runtime.network.overall.quality === "good",
             "text-orange-500": runtime.network.overall.quality === "fair",
@@ -273,7 +273,7 @@ export function StatusBar() {
 
   return (
     <div
-      class="absolute inset-x-0 bottom-0 h-(--statusbar-height) flex shrink-0 items-center w-full gap-4 px-3 not-sm:justify-around text-sm font-mono select-none z-(--z-chrome) fancy-bg-background"
+      class="absolute inset-x-0 bottom-0 h-statusbar flex shrink-0 items-center w-full gap-4 py-2 px-3 not-sm:justify-around text-sm font-mono select-none z-(--z-chrome) fancy-bg-background"
       classList={{
         "border-t": !preferences.enableTransparencyEffects,
       }}

@@ -8,7 +8,7 @@ import {
   ColorModeScript,
   createLocalStorageManager,
 } from "@kobalte/core/color-mode";
-import { onMount, Show } from "solid-js";
+import { Show } from "solid-js";
 import BaselineViewSidebar from "~icons/ic/baseline-view-sidebar";
 import MaterialSymbolsOpenInNew from "~icons/material-symbols/open-in-new";
 import { DebugBanner } from "./components/debug-mode/banner";
@@ -26,18 +26,10 @@ import { PanafallLayoutProvider } from "./context/panafall-layout";
 import { PreferencesProvider, usePreferences } from "./context/preferences";
 import { RtcProvider } from "./context/rtc";
 import { RuntimeProvider } from "./context/runtime";
-import { layoutCssVars } from "./lib/layout-constants";
 
 function AppInner() {
   const { preferences, setPreferences } = usePreferences();
   const { radio } = useFlexRadio();
-  onMount(() => {
-    // On the root element (not this component) so elements portaled to
-    // document.body resolve the same tokens.
-    for (const [name, value] of Object.entries(layoutCssVars())) {
-      document.documentElement.style.setProperty(name, value);
-    }
-  });
   return (
     <ChromeInsetsProvider>
       <PanafallLayoutProvider>
@@ -51,7 +43,7 @@ function AppInner() {
             <Panafalls />
             <RadioSidebar />
             <Show when={radio()}>
-              <SidebarTrigger class="z-(--z-chrome) absolute right-(--control-inset) top-(--control-inset) select-none aspect-square fancy-bg-background size-(--control-size) not-pointer-coarse:size-5 pointer-coarse:border pointer-coarse:right-2 pointer-coarse:top-2">
+              <SidebarTrigger class="z-(--z-chrome) absolute right-control-inset top-control-inset select-none aspect-square fancy-bg-background size-control pointer-coarse:border pointer-coarse:right-2 pointer-coarse:top-2">
                 <BaselineViewSidebar />
               </SidebarTrigger>
             </Show>

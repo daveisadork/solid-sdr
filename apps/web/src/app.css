@@ -305,6 +305,24 @@
   --text-trim-start: trim-start;
   --text-trim-end: trim-end;
   --text-edge-cap-alphabetic: cap alphabetic;
+
+  /* Panafall/chrome layout tokens (top-control-inset, w-scale-gutter, ...). */
+  --spacing-control: --spacing(
+    5
+  ); /* control button size; touch-sized on coarse pointers (override below) */
+  --spacing-control-inset: --spacing(
+    4
+  ); /* floating control buttons inset from cell corners */
+  --spacing-detached-clearance: --spacing(
+    16
+  ); /* clears the control-inset + size-10 floating buttons + --spacing(2) */
+  --spacing-scale-gutter: --spacing(10); /* right-edge dBm/time scale gutter */
+  --spacing-freq-scale: --spacing(
+    4
+  ); /* frequency scale height / overlay offset above waterfall */
+  --spacing-statusbar: --spacing(
+    9
+  ); /* statusbar height; taller on touch (media override below) */
 }
 
 @layer base {
@@ -507,8 +525,33 @@ body,
 }
 
 :root {
+  /* Keep the 200ms in sync with CHROME_TRANSITION_MS (context/chrome-insets.tsx)
+   * and the sidebar's duration-200 classes (ui/sidebar.tsx). */
   transition:
-    --inset-left var(--layout-duration, 200ms) linear,
-    --inset-right var(--layout-duration, 200ms) linear,
-    --inset-bottom var(--layout-duration, 200ms) linear;
+    --inset-left 200ms linear,
+    --inset-right 200ms linear,
+    --inset-bottom 200ms linear;
+
+  --inset-bottom: var(--spacing-statusbar);
+
+  /*
+   * Stacking scale. Cell-scoped layers stack inside each cell's isolated
+   * context; split handles and chrome stack at app level.
+   */
+  --z-cell-graphics: 0;
+  --z-cell-overlays: 10;
+  --z-cell-flags: 20;
+  --z-cell-controls: 30;
+  --z-split-handle: 40;
+  --z-chrome: 50;
+  --z-modal: 60;
+}
+
+/* Touch devices intentionally get larger controls (size-control) and a larger
+ * statusbar to hold them. The bottom chrome inset follows via --inset-bottom. */
+@media (pointer: coarse) {
+  :root {
+    --spacing-control: --spacing(10);
+    --spacing-statusbar: --spacing(14);
+  }
 }

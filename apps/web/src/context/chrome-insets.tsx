@@ -6,15 +6,23 @@ import {
   type ParentComponent,
   useContext,
 } from "solid-js";
-import { useIsMobile } from "~/components/ui/sidebar";
-import { LAYOUT } from "~/lib/layout-constants";
+import { SIDEBAR_WIDTH_PX, useIsMobile } from "~/components/ui/sidebar";
 import { usePreferences } from "./preferences";
 
 /**
+ * Duration of the chrome squeeze/slide animations. Keep in sync with the
+ * :root --inset-* transitions in app.css and the sidebar's duration-200
+ * classes in ui/sidebar.tsx.
+ */
+export const CHROME_TRANSITION_MS = 200;
+
+/**
  * App-chrome insets derived from known state — no measurement. Published as
- * --inset-left/right/bottom on the root element; those are registered via
- * @property in app.css with a transition, so every consumer (sidebar panel,
- * cell padding) reads the identical interpolated value mid-animation.
+ * --inset-left/right on the root element; those are registered via @property
+ * in app.css with a transition, so every consumer (sidebar panel, cell
+ * padding) reads the identical interpolated value mid-animation.
+ * --inset-bottom is defined in app.css (statusbar height is a pointer-type
+ * media query, not JS state).
  *
  * JS consumers (flag/detach math) read the accessors, which step to the final
  * value immediately; the per-panafall settledInsets debounce handles the
@@ -23,7 +31,6 @@ import { usePreferences } from "./preferences";
 const ChromeInsetsContext = createContext<{
   left: Accessor<number>;
   right: Accessor<number>;
-  bottom: Accessor<number>;
 }>();
 
 export const ChromeInsetsProvider: ParentComponent = (props) => {
@@ -34,19 +41,17 @@ export const ChromeInsetsProvider: ParentComponent = (props) => {
   const left = () => 0;
   // On mobile the radio sidebar is a Sheet overlay and never squeezed content.
   const right = createMemo(() =>
-    !isMobile() && preferences.radioPanelOpen ? LAYOUT.sidebarWidth : 0,
+    !isMobile() && preferences.radioPanelOpen ? SIDEBAR_WIDTH_PX : 0,
   );
-  const bottom = () => LAYOUT.statusbarHeight;
 
   createEffect(() => {
     const root = document.documentElement.style;
     root.setProperty("--inset-left", `${left()}px`);
     root.setProperty("--inset-right", `${right()}px`);
-    root.setProperty("--inset-bottom", `${bottom()}px`);
   });
 
   return (
-    <ChromeInsetsContext.Provider value={{ left, right, bottom }}>
+    <ChromeInsetsContext.Provider value={{ left, right }}>
       {props.children}
     </ChromeInsetsContext.Provider>
   );

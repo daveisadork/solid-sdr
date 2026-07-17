@@ -237,7 +237,7 @@ export function DetachedSlices(props: {
 }) {
   const { isSliceDetached } = usePanafall();
   return (
-    <div class="flex absolute inset-0 pt-(--detached-clearance) px-2 pointer-events-none">
+    <div class="flex absolute inset-0 pt-detached-clearance px-2 pointer-events-none">
       <div class="flex flex-col gap-1">
         <For
           each={props.slices.filter(
@@ -1397,6 +1397,7 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
     visibleInsets,
     settledInsets,
     isSliceDetached,
+    dragOffset,
     panadapterWrapperSize,
     panafallPortalRef,
   } = usePanafall();
@@ -1465,6 +1466,16 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
   });
 
   createEffect(() => {
+    // Read the geometry unconditionally BEFORE any early return: a Solid
+    // effect only tracks the signals its latest run actually read, so a run
+    // that returned early would otherwise stop tracking these and the flag
+    // would go deaf to mid-drag position changes.
+    const width = panadapterWrapperSize.width ?? 0;
+    const insets = settledInsets();
+    const anchorX = offset() + dragOffset();
+    const flagWidth = flagSize.width ?? 0;
+    const side = flagSide();
+
     if (props.slice.diversityParent) {
       return setFlagSide("left");
     }
@@ -1480,17 +1491,11 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
       return setFlagSide("right");
     }
 
-    const width = panadapterWrapperSize.width ?? 0;
     if (!width) return;
-    const insets = settledInsets();
     const visRight = width - insets.right;
-    const anchorX = offset();
-    const flagWidth = flagSize.width ?? 0;
-    const overflows =
-      flagSide() === "left"
-        ? anchorX - flagWidth < insets.left
-        : anchorX + flagWidth > visRight;
-    if (overflows) {
+    const flagLeft = side === "left" ? anchorX - flagWidth : anchorX;
+    const flagRight = side === "left" ? anchorX : anchorX + flagWidth;
+    if (flagLeft < insets.left || flagRight > visRight) {
       setFlagSide(
         visRight - anchorX >= anchorX - insets.left ? "right" : "left",
       );

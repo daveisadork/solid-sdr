@@ -1,5 +1,33 @@
 import { type ClassValue, clsx } from "clsx";
-import { twMerge } from "tailwind-merge";
+import { extendTailwindMerge } from "tailwind-merge";
+
+// Teach tailwind-merge the custom utilities from app.css:
+// - the --spacing-* theme tokens, so classes like size-control correctly
+//   override a variant's size-10 (and vice versa) instead of both being kept
+// - the fancy-bg-* utility, so a later fancy-bg-X replaces an earlier one and
+//   also strips plain bg-*/backdrop-blur-* classes (it owns both properties).
+//   The reverse direction is deliberately not declared: a later plain bg-*
+//   does not remove an earlier fancy-bg-*.
+const twMerge = extendTailwindMerge<"fancy-bg">({
+  extend: {
+    theme: {
+      spacing: [
+        "control",
+        "control-inset",
+        "detached-clearance",
+        "scale-gutter",
+        "freq-scale",
+        "statusbar",
+      ],
+    },
+    classGroups: {
+      "fancy-bg": [{ "fancy-bg": [() => true] }],
+    },
+    conflictingClassGroups: {
+      "fancy-bg": ["bg-color", "backdrop-blur"],
+    },
+  },
+});
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));

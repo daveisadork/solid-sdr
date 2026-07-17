@@ -252,7 +252,7 @@ export function Panadapter(props: {
       <DisplayMarkers />
       <div class="flex absolute top-0 left-(--cell-inset-left) h-(--panadapter-available-height) w-(--cell-visible-width)">
         <div class="relative size-full" ref={setPanadapterControlsRef}>
-          <div class="flex pointer-events-none absolute top-(--control-inset) right-(--control-inset) text-fg text-xl font-bold opacity-50 gap-4">
+          <div class="flex pointer-events-none absolute top-control-inset right-control-inset text-fg text-xl font-bold opacity-50 gap-4">
             <div>{props.pan.preampSetting}</div>
             <Show when={props.pan.xvtr}>
               <div>{props.pan.xvtr}</div>
@@ -263,7 +263,7 @@ export function Panadapter(props: {
           </div>
           <DetachedSlices pan={props.pan} slices={slices()} />
         </div>
-        <div class="grow-0 shrink-0 w-(--scale-gutter)">
+        <div class="grow-0 shrink-0 w-scale-gutter">
           <div class="relative h-full px-1.5 flex items-center">
             <LinearScale
               min={props.pan.lowDbm}

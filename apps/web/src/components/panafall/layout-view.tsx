@@ -21,7 +21,7 @@ type CellNode = Extract<LayoutNode, { kind: "cell" }>;
 
 function LayoutSplitHandle() {
   return (
-    <ResizableHandle class="z-(--z-split-handle) fancy-bg-border w-0.5 data-[orientation=vertical]:h-0.5 after:w-2 data-[orientation=vertical]:after:h-2 hover:bg-primary/60 data-active:bg-primary/60 transition-colors" />
+    <ResizableHandle class="z-(--z-split-handle) fancy-bg-border w-0.5 data-[orientation=vertical]:h-0.5 pointer-coarse:w-1.5 pointer-coarse:data-[orientation=vertical]:h-1.5 after:w-2 data-[orientation=vertical]:after:h-2 pointer-coarse:data-[orientation=horizontal]:after:w-8 pointer-coarse:data-[orientation=vertical]:after:h-8 hover:bg-primary/60 data-active:bg-primary/60 transition-colors" />
   );
 }
 
@@ -71,7 +71,7 @@ export function PanafallCell(props: { slot: SlotId; edges: CellEdges }) {
             <Switch>
               <Match when={preferences.panadapterSettingsStyle === "sidebar"}>
                 <PanafallSettingsSidebar />
-                <SidebarTrigger class="z-(--z-chrome) absolute left-(--control-inset) top-(--control-inset) select-none aspect-square fancy-bg-background size-(--control-size) not-pointer-coarse:size-5 pointer-coarse:border">
+                <SidebarTrigger class="z-(--z-chrome) absolute left-control-inset top-control-inset select-none aspect-square fancy-bg-background size-control pointer-coarse:border">
                   <BaselineDisplaySettings />
                 </SidebarTrigger>
               </Match>

@@ -717,7 +717,7 @@ export function PanSettings() {
             as={Button}
             size="xs"
             variant="ghost"
-            class="hover:bg-accent not-data-pressed:size-10 not-data-pressed:not-pointer-coarse:size-5 not-data-pressed:aspect-square"
+            class="hover:bg-accent not-data-pressed:size-control not-data-pressed:aspect-square"
             pressed={open()}
             onChange={setOpen}
           >

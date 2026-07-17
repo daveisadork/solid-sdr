@@ -70,7 +70,7 @@ export function PanafallButton(props: PanafallButtonProps) {
         size="icon"
         variant="ghost"
         class={cn(
-          "aspect-square fancy-bg-background not-pointer-coarse:size-5 pointer-coarse:border pointer-coarse:[&_svg]:size-6",
+          "aspect-square fancy-bg-background size-control pointer-coarse:border pointer-coarse:[&_svg]:size-6",
           local.class,
         )}
         {...others}
@@ -97,7 +97,7 @@ export function PanafallToggleButton(props: PanafallToggleButtonProps) {
         size="icon"
         variant="ghost"
         class={cn(
-          "aspect-square not-pointer-coarse:size-5 pointer-coarse:border fancy-bg-background data-pressed:fancy-bg-primary data-pressed:text-primary-foreground pointer-coarse:text-xl",
+          "aspect-square size-control pointer-coarse:border fancy-bg-background data-pressed:fancy-bg-primary data-pressed:text-primary-foreground pointer-coarse:text-xl",
           local.class,
         )}
         {...others}
@@ -142,10 +142,16 @@ export function Panafall(props: { index: number }) {
     panadapterWrapperSize,
     setPanafallPortalRef,
     panafallPortalRef,
+    setDragOffset,
   } = usePanafall();
 
   /** Cell-local mouse x, converted once per position change. */
   const cellPosX = () => clientXToCellX(pos.x);
+
+  // Mirror the transient drag translate into the context so detach/flag math
+  // tracks the visual position mid-drag (freqToX lags it while the debounced
+  // center-frequency update is held off by pointer movement).
+  createEffect(() => setDragOffset(dragState.offset));
 
   const { dispatch } = useControls();
 

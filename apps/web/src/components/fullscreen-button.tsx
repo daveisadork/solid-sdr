@@ -37,10 +37,7 @@ export function FullscreenButton(props: FullscreenButtonProps) {
       <Tooltip>
         <TooltipTrigger
           as={ToggleButton<"button">}
-          class={cn(
-            "aspect-square size-10 not-pointer-coarse:size-5 ",
-            local.class,
-          )}
+          class={cn("aspect-square size-control", local.class)}
           aria-label={label()}
           pressed={fullscreen()}
           onChange={setFullscreen}

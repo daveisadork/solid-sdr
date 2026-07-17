@@ -32,7 +32,7 @@ const UninstallButton = (props: { ctrl: WaveformController }) => {
     <Button
       size="icon"
       variant="destructive"
-      class="not-pointer-coarse:size-5"
+      class="size-control"
       disabled={working()}
       onClick={() => {
         setWorking(true);
@@ -50,7 +50,7 @@ const RestartButton = (props: { ctrl: WaveformController }) => {
   return (
     <Button
       size="icon"
-      class="not-pointer-coarse:size-5"
+      class="size-control"
       disabled={working()}
       onClick={() => {
         setWorking(true);

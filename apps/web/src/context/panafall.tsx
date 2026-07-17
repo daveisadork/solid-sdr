@@ -13,10 +13,9 @@ import {
   Show,
   useContext,
 } from "solid-js";
-import { LAYOUT } from "~/lib/layout-constants";
 import { ALL_EDGES, type CellEdges } from "~/lib/panafall-layout";
 import * as panMath from "~/lib/panafall-math";
-import { useChromeInsets } from "./chrome-insets";
+import { CHROME_TRANSITION_MS, useChromeInsets } from "./chrome-insets";
 import useFlexRadio, {
   type PanadapterState,
   type SliceState,
@@ -108,6 +107,14 @@ const PanafallContext = createContext<{
    * derived arithmetic, replaces the old sentinel rect observation.
    */
   isSliceDetached: (slice: SliceState) => boolean;
+  /**
+   * The transient pan-drag translate (--drag-offset), in px. During a
+   * smooth-scroll drag the debounced center-frequency update holds off while
+   * the pointer keeps moving, so freqToX alone lags the visual position by
+   * this amount — detach/flag math must add it to flip mid-drag.
+   */
+  dragOffset: Accessor<number>;
+  setDragOffset: (px: number) => void;
   /** Converts a cell-local x pixel position to an absolute frequency (MHz). */
   xToFreq: (x: number) => number;
 }>();
@@ -187,7 +194,7 @@ export const PanafallProvider: ParentComponent<{
   });
   const applySettledInsets = debounce(
     (insets: VisibleInsets) => setSettledInsets(insets),
-    LAYOUT.layoutDurationMs,
+    CHROME_TRANSITION_MS,
   );
   createEffect(() => applySettledInsets(visibleInsets()));
   onCleanup(() => applySettledInsets.clear());
@@ -198,6 +205,8 @@ export const PanafallProvider: ParentComponent<{
   const pxToMHz = (px: number) => panMath.pxToMHz(scale(), px);
   const xToFreq = (x: number) => panMath.xToFreq(scale(), x);
   const freqToX = (freq: number) => panMath.freqToX(scale(), freq);
+
+  const [dragOffset, setDragOffset] = createSignal(0);
 
   /** Cell-local x of the slice's anchor line (diversity children anchor to their parent). */
   const sliceAnchorX = (slice: SliceState) => {
@@ -211,7 +220,7 @@ export const PanafallProvider: ParentComponent<{
     const width = panadapterWrapperSize.width ?? 0;
     if (!width) return false;
     const insets = settledInsets();
-    const x = sliceAnchorX(slice);
+    const x = sliceAnchorX(slice) + dragOffset();
     return x < insets.left || x > width - insets.right;
   };
 
@@ -252,6 +261,8 @@ export const PanafallProvider: ParentComponent<{
           visibleInsets,
           settledInsets,
           isSliceDetached,
+          dragOffset,
+          setDragOffset,
           xToFreq,
         }}
       >

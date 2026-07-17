@@ -385,7 +385,7 @@ export function Waterfall(props: {
       <div class="absolute inset-y-0 left-(--cell-inset-left) w-(--cell-visible-width) pointer-events-none">
         <Show when={totalSeconds() > 0}>
           <div
-            class="pointer-events-none absolute top-0 right-0 h-(--canvas-height) w-(--scale-gutter)"
+            class="pointer-events-none absolute top-0 right-0 h-(--canvas-height) w-scale-gutter"
             style={{ "--canvas-height": `${canvasHeight()}px` }}
           >
             <div class="relative h-full px-1.5 flex items-center">

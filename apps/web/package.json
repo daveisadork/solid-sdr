@@ -16,8 +16,8 @@
   },
   "license": "MIT",
   "devDependencies": {
-    "@biomejs/biome": "2.5.4",
-    "@iconify/json": "^2.2.500",
+    "@biomejs/biome": "2.5.5",
+    "@iconify/json": "^2.2.503",
     "@repo/tailwind-config": "workspace:*",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^22.19.11",
@@ -28,7 +28,7 @@
     "typescript": "^5.9.3",
     "unplugin-icons": "^23.0.1",
     "vite": "^6.4.3",
-    "vite-plugin-solid": "^2.11.10"
+    "vite-plugin-solid": "^2.11.13"
   },
   "dependencies": {
     "@corvu/resizable": "^0.2.5",

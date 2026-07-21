@@ -322,7 +322,7 @@ export function Spots(props: { pan: PanadapterState }) {
 
   return (
     <div
-      class="absolute font-mono inset-0 bottom-freq-scale -translate-y-(--spots-position) z-20 pointer-events-none"
+      class="absolute font-mono inset-0 bottom-freq-scale -translate-y-(--spots-position) z-(--z-cell-flags) pointer-events-none"
       classList={{
         [FONT_SIZES[preferences.spots.fontSize]]: true,
       }}

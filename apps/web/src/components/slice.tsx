@@ -199,7 +199,7 @@ export function DetachedSlice(props: {
   return (
     <Button
       variant="outline"
-      class="flex p-2 font-extrabold font-mono items-center z-10 pointer-events-auto text-shadow-md text-shadow-background gap-1 [&_svg]:size-8 hover:bg-muted border-none opacity-50"
+      class="flex p-2 font-extrabold font-mono items-center z-(--z-cell-overlays) pointer-events-auto text-shadow-md text-shadow-background gap-1 [&_svg]:size-8 hover:bg-muted border-none opacity-50"
       classList={{
         "flex-row-reverse": props.side === "right",
       }}
@@ -1625,7 +1625,7 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
       {/* biome-ignore lint/a11y/noStaticElementInteractions: keyboard activation is handled via focus on child controls */
       /* biome-ignore lint/a11y/useKeyWithClickEvents: keyboard activation is handled via focus on child controls */}
       <div
-        class="absolute inset-y-0 translate-x-(--slice-offset) z-10"
+        class="absolute inset-y-0 translate-x-(--slice-offset) z-(--z-cell-overlays)"
         classList={{
           "translate-z-1": isActive(),
           "pointer-events-auto": !props.slice.diversityChild,
@@ -1712,8 +1712,8 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
           <div
             class="absolute top-0 left-0 w-0 max-w-0 translate-x-(--flag-offset) overflow-visible"
             classList={{
-              "z-20": isActive(),
-              "z-10": !isActive(),
+              "z-(--z-cell-flags)": isActive(),
+              "z-(--z-cell-overlays)": !isActive(),
             }}
             style={{
               "--flag-offset": `calc(var(--drag-offset) + ${sliceAnchorX(props.slice)}px)`,

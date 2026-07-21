@@ -686,7 +686,7 @@ export function Panafall(props: { index: number }) {
                 }
               >
                 <div
-                  class="absolute inset-y-0 w-px translate-x-(--cursor-x) pointer-events-none will-change-transform pointer-coarse:hidden z-50"
+                  class="absolute inset-y-0 w-px translate-x-(--cursor-x) pointer-events-none will-change-transform pointer-coarse:hidden z-(--z-chrome)"
                   classList={{
                     "backdrop-invert-100":
                       preferences.enableTransparencyEffects,
@@ -698,7 +698,7 @@ export function Panafall(props: { index: number }) {
                     "--cursor-y": `${pos.y}px`,
                   }}
                 >
-                  <div class="absolute border rounded-md fancy-bg-popover py-1 px-2 text-xs top-4 translate-y-(--cursor-y) pointer-events-none -translate-x-1/2 whitespace-nowrap font-mono z-50 shadow shadow-black">
+                  <div class="absolute border rounded-md fancy-bg-popover py-1 px-2 text-xs top-4 translate-y-(--cursor-y) pointer-events-none -translate-x-1/2 whitespace-nowrap font-mono z-(--z-chrome) shadow shadow-black">
                     {`${Math.round(xToFreq(cellPosX()) * 1_000_000).toLocaleString("de-DE")} Hz`}
                   </div>
                 </div>

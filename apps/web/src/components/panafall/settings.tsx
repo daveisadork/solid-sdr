@@ -699,7 +699,7 @@ export function PanSettings() {
   const { radio, state } = useFlexRadio();
 
   return (
-    <div class="absolute max-h-[calc(100%-var(--cell-inset-bottom,0px))] p-2 flex z-50 pointer-events-none">
+    <div class="absolute max-h-[calc(100%-var(--cell-inset-bottom,0px))] p-2 flex z-(--z-chrome) pointer-events-none">
       <div ref={setMenuRef}>
         <ToggleGroup
           class="grid grid-cols-1 gap-1 pointer-events-auto rounded-lg fancy-bg-card border shadow-black overflow-auto max-h-full"

@@ -1,0 +1,14 @@
+diff --git a/index.js b/index.js
+index 1021698ad48bce3465905a6ee3b779ea43d6538f..8e5903f1d72673199eacc572d69c7bb86d0879a4 100644
+--- a/index.js
++++ b/index.js
+@@ -150,8 +150,8 @@ module.exports = plugin(
+ 					...theme("opacity"),
+ 				}),
+ 				animationTranslate: ({ theme }) => ({
+-					DEFAULT: "100%",
+ 					...theme("translate"),
++					DEFAULT: "100%",
+ 				}),
+ 				animationScale: ({ theme }) => ({
+ 					DEFAULT: 0,

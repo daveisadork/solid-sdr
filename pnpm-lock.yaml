@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  tailwindcss-animate@1.0.7: 367a942b9e9491437953c4b6dde730a6685b460745ec2830a074c193af950e9a
+
 importers:
 
   .:
@@ -131,7 +134,7 @@ importers:
         version: 4.3.3
       tailwindcss-animate:
         specifier: ^1.0.7
-        version: 1.0.7(tailwindcss@4.3.3)
+        version: 1.0.7(patch_hash=367a942b9e9491437953c4b6dde730a6685b460745ec2830a074c193af950e9a)(tailwindcss@4.3.3)
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -3493,7 +3496,7 @@ snapshots:
 
   tailwind-merge@3.6.0: {}
 
-  tailwindcss-animate@1.0.7(tailwindcss@4.3.3):
+  tailwindcss-animate@1.0.7(patch_hash=367a942b9e9491437953c4b6dde730a6685b460745ec2830a074c193af950e9a)(tailwindcss@4.3.3):
     dependencies:
       tailwindcss: 4.3.3
 

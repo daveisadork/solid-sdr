@@ -24,3 +24,6 @@ minimumReleaseAgeExclude:
   - '@tailwindcss/oxide@4.3.3'
   - '@tailwindcss/vite@4.3.3'
   - tailwindcss@4.3.3
+
+patchedDependencies:
+  tailwindcss-animate@1.0.7: patches/tailwindcss-animate@1.0.7.patch

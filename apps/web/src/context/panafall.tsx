@@ -53,12 +53,31 @@ const PanafallContext = createContext<{
   activeSlice: Accessor<SliceState | undefined>;
   /** Converts a viewport clientX to a cell-local x. */
   clientXToCellX: (clientX: number) => number;
-  /** Converts an absolute frequency (MHz) to a cell-local x pixel position. */
+  /**
+   * Converts an absolute frequency (MHz) to a cell-local x pixel position.
+   * Math-space only (drag deltas, hit tests, xToFreq round-trips) — anything
+   * RENDERED at a frequency must use `freqToAnchorX` instead so it lands on a
+   * device pixel.
+   */
   freqToX: (freq: number) => number;
+  /**
+   * Device-pixel-aligned x for rendering anything anchored at a frequency.
+   * The single place frequency→CSS positioning is rounded — components must
+   * not layer their own rounding on top.
+   */
+  freqToAnchorX: (freq: number) => number;
   /** MHz represented by a single pixel — the inverse of `pxPerMHz`. */
   mhzPerPx: Accessor<number>;
-  /** Converts a frequency width in MHz to a pixel width. */
+  /**
+   * Converts a frequency width in MHz to a pixel width. Math-space only —
+   * rendered widths/offsets must use `mhzToAnchorPx`.
+   */
   mhzToPx: (mhz: number) => number;
+  /**
+   * Device-pixel-aligned pixel size for rendered widths and offsets derived
+   * from MHz spans.
+   */
+  mhzToAnchorPx: (mhz: number) => number;
   /** The current panadapter state object from the radio. */
   panadapter: Accessor<PanadapterState>;
   /** Sets the panadapter wrapper element so the context can track its size. */
@@ -134,6 +153,7 @@ const PanafallContext = createContext<{
    * Position math must go through `visualAnchorX` instead of reading it.
    */
   dragOffset: Accessor<number>;
+  /** Rounds to device pixels internally — callers pass raw pointer deltas. */
   setDragOffset: (px: number) => void;
   /** Converts a cell-local x pixel position to an absolute frequency (MHz). */
   xToFreq: (x: number) => number;
@@ -225,8 +245,11 @@ export const PanafallProvider: ParentComponent<{
   const pxToMHz = (px: number) => panMath.pxToMHz(scale(), px);
   const xToFreq = (x: number) => panMath.xToFreq(scale(), x);
   const freqToX = (freq: number) => panMath.freqToX(scale(), freq);
+  const freqToAnchorX = (freq: number) => roundToDevicePixels(freqToX(freq));
+  const mhzToAnchorPx = (mhz: number) => roundToDevicePixels(mhzToPx(mhz));
 
-  const [dragOffset, setDragOffset] = createSignal(0);
+  const [dragOffset, setDragOffsetRaw] = createSignal(0);
+  const setDragOffset = (px: number) => setDragOffsetRaw(roundToDevicePixels(px));
 
   const sliceAnchorX = (slice: SliceState) => {
     const target = slice.diversityChild
@@ -266,8 +289,10 @@ export const PanafallProvider: ParentComponent<{
           activeSlice,
           clientXToCellX,
           freqToX,
+          freqToAnchorX,
           mhzPerPx,
           mhzToPx,
+          mhzToAnchorPx,
           panadapter,
           setPanadapterWrapper,
           panadapterWrapperSize,

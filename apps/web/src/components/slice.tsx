@@ -1392,7 +1392,7 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
     pxToMHz,
     panadapterController,
     freqToX,
-    mhzToPx,
+    mhzToAnchorPx,
     clientXToCellX,
     visibleInsets,
     settledInsets,
@@ -1567,12 +1567,14 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
 
     batch(() => {
       setFilterWidth(
-        mhzToPx((props.slice.filterHighHz - props.slice.filterLowHz) / 1e6),
+        mhzToAnchorPx(
+          (props.slice.filterHighHz - props.slice.filterLowHz) / 1e6,
+        ),
       );
-      setFilterOffset(mhzToPx(props.slice.filterLowHz / 1e6));
-      setTxFilterWidth(mhzToPx((txFilterHigh - txFilterLow) / 1e6));
+      setFilterOffset(mhzToAnchorPx(props.slice.filterLowHz / 1e6));
+      setTxFilterWidth(mhzToAnchorPx((txFilterHigh - txFilterLow) / 1e6));
       setTxFilterOffset(
-        mhzToPx(
+        mhzToAnchorPx(
           (props.slice.mode === "RTTY"
             ? props.slice.rttyMarkHz + txFilterLow
             : txFilterLow) / 1e6,

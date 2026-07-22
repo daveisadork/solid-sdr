@@ -15,7 +15,6 @@ import useFlexRadio, {
 import { usePanafall } from "~/context/panafall";
 import { usePreferences } from "~/context/preferences";
 import { useRuntime } from "~/context/runtime";
-import { roundToDevicePixels } from "~/lib/utils";
 import { LinearScale } from "../linear-scale";
 
 /**
@@ -34,7 +33,7 @@ export function Waterfall(props: {
 }) {
   const { setRuntime } = useRuntime();
   const { preferences } = usePreferences();
-  const { mhzToPx } = usePanafall();
+  const { mhzToAnchorPx } = usePanafall();
   const { state } = useFlexRadio();
 
   // Reclaim this stream's history buffer if it exists (cell remount), and
@@ -397,7 +396,7 @@ export function Waterfall(props: {
   const offset = createMemo(() => {
     const centerMHz = lastCalculatedCenter() / 1_000_000;
     const offsetMHz = centerMHz - props.pan.centerFrequencyMHz;
-    return roundToDevicePixels(mhzToPx(offsetMHz));
+    return mhzToAnchorPx(offsetMHz);
   });
 
   return (

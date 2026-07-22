@@ -176,7 +176,7 @@ function SpotCluster(props: { layout: ClusterLayout; pan: PanadapterState }) {
 
 export function Spots(props: { pan: PanadapterState }) {
   const { spots, radio } = useFlexRadio();
-  const { freqToX } = usePanafall();
+  const { freqToAnchorX } = usePanafall();
   const { preferences } = usePreferences();
 
   const [zeroLenRef, setZeroLenRef] = createSignal<HTMLElement>();
@@ -223,7 +223,7 @@ export function Spots(props: { pan: PanadapterState }) {
     const nextLevels = new Map<string, number>();
 
     for (const spot of sorted) {
-      const x = freqToX(spot.rxFreqMHz);
+      const x = freqToAnchorX(spot.rxFreqMHz);
       const hw = estimateWidth(spot.callsign) / 2 + GAP_PX;
       const left = x - hw;
       const right = x + hw;

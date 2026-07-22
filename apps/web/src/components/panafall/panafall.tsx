@@ -294,7 +294,7 @@ export function Panafall(props: { index: number }) {
     const deltaPx = mhzToPx(newCenter - prevCenter);
     let offset =
       preferences.smoothScroll && dragState.down
-        ? Math.round(dragOffset() + deltaPx)
+        ? dragOffset() + deltaPx
         : 0;
     let originX = dragState.down ? dragState.originX - deltaPx : 0;
     if (Math.abs(deltaPx) > (panadapterWrapperSize.width ?? 0)) {

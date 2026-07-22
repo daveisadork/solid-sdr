@@ -17,7 +17,6 @@ import { Panafall } from "./panafall";
 import { PanafallSettingsSidebar, PanSettings } from "./settings";
 
 type SplitNode = Extract<LayoutNode, { kind: "split" }>;
-type CellNode = Extract<LayoutNode, { kind: "cell" }>;
 
 function LayoutSplitHandle() {
   return (
@@ -50,10 +49,9 @@ export function PanafallCell(props: { slot: SlotId; edges: CellEdges }) {
             }
             class="relative grow h-auto overflow-visible min-h-0 bg-transparent select-none"
             style={{
-              // Chrome insets for the viewport edges this cell touches, as
-              // var() references so the @property transition on --inset-*
-              // keeps cell content and sliding chrome in lockstep. Defined on
-              // the cell container so the settings flyout/sidebar and the
+              // Chrome insets for the viewport edges this cell touches
+              // (animation chain: see ChromeInsetsProvider). Defined on the
+              // cell container so the settings flyout/sidebar and the
               // panafall itself all inherit them.
               "--cell-inset-left": props.edges.left
                 ? "var(--inset-left)"
@@ -157,19 +155,18 @@ export function LayoutNodeView(props: {
 }) {
   return (
     <Switch>
-      <Match when={props.node.kind === "cell"}>
-        <PanafallCell
-          slot={(props.node as CellNode).slot}
-          edges={props.edges}
-        />
+      <Match when={props.node.kind === "cell" && props.node}>
+        {(cell) => <PanafallCell slot={cell().slot} edges={props.edges} />}
       </Match>
-      <Match when={props.node.kind === "split"}>
-        <SplitNodeView
-          node={props.node as SplitNode}
-          presetId={props.presetId}
-          path={props.path}
-          edges={props.edges}
-        />
+      <Match when={props.node.kind === "split" && props.node}>
+        {(split) => (
+          <SplitNodeView
+            node={split()}
+            presetId={props.presetId}
+            path={props.path}
+            edges={props.edges}
+          />
+        )}
       </Match>
     </Switch>
   );

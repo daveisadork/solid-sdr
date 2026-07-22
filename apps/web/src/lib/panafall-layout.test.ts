@@ -324,7 +324,8 @@ describe("activePreset", () => {
 
   it("falls back to the default when capacity mismatches", () => {
     expect(
-      activePreset({ ...DEFAULT_PRESET_BY_COUNT, 2: "2x2" as never }, 2).id,
+      // 2x2 has capacity 4 — the mismatch for count 2 exercises the fallback
+      activePreset({ ...DEFAULT_PRESET_BY_COUNT, 2: "2x2" }, 2).id,
     ).toBe("2v");
   });
 

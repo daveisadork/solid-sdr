@@ -17,12 +17,15 @@ import { usePreferences } from "./preferences";
 export const CHROME_TRANSITION_MS = 200;
 
 /**
- * App-chrome insets derived from known state — no measurement. Published as
- * --inset-left/right on the root element; those are registered via @property
- * in app.css with a transition, so every consumer (sidebar panel, cell
- * padding) reads the identical interpolated value mid-animation.
- * --inset-bottom is defined in app.css (statusbar height is a pointer-type
- * media query, not JS state).
+ * App-chrome insets.
+ *
+ * Animation chain: the effect below sets --inset-left/right inline on <html>;
+ * app.css registers them via @property with a :root transition, so the vars
+ * themselves interpolate; PanafallCell remaps them to --cell-inset-* for the
+ * edges each cell touches; Tailwind arbitrary values consume those. This is
+ * why inset-driven layout animates without a transition on the element.
+ * --inset-bottom is set in app.css (statusbar height is a pointer-type media
+ * query, not JS state).
  *
  * JS consumers (flag/detach math) read the accessors, which step to the final
  * value immediately; the per-panafall settledInsets debounce handles the

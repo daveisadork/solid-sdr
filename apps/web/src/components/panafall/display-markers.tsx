@@ -35,8 +35,7 @@ function DisplayMarker(props: {
   const getMarkerWidth = (marker: DisplayMarkerState) =>
     Math.max(
       1,
-      props.freqToAnchorX(marker.stopFrequencyMHz) -
-        getMarkerOffset(marker),
+      props.freqToAnchorX(marker.stopFrequencyMHz) - getMarkerOffset(marker),
     );
 
   return (

@@ -440,6 +440,8 @@ body,
   padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
 }
 
+/* In cn(), fancy-bg-* conflicts with bg-* and backdrop-blur-*: a later
+ * fancy-bg-* removes earlier ones of those (see twMerge config in lib/utils.ts). */
 @utility fancy-bg-* {
   --fancy-bg-color: --value(--color-*, [color]);
   --fancy-bg-opacity: 0.5;
@@ -504,9 +506,8 @@ body,
 }
 
 /*
- * App-chrome insets — set on :root by ChromeInsetsProvider from known state.
- * Registered so the custom properties themselves interpolate: the sliding
- * sidebar and every cell inset read the identical mid-animation value.
+ * App-chrome insets, registered so the custom properties themselves
+ * interpolate. Full chain: see ChromeInsetsProvider (context/chrome-insets.tsx).
  */
 @property --inset-left {
   syntax: "<length>";

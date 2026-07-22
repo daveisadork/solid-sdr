@@ -174,7 +174,7 @@ export function PanafallSettingsSidebar() {
       gap={false}
       side="left"
       variant="floating"
-      class="absolute h-[calc(100%-var(--cell-inset-bottom,0px))] z-(--z-chrome) pr-0"
+      class="absolute h-[calc(100%-var(--cell-inset-bottom))] z-(--z-chrome) pr-0"
     >
       <SidebarRail />
       <SidebarContent
@@ -699,7 +699,7 @@ export function PanSettings() {
   const { radio, state } = useFlexRadio();
 
   return (
-    <div class="absolute max-h-[calc(100%-var(--cell-inset-bottom,0px))] p-2 flex z-(--z-chrome) pointer-events-none">
+    <div class="absolute max-h-[calc(100%-var(--cell-inset-bottom))] p-2 flex z-(--z-chrome) pointer-events-none">
       <div ref={setMenuRef}>
         <ToggleGroup
           class="grid grid-cols-1 gap-1 pointer-events-auto rounded-lg fancy-bg-card border shadow-black overflow-auto max-h-full"

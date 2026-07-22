@@ -15,6 +15,7 @@ import {
 } from "solid-js";
 import { ALL_EDGES, type CellEdges } from "~/lib/panafall-layout";
 import * as panMath from "~/lib/panafall-math";
+import { roundToDevicePixels } from "~/lib/utils";
 import { CHROME_TRANSITION_MS, useChromeInsets } from "./chrome-insets";
 import useFlexRadio, {
   type PanadapterState,
@@ -22,7 +23,6 @@ import useFlexRadio, {
   type SpotState,
   type WaterfallState,
 } from "./flexradio";
-import { roundToDevicePixels } from "~/lib/utils";
 import { usePreferences } from "./preferences";
 
 export type PanafallSpot = SpotState & {
@@ -249,7 +249,8 @@ export const PanafallProvider: ParentComponent<{
   const mhzToAnchorPx = (mhz: number) => roundToDevicePixels(mhzToPx(mhz));
 
   const [dragOffset, setDragOffsetRaw] = createSignal(0);
-  const setDragOffset = (px: number) => setDragOffsetRaw(roundToDevicePixels(px));
+  const setDragOffset = (px: number) =>
+    setDragOffsetRaw(roundToDevicePixels(px));
 
   const sliceAnchorX = (slice: SliceState) => {
     const target = slice.diversityChild
@@ -260,7 +261,8 @@ export const PanafallProvider: ParentComponent<{
     );
   };
 
-  const visualAnchorX = (slice: SliceState) => sliceAnchorX(slice) + dragOffset();
+  const visualAnchorX = (slice: SliceState) =>
+    sliceAnchorX(slice) + dragOffset();
 
   const sliceDetachedSide = (slice: SliceState): "left" | "right" | null => {
     const width = panadapterWrapperSize.width ?? 0;

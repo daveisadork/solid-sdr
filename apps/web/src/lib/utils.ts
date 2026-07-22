@@ -71,6 +71,11 @@ export function roundToDevicePixels(px: number) {
   return Math.round(px * dpr) / dpr;
 }
 
+export function ceilToDevicePixels(px: number) {
+  const dpr = Number(window.devicePixelRatio?.toFixed(6) || 1);
+  return Math.ceil(px * dpr) / dpr;
+}
+
 export function roundToDecimals(num: number, decimals?: number) {
   if (decimals === undefined) return num;
   const factor = 10 ** decimals;

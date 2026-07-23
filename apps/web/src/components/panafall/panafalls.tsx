@@ -24,7 +24,7 @@ function PanafallCell(props: { slot: SlotId; edges: CellEdges }) {
             onOpenChange={(open) =>
               setPreferences("panadapterSettingsOpen", props.slot, open)
             }
-            class="relative grow h-auto overflow-visible min-h-0 bg-transparent select-none"
+            class="relative grow h-auto overflow-x-clip min-h-0 bg-transparent select-none"
             style={{
               // Chrome insets for the viewport edges this cell touches
               // (animation chain: see ChromeInsetsProvider). Defined on the

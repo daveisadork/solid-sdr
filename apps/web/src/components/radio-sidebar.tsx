@@ -1096,10 +1096,10 @@ export function RadioSidebar() {
   return (
     <Show when={state.clientHandle}>
       <Sidebar
-        gap={false}
+        gap={!preferences.enableTransparencyEffects}
         side="right"
         variant={preferences.enableTransparencyEffects ? "floating" : "sidebar"}
-        class="absolute h-[calc(100%-var(--inset-bottom,0px))] pl-0 bg-transparent pointer-events-none z-(--z-chrome)"
+        class="absolute h-[calc(100%-var(--inset-bottom))] pl-0 bg-transparent pointer-events-none z-(--z-chrome)"
       >
         <SidebarContent
           class="absolute inset-y-4 inset-x-0 gap-0 overflow-y-auto overflow-x-hidden pointer-events-auto"

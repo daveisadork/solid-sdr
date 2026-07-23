@@ -11,21 +11,20 @@ import { usePreferences } from "./preferences";
 
 /**
  * Duration of the chrome squeeze/slide animations. Keep in sync with the
- * :root --inset-* transitions in app.css and the sidebar's duration-200
- * classes in ui/sidebar.tsx.
+ * duration-200 classes on the inset-consuming elements and in ui/sidebar.tsx.
  */
 export const CHROME_TRANSITION_MS = 200;
 
 /**
  * App-chrome insets.
  *
- * Animation chain: the effect below sets --inset-left/right inline on <html>;
- * app.css registers them via @property with a :root transition, so the vars
- * themselves interpolate; PanafallCell remaps them to --cell-inset-* for the
- * edges each cell touches; Tailwind arbitrary values consume those. This is
- * why inset-driven layout animates without a transition on the element.
- * --inset-bottom is set in app.css (statusbar height is a pointer-type media
- * query, not JS state).
+ * Animation chain: the effect below sets --inset-left/right inline on <html>
+ * and the values snap. PanafallCell remaps them to --cell-inset-* for the
+ * edges each cell touches; the consuming elements carry their own
+ * transition-[left,width|right] classes, so only they animate. (The vars must
+ * not transition themselves — interpolating inherited vars on :root restyles
+ * the whole document per frame.) --inset-bottom is set in app.css (statusbar
+ * height is a pointer-type media query, not JS state).
  *
  * JS consumers (flag/detach math) read the accessors, which step to the final
  * value immediately; the per-panafall settledInsets debounce handles the

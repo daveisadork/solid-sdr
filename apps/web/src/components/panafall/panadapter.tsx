@@ -250,7 +250,7 @@ export function Panadapter(props: {
         class="absolute size-full translate-x-(--drag-offset) select-none"
       />
       <DisplayMarkers />
-      <div class="flex absolute top-0 left-(--cell-inset-left) h-(--panadapter-available-height) w-(--cell-visible-width)">
+      <div class="flex absolute top-0 left-(--cell-inset-left) h-(--panadapter-available-height) w-(--cell-visible-width) transition-[left,width] duration-200 ease-linear">
         <div class="relative size-full" ref={setPanadapterControlsRef}>
           <div class="flex pointer-events-none absolute top-control-inset right-control-inset text-fg text-xl font-bold opacity-50 gap-4">
             <div>{props.pan.preampSetting}</div>

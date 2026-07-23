@@ -506,8 +506,9 @@ body,
 }
 
 /*
- * App-chrome insets, registered so the custom properties themselves
- * interpolate. Full chain: see ChromeInsetsProvider (context/chrome-insets.tsx).
+ * App-chrome insets. The vars snap; the consuming elements animate their own
+ * left/width/right — no transition here, since interpolating inherited vars
+ * on :root restyles the whole document per frame. See ChromeInsetsProvider.
  */
 @property --inset-left {
   syntax: "<length>";
@@ -526,13 +527,6 @@ body,
 }
 
 :root {
-  /* Keep the 200ms in sync with CHROME_TRANSITION_MS (context/chrome-insets.tsx)
-   * and the sidebar's duration-200 classes (ui/sidebar.tsx). */
-  transition:
-    --inset-left 200ms linear,
-    --inset-right 200ms linear,
-    --inset-bottom 200ms linear;
-
   --inset-bottom: var(--spacing-statusbar);
 
   /*

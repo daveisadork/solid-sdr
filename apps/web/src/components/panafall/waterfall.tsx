@@ -414,7 +414,7 @@ export function Waterfall(props: {
           "--waterfall-offset": `calc(var(--drag-offset) + ${offset()}px)`,
         }}
       />
-      <div class="absolute inset-y-0 left-(--cell-inset-left) w-(--cell-visible-width) pointer-events-none">
+      <div class="absolute inset-y-0 left-(--cell-inset-left) w-(--cell-visible-width) pointer-events-none transition-[left,width] duration-200 ease-linear">
         <Show when={totalSeconds() > 0}>
           <div
             class="pointer-events-none absolute top-0 right-0 h-(--canvas-height) w-scale-gutter"

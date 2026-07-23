@@ -700,7 +700,7 @@ export function Panafall(props: { index: number }) {
       </div>
       <div
         ref={setPanafallControlsRef}
-        class="absolute top-0 left-(--cell-inset-left) right-(--cell-inset-right) bottom-(--cell-inset-bottom) pointer-events-none *:pointer-events-auto"
+        class="absolute top-0 left-(--cell-inset-left) right-(--cell-inset-right) bottom-(--cell-inset-bottom) pointer-events-none *:pointer-events-auto transition-[left,right] duration-200 ease-linear"
       />
     </div>
   );

@@ -11,6 +11,7 @@ import {
 } from "solid-js";
 import { Dynamic } from "solid-js/web";
 import useFlexRadio from "~/context/flexradio";
+import { usePanafallLayout } from "~/context/panafall-layout";
 import { usePreferences } from "~/context/preferences";
 import { type NetworkQuality, useRuntime } from "~/context/runtime";
 import { createPermission } from "~/lib/permission";
@@ -32,13 +33,31 @@ import { GpsStatus } from "./gps-status";
 import { Settings } from "./settings";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "./ui/hover-card";
 
+function AddPanafallButton() {
+  const { state, radio } = useFlexRadio();
+  const { panCount } = usePanafallLayout();
+  const disabled = () =>
+    !state.status.radio?.availablePanadapters || panCount() >= 4;
+  const create = () => radio().createPanadapter({ x: 200 }).catch(console.log);
+  return (
+    <Button
+      disabled={disabled()}
+      onClick={create}
+      class="size-control aspect-square disabled:opacity-50"
+      aria-label="Add panadapter"
+    >
+      <MaterialSymbolsAddChartOutline class="size-full" />
+    </Button>
+  );
+}
+
 function RemoteAudioToggle() {
   const { preferences, setPreferences } = usePreferences();
   const audioPermission = createPermission("microphone");
 
   return (
     <ToggleButton
-      class="size-10 not-pointer-coarse:size-5 aspect-square"
+      class="size-control aspect-square"
       classList={{
         "text-error-foreground":
           preferences.remoteAudio.rx.enabled && audioPermission() === "denied",
@@ -85,7 +104,7 @@ function NetworkStatus() {
       <HoverCardTrigger as={"div"} class="flex gap-1 items-center font-mono">
         <Dynamic
           component={qualityIcons[runtime.network.overall.quality]}
-          class="size-10 not-pointer-coarse:size-5"
+          class="size-control"
           classList={{
             "text-yellow-500": runtime.network.overall.quality === "good",
             "text-orange-500": runtime.network.overall.quality === "fair",
@@ -156,19 +175,13 @@ export function StatusBar() {
 
   return (
     <div
-      class="flex shrink-0 items-center w-full gap-4 py-2 px-3 not-sm:justify-around text-sm font-mono select-none z-0 fancy-bg-background"
+      class="absolute inset-x-0 bottom-0 h-statusbar flex shrink-0 items-center w-full gap-4 py-2 px-3 not-sm:justify-around text-sm font-mono select-none z-(--z-chrome) fancy-bg-background"
       classList={{
         "border-t": !preferences.enableTransparencyEffects,
       }}
     >
       <Connect />
-      <Button
-        disabled={!state.status.radio?.availablePanadapters}
-        onClick={() => radio().createPanadapter({ x: 200 }).catch(console.log)}
-        class="size-10 not-pointer-coarse:size-5 aspect-square disabled:opacity-50"
-      >
-        <MaterialSymbolsAddChartOutline class="size-full" />
-      </Button>
+      <AddPanafallButton />
       <div class="flex items-center justify-around h-full not-pointer-coarse:gap-4 not-sm:hidden pointer-coarse:flex-col shrink-0">
         <Show when={voltage() !== undefined}>
           <span class="textbox-trim-both textbox-edge-cap-alphabetic flex gap-1 items-center">

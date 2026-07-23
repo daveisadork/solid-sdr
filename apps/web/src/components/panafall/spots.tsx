@@ -176,7 +176,7 @@ function SpotCluster(props: { layout: ClusterLayout; pan: PanadapterState }) {
 
 export function Spots(props: { pan: PanadapterState }) {
   const { spots, radio } = useFlexRadio();
-  const { freqToX } = usePanafall();
+  const { freqToAnchorX } = usePanafall();
   const { preferences } = usePreferences();
 
   const [zeroLenRef, setZeroLenRef] = createSignal<HTMLElement>();
@@ -223,7 +223,7 @@ export function Spots(props: { pan: PanadapterState }) {
     const nextLevels = new Map<string, number>();
 
     for (const spot of sorted) {
-      const x = freqToX(spot.rxFreqMHz);
+      const x = freqToAnchorX(spot.rxFreqMHz);
       const hw = estimateWidth(spot.callsign) / 2 + GAP_PX;
       const left = x - hw;
       const right = x + hw;
@@ -322,9 +322,8 @@ export function Spots(props: { pan: PanadapterState }) {
 
   return (
     <div
-      class="absolute font-mono inset-0 -translate-y-(--spots-position) z-20 pointer-events-none"
+      class="absolute font-mono inset-0 bottom-freq-scale -translate-y-(--spots-position) z-(--z-cell-flags) pointer-events-none"
       classList={{
-        "bottom-4": preferences.enableTransparencyEffects,
         [FONT_SIZES[preferences.spots.fontSize]]: true,
       }}
       style={{

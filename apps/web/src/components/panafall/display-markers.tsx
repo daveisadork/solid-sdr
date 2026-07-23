@@ -18,7 +18,7 @@ const COLORS = {
 
 function DisplayMarker(props: {
   marker: DisplayMarkerState;
-  freqToX: (freq: number) => number;
+  freqToAnchorX: (freq: number) => number;
 }) {
   const [textRef, setTextRef] = createSignal<HTMLElement>();
   const [hidden, setHidden] = createSignal(false);
@@ -30,13 +30,12 @@ function DisplayMarker(props: {
   });
 
   const getMarkerOffset = (marker: DisplayMarkerState) =>
-    props.freqToX(marker.startFrequencyMHz ?? marker.stopFrequencyMHz);
+    props.freqToAnchorX(marker.startFrequencyMHz ?? marker.stopFrequencyMHz);
 
   const getMarkerWidth = (marker: DisplayMarkerState) =>
     Math.max(
       1,
-      props.freqToX(marker.stopFrequencyMHz) -
-        props.freqToX(marker.startFrequencyMHz ?? marker.stopFrequencyMHz),
+      props.freqToAnchorX(marker.stopFrequencyMHz) - getMarkerOffset(marker),
     );
 
   return (
@@ -62,7 +61,7 @@ function DisplayMarker(props: {
 
 function InnerDisplayMarkers() {
   const { state } = useFlexRadio();
-  const { freqToX } = usePanafall();
+  const { freqToAnchorX } = usePanafall();
 
   const markers = createMemo(() =>
     Object.values(
@@ -74,7 +73,9 @@ function InnerDisplayMarkers() {
     <div class="absolute inset-x-0 top-0 h-4 text-foreground/75 text-[0.5em]  text-shadow-background text-shadow-xs ">
       <div class="absolute inset-0 translate-x-(--drag-offset)">
         <Key each={markers()} by="id">
-          {(marker) => <DisplayMarker marker={marker()} freqToX={freqToX} />}
+          {(marker) => (
+            <DisplayMarker marker={marker()} freqToAnchorX={freqToAnchorX} />
+          )}
         </Key>
       </div>
     </div>

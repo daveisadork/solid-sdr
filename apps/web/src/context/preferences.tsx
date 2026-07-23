@@ -8,15 +8,11 @@ import {
   Show,
   useContext,
 } from "solid-js";
-import {
-  createStore,
-  reconcile,
-  type SetStoreFunction,
-  unwrap,
-} from "solid-js/store";
+import { createStore, reconcile, type SetStoreFunction } from "solid-js/store";
 import { showToast } from "~/components/ui/toast";
 import type { DaxChannelMode } from "~/lib/dax-audio-sink/types";
 import type { MidiMapping } from "~/lib/midi";
+import { SLOT_COUNT } from "~/lib/panafall-layout";
 
 export type PeakStyle = "none" | "points" | "line";
 export type FillStyle = "none" | "solid" | "gradient";
@@ -108,7 +104,9 @@ export interface Preferences {
     rx: Record<number, DaxRxConfig>;
     iq: Record<number, DaxIqConfig>;
   };
-  panadapterSizes: number[][];
+  /** Per panafall index: fractions of the pan/waterfall vertical split. */
+  panadapterSizes: [number, number][];
+  /** Per panafall index: whether the settings sidebar is open. */
   panadapterSettingsOpen: boolean[];
   panadapterSettingsStyle: PanadapterSettingsStyle;
   radioPanelOpen: boolean;
@@ -180,10 +178,13 @@ const getDefaults = (): Preferences => ({
   showTuningGuide: false,
   preventScreenSleep: false,
   panadapterSettingsStyle: "floating",
-  panadapterSizes: [],
+  panadapterSizes: Array.from(
+    { length: SLOT_COUNT },
+    () => [0.25, 0.75] as [number, number],
+  ),
+  panadapterSettingsOpen: Array.from({ length: SLOT_COUNT }, () => false),
   radioPanelOpen: true,
   sidebarPanels: ["tx", "p-cw", "phone", "rx", "eq"],
-  panadapterSettingsOpen: [false, false, false, false],
   showTxFilterInPan: true,
   dax: {
     rx: defaultDaxRxConfig(),
@@ -430,6 +431,14 @@ const deepMerge = <T extends object>(target: T, source: Partial<T>): T => {
 export const PreferencesProviderInner: ParentComponent<{
   getDefaults: () => Preferences;
 }> = (props) => {
+  let rawPersisted: Record<string, unknown> = {};
+  try {
+    rawPersisted =
+      JSON.parse(localStorage.getItem("preferences") ?? "{}") ?? {};
+  } catch {
+    // corrupt payload; fall back to defaults
+  }
+
   const [store, setStore] = createStore(props.getDefaults());
   const [preferences, setPreferences] = makePersisted([store, setStore], {
     name: "preferences",
@@ -437,7 +446,9 @@ export const PreferencesProviderInner: ParentComponent<{
 
   // populate any missing defaults, and clean up any deprecated/removed prefs
   setPreferences(
-    reconcile(deepMerge(props.getDefaults(), unwrap(preferences))),
+    reconcile(
+      deepMerge(props.getDefaults(), rawPersisted as Partial<Preferences>),
+    ),
   );
 
   createEffect(() => {

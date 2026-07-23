@@ -44,7 +44,7 @@ function quantizeBandwidth(bandwidthMHz: number) {
 
 export function Tnf(props: { tnf: TnfState; pan: PanadapterState }) {
   const { radio, state } = useFlexRadio();
-  const { freqToX, mhzToPx, pxToMHz } = usePanafall();
+  const { freqToAnchorX, pxToMHz, clientXToCellX } = usePanafall();
   const [dragState, setDragState] = createStore({
     down: false,
     dragging: false,
@@ -57,10 +57,24 @@ export function Tnf(props: { tnf: TnfState; pan: PanadapterState }) {
 
   const tnfCtrl = () => radio()?.tnf(props.tnf.id);
 
+  // Both edges through freqToAnchorX so they land on device pixels; ±1px on
+  // each side for the border.
+  const tnfLeftEdge = () =>
+    freqToAnchorX(props.tnf.frequencyMHz - props.tnf.bandwidthMHz / 2);
+  const tnfWidth = () =>
+    Math.max(
+      1,
+      freqToAnchorX(props.tnf.frequencyMHz + props.tnf.bandwidthMHz / 2) -
+        tnfLeftEdge(),
+    ) + 2;
+  const tnfOffset = () => tnfLeftEdge() - 1;
+
   createPointerListeners({
     async onMove(event) {
       if (!dragState.down) return;
-      const freq = dragState.originFreq + pxToMHz(event.x - dragState.originX);
+      const freq =
+        dragState.originFreq +
+        pxToMHz(clientXToCellX(event.x) - dragState.originX);
       const bandwidthChangeMHz =
         Math.round(-event.movementY * TNF_STEP) / 1_000_000;
       const bandwidth = quantizeBandwidth(
@@ -93,15 +107,15 @@ export function Tnf(props: { tnf: TnfState; pan: PanadapterState }) {
 
   return (
     <div
-      class="absolute left-(--tnf-offset) -translate-x-1/2 inset-y-0 w-(--tnf-width) pointer-events-auto cursor-move"
+      class="absolute left-(--tnf-offset) inset-y-0 w-(--tnf-width) pointer-events-auto cursor-move"
       style={{
         "--tnf-color": state.status.radio.tnfEnabled
           ? props.tnf.permanent
             ? "var(--color-green-500)"
             : "var(--color-yellow-500)"
           : "var(--color-foreground)",
-        "--tnf-offset": `${freqToX(props.tnf.frequencyMHz)}px`,
-        "--tnf-width": `${Math.max(1, Math.round(mhzToPx(props.tnf.bandwidthMHz))) + 2}px`,
+        "--tnf-offset": `${tnfOffset()}px`,
+        "--tnf-width": `${tnfWidth()}px`,
         "--tnf-depth": props.tnf.depth,
       }}
       onPointerDown={(event) => {
@@ -109,7 +123,7 @@ export function Tnf(props: { tnf: TnfState; pan: PanadapterState }) {
         if (contextMenuOpen()) return;
         setDragState({
           down: true,
-          originX: event.clientX,
+          originX: clientXToCellX(event.clientX),
           originFreq: props.tnf.frequencyMHz,
         });
       }}

@@ -36,7 +36,9 @@ import {
 import { cn } from "~/lib/utils";
 
 const MOBILE_BREAKPOINT = 768;
-const SIDEBAR_WIDTH = "16rem";
+/** Exported as a number because the chrome-inset math needs it in JS. */
+export const SIDEBAR_WIDTH_PX = 256;
+const SIDEBAR_WIDTH = `${SIDEBAR_WIDTH_PX}px`;
 const SIDEBAR_WIDTH_MOBILE = "18rem";
 const SIDEBAR_WIDTH_ICON = "3rem";
 const SIDEBAR_KEYBOARD_SHORTCUT = "b";

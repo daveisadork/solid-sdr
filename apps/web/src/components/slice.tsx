@@ -5,8 +5,8 @@ import {
   filterPresetModeGroupFromSliceMode,
   type SliceController,
 } from "@repo/flexlib";
-import { createElementBounds } from "@solid-primitives/bounds";
 import { createPointerListeners } from "@solid-primitives/pointer";
+import { createElementSize } from "@solid-primitives/resize-observer";
 import type { Component, ComponentProps, JSX, ValidComponent } from "solid-js";
 import {
   batch,
@@ -35,8 +35,7 @@ import useFlexRadio, {
 import { usePanafall } from "~/context/panafall";
 import { type SliceTxMeter, usePreferences } from "~/context/preferences";
 import { useRuntime } from "~/context/runtime";
-import { onlyAncestorMutations } from "~/lib/element-bounds";
-import { cn, degToRad, radToDeg, roundToDevicePixels } from "~/lib/utils";
+import { ceilToDevicePixels, cn, degToRad, radToDeg } from "~/lib/utils";
 import MaterialSymbolsChevronLeft from "~icons/material-symbols/chevron-left";
 import MaterialSymbolsChevronRight from "~icons/material-symbols/chevron-right";
 import MdiLock from "~icons/material-symbols/lock-open-circle-outline";
@@ -191,6 +190,7 @@ const Triangle: Component<ComponentProps<"div">> = (props) => {
 export function DetachedSlice(props: {
   slice: SliceState;
   pan: PanadapterState;
+  side: "left" | "right";
 }) {
   const { radio } = useFlexRadio();
   const { panadapterController } = usePanafall();
@@ -199,10 +199,9 @@ export function DetachedSlice(props: {
   return (
     <Button
       variant="outline"
-      class="flex p-2 font-extrabold font-mono items-center z-10 pointer-events-auto text-shadow-md text-shadow-background gap-1 [&_svg]:size-8 hover:bg-muted border-none opacity-50"
+      class="flex p-2 font-extrabold font-mono items-center z-(--z-cell-overlays) pointer-events-auto text-shadow-md text-shadow-background gap-1 [&_svg]:size-8 hover:bg-muted border-none opacity-50"
       classList={{
-        "flex-row-reverse":
-          props.slice.frequencyMHz > props.pan.centerFrequencyMHz,
+        "flex-row-reverse": props.side === "right",
       }}
       onClick={() => {
         panadapterController()?.setCenterFrequency(props.slice.frequencyMHz);
@@ -211,7 +210,7 @@ export function DetachedSlice(props: {
     >
       <div class="flex w-3.5 max-w-3.5 justify-center">
         <Show
-          when={props.slice.frequencyMHz < props.pan.centerFrequencyMHz}
+          when={props.side === "left"}
           fallback={<MaterialSymbolsChevronRight />}
         >
           <MaterialSymbolsChevronLeft />
@@ -236,29 +235,30 @@ export function DetachedSlices(props: {
   pan: PanadapterState;
   slices: SliceState[];
 }) {
+  const { sliceDetachedSide } = usePanafall();
   return (
-    <div class="flex absolute inset-0 pt-16 px-2 pointer-events-none">
+    <div class="flex absolute inset-0 pt-detached-clearance px-2 pointer-events-none">
       <div class="flex flex-col gap-1">
         <For
           each={props.slices.filter(
-            (slice) =>
-              slice.isDetached &&
-              slice.frequencyMHz < props.pan.centerFrequencyMHz,
+            (slice) => sliceDetachedSide(slice) === "left",
           )}
         >
-          {(slice) => <DetachedSlice slice={slice} pan={props.pan} />}
+          {(slice) => (
+            <DetachedSlice slice={slice} pan={props.pan} side="left" />
+          )}
         </For>
       </div>
       <div class="grow" />
       <div class="flex flex-col gap-1">
         <For
           each={props.slices.filter(
-            (slice) =>
-              slice.isDetached &&
-              slice.frequencyMHz > props.pan.centerFrequencyMHz,
+            (slice) => sliceDetachedSide(slice) === "right",
           )}
         >
-          {(slice) => <DetachedSlice slice={slice} pan={props.pan} />}
+          {(slice) => (
+            <DetachedSlice slice={slice} pan={props.pan} side="right" />
+          )}
         </For>
       </div>
     </div>
@@ -1387,18 +1387,27 @@ const ExtraSliceControls = <T extends ValidComponent = "div">(
 };
 
 export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
-  const { radio, state, setState } = useFlexRadio();
-  const { panafallBounds, pxToMHz, panadapterController, freqToX, mhzToPx } =
-    usePanafall();
+  const { radio, state } = useFlexRadio();
+  const {
+    pxToMHz,
+    panadapterController,
+    freqToX,
+    mhzToAnchorPx,
+    clientXToCellX,
+    visibleInsets,
+    settledInsets,
+    isSliceDetached,
+    sliceAnchorX,
+    visualAnchorX,
+    panadapterWrapperSize,
+    panafallPortalRef,
+  } = usePanafall();
   const sliceController = createMemo(() => radio()?.slice(props.slice.id));
-  const [offset, setOffset] = createSignal(0);
-  const [sentinel, setSentinel] = createSignal<HTMLDivElement>();
   const [flag, setFlag] = createSignal<HTMLElement>();
   const [filterWidth, setFilterWidth] = createSignal(0);
   const [filterOffset, setFilterOffset] = createSignal(0);
   const [txFilterWidth, setTxFilterWidth] = createSignal(0);
   const [txFilterOffset, setTxFilterOffset] = createSignal(0);
-  const [flagSide, setFlagSide] = createSignal<"left" | "right">("left");
   const [dragState, setDragState] = createStore({
     dragging: false,
     originX: 0,
@@ -1406,12 +1415,7 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
     offset: 0,
     contain: 0,
   });
-  const sentinelBounds = createElementBounds(sentinel, {
-    trackMutation: onlyAncestorMutations(sentinel),
-  });
-  const flagBounds = createElementBounds(flag, {
-    trackMutation: onlyAncestorMutations(flag),
-  });
+  const flagSize = createElementSize(flag);
   const { preferences } = usePreferences();
   const { runtime, setRuntime } = useRuntime();
   const { dispatch } = useControls();
@@ -1460,39 +1464,40 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
     }
   });
 
-  createEffect(() => {
-    if (props.slice.diversityParent) {
-      return setFlagSide("left");
-    }
-    if (props.slice.diversityChild) {
-      return setFlagSide("right");
-    }
+  // Effect-mirrored so flagSide never pairs a new center frequency with the
+  // not-yet-rebased dragOffset (rebasing happens in a Panafall effect) —
+  // that transient would latch a spurious side flip.
+  const [anchorX, setAnchorX] = createSignal(0);
+  createEffect(() => setAnchorX(visualAnchorX(props.slice)));
 
-    if (splitPartner()?.frequencyMHz > props.slice.frequencyMHz) {
-      return setFlagSide("left");
-    }
+  // Hysteresis reducer: keeps the current side until the flag would poke past
+  // a visible edge, then flips to whichever side has more room.
+  const flagSide = createMemo<"left" | "right">((side) => {
+    if (props.slice.diversityParent) return "left";
+    if (props.slice.diversityChild) return "right";
 
-    if (splitPartner()?.frequencyMHz < props.slice.frequencyMHz) {
-      return setFlagSide("right");
-    }
+    if (splitPartner()?.frequencyMHz > props.slice.frequencyMHz) return "left";
+    if (splitPartner()?.frequencyMHz < props.slice.frequencyMHz) return "right";
 
-    if (
-      flagBounds.left < panafallBounds.left ||
-      flagBounds.right > panafallBounds.right
-    ) {
-      setFlagSide(
-        panafallBounds.right - sentinelBounds.left >=
-          sentinelBounds.left - panafallBounds.left
-          ? "right"
-          : "left",
-      );
+    const width = panadapterWrapperSize.width ?? 0;
+    if (!width) return side;
+    const insets = settledInsets();
+    const x = anchorX();
+    const flagWidth = flagSize.width ?? 0;
+    const visRight = width - insets.right;
+    const flagLeft = side === "left" ? x - flagWidth : x;
+    const flagRight = side === "left" ? x : x + flagWidth;
+    if (flagLeft < insets.left || flagRight > visRight) {
+      return visRight - x >= x - insets.left ? "right" : "left";
     }
-  });
+    return side;
+  }, "left");
 
   createPointerListeners({
     onMove({ x }) {
       if (!dragState.dragging) return;
-      const newOffset = dragState.originX - x;
+      const localX = clientXToCellX(x);
+      const newOffset = dragState.originX - localX;
 
       // Round frequency to the nearest step
       const step = props.slice.tuneStepHz / 1e6; // Convert Hz to MHz
@@ -1504,8 +1509,9 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
         return;
       }
 
-      const offsetX = x - panafallBounds.left;
-      const xPercent = offsetX / panafallBounds.width;
+      const insets = visibleInsets();
+      const offsetX = localX - insets.left;
+      const xPercent = offsetX / insets.width;
       if (xPercent < 0.05 || xPercent > 0.95) {
         setDragState({
           contain: freq < props.pan.centerFrequencyMHz ? -1 : 1,
@@ -1561,21 +1567,17 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
 
     batch(() => {
       setFilterWidth(
-        mhzToPx((props.slice.filterHighHz - props.slice.filterLowHz) / 1e6),
+        mhzToAnchorPx(
+          (props.slice.filterHighHz - props.slice.filterLowHz) / 1e6,
+        ),
       );
-      setFilterOffset(mhzToPx(props.slice.filterLowHz / 1e6));
-      setTxFilterWidth(mhzToPx((txFilterHigh - txFilterLow) / 1e6));
+      setFilterOffset(mhzToAnchorPx(props.slice.filterLowHz / 1e6));
+      setTxFilterWidth(mhzToAnchorPx((txFilterHigh - txFilterLow) / 1e6));
       setTxFilterOffset(
-        mhzToPx(
+        mhzToAnchorPx(
           (props.slice.mode === "RTTY"
             ? props.slice.rttyMarkHz + txFilterLow
             : txFilterLow) / 1e6,
-        ),
-      );
-      setOffset(
-        roundToDevicePixels(
-          freqToX((diversityParent() ?? props.slice).frequencyMHz) +
-            preferences.panadapterOffset,
         ),
       );
     });
@@ -1602,19 +1604,6 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
   };
 
   createEffect(() => {
-    const { left: sLeft, right: sRight } = sentinelBounds;
-    const { left: pLeft, right: pRight } = panafallBounds;
-    const detached =
-      sLeft !== null &&
-      pLeft !== null &&
-      sRight !== null &&
-      pRight !== null &&
-      (sLeft < pLeft || sRight > pRight);
-    if (detached === props.slice.isDetached) return;
-    setState("status", "slice", props.slice.id, "isDetached", detached);
-  });
-
-  createEffect(() => {
     // we have to compute and set the tx offset since the radio doesn't do it for us.
     const ctrl = sliceController();
     if (!props.slice.mode.endsWith("FM")) {
@@ -1634,116 +1623,124 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
   });
 
   return (
-    <>
-      <Show when={!props.slice.isDetached}>
-        {/* biome-ignore lint/a11y/noStaticElementInteractions: keyboard activation is handled via focus on child controls */
-        /* biome-ignore lint/a11y/useKeyWithClickEvents: keyboard activation is handled via focus on child controls */}
-        <div
-          class="absolute inset-y-0 translate-x-(--slice-offset) z-10"
-          classList={{
-            "translate-z-1": isActive(),
-            "pointer-events-auto": !props.slice.diversityChild,
-          }}
-          style={{
-            "--slice-offset": `${offset()}px`,
-          }}
-          onClick={makeActive}
-        >
-          <Show when={!props.slice.diversityChild}>
-            <div
-              class="absolute inset-y-0 pointer-coarse:w-10 -translate-x-1/2 touch-none"
-              classList={{
-                "cursor-grab": !dragState.dragging,
-                "cursor-grabbing": dragState.dragging,
-              }}
-              onPointerDown={(event) => {
-                setDragState({
-                  dragging: true,
-                  originX: event.clientX,
-                  originFreq: props.slice.frequencyMHz,
-                  offset: 0,
-                });
-                makeActive();
-              }}
-            >
-              <div class="absolute inset-y-0 left-1/2">
-                <Show
-                  when={
-                    preferences.showTxFilterInPan &&
-                    props.slice.isTransmitEnabled
-                  }
-                >
-                  <div
-                    class="absolute inset-y-0 overflow-clip translate-x-(--tx-filter-offset) w-(--tx-filter-width) bg-radial from-red-500/25 to-red-500/20"
-                    style={{
-                      "--tx-filter-width": `${txFilterWidth()}px`,
-                      "--tx-filter-offset": `${txFilterOffset()}px`,
-                    }}
-                  >
-                    <div class="absolute inset-0 border-x border-x-background/40" />
-                  </div>
-                </Show>
+    <Show when={!isSliceDetached(props.slice)}>
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: keyboard activation is handled via focus on child controls */
+      /* biome-ignore lint/a11y/useKeyWithClickEvents: keyboard activation is handled via focus on child controls */}
+      <div
+        class="absolute inset-y-0 translate-x-(--slice-offset) z-(--z-cell-overlays)"
+        classList={{
+          "translate-z-1": isActive(),
+          "pointer-events-auto": !props.slice.diversityChild,
+        }}
+        style={{
+          "--slice-offset": `${sliceAnchorX(props.slice)}px`,
+        }}
+        onClick={makeActive}
+      >
+        <Show when={!props.slice.diversityChild}>
+          <div
+            class="absolute inset-y-0 pointer-coarse:w-10 -translate-x-1/2 touch-none"
+            classList={{
+              "cursor-grab": !dragState.dragging,
+              "cursor-grabbing": dragState.dragging,
+            }}
+            onPointerDown={(event) => {
+              setDragState({
+                dragging: true,
+                originX: clientXToCellX(event.clientX),
+                originFreq: props.slice.frequencyMHz,
+                offset: 0,
+              });
+              makeActive();
+            }}
+          >
+            <div class="absolute inset-y-0 left-1/2">
+              <Show
+                when={
+                  preferences.showTxFilterInPan && props.slice.isTransmitEnabled
+                }
+              >
                 <div
-                  class="absolute inset-y-0 overflow-clip translate-x-(--filter-offset) w-(--filter-width) bg-radial from-sky-500/35 to-sky-500/25"
+                  class="absolute inset-y-0 overflow-clip translate-x-(--tx-filter-offset) w-(--tx-filter-width) bg-radial from-red-500/25 to-red-500/20"
                   style={{
-                    "--filter-width": `${filterWidth()}px`,
-                    "--filter-offset": `${filterOffset()}px`,
+                    "--tx-filter-width": `${txFilterWidth()}px`,
+                    "--tx-filter-offset": `${txFilterOffset()}px`,
                   }}
                 >
                   <div class="absolute inset-0 border-x border-x-background/40" />
                 </div>
+              </Show>
+              <div
+                class="absolute inset-y-0 overflow-clip translate-x-(--filter-offset) w-(--filter-width) bg-radial from-sky-500/35 to-sky-500/25"
+                style={{
+                  "--filter-width": `${filterWidth()}px`,
+                  "--filter-offset": `${filterOffset()}px`,
+                }}
+              >
+                <div class="absolute inset-0 border-x border-x-background/40" />
               </div>
             </div>
-          </Show>
-          <div
-            class="absolute inset-y-0 max-w-px w-px flex flex-col items-center m-auto top-0 pointer-events-none"
-            classList={{
-              "bg-yellow-300 z-10": props.slice.isActive,
-              "bg-red-500 -z-10":
-                !props.slice.isActive && !props.slice.diversityChild,
-            }}
-          >
-            <Show when={props.slice.isActive}>
+          </div>
+        </Show>
+        <div
+          class="absolute inset-y-0 max-w-px w-px flex flex-col items-center m-auto top-0 pointer-events-none"
+          classList={{
+            "bg-yellow-300 z-10": props.slice.isActive,
+            "bg-red-500 -z-10":
+              !props.slice.isActive && !props.slice.diversityChild,
+          }}
+        >
+          <Show when={props.slice.isActive}>
+            <Triangle
+              class="relative top-0"
+              classList={{
+                "bg-red-500 -z-10": props.slice.diversityChild,
+                "bg-yellow-300": !props.slice.diversityChild,
+              }}
+            />
+            <Show when={props.slice.diversityEnabled}>
               <Triangle
-                class="relative top-0"
+                class="relative -translate-y-1/2"
                 classList={{
-                  "bg-red-500 -z-10": props.slice.diversityChild,
-                  "bg-yellow-300": !props.slice.diversityChild,
+                  "bg-red-500 -z-10 -translate-z-1":
+                    props.slice.diversityParent,
+                  "bg-yellow-300": props.slice.diversityChild,
                 }}
               />
-              <Show when={props.slice.diversityEnabled}>
-                <Triangle
-                  class="relative -translate-y-1/2"
-                  classList={{
-                    "bg-red-500 -z-10 -translate-z-1":
-                      props.slice.diversityParent,
-                    "bg-yellow-300": props.slice.diversityChild,
-                  }}
-                />
-              </Show>
             </Show>
-          </div>
-          <Portal>
+          </Show>
+        </div>
+        <Portal mount={panafallPortalRef()}>
+          <div
+            class="absolute top-0 left-0 w-0 max-w-0 translate-x-(--flag-offset) overflow-visible"
+            classList={{
+              "z-(--z-cell-flags)": isActive(),
+              "z-(--z-cell-overlays)": !isActive(),
+            }}
+            style={{
+              "--flag-offset": `calc(var(--drag-offset) + ${sliceAnchorX(props.slice)}px)`,
+            }}
+          >
+            {/* biome-ignore lint/a11y/noStaticElementInteractions: pointer-events-none panel; onMouseDown only stops propagation from children, not user interaction */}
             <div
-              class="absolute top-0 left-0 w-0 max-w-0 translate-y-(--panafall-top) translate-x-(--flag-offset) overflow-visible"
+              class="absolute top-0 pt-1 pb-4 z-20 overflow-visible pointer-events-none"
               classList={{
-                // "top-4": preferences.showDisplayMarkers,
-                "z-20": isActive(),
-                "z-10": !isActive(),
+                "left-px": flagSide() === "right",
+                "right-0": flagSide() === "left",
               }}
               style={{
-                "--panafall-top": `${panafallBounds.top}px`,
-                "--flag-offset": `${sentinelBounds.left}px`,
+                // Quantize the box width to the device pixel grid so both
+                // edges land on device pixels; the ≤1-device-px slack sits at
+                // the far edge (inner is marker-side-pinned).
+                width: flagSize.width
+                  ? `${ceilToDevicePixels(flagSize.width)}px`
+                  : undefined,
               }}
+              onMouseDown={(e) => e.stopPropagation()}
             >
-              {/* biome-ignore lint/a11y/noStaticElementInteractions: pointer-events-none panel; onMouseDown only stops propagation from children, not user interaction */}
               <div
-                class="absolute top-0 pt-1 pb-4 px-1 z-20 overflow-visible pointer-events-none w-max"
-                classList={{
-                  "left-px": flagSide() === "right",
-                  "right-0": flagSide() === "left",
-                }}
-                onMouseDown={(e) => e.stopPropagation()}
+                class="w-max px-1"
+                classList={{ "ml-auto": flagSide() === "left" }}
                 ref={setFlag}
               >
                 <Show
@@ -1952,16 +1949,9 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
                 </Show>
               </div>
             </div>
-          </Portal>
-        </div>
-      </Show>
-      <div
-        ref={setSentinel}
-        class="absolute translate-x-(--slice-offset) pointer-events-none"
-        style={{
-          "--slice-offset": `${offset()}px`,
-        }}
-      />
-    </>
+          </div>
+        </Portal>
+      </div>
+    </Show>
   );
 }

@@ -171,10 +171,10 @@ export function PanafallSettingsSidebar() {
     usePanafall();
   return (
     <Sidebar
-      gap={true}
+      gap={false}
       side="left"
       variant="floating"
-      class="absolute h-full z-50 pr-0"
+      class="absolute h-[calc(100%-var(--cell-inset-bottom))] z-(--z-chrome) pr-0"
     >
       <SidebarRail />
       <SidebarContent
@@ -699,7 +699,7 @@ export function PanSettings() {
   const { radio, state } = useFlexRadio();
 
   return (
-    <div class="absolute max-h-full p-2 flex z-50 pointer-events-none">
+    <div class="absolute max-h-[calc(100%-var(--cell-inset-bottom))] p-2 flex z-(--z-chrome) pointer-events-none">
       <div ref={setMenuRef}>
         <ToggleGroup
           class="grid grid-cols-1 gap-1 pointer-events-auto rounded-lg fancy-bg-card border shadow-black overflow-auto max-h-full"
@@ -717,7 +717,7 @@ export function PanSettings() {
             as={Button}
             size="xs"
             variant="ghost"
-            class="hover:bg-accent not-data-pressed:size-10 not-data-pressed:not-pointer-coarse:size-5 not-data-pressed:aspect-square"
+            class="hover:bg-accent not-data-pressed:size-control not-data-pressed:aspect-square"
             pressed={open()}
             onChange={setOpen}
           >

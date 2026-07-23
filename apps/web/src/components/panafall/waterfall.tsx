@@ -8,12 +8,23 @@ import {
   onCleanup,
   Show,
 } from "solid-js";
-import type { PanadapterState, WaterfallState } from "~/context/flexradio";
+import useFlexRadio, {
+  type PanadapterState,
+  type WaterfallState,
+} from "~/context/flexradio";
 import { usePanafall } from "~/context/panafall";
 import { usePreferences } from "~/context/preferences";
 import { useRuntime } from "~/context/runtime";
-import { roundToDevicePixels } from "~/lib/utils";
 import { LinearScale } from "../linear-scale";
+
+/**
+ * Waterfall history buffers, keyed by waterfall stream id. Module-scoped so
+ * history survives component remounts — adding or removing a panafall
+ * reshapes the layout tree and remounts every cell, which must not wipe the
+ * surviving panafalls' waterfalls. Entries for closed streams are pruned on
+ * the next mount.
+ */
+const historyBuffers = new Map<string, OffscreenCanvas>();
 
 export function Waterfall(props: {
   waterfall: WaterfallState;
@@ -22,10 +33,24 @@ export function Waterfall(props: {
 }) {
   const { setRuntime } = useRuntime();
   const { preferences } = usePreferences();
-  const { mhzToPx } = usePanafall();
+  const { mhzToAnchorPx } = usePanafall();
+  const { state } = useFlexRadio();
 
-  const [canvasWidth, setCanvasWidth] = createSignal(1);
-  const [canvasHeight, setCanvasHeight] = createSignal(1);
+  // Reclaim this stream's history buffer if it exists (cell remount), and
+  // drop buffers whose streams have closed.
+  for (const id of historyBuffers.keys()) {
+    if (!state.status.waterfall[id]) historyBuffers.delete(id);
+  }
+  const cachedOffscreen = historyBuffers.get(props.waterfall.streamId);
+  const offscreen =
+    cachedOffscreen ?? new OffscreenCanvas(1, window.screen.height);
+  if (!cachedOffscreen) {
+    historyBuffers.set(props.waterfall.streamId, offscreen);
+  }
+
+  const [canvasWidth, setCanvasWidth] = createSignal(
+    Math.max(1, offscreen.width),
+  );
   const [binBandwidth, setBinBandwidth] = createSignal(1);
   const [canvasRef, setCanvasRef] = createSignal<HTMLCanvasElement>();
   const [wrapper, setWrapper] = createSignal<HTMLDivElement>();
@@ -50,6 +75,17 @@ export function Waterfall(props: {
   const paletteDivisor = Math.round(0x10000 / paletteCanvas.width);
 
   const wrapperSize = createElementSize(wrapper);
+
+  // Glass mode: canvases are screen-height, taller than any panel can be, and
+  // never resize with the pan/waterfall split — a canvas resize clears its
+  // contents, so the fixed height is what lets the split drag reveal/hide
+  // history instead of erasing it (the cell's overflow-clip hides the excess).
+  // Opaque mode is partly a "my device is too slow for glass" preference, so
+  // it deliberately keeps the cheap panel-sized canvas and accepts that the
+  // split drag erases history. Both are intentional tradeoffs.
+  const [canvasHeight, setCanvasHeight] = createSignal(
+    offscreen.width > 1 ? offscreen.height : 1,
+  );
 
   const frameTimes: number[] = [];
 
@@ -156,8 +192,6 @@ export function Waterfall(props: {
     if (!screenCtx) return;
     screenCtx.imageSmoothingEnabled = false;
 
-    const offscreen = new OffscreenCanvas(canvas.width, canvas.height);
-    if (!offscreen) return;
     const offscreenCtx = offscreen.getContext("2d");
     if (!offscreenCtx) return;
     offscreenCtx.imageSmoothingEnabled = false;
@@ -199,6 +233,12 @@ export function Waterfall(props: {
       paintScheduled = false;
       screenCtx.drawImage(offscreen, 0, 0, canvas.width, canvas.height);
     };
+
+    // Repaint reclaimed history right away after a cell remount instead of
+    // waiting for the next waterfall frame.
+    if (offscreen.width > 1) {
+      requestAnimationFrame(paint);
+    }
 
     return (packet: VitaWaterfallPacket) => {
       const tile = packet.tile;
@@ -356,13 +396,13 @@ export function Waterfall(props: {
   const offset = createMemo(() => {
     const centerMHz = lastCalculatedCenter() / 1_000_000;
     const offsetMHz = centerMHz - props.pan.centerFrequencyMHz;
-    return roundToDevicePixels(mhzToPx(offsetMHz));
+    return mhzToAnchorPx(offsetMHz);
   });
 
   return (
     <div
       ref={setWrapper}
-      class="relative size-full flex justify-center overflow-visible select-none"
+      class="relative size-full flex justify-center overflow-clip select-none"
     >
       <canvas
         class="absolute shrink-0 select-none scale-x-(--width-multiplier) translate-x-(--waterfall-offset)"
@@ -374,10 +414,10 @@ export function Waterfall(props: {
           "--waterfall-offset": `calc(var(--drag-offset) + ${offset()}px)`,
         }}
       />
-      <div class="absolute inset-y-0 left-(--panafall-left) w-(--panafall-available-width) pointer-events-none">
+      <div class="absolute inset-y-0 left-(--cell-inset-left) w-(--cell-visible-width) pointer-events-none transition-[left,width] duration-200 ease-linear">
         <Show when={totalSeconds() > 0}>
           <div
-            class="pointer-events-none absolute top-0 right-0 h-(--canvas-height) w-10"
+            class="pointer-events-none absolute top-0 right-0 h-(--canvas-height) w-scale-gutter"
             style={{ "--canvas-height": `${canvasHeight()}px` }}
           >
             <div class="relative h-full px-1.5 flex items-center">

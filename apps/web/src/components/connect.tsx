@@ -82,7 +82,7 @@ export default function Connect() {
     >
       <DialogTrigger
         as={ButtonPrimitive.Button<"button">}
-        class="size-10 not-pointer-coarse:size-5 aspect-square"
+        class="size-control aspect-square"
         title={state.clientHandle ? "Disconnect" : "Connect"}
       >
         <Dynamic

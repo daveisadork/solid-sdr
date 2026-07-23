@@ -1089,17 +1089,17 @@ function EqSection() {
   );
 }
 
-export function RightSidebar() {
+export function RadioSidebar() {
   const { state, radio } = useFlexRadio();
   const { preferences, setPreferences } = usePreferences();
 
   return (
     <Show when={state.clientHandle}>
       <Sidebar
-        gap
+        gap={!preferences.enableTransparencyEffects}
         side="right"
         variant={preferences.enableTransparencyEffects ? "floating" : "sidebar"}
-        class="absolute h-full pl-0 bg-transparent pointer-events-none z-50"
+        class="absolute h-[calc(100%-var(--inset-bottom))] pl-0 bg-transparent pointer-events-none z-(--z-chrome)"
       >
         <SidebarContent
           class="absolute inset-y-4 inset-x-0 gap-0 overflow-y-auto overflow-x-hidden pointer-events-auto"

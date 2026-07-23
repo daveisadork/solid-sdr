@@ -8,14 +8,11 @@ import {
 } from "solid-js";
 import { createStore } from "solid-js/store";
 import {
-  activePreset,
-  type LayoutPreset,
   reconcileSlotAssignments,
   SLOT_COUNT,
   type SlotId,
 } from "~/lib/panafall-layout";
 import useFlexRadio from "./flexradio";
-import { usePreferences } from "./preferences";
 
 /**
  * Session-scoped stream->slot assignment. Stream ids are per-connection, so
@@ -27,15 +24,12 @@ const PanafallLayoutContext = createContext<{
   slotAssignments: readonly (string | null)[];
   /** Stream id assigned to a slot. */
   streamForSlot: (slot: SlotId) => string | null;
-  /** The preset tree currently rendered, chosen by pan count. */
-  layout: Accessor<LayoutPreset>;
   /** Number of this client's open panafalls. */
   panCount: Accessor<number>;
 }>();
 
 export const PanafallLayoutProvider: ParentComponent = (props) => {
   const { state } = useFlexRadio();
-  const { preferences } = usePreferences();
 
   const panStreams = createMemo(() =>
     Object.values(state.status.panadapter)
@@ -60,16 +54,11 @@ export const PanafallLayoutProvider: ParentComponent = (props) => {
     }
   });
 
-  const layout = createMemo(() =>
-    activePreset(preferences.panafallLayout.presetByCount, panStreams().length),
-  );
-
   return (
     <PanafallLayoutContext.Provider
       value={{
         slotAssignments: assignments,
         streamForSlot: (slot) => assignments[slot] ?? null,
-        layout,
         panCount: () => panStreams().length,
       }}
     >

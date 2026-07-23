@@ -1,11 +1,11 @@
-import { execSync } from "child_process";
-import { readFileSync } from "fs";
-import path from "path";
+import { execSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import tailwindcss from "@tailwindcss/vite";
+import { visualizer } from "rollup-plugin-visualizer";
+import Icons from "unplugin-icons/vite";
 import { defineConfig } from "vite";
 import solidPlugin from "vite-plugin-solid";
-import Icons from "unplugin-icons/vite";
-import { visualizer } from "rollup-plugin-visualizer";
 
 function getVersion(): string {
   try {

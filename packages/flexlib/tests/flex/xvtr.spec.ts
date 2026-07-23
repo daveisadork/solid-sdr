@@ -327,20 +327,18 @@ describe("XVTR controller", () => {
     { model: "FLEX-6400", ifFreqMHz: 100, input: 20, expected: "8.00" },
     { model: "FLEX-6400", ifFreqMHz: 28, input: 5, expected: "5.00" },
     { model: "FLEX-6400", ifFreqMHz: 28, input: -20, expected: "-10.00" },
-  ])("clamps max power: $model + IF=$ifFreqMHz MHz, input=$input → $expected", async ({
-    model,
-    ifFreqMHz,
-    input,
-    expected,
-  }) => {
-    const { radio, connection } = await createConnectedRadio();
-    connection.emitStatus(`S1|radio model=${model}`);
-    connection.emitStatus(
-      `S2|xvtr 0 name=2M rf_freq=144.000000 if_freq=${ifFreqMHz}.000000 max_power=0.00`,
-    );
+  ])(
+    "clamps max power: $model + IF=$ifFreqMHz MHz, input=$input → $expected",
+    async ({ model, ifFreqMHz, input, expected }) => {
+      const { radio, connection } = await createConnectedRadio();
+      connection.emitStatus(`S1|radio model=${model}`);
+      connection.emitStatus(
+        `S2|xvtr 0 name=2M rf_freq=144.000000 if_freq=${ifFreqMHz}.000000 max_power=0.00`,
+      );
 
-    await radio.xvtr("0")?.setMaxPowerDbm(input);
+      await radio.xvtr("0")?.setMaxPowerDbm(input);
 
-    expect(connection.lastCommand()).toBe(`xvtr set 0 max_power=${expected}`);
-  });
+      expect(connection.lastCommand()).toBe(`xvtr set 0 max_power=${expected}`);
+    },
+  );
 });

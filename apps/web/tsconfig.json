@@ -9,11 +9,10 @@
     "jsxImportSource": "solid-js",
     "skipLibCheck": true,
     // "allowJs": true,
-    // "strict": true,
+    "strict": false,
     "noEmit": true,
     "types": ["vite/client", "unplugin-icons/types/solid"],
     "isolatedModules": true,
-    "baseUrl": ".",
     "paths": {
       "~/*": ["./src/*"],
       "@repo/flexlib": ["../../packages/flexlib/src/index.ts"],

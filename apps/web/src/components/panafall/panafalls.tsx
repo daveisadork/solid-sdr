@@ -19,18 +19,10 @@ function PanafallCell(props: { slot: SlotId; edges: CellEdges }) {
           <SidebarProvider
             open={
               preferences.panadapterSettingsStyle === "sidebar" &&
-              Boolean(
-                preferences.panafallLayout.slots[props.slot]?.settingsOpen,
-              )
+              Boolean(preferences.panadapterSettingsOpen[props.slot])
             }
             onOpenChange={(open) =>
-              setPreferences(
-                "panafallLayout",
-                "slots",
-                props.slot,
-                "settingsOpen",
-                open,
-              )
+              setPreferences("panadapterSettingsOpen", props.slot, open)
             }
             class="relative grow h-auto overflow-visible min-h-0 bg-transparent select-none"
             style={{

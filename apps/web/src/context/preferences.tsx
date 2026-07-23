@@ -12,11 +12,7 @@ import { createStore, reconcile, type SetStoreFunction } from "solid-js/store";
 import { showToast } from "~/components/ui/toast";
 import type { DaxChannelMode } from "~/lib/dax-audio-sink/types";
 import type { MidiMapping } from "~/lib/midi";
-import {
-  defaultPanafallLayoutPrefs,
-  migrateLegacyLayout,
-  type PanafallLayoutPrefs,
-} from "~/lib/panafall-layout";
+import { SLOT_COUNT } from "~/lib/panafall-layout";
 
 export type PeakStyle = "none" | "points" | "line";
 export type FillStyle = "none" | "solid" | "gradient";
@@ -108,7 +104,10 @@ export interface Preferences {
     rx: Record<number, DaxRxConfig>;
     iq: Record<number, DaxIqConfig>;
   };
-  panafallLayout: PanafallLayoutPrefs;
+  /** Per panafall index: fractions of the pan/waterfall vertical split. */
+  panadapterSizes: [number, number][];
+  /** Per panafall index: whether the settings sidebar is open. */
+  panadapterSettingsOpen: boolean[];
   panadapterSettingsStyle: PanadapterSettingsStyle;
   radioPanelOpen: boolean;
   sidebarPanels: string[];
@@ -179,7 +178,11 @@ const getDefaults = (): Preferences => ({
   showTuningGuide: false,
   preventScreenSleep: false,
   panadapterSettingsStyle: "floating",
-  panafallLayout: defaultPanafallLayoutPrefs(),
+  panadapterSizes: Array.from(
+    { length: SLOT_COUNT },
+    () => [0.25, 0.75] as [number, number],
+  ),
+  panadapterSettingsOpen: Array.from({ length: SLOT_COUNT }, () => false),
   radioPanelOpen: true,
   sidebarPanels: ["tx", "p-cw", "phone", "rx", "eq"],
   showTxFilterInPan: true,
@@ -428,10 +431,6 @@ const deepMerge = <T extends object>(target: T, source: Partial<T>): T => {
 export const PreferencesProviderInner: ParentComponent<{
   getDefaults: () => Preferences;
 }> = (props) => {
-  // Read the raw persisted payload before makePersisted merges it into the
-  // defaults-initialized store — after that merge, a defaults-filled key is
-  // indistinguishable from one the user actually had, which breaks the
-  // legacy-layout migration's idempotence check.
   let rawPersisted: Record<string, unknown> = {};
   try {
     rawPersisted =
@@ -446,7 +445,6 @@ export const PreferencesProviderInner: ParentComponent<{
   });
 
   // populate any missing defaults, and clean up any deprecated/removed prefs
-  migrateLegacyLayout(rawPersisted);
   setPreferences(
     reconcile(
       deepMerge(props.getDefaults(), rawPersisted as Partial<Preferences>),

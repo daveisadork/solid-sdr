@@ -341,10 +341,7 @@ export function Panafall(props: { index: number }) {
                 <Resizable
                   class="size-full overflow-visible select-none"
                   orientation="vertical"
-                  sizes={
-                    preferences.panafallLayout.slots[props.index]
-                      ?.panWaterfallSplit
-                  }
+                  sizes={preferences.panadapterSizes[props.index]}
                   initialSizes={[0.25, 0.75]}
                   onSizesChange={(sizes) => {
                     if (sizes?.length !== 2) return;
@@ -360,18 +357,14 @@ export function Panafall(props: { index: number }) {
                     if (
                       Number.isNaN(panHeight) ||
                       panHeight ===
-                        preferences.panafallLayout.slots[props.index]
-                          ?.panWaterfallSplit[0]
+                        preferences.panadapterSizes[props.index]?.[0]
                     ) {
                       return;
                     }
-                    setPreferences(
-                      "panafallLayout",
-                      "slots",
-                      props.index,
-                      "panWaterfallSplit",
-                      [panHeight, 1 - panHeight],
-                    );
+                    setPreferences("panadapterSizes", props.index, [
+                      panHeight,
+                      1 - panHeight,
+                    ]);
                   }}
                 >
                   <ResizablePanel

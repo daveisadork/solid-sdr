@@ -17,7 +17,7 @@ import useFlexRadio from "./flexradio";
 /**
  * Session-scoped stream->slot assignment. Stream ids are per-connection, so
  * this is deliberately NOT persisted; only per-slot preferences persist
- * (preferences.panafallLayout.slots).
+ * (panadapterSizes/panadapterSettingsOpen).
  */
 const PanafallLayoutContext = createContext<{
   /** slot index -> pan stream id (null = empty slot). */

@@ -2,10 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   ALL_EDGES,
   cellEdges,
-  DEFAULT_PAN_WATERFALL_SPLIT,
-  defaultPanafallLayoutPrefs,
-  migrateLegacyLayout,
-  type PanafallLayoutPrefs,
   reconcileSlotAssignments,
   type SlotId,
 } from "./panafall-layout";
@@ -90,80 +86,6 @@ describe("cellEdges", () => {
       right: false,
       bottom: false,
     });
-  });
-});
-
-describe("migrateLegacyLayout", () => {
-  it("maps legacy positional arrays to slots losslessly", () => {
-    const prefs: Record<string, unknown> = {
-      panadapterSizes: [
-        [0.456274, 0.543726],
-        [0.3, 0.7],
-      ],
-      panadapterSettingsOpen: [true, false, true, false],
-    };
-    migrateLegacyLayout(prefs);
-    const layout = prefs.panafallLayout as PanafallLayoutPrefs;
-    expect(layout.version).toBe(1);
-    expect(layout.slots[0]).toEqual({
-      panWaterfallSplit: [0.456274, 0.543726],
-      settingsOpen: true,
-    });
-    expect(layout.slots[1]).toEqual({
-      panWaterfallSplit: [0.3, 0.7],
-      settingsOpen: false,
-    });
-    expect(layout.slots[2]).toEqual({
-      panWaterfallSplit: DEFAULT_PAN_WATERFALL_SPLIT,
-      settingsOpen: true,
-    });
-    expect(layout.slots[3]).toEqual({
-      panWaterfallSplit: DEFAULT_PAN_WATERFALL_SPLIT,
-      settingsOpen: false,
-    });
-  });
-
-  it("is idempotent: existing panafallLayout is untouched", () => {
-    const layout = defaultPanafallLayoutPrefs();
-    layout.slots[0].panWaterfallSplit = [0.5, 0.5];
-    const prefs: Record<string, unknown> = {
-      panafallLayout: layout,
-      panadapterSizes: [[0.1, 0.9]],
-    };
-    migrateLegacyLayout(prefs);
-    expect(
-      (prefs.panafallLayout as PanafallLayoutPrefs).slots[0].panWaterfallSplit,
-    ).toEqual([0.5, 0.5]);
-  });
-
-  it("does nothing on a fresh profile", () => {
-    const prefs: Record<string, unknown> = { smoothScroll: true };
-    migrateLegacyLayout(prefs);
-    expect(prefs.panafallLayout).toBeUndefined();
-  });
-
-  it("falls back to defaults on corrupt or partial legacy values", () => {
-    const prefs: Record<string, unknown> = {
-      panadapterSizes: [[Number.NaN, 0.5], [0.3], "junk", [2, -1]],
-      panadapterSettingsOpen: "junk",
-    };
-    migrateLegacyLayout(prefs);
-    const layout = prefs.panafallLayout as PanafallLayoutPrefs;
-    for (const slot of layout.slots) {
-      expect(slot.panWaterfallSplit).toEqual(DEFAULT_PAN_WATERFALL_SPLIT);
-      expect(slot.settingsOpen).toBe(false);
-    }
-  });
-
-  it("handles oversized legacy arrays by ignoring extras", () => {
-    const prefs: Record<string, unknown> = {
-      panadapterSizes: Array.from({ length: 8 }, () => [0.4, 0.6]),
-      panadapterSettingsOpen: Array.from({ length: 8 }, () => true),
-    };
-    migrateLegacyLayout(prefs);
-    const layout = prefs.panafallLayout as PanafallLayoutPrefs;
-    expect(layout.slots).toHaveLength(4);
-    expect(layout.slots.every((s) => s.settingsOpen)).toBe(true);
   });
 });
 

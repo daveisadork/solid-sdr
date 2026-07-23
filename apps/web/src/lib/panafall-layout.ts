@@ -63,64 +63,6 @@ export function cellEdges(panCount: number, slot: SlotId): CellEdges {
   );
 }
 
-export interface PanafallSlotPrefs {
-  /** Fractions of the pan/waterfall vertical split (was panadapterSizes[i]). */
-  panWaterfallSplit: [number, number];
-  /** Whether the per-panafall settings sidebar is open (was panadapterSettingsOpen[i]). */
-  settingsOpen: boolean;
-}
-
-export interface PanafallLayoutPrefs {
-  version: 1;
-  /** Per slot (fill order), shared across pan counts. */
-  slots: PanafallSlotPrefs[];
-}
-
-export const DEFAULT_PAN_WATERFALL_SPLIT: [number, number] = [0.25, 0.75];
-
-export function defaultPanafallLayoutPrefs(): PanafallLayoutPrefs {
-  return {
-    version: 1,
-    slots: Array.from({ length: SLOT_COUNT }, () => ({
-      panWaterfallSplit: [...DEFAULT_PAN_WATERFALL_SPLIT] as [number, number],
-      settingsOpen: false,
-    })),
-  };
-}
-
-/**
- * In-place migration of a persisted preferences payload from the positional
- * panadapterSizes/panadapterSettingsOpen arrays to panafallLayout. Legacy
- * index i was the vertical-stack row i, which is fill-order slot i, so the
- * mapping is lossless. Idempotent; the legacy keys are dropped afterwards by
- * the deepMerge against defaults that no longer contain them.
- */
-export function migrateLegacyLayout(prefs: Record<string, unknown>): void {
-  if (prefs.panafallLayout) return;
-  if (!prefs.panadapterSizes && !prefs.panadapterSettingsOpen) return;
-  const sizes = Array.isArray(prefs.panadapterSizes)
-    ? prefs.panadapterSizes
-    : [];
-  const open = Array.isArray(prefs.panadapterSettingsOpen)
-    ? prefs.panadapterSettingsOpen
-    : [];
-  const layout = defaultPanafallLayoutPrefs();
-  layout.slots = layout.slots.map((slot, i) => {
-    const legacy = sizes[i];
-    const valid =
-      Array.isArray(legacy) &&
-      legacy.length === 2 &&
-      legacy.every((v) => Number.isFinite(v) && v >= 0 && v <= 1);
-    return {
-      panWaterfallSplit: valid
-        ? ([legacy[0], legacy[1]] as [number, number])
-        : slot.panWaterfallSplit,
-      settingsOpen: Boolean(open[i]),
-    };
-  });
-  prefs.panafallLayout = layout;
-}
-
 /**
  * Reconcile stream->slot assignments against the current stream list.
  * Surviving streams keep their relative slot order (radio-side list reorders

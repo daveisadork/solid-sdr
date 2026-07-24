@@ -8,7 +8,12 @@ import {
   Show,
   useContext,
 } from "solid-js";
-import { createStore, reconcile, type SetStoreFunction } from "solid-js/store";
+import {
+  createStore,
+  reconcile,
+  type SetStoreFunction,
+  type Store,
+} from "solid-js/store";
 import { showToast } from "~/components/ui/toast";
 import type { DaxChannelMode } from "~/lib/dax-audio-sink/types";
 import type { MidiMapping } from "~/lib/midi";
@@ -413,16 +418,17 @@ const getDefaults = (): Preferences => ({
 });
 
 const deepMerge = <T extends object>(target: T, source: Partial<T>): T => {
+  const targetRecord = target as Record<string, unknown>;
   for (const [key, value] of Object.entries(source)) {
-    const targetValue = target[key];
+    const targetValue = targetRecord[key];
     if (targetValue === value) continue;
     if (targetValue === undefined) {
-      if (Array.isArray(target)) target[key] = value;
+      if (Array.isArray(target)) targetRecord[key] = value;
       continue;
     }
-    target[key] =
+    targetRecord[key] =
       typeof value === "object" && value !== null
-        ? deepMerge(target[key], value)
+        ? deepMerge(targetValue as object, value as object)
         : value;
   }
   return target;
@@ -440,9 +446,10 @@ export const PreferencesProviderInner: ParentComponent<{
   }
 
   const [store, setStore] = createStore(props.getDefaults());
-  const [preferences, setPreferences] = makePersisted([store, setStore], {
-    name: "preferences",
-  });
+  const [preferences, setPreferences] = makePersisted<
+    Preferences,
+    [Store<Preferences>, SetStoreFunction<Preferences>]
+  >([store, setStore], { name: "preferences" });
 
   // populate any missing defaults, and clean up any deprecated/removed prefs
   setPreferences(

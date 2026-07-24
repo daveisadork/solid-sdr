@@ -71,9 +71,10 @@ export function WaveformSettings() {
   createEffect(() => {
     setUploadProgress(0);
     const file = uploadFile();
-    if (!file) return;
+    const connectedRadio = radio();
+    if (!file || !connectedRadio) return;
 
-    radio()
+    connectedRadio
       .uploadFile({
         filename: file.name,
         target: target(),
@@ -160,9 +161,15 @@ export function WaveformSettings() {
                     <TableCell>
                       <div class="flex gap-1">
                         <div class="grow" />
-                        <UninstallButton ctrl={radio().waveform(waveform.id)} />
-                        <Show when={waveform.isContainer}>
-                          <RestartButton ctrl={radio().waveform(waveform.id)} />
+                        <Show when={radio()?.waveform(waveform.id)}>
+                          {(ctrl) => (
+                            <>
+                              <UninstallButton ctrl={ctrl()} />
+                              <Show when={waveform.isContainer}>
+                                <RestartButton ctrl={ctrl()} />
+                              </Show>
+                            </>
+                          )}
                         </Show>
                       </div>
                     </TableCell>
@@ -195,7 +202,7 @@ export function WaveformSettings() {
             value={""}
             onChange={(event) => {
               setTarget("new_waveform");
-              setUploadFile(event.target.files?.item(0));
+              setUploadFile(event.currentTarget.files?.item(0) ?? undefined);
             }}
           />
           Install Legacy
@@ -207,7 +214,7 @@ export function WaveformSettings() {
             value={""}
             onChange={(event) => {
               setTarget("waveform_docker_image");
-              setUploadFile(event.target.files?.item(0));
+              setUploadFile(event.currentTarget.files?.item(0) ?? undefined);
             }}
           />
           Install Container

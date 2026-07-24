@@ -33,7 +33,7 @@ type RtcContextValue = {
   peerConnection: Accessor<RTCPeerConnection | null>;
   rtcState: RtcState;
   remoteAudioRxStream: Accessor<MediaStream | null>;
-  setRemoteAudioTxTrack: Setter<MediaStreamTrack>;
+  setRemoteAudioTxTrack: Setter<MediaStreamTrack | null>;
   signalingWs: ReconnectingWebSocket;
   signalingWsState: Accessor<0 | 1 | 2 | 3>;
   serverVersion: Accessor<string | null>;
@@ -103,10 +103,12 @@ export const RtcProvider: ParentComponent = (props) => {
     if (!offer.sdp) return;
     const sdp = forceStereoInSDP(offer.sdp);
     await this.setLocalDescription({ ...offer, sdp });
+    const localDescription = this.localDescription;
+    if (!localDescription) return;
     signalingWs.send(
       JSON.stringify({
         type: "offer",
-        payload: this.localDescription.toJSON(),
+        payload: localDescription.toJSON(),
       }),
     );
   }
@@ -226,7 +228,8 @@ export const RtcProvider: ParentComponent = (props) => {
   });
 
   createEffect(() => {
-    if (["failed", "closed"].includes(rtcState.connectionState)) {
+    const connectionState = rtcState.connectionState;
+    if (connectionState && ["failed", "closed"].includes(connectionState)) {
       setPeerConnection(null);
     }
   });

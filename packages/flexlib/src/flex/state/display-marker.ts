@@ -19,15 +19,15 @@ export interface DisplayMarkerSnapshot {
   /** Marker group name, e.g. "IARU1". */
   readonly group: string;
   /** Display label shown for the marker. */
-  readonly label?: string;
+  readonly label: string;
   /** Start frequency in MHz. */
-  readonly startFrequencyMHz?: number;
+  readonly startFrequencyMHz: number;
   /** Stop frequency in MHz. */
-  readonly stopFrequencyMHz?: number;
-  /** Color name reported by the radio. */
-  readonly colorName?: string;
+  readonly stopFrequencyMHz: number;
+  /** Color name reported by the radio, e.g. "royal_blue". */
+  readonly colorName: string;
   /** Marker opacity from 0 to 100. */
-  readonly opacity?: number;
+  readonly opacity: number;
   /** Raw attribute map from the last status update. */
   readonly raw: Readonly<Record<string, string>>;
 }

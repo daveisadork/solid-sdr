@@ -384,10 +384,10 @@ export function SpotsSettings() {
         <DialogTitle>Spots</DialogTitle>
       </DialogHeader>
       <Show
-        when={state.clientHandle}
+        when={state.clientHandle ? radio() : null}
         fallback={<div class="text-sm w-sm">Not Connected</div>}
       >
-        <SpotsSettingsInner radio={radio()} />
+        {(radio) => <SpotsSettingsInner radio={radio()} />}
       </Show>
     </DialogContent>
   );

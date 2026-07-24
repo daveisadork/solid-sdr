@@ -99,7 +99,8 @@ export const RuntimeProvider: ParentComponent = (props) => {
       "split",
       produce((split) => {
         Object.entries(split).forEach(([key, value]) => {
-          if (!(slices.has(key) && slices.has(value.child || value.parent))) {
+          const partner = value.child ?? value.parent;
+          if (!(slices.has(key) && partner != null && slices.has(partner))) {
             delete split[key];
           }
         });

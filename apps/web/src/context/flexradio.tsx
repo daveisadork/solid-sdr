@@ -68,6 +68,18 @@ import { useDebugMode } from "./debug-mode";
 import { usePreferences } from "./preferences";
 import { useRtc } from "./rtc";
 
+declare global {
+  // Debug handles exposed for use from the browser console
+  var radio: Radio | null;
+  var state: AppState;
+  var sendCommand: (command: string) => Promise<{
+    response: number;
+    message: string;
+    debugOutput?: string;
+  }>;
+  var flexradio: unknown;
+}
+
 export enum ConnectionState {
   disconnected,
   connecting,
@@ -229,6 +241,13 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     const { resetState = true } = options ?? {};
     cleanupRadioSubscriptions();
     const currentRadio = activeRadio();
+    // Reset state BEFORE nulling the radio accessor: components resolve
+    // controllers from state-held ids, so state must unmount them while the
+    // radio can still satisfy the lookups.
+    if (resetState) {
+      setState(reconcile(initialState()));
+      spots.clear();
+    }
     setActiveRadio(null);
     currentRadio
       ?.disconnect()
@@ -236,10 +255,6 @@ export const FlexRadioProvider: ParentComponent = (props) => {
       .catch((error) =>
         console.error("Error closing flex radio session", error),
       );
-    if (resetState) {
-      setState(reconcile(initialState()));
-      spots.clear();
-    }
   };
 
   const debug = useDebugMode();
@@ -251,7 +266,17 @@ export const FlexRadioProvider: ParentComponent = (props) => {
   });
 
   const updateDiscoveryRadio = (descriptor?: FlexRadioDescriptor) => {
-    if (descriptor) {
+    if (!descriptor) return;
+    if (state.discoveredRadios[descriptor.host]) {
+      // Each discovery packet is a complete snapshot: reconcile so fields the
+      // radio stopped reporting (e.g. guiClients after the last client
+      // disconnects) are removed instead of merged over.
+      setState(
+        "discoveredRadios",
+        descriptor.host,
+        reconcile({ ...descriptor }),
+      );
+    } else {
       setState("discoveredRadios", descriptor.host, { ...descriptor });
     }
   };
@@ -271,7 +296,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         setState(
           "discoveredRadios",
           produce((radios) => {
-            delete radios[radio.endpoint?.host];
+            delete radios[radio.endpoint.host];
           }),
         ),
       ),
@@ -351,7 +376,8 @@ export const FlexRadioProvider: ParentComponent = (props) => {
       case "radio":
       case "featureLicense":
       case "filterPreset":
-        setState("status", change.entity, change.diff);
+        // singleton entities are never removed
+        if (!change.removed) setState("status", change.entity, change.diff);
         break;
       case "unknown":
         console.warn("Unknown state change", change);
@@ -524,7 +550,9 @@ export const FlexRadioProvider: ParentComponent = (props) => {
       selectedRadio: addr.host,
       stage: ConnectionStage.TCP,
     });
-    const radio = flexClient().radioByEndpoint(addr);
+    const client = flexClient();
+    if (!client) return;
+    const radio = client.radioByEndpoint(addr);
     if (!radio?.serial) {
       showToast({
         description: "Selected radio is unavailable",
@@ -655,19 +683,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
   });
 
   return (
-    <FlexRadioContext.Provider
-      value={{
-        spots,
-        state,
-        setState,
-        sendCommand,
-        connect,
-        disconnect,
-        bands,
-        radio: activeRadio,
-        client: flexClient,
-      }}
-    >
+    <>
       <Show
         when={flexClient()}
         fallback={
@@ -716,7 +732,23 @@ export const FlexRadioProvider: ParentComponent = (props) => {
           </Card>
         }
       >
-        {props.children}
+        {(client) => (
+          <FlexRadioContext.Provider
+            value={{
+              spots,
+              state,
+              setState,
+              sendCommand,
+              connect,
+              disconnect,
+              bands,
+              radio: activeRadio,
+              client,
+            }}
+          >
+            {props.children}
+          </FlexRadioContext.Provider>
+        )}
       </Show>
       <AlertDialog
         open={showAlert()}
@@ -729,7 +761,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
           <AlertDialogDescription>{alertMessage()}</AlertDialogDescription>
         </AlertDialogContent>
       </AlertDialog>
-    </FlexRadioContext.Provider>
+    </>
   );
 };
 

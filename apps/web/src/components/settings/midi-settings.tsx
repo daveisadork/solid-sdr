@@ -131,7 +131,8 @@ function eventToSource(event: MIDIMessageEvent): MidiSource | null {
       return { port, channel, kind, id: null };
     case "cc":
     case "note":
-      return { port, channel, kind, id };
+      // cc/note messages always carry an id; a missing one is malformed
+      return id === null ? null : { port, channel, kind, id };
     default:
       return null;
   }
@@ -378,7 +379,7 @@ function AddMappingDialog(props: { class?: string | undefined }) {
       key: String(value),
       label:
         targetValue === "panadapter.band"
-          ? bands.get(String(value))
+          ? (bands.get(String(value)) ?? String(value))
           : String(value),
       value,
     }));
@@ -411,16 +412,17 @@ function AddMappingDialog(props: { class?: string | undefined }) {
   });
 
   const currentBehaviorOptions = createMemo(() =>
-    behaviorOptions(inputType(), target()?.value),
+    behaviorOptions(inputType(), target()?.value ?? null),
   );
 
   const draftMapping = createMemo((): MidiMapping | null => {
-    const midi = { ...capturedSource(), port: selectedPort() };
+    const captured = capturedSource();
     const input = inputType();
     const targetValue = target()?.value;
     const chosenBehavior = behavior();
 
-    if (!midi || !input || !targetValue || !chosenBehavior) return null;
+    if (!captured || !input || !targetValue || !chosenBehavior) return null;
+    const midi = { ...captured, port: selectedPort() };
 
     const controlRef =
       controlNeedsSlice(targetValue) && selectedSlice()
@@ -631,13 +633,14 @@ function AddMappingDialog(props: { class?: string | undefined }) {
   createEffect(() => {
     const options = inputOptions();
     setInputType((current) =>
-      current && options.includes(current) ? current : options[0],
+      current && options.includes(current) ? current : (options[0] ?? current),
     );
   });
 
   createEffect(() => {
     const currentTarget = target()?.value;
-    if (currentTarget && !supportsInput(currentTarget, inputType())) {
+    const input = inputType();
+    if (currentTarget && input && !supportsInput(currentTarget, input)) {
       setTarget(null);
     }
   });
@@ -693,7 +696,7 @@ function AddMappingDialog(props: { class?: string | undefined }) {
                       placeholder="Any Device"
                       itemComponent={(props) => (
                         <SelectItem item={props.item}>
-                          {inputs.get(props.item.rawValue)?.name}
+                          {inputs.get(props.item.rawValue ?? "")?.name}
                         </SelectItem>
                       )}
                     >
@@ -742,10 +745,12 @@ function AddMappingDialog(props: { class?: string | undefined }) {
                     </Select>
                     <div class="size-16">
                       <Show when={lastMessage()}>
-                        <MidiValueRing
-                          message={lastMessage()}
-                          forceNote={inputType() === "button"}
-                        />
+                        {(message) => (
+                          <MidiValueRing
+                            message={message()}
+                            forceNote={inputType() === "button"}
+                          />
+                        )}
                       </Show>
                     </div>
                   </div>
@@ -832,7 +837,7 @@ function AddMappingDialog(props: { class?: string | undefined }) {
                       </ComboboxControl>
                       <ComboboxContent class="overflow-auto" />
                     </Combobox>
-                    <Show when={controlNeedsSlice(control()?.target)}>
+                    <Show when={controlNeedsSlice(control()?.target ?? null)}>
                       <Select<SliceOption>
                         class="flex flex-col gap-2"
                         value={sliceOption()}
@@ -1187,8 +1192,8 @@ function MidiSettingsInner() {
     const file = importFile();
     if (!file) return;
     const reader = new FileReader();
-    const onLoad = (event: ProgressEvent<FileReader>) => {
-      const mappings = JSON.parse(event.target.result as string);
+    const onLoad = () => {
+      const mappings = JSON.parse(reader.result as string);
       setPreferences("midiMappings", reconcile(mappings));
     };
     reader.addEventListener("load", onLoad, { once: true });
@@ -1247,7 +1252,7 @@ function MidiSettingsInner() {
               class="hidden"
               type="file"
               onChange={(event) => {
-                setImportFile(event.target.files.item(0));
+                setImportFile(event.currentTarget.files?.item(0) ?? undefined);
               }}
             />
             Import

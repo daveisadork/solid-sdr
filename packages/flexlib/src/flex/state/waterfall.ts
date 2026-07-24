@@ -40,9 +40,9 @@ export interface WaterfallSnapshot {
   readonly width: number;
   readonly height: number;
   /** Raw 0-100 line speed mirrored from the radio. */
-  readonly lineSpeed?: number;
+  readonly lineSpeed: number;
   /** Derived milliseconds value computed from lineSpeed. */
-  readonly lineDurationMs?: number;
+  readonly lineDurationMs: number;
   readonly blackLevel: number;
   readonly colorGain: number;
   readonly autoBlackLevelEnabled: boolean;

@@ -78,14 +78,12 @@ export class WaterfallControllerImpl implements WaterfallController {
     return this.current().height;
   }
 
-  get lineSpeed(): number | undefined {
+  get lineSpeed(): number {
     return this.current().lineSpeed;
   }
 
-  get lineDurationMs(): number | undefined {
-    const speed = this.current().lineSpeed;
-    if (speed === undefined) return undefined;
-    return lineSpeedToDurationMs(speed);
+  get lineDurationMs(): number {
+    return lineSpeedToDurationMs(this.current().lineSpeed);
   }
 
   get blackLevel(): number {

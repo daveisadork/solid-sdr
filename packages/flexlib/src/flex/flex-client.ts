@@ -53,7 +53,7 @@ export interface FlexClientEvents {
   /** A previously discovered radio stopped sending discovery packets on a specific endpoint. */
   readonly radioLost: {
     readonly serial: string;
-    readonly endpoint?: RadioEndpoint;
+    readonly endpoint: RadioEndpoint;
   };
   /** Transport-level error. */
   readonly error: unknown;

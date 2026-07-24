@@ -1,0 +1,517 @@
+V1.4.0.0
+H722B63B6
+M10000001|Client connected from IP 10.16.83.140
+S722B63B6|radio slices=4 panadapters=4 lineout_gain=50 lineout_mute=0 headphone_gain=50 headphone_mute=0 remote_on_enabled=0 pll_done=0 freq_error_ppb=0 cal_freq=15.000000 tnf_enabled=1 nickname=DaveRadio callsign=KF0SMY binaural_rx=0 full_duplex_enabled=1 band_persistence_enabled=1 rtty_mark_default=2125 enforce_private_ip_connections=1 backlight=50 mute_local_audio_when_remote=1 daxiq_capacity=16 daxiq_available=16 alpha=0 low_latency_digital_modes=0 mf_enable=1 auto_save=1 external_pa_allowed=1
+S722B63B6|radio filter_sharpness VOICE level=2 auto_level=1
+S722B63B6|radio filter_sharpness CW level=2 auto_level=1
+S722B63B6|radio filter_sharpness DIGITAL level=2 auto_level=1
+S722B63B6|radio static_net_params ip= gateway= netmask=
+S722B63B6|radio oscillator state=gpsdo setting=auto locked=1 ext_present=0 gnss_present=0 gpsdo_present=1 tcxo_present=1
+S722B63B6|interlock acc_txreq_enable=0 rca_txreq_enable=0 acc_tx_enabled=0 tx1_enabled=0 tx2_enabled=0 tx3_enabled=0 tx_delay=0 acc_tx_delay=0 tx1_delay=0 tx2_delay=0 tx3_delay=0 acc_txreq_polarity=0 rca_txreq_polarity=0 timeout=0
+S722B63B6|eq rx mode=0 63Hz=10 125Hz=10 250Hz=10 500Hz=10 1000Hz=10 2000Hz=10 4000Hz=10 8000Hz=10
+S722B63B6|eq rxsc mode=0 63Hz=0 125Hz=0 250Hz=0 500Hz=0 1000Hz=0 2000Hz=0 4000Hz=0 8000Hz=0
+R1|0|
+S722B63B6|transmit tx_rf_power_changes_allowed=1 tune=0 tune_mode=single_tone mon_available=1 max_power_level=100
+S722B63B6|transmit freq=7.175000 rfpower=0 tunepower=0 tx_slice_mode=LSB hwalc_enabled=0 inhibit=0 dax=1 sb_monitor=0 mon_gain_sb=40 mon_pan_sb=50 met_in_rx=1 am_carrier_level=100 mic_selection=MIC mic_level=0 mic_boost=0 mic_bias=0 mic_acc=0 compander=0 compander_level=0 vox_enable=0 vox_level=30 vox_delay=25 speech_processor_enable=0 speech_processor_level=0 lo=100 hi=3100 tx_filter_changes_allowed=1 tx_antenna=INVALID pitch=600 speed=30 iambic=1 iambic_mode=1 swap_paddles=0 break_in=1 break_in_delay=5 cwl_enabled=0 sidetone=1 mon_gain_cw=80 mon_pan_cw=50 synccwx=1
+S722B63B6|eq tx mode=0 63Hz=10 125Hz=6 250Hz=6 500Hz=11 1000Hz=14 2000Hz=16 4000Hz=15 8000Hz=12
+S722B63B6|eq txsc mode=0 63Hz=0 125Hz=-4 250Hz=-4 500Hz=1 1000Hz=4 2000Hz=6 4000Hz=5 8000Hz=2
+S722B63B6|interlock acc_txreq_enable=0 rca_txreq_enable=0 acc_tx_enabled=0 tx1_enabled=0 tx2_enabled=0 tx3_enabled=0 tx_delay=0 acc_tx_delay=0 tx1_delay=0 tx2_delay=0 tx3_delay=0 acc_txreq_polarity=0 rca_txreq_polarity=0 timeout=0
+R2|0|
+S722B63B6|atu status=TUNE_ABORTED atu_enabled=1 memories_enabled=1 using_mem=1
+R3|0|
+R4|0|
+S722B63B6|meter 1.src=COD-#1.num=1#1.nam=MICPEAK#1.low=-150.0#1.hi=20.0#1.desc=Signal strength of MIC output in CODEC#1.unit=dBFS#1.fps=40#
+S722B63B6|meter 2.src=COD-#2.num=2#2.nam=MIC#2.low=-150.0#2.hi=20.0#2.desc=Average Signal strength of MIC ouput in CODEC#2.unit=dBFS#2.fps=20#
+S722B63B6|meter 3.src=TX-#3.num=5#3.nam=HWALC#3.low=-150.0#3.hi=20.0#3.desc=Voltage present at the Hardware ALC RCA Plug#3.unit=dBFS#3.fps=20#
+S722B63B6|meter 4.src=RAD#4.num=334#4.nam=+13.8A#4.low=10.5#4.hi=15.0#4.desc=Main radio input voltage at PA#4.unit=Volts#4.fps=0#
+S722B63B6|meter 5.src=RAD#5.num=300#5.nam=PACURRENT#5.low=0.0#5.hi=10.0#5.desc=PA current#5.unit=Amps#5.fps=0#
+S722B63B6|meter 6.src=RAD#6.num=0#6.nam=+13.8B#6.low=10.5#6.hi=15.0#6.desc=Main radio input voltage at CPU (continuous)#6.unit=Volts#6.fps=0#
+S722B63B6|meter 7.src=RAD#7.num=3#7.nam=MAINFAN#7.low=0.0#7.hi=8192.0#7.desc=Main radio fan RPM#7.unit=RPM#7.fps=0#
+S722B63B6|meter 8.src=TX-#8.num=1#8.nam=FWDPWR#8.low=0.0#8.hi=53.0#8.desc=RF Power Forward#8.unit=dBm#8.fps=20#
+S722B63B6|meter 9.src=TX-#9.num=2#9.nam=REFPWR#9.low=0.0#9.hi=53.0#9.desc=RF Power Reflected#9.unit=dBm#9.fps=20#
+S722B63B6|meter 10.src=TX-#10.num=3#10.nam=SWR#10.low=1.0#10.hi=999.0#10.desc=RF SWR#10.unit=SWR#10.fps=20#
+S722B63B6|meter 11.src=TX-#11.num=4#11.nam=PATEMP#11.low=0.0#11.hi=120.0#11.desc=PA Temperature#11.unit=degC#11.fps=0#
+S722B63B6|meter 12.src=EXT_WVF#12.num=0x4A1AC7B6#12.nam=FreeDV_SNR#12.low=-99.0#12.hi=99.0#12.desc=External Meter#12.unit=dB#12.fps=0#
+S722B63B6|meter 37.src=EXT_WVF#37.num=0x11B1AE4A#37.nam=FreeDV_SNR#37.low=-99.0#37.hi=99.0#37.desc=External Meter#37.unit=dB#37.fps=0#
+R5|0|
+R6|0|
+S722B63B6|waveform installed_list=
+R7|0|
+S722B63B6|gps lat=38.433716667#lon=-90.454646667#grid=EM48sk#altitude=235 m#tracked=15#visible=30#speed=0 kts#freq_error=0 ppb#status=Fine Lock#time=13:11:25Z#track=0.0
+S722B63B6|gps gnss_powered_ant=false
+R8|0|
+R9|0|
+S722B63B6|cwx wpm=30 break_in_delay=5 qsk_enabled=1
+R10|0|
+S722B63B6|xvtr 0 name=2m rf_freq=144 if_freq=28 lo_error=0 max_power=0 rx_gain=0 order=0 rx_only=1 is_valid=1 preferred=1 two_meter_int=1 
+R11|0|
+S722B63B6|memory 11 owner=KF0SMY group=FreeDV freq=7.177000 name=FreeDV40m mode=FDVL step=500 repeater=SIMPLEX repeater_offset=0.000000 tone_mode=OFF tone_value=67.0 rx_filter_low=-2250 rx_filter_high=-750 highlight=0 highlight_color=0x00000000 squelch=0 squelch_level=20 rtty_mark=2125 rtty_shift=170 digl_offset=2210 digu_offset=1500
+S722B63B6|memory 9 owner=KF0SMY group=FreeDV freq=14.236000 name=FreeDV20m mode=FDVU step=500 repeater=SIMPLEX repeater_offset=0.000000 tone_mode=OFF tone_value=67.0 rx_filter_low=0 rx_filter_high=3000 highlight=0 highlight_color=0x00000000 squelch=0 squelch_level=20 rtty_mark=2125 rtty_shift=170 digl_offset=2210 digu_offset=1500
+S722B63B6|memory 7 owner=KF0SMY group=Repeaters freq=52.950000 name=K0AMC mode=NFM step=500 repeater=DOWN repeater_offset=1.700000 tone_mode=CTCSS_TX tone_value=192.8 rx_filter_low=-5500 rx_filter_high=5500 highlight=0 highlight_color=0x00000000 squelch=1 squelch_level=20 rtty_mark=2125 rtty_shift=170 digl_offset=2210 digu_offset=1500
+R12|0|
+R13|0|
+R14|0|
+S722B63B6|license radio_id=00-1C-2D-05-33-BA issued=2025-11-03T16:44:10.232Z last_refreshed_date=2025-11-03T18:31:26.976017Z highest_major_version=v4 region=
+S722B63B6|license feature name=ALPHA enabled=0 reason=LICENSE_FILE
+S722B63B6|license feature name=SMARTLINK enabled=1 reason=BUILT_IN
+S722B63B6|license feature name=MULTIFLEX enabled=1 reason=BUILT_IN
+S722B63B6|license feature name=WFP enabled=0 reason=LICENSE_FILE
+S722B63B6|license feature name=NOISE_FLOOR enabled=1 reason=PLUS
+S722B63B6|license feature name=NOISE_REDUCTION enabled=1 reason=PLUS
+S722B63B6|license feature name=DIGITAL_VOICE_KEYER enabled=1 reason=PLUS
+S722B63B6|license feature name=AUTO_TUNE enabled=1 reason=PLUS
+S722B63B6|license feature name=DIV_ESC enabled=1 reason=PLUS
+S722B63B6|license feature name=NAVTEX_WF enabled=0 reason=LICENSE_FILE
+S722B63B6|license feature name=RAPIDM_LOGGING enabled=0 reason=LICENSE_FILE
+S722B63B6|license feature name=FILTER_PRESET_CONF enabled=1 reason=PLUS
+S722B63B6|license feature name=PANADAPTER_VISUALS enabled=1 reason=PLUS
+S722B63B6|license subscription name=SMARTSDR+_EARLY_ACCESS expiration=2026-11-03T16:44:10.232Z
+R15|0|
+R16|0|
+R17|0|
+S722B63B6|display_marker group=IARU1 id=1 label="CW" start_freq=0.135700 stop_freq=0.137800 color=royal_blue opacity=30
+S722B63B6|display_marker group=IARU1 id=2 label="CW" start_freq=0.472000 stop_freq=0.479000 color=royal_blue opacity=30
+S722B63B6|display_marker group=IARU1 id=3 label="CW" start_freq=1.810000 stop_freq=1.838000 color=royal_blue opacity=30
+S722B63B6|display_marker group=IARU1 id=4 label="Digital" start_freq=1.838000 stop_freq=1.840000 color=medium_purple opacity=30
+S722B63B6|display_marker group=IARU1 id=5 label="FT8" start_freq=1.840000 stop_freq=1.843200 color=orange opacity=30
+S722B63B6|display_marker group=IARU1 id=6 label="All Modes" start_freq=1.843200 stop_freq=2.000000 color=gray opacity=30
+S722B63B6|display_marker group=IARU1 id=7 label="CW" start_freq=3.500000 stop_freq=3.570000 color=royal_blue opacity=30
+S722B63B6|display_marker group=IARU1 id=8 label="Digital" start_freq=3.570000 stop_freq=3.573000 color=medium_purple opacity=30
+S722B63B6|display_marker group=IARU1 id=9 label="FT8" start_freq=3.573000 stop_freq=3.576200 color=orange opacity=30
+S722B63B6|display_marker group=IARU1 id=10 label="Digital" start_freq=3.576200 stop_freq=3.600000 color=medium_purple opacity=30
+S722B63B6|display_marker group=IARU1 id=11 label="All Modes" start_freq=3.600000 stop_freq=3.800000 color=gray opacity=30
+S722B63B6|display_marker group=IARU1 id=12 label="CW" start_freq=5.351500 stop_freq=5.354000 color=royal_blue opacity=30
+S722B63B6|display_marker group=IARU1 id=13 label="All Modes" start_freq=5.354000 stop_freq=5.357000 color=gray opacity=30
+S722B63B6|display_marker group=IARU1 id=14 label="FT8" start_freq=5.357000 stop_freq=5.360200 color=orange opacity=30
+S722B63B6|display_marker group=IARU1 id=15 label="All Modes" start_freq=5.360200 stop_freq=5.366000 color=gray opacity=30
+S722B63B6|display_marker group=IARU1 id=16 label="CW" start_freq=5.366000 stop_freq=5.366500 color=royal_blue opacity=30
+S722B63B6|display_marker group=IARU1 id=17 label="CW" start_freq=7.000000 stop_freq=7.040000 color=royal_blue opacity=30
+S722B63B6|display_marker group=IARU1 id=18 label="Digital" start_freq=7.040000 stop_freq=7.050000 color=medium_purple opacity=30
+S722B63B6|display_marker group=IARU1 id=19 label="All Modes" start_freq=7.050000 stop_freq=7.074000 color=gray opacity=30
+S722B63B6|display_marker group=IARU1 id=20 label="FT8" start_freq=7.074000 stop_freq=7.077200 color=orange opacity=30
+S722B63B6|display_marker group=IARU1 id=21 label="All Modes" start_freq=7.077200 stop_freq=7.200000 color=gray opacity=30
+S722B63B6|display_marker group=IARU1 id=22 label="CW" start_freq=10.100000 stop_freq=10.130000 color=royal_blue opacity=30
+S722B63B6|display_marker group=IARU1 id=23 label="Digital" start_freq=10.130000 stop_freq=10.136000 color=medium_purple opacity=30
+S722B63B6|display_marker group=IARU1 id=24 label="FT8" start_freq=10.136000 stop_freq=10.139200 color=orange opacity=30
+S722B63B6|display_marker group=IARU1 id=25 label="Digital" start_freq=10.139200 stop_freq=10.150000 color=medium_purple opacity=30
+S722B63B6|display_marker group=IARU1 id=26 label="CW" start_freq=14.000000 stop_freq=14.070000 color=royal_blue opacity=30
+S722B63B6|display_marker group=IARU1 id=27 label="Digital" start_freq=14.070000 stop_freq=14.074000 color=medium_purple opacity=30
+S722B63B6|display_marker group=IARU1 id=28 label="FT8" start_freq=14.074000 stop_freq=14.077200 color=orange opacity=30
+S722B63B6|display_marker group=IARU1 id=29 label="Digital" start_freq=14.077200 stop_freq=14.099000 color=medium_purple opacity=30
+S722B63B6|display_marker group=IARU1 id=30 label="Beacons" start_freq=14.099000 stop_freq=14.101000 color=red opacity=30
+S722B63B6|display_marker group=IARU1 id=31 label="All Modes" start_freq=14.101000 stop_freq=14.350000 color=gray opacity=30
+S722B63B6|display_marker group=IARU1 id=32 label="CW" start_freq=18.068000 stop_freq=18.095000 color=royal_blue opacity=30
+S722B63B6|display_marker group=IARU1 id=33 label="Digital" start_freq=18.095000 stop_freq=18.100000 color=medium_purple opacity=30
+S722B63B6|display_marker group=IARU1 id=34 label="FT8" start_freq=18.100000 stop_freq=18.103200 color=orange opacity=30
+S722B63B6|display_marker group=IARU1 id=35 label="Digital" start_freq=18.103200 stop_freq=18.109000 color=medium_purple opacity=30
+S722B63B6|display_marker group=IARU1 id=36 label="Beacons" start_freq=18.109000 stop_freq=18.111000 color=red opacity=30
+S722B63B6|display_marker group=IARU1 id=37 label="All Modes" start_freq=18.111000 stop_freq=18.168000 color=gray opacity=30
+S722B63B6|display_marker group=IARU1 id=38 label="CW" start_freq=21.000000 stop_freq=21.070000 color=royal_blue opacity=30
+S722B63B6|display_marker group=IARU1 id=39 label="Digital" start_freq=21.070000 stop_freq=21.074000 color=medium_purple opacity=30
+S722B63B6|display_marker group=IARU1 id=40 label="FT8" start_freq=21.074000 stop_freq=21.077200 color=orange opacity=30
+S722B63B6|display_marker group=IARU1 id=41 label="Digital" start_freq=21.077200 stop_freq=21.149000 color=medium_purple opacity=30
+S722B63B6|display_marker group=IARU1 id=42 label="Beacons" start_freq=21.149000 stop_freq=21.151000 color=red opacity=30
+S722B63B6|display_marker group=IARU1 id=43 label="All Modes" start_freq=21.151000 stop_freq=21.450000 color=gray opacity=30
+S722B63B6|display_marker group=IARU1 id=44 label="CW" start_freq=24.890000 stop_freq=24.915000 color=royal_blue opacity=30
+S722B63B6|display_marker group=IARU1 id=45 label="FT8" start_freq=24.915000 stop_freq=24.918200 color=orange opacity=30
+S722B63B6|display_marker group=IARU1 id=46 label="Digital" start_freq=24.918200 stop_freq=24.929000 color=medium_purple opacity=30
+S722B63B6|display_marker group=IARU1 id=47 label="Beacons" start_freq=24.929000 stop_freq=24.931000 color=red opacity=30
+S722B63B6|display_marker group=IARU1 id=48 label="All Modes" start_freq=24.931000 stop_freq=24.990000 color=gray opacity=30
+S722B63B6|display_marker group=IARU1 id=49 label="CW" start_freq=28.000000 stop_freq=28.070000 color=royal_blue opacity=30
+S722B63B6|display_marker group=IARU1 id=50 label="Digital" start_freq=28.070000 stop_freq=28.074000 color=medium_purple opacity=30
+S722B63B6|display_marker group=IARU1 id=51 label="FT8" start_freq=28.074000 stop_freq=28.077200 color=orange opacity=30
+S722B63B6|display_marker group=IARU1 id=52 label="Digital" start_freq=28.077200 stop_freq=28.190000 color=medium_purple opacity=30
+S722B63B6|display_marker group=IARU1 id=53 label="Beacons" start_freq=28.190000 stop_freq=28.225000 color=red opacity=30
+S722B63B6|display_marker group=IARU1 id=54 label="All Modes" start_freq=28.225000 stop_freq=29.100000 color=gray opacity=30
+S722B63B6|display_marker group=IARU1 id=55 label="FM" start_freq=29.100000 stop_freq=29.200000 color=dark_orange opacity=30
+S722B63B6|display_marker group=IARU1 id=56 label="All Modes" start_freq=29.200000 stop_freq=29.300000 color=gray opacity=30
+S722B63B6|display_marker group=IARU1 id=57 label="Satellite" start_freq=29.300000 stop_freq=29.510000 color=yellow opacity=30
+S722B63B6|display_marker group=IARU1 id=58 label="FM" start_freq=29.520000 stop_freq=29.700000 color=dark_orange opacity=30
+S722B63B6|display_marker group=IARU1 id=59 label="CW" start_freq=50.000000 stop_freq=50.100000 color=royal_blue opacity=30
+S722B63B6|display_marker group=IARU1 id=60 label="Phone" start_freq=50.100000 stop_freq=50.313000 color=lime_green opacity=30
+S722B63B6|display_marker group=IARU1 id=61 label="FT8" start_freq=50.313000 stop_freq=50.316200 color=orange opacity=30
+S722B63B6|display_marker group=IARU1 id=62 label="Phone" start_freq=50.316200 stop_freq=50.500000 color=lime_green opacity=30
+S722B63B6|display_marker group=IARU1 id=63 label="All Modes" start_freq=50.500000 stop_freq=52.000000 color=gray opacity=30
+S722B63B6|display_marker group=IARU1 id=64 label="CW" start_freq=144.000000 stop_freq=144.150000 color=royal_blue opacity=30
+S722B63B6|display_marker group=IARU1 id=65 label="Phone" start_freq=144.150000 stop_freq=144.174000 color=lime_green opacity=30
+S722B63B6|display_marker group=IARU1 id=66 label="FT8" start_freq=144.174000 stop_freq=144.177200 color=orange opacity=30
+S722B63B6|display_marker group=IARU1 id=67 label="Phone" start_freq=144.177200 stop_freq=144.400000 color=lime_green opacity=30
+S722B63B6|display_marker group=IARU1 id=68 label="All Modes" start_freq=144.400000 stop_freq=146.000000 color=gray opacity=30
+S722B63B6|display_marker group=IARU2 id=1 label="CW" start_freq=0.135700 stop_freq=0.137800 color=royal_blue opacity=30
+S722B63B6|display_marker group=IARU2 id=2 label="CW" start_freq=0.472000 stop_freq=0.479000 color=royal_blue opacity=30
+S722B63B6|display_marker group=IARU2 id=3 label="Digital" start_freq=1.800000 stop_freq=1.810000 color=medium_purple opacity=30
+S722B63B6|display_marker group=IARU2 id=4 label="CW" start_freq=1.810000 stop_freq=1.840000 color=royal_blue opacity=30
+S722B63B6|display_marker group=IARU2 id=5 label="FT8" start_freq=1.840000 stop_freq=1.843200 color=orange opacity=30
+S722B63B6|display_marker group=IARU2 id=6 label="Phone" start_freq=1.843200 stop_freq=2.000000 color=lime_green opacity=30
+S722B63B6|display_marker group=IARU2 id=7 label="CW" start_freq=3.500000 stop_freq=3.570000 color=royal_blue opacity=30
+S722B63B6|display_marker group=IARU2 id=8 label="Digital" start_freq=3.570000 stop_freq=3.573000 color=medium_purple opacity=30
+S722B63B6|display_marker group=IARU2 id=9 label="FT8" start_freq=3.573000 stop_freq=3.576200 color=orange opacity=30
+S722B63B6|display_marker group=IARU2 id=10 label="Digital" start_freq=3.576200 stop_freq=3.600000 color=medium_purple opacity=30
+S722B63B6|display_marker group=IARU2 id=11 label="Phone" start_freq=3.600000 stop_freq=4.000000 color=lime_green opacity=30
+S722B63B6|display_marker group=IARU2 id=12 label="Digital" start_freq=5.351500 stop_freq=5.354000 color=medium_purple opacity=30
+S722B63B6|display_marker group=IARU2 id=13 label="All Modes" start_freq=5.354000 stop_freq=5.357000 color=gray opacity=30
+S722B63B6|display_marker group=IARU2 id=14 label="FT8" start_freq=5.357000 stop_freq=5.360200 color=orange opacity=30
+S722B63B6|display_marker group=IARU2 id=15 label="All Modes" start_freq=5.360200 stop_freq=5.366000 color=gray opacity=30
+S722B63B6|display_marker group=IARU2 id=16 label="Digital" start_freq=5.366000 stop_freq=5.366500 color=medium_purple opacity=30
+S722B63B6|display_marker group=IARU2 id=17 label="CW" start_freq=7.000000 stop_freq=7.040000 color=royal_blue opacity=30
+S722B63B6|display_marker group=IARU2 id=18 label="Digital" start_freq=7.040000 stop_freq=7.050000 color=medium_purple opacity=30
+S722B63B6|display_marker group=IARU2 id=19 label="Phone" start_freq=7.050000 stop_freq=7.074000 color=lime_green opacity=30
+S722B63B6|display_marker group=IARU2 id=20 label="FT8" start_freq=7.074000 stop_freq=7.077200 color=orange opacity=30
+S722B63B6|display_marker group=IARU2 id=21 label="Phone" start_freq=7.077200 stop_freq=7.300000 color=lime_green opacity=30
+S722B63B6|display_marker group=IARU2 id=22 label="CW" start_freq=10.100000 stop_freq=10.130000 color=royal_blue opacity=30
+S722B63B6|display_marker group=IARU2 id=23 label="Digital" start_freq=10.130000 stop_freq=10.136000 color=medium_purple opacity=30
+S722B63B6|display_marker group=IARU2 id=24 label="FT8" start_freq=10.136000 stop_freq=10.139200 color=orange opacity=30
+S722B63B6|display_marker group=IARU2 id=25 label="Digital" start_freq=10.139200 stop_freq=10.150000 color=medium_purple opacity=30
+S722B63B6|display_marker group=IARU2 id=26 label="CW" start_freq=14.000000 stop_freq=14.070000 color=royal_blue opacity=30
+S722B63B6|display_marker group=IARU2 id=27 label="Digital" start_freq=14.070000 stop_freq=14.074000 color=medium_purple opacity=30
+S722B63B6|display_marker group=IARU2 id=28 label="FT8" start_freq=14.074000 stop_freq=14.077200 color=orange opacity=30
+S722B63B6|display_marker group=IARU2 id=29 label="Digital" start_freq=14.077200 stop_freq=14.099000 color=medium_purple opacity=30
+S722B63B6|display_marker group=IARU2 id=30 label="Beacons" start_freq=14.099000 stop_freq=14.101000 color=red opacity=30
+S722B63B6|display_marker group=IARU2 id=31 label="Phone" start_freq=14.101000 stop_freq=14.350000 color=lime_green opacity=30
+S722B63B6|display_marker group=IARU2 id=32 label="CW" start_freq=18.068000 stop_freq=18.095000 color=royal_blue opacity=30
+S722B63B6|display_marker group=IARU2 id=33 label="Digital" start_freq=18.095000 stop_freq=18.100000 color=medium_purple opacity=30
+S722B63B6|display_marker group=IARU2 id=34 label="FT8" start_freq=18.100000 stop_freq=18.103200 color=orange opacity=30
+S722B63B6|display_marker group=IARU2 id=35 label="Digital" start_freq=18.103200 stop_freq=18.109000 color=medium_purple opacity=30
+S722B63B6|display_marker group=IARU2 id=36 label="Beacons" start_freq=18.109000 stop_freq=18.111000 color=red opacity=30
+S722B63B6|display_marker group=IARU2 id=37 label="Phone" start_freq=18.111000 stop_freq=18.168000 color=lime_green opacity=30
+S722B63B6|display_marker group=IARU2 id=38 label="CW" start_freq=21.000000 stop_freq=21.070000 color=royal_blue opacity=30
+S722B63B6|display_marker group=IARU2 id=39 label="Digital" start_freq=21.070000 stop_freq=21.074000 color=medium_purple opacity=30
+S722B63B6|display_marker group=IARU2 id=40 label="FT8" start_freq=21.074000 stop_freq=21.077200 color=orange opacity=30
+S722B63B6|display_marker group=IARU2 id=41 label="Digital" start_freq=21.077200 stop_freq=21.149000 color=medium_purple opacity=30
+S722B63B6|display_marker group=IARU2 id=42 label="Beacons" start_freq=21.149000 stop_freq=21.151000 color=red opacity=30
+S722B63B6|display_marker group=IARU2 id=43 label="Phone" start_freq=21.151000 stop_freq=21.450000 color=lime_green opacity=30
+S722B63B6|display_marker group=IARU2 id=44 label="CW" start_freq=24.890000 stop_freq=24.915000 color=royal_blue opacity=30
+S722B63B6|display_marker group=IARU2 id=45 label="FT8" start_freq=24.915000 stop_freq=24.918200 color=orange opacity=30
+S722B63B6|display_marker group=IARU2 id=46 label="Digital" start_freq=24.918200 stop_freq=24.929000 color=medium_purple opacity=30
+S722B63B6|display_marker group=IARU2 id=47 label="Beacons" start_freq=24.929000 stop_freq=24.931000 color=red opacity=30
+S722B63B6|display_marker group=IARU2 id=48 label="Phone" start_freq=24.931000 stop_freq=24.990000 color=lime_green opacity=30
+S722B63B6|display_marker group=IARU2 id=49 label="CW" start_freq=28.000000 stop_freq=28.070000 color=royal_blue opacity=30
+S722B63B6|display_marker group=IARU2 id=50 label="Digital" start_freq=28.070000 stop_freq=28.074000 color=medium_purple opacity=30
+S722B63B6|display_marker group=IARU2 id=51 label="FT8" start_freq=28.074000 stop_freq=28.077200 color=orange opacity=30
+S722B63B6|display_marker group=IARU2 id=52 label="Digital" start_freq=28.077200 stop_freq=28.190000 color=medium_purple opacity=30
+S722B63B6|display_marker group=IARU2 id=53 label="Beacons" start_freq=28.190000 stop_freq=28.225000 color=red opacity=30
+S722B63B6|display_marker group=IARU2 id=54 label="Phone" start_freq=28.225000 stop_freq=29.000000 color=lime_green opacity=30
+S722B63B6|display_marker group=IARU2 id=55 label="All Modes" start_freq=29.000000 stop_freq=29.200000 color=gray opacity=30
+S722B63B6|display_marker group=IARU2 id=56 label="All Modes" start_freq=29.200000 stop_freq=29.300000 color=gray opacity=30
+S722B63B6|display_marker group=IARU2 id=57 label="Satellite" start_freq=29.300000 stop_freq=29.510000 color=yellow opacity=30
+S722B63B6|display_marker group=IARU2 id=58 label="FM" start_freq=29.520000 stop_freq=29.700000 color=dark_orange opacity=30
+S722B63B6|display_marker group=IARU2 id=59 label="CW" start_freq=50.000000 stop_freq=50.100000 color=royal_blue opacity=30
+S722B63B6|display_marker group=IARU2 id=60 label="Phone" start_freq=50.100000 stop_freq=50.313000 color=lime_green opacity=30
+S722B63B6|display_marker group=IARU2 id=61 label="FT8" start_freq=50.313000 stop_freq=50.316200 color=orange opacity=30
+S722B63B6|display_marker group=IARU2 id=62 label="Phone" start_freq=50.316200 stop_freq=50.500000 color=lime_green opacity=30
+S722B63B6|display_marker group=IARU2 id=63 label="FM" start_freq=50.500000 stop_freq=54.000000 color=dark_orange opacity=30
+S722B63B6|display_marker group=IARU2 id=64 label="CW" start_freq=144.000000 stop_freq=144.100000 color=royal_blue opacity=30
+S722B63B6|display_marker group=IARU2 id=65 label="Phone" start_freq=144.100000 stop_freq=144.174000 color=lime_green opacity=30
+S722B63B6|display_marker group=IARU2 id=66 label="FT8" start_freq=144.174000 stop_freq=144.177200 color=orange opacity=30
+S722B63B6|display_marker group=IARU2 id=67 label="Phone" start_freq=144.177200 stop_freq=144.300000 color=lime_green opacity=30
+S722B63B6|display_marker group=IARU2 id=68 label="All Modes" start_freq=144.300000 stop_freq=148.000000 color=gray opacity=30
+S722B63B6|display_marker group=IARU3 id=1 label="CW" start_freq=0.135700 stop_freq=0.137800 color=royal_blue opacity=30
+S722B63B6|display_marker group=IARU3 id=2 label="CW" start_freq=0.472000 stop_freq=0.479000 color=royal_blue opacity=30
+S722B63B6|display_marker group=IARU3 id=3 label="CW" start_freq=1.800000 stop_freq=1.830000 color=royal_blue opacity=30
+S722B63B6|display_marker group=IARU3 id=4 label="All Modes" start_freq=1.830000 stop_freq=1.840000 color=gray opacity=30
+S722B63B6|display_marker group=IARU3 id=5 label="FT8" start_freq=1.840000 stop_freq=1.843200 color=orange opacity=30
+S722B63B6|display_marker group=IARU3 id=6 label="All Modes" start_freq=1.843200 stop_freq=2.000000 color=gray opacity=30
+S722B63B6|display_marker group=IARU3 id=7 label="CW" start_freq=3.500000 stop_freq=3.535000 color=royal_blue opacity=30
+S722B63B6|display_marker group=IARU3 id=8 label="All Modes" start_freq=3.535000 stop_freq=3.573000 color=gray opacity=30
+S722B63B6|display_marker group=IARU3 id=9 label="FT8" start_freq=3.573000 stop_freq=3.576200 color=orange opacity=30
+S722B63B6|display_marker group=IARU3 id=10 label="All Modes" start_freq=3.576200 stop_freq=3.600000 color=gray opacity=30
+S722B63B6|display_marker group=IARU3 id=11 label="All Modes" start_freq=3.600000 stop_freq=3.900000 color=gray opacity=30
+S722B63B6|display_marker group=IARU3 id=12 label="Digital" start_freq=5.351500 stop_freq=5.354000 color=medium_purple opacity=30
+S722B63B6|display_marker group=IARU3 id=13 label="All Modes" start_freq=5.354000 stop_freq=5.357000 color=gray opacity=30
+S722B63B6|display_marker group=IARU3 id=14 label="FT8" start_freq=5.357000 stop_freq=5.360200 color=orange opacity=30
+S0|gps lat=38.433716667#lon=-90.454646667#grid=EM48sk#altitude=235 m#tracked=15#visible=30#speed=0 kts#freq_error=0 ppb#status=Fine Lock#time=13:11:26Z#track=0.0
+S722B63B6|display_marker group=IARU3 id=15 label="All Modes" start_freq=5.360200 stop_freq=5.366000 color=gray opacity=30
+S722B63B6|display_marker group=IARU3 id=16 label="CW" start_freq=5.366000 stop_freq=5.366500 color=royal_blue opacity=30
+S722B63B6|display_marker group=IARU3 id=17 label="CW" start_freq=7.000000 stop_freq=7.030000 color=royal_blue opacity=30
+S722B63B6|display_marker group=IARU3 id=18 label="All Modes" start_freq=7.030000 stop_freq=7.040000 color=gray opacity=30
+S722B63B6|display_marker group=IARU3 id=19 label="All Modes" start_freq=7.040000 stop_freq=7.074000 color=gray opacity=30
+S722B63B6|display_marker group=IARU3 id=20 label="FT8" start_freq=7.074000 stop_freq=7.077200 color=orange opacity=30
+S722B63B6|display_marker group=IARU3 id=21 label="All Modes" start_freq=7.077200 stop_freq=7.200000 color=gray opacity=30
+S722B63B6|display_marker group=IARU3 id=22 label="CW" start_freq=10.100000 stop_freq=10.130000 color=royal_blue opacity=30
+S722B63B6|display_marker group=IARU3 id=23 label="Digital" start_freq=10.130000 stop_freq=10.136000 color=medium_purple opacity=30
+S722B63B6|display_marker group=IARU3 id=24 label="FT8" start_freq=10.136000 stop_freq=10.139200 color=orange opacity=30
+S722B63B6|display_marker group=IARU3 id=25 label="Digital" start_freq=10.139200 stop_freq=10.150000 color=medium_purple opacity=30
+S722B63B6|display_marker group=IARU3 id=26 label="CW" start_freq=14.000000 stop_freq=14.070000 color=royal_blue opacity=30
+S722B63B6|display_marker group=IARU3 id=27 label="Digital" start_freq=14.070000 stop_freq=14.074000 color=medium_purple opacity=30
+S722B63B6|display_marker group=IARU3 id=28 label="FT8" start_freq=14.074000 stop_freq=14.077200 color=orange opacity=30
+S722B63B6|display_marker group=IARU3 id=29 label="Digital" start_freq=14.077200 stop_freq=14.099000 color=medium_purple opacity=30
+S722B63B6|display_marker group=IARU3 id=30 label="Beacons" start_freq=14.099000 stop_freq=14.101000 color=red opacity=30
+S722B63B6|display_marker group=IARU3 id=31 label="All Modes" start_freq=14.101000 stop_freq=14.112000 color=gray opacity=30
+S722B63B6|display_marker group=IARU3 id=32 label="Phone" start_freq=14.112000 stop_freq=14.350000 color=lime_green opacity=30
+S722B63B6|display_marker group=IARU3 id=33 label="CW" start_freq=18.068000 stop_freq=18.095000 color=royal_blue opacity=30
+S722B63B6|display_marker group=IARU3 id=34 label="Digital" start_freq=18.095000 stop_freq=18.100000 color=medium_purple opacity=30
+S722B63B6|display_marker group=IARU3 id=35 label="FT8" start_freq=18.100000 stop_freq=18.103200 color=orange opacity=30
+S722B63B6|display_marker group=IARU3 id=36 label="Digital" start_freq=18.103200 stop_freq=18.109000 color=medium_purple opacity=30
+S722B63B6|display_marker group=IARU3 id=37 label="Beacons" start_freq=18.109000 stop_freq=18.111000 color=red opacity=30
+S722B63B6|display_marker group=IARU3 id=38 label="All Modes" start_freq=18.111000 stop_freq=18.120000 color=gray opacity=30
+S722B63B6|display_marker group=IARU3 id=39 label="Phone" start_freq=18.120000 stop_freq=18.168000 color=lime_green opacity=30
+S722B63B6|display_marker group=IARU3 id=40 label="CW" start_freq=21.000000 stop_freq=21.070000 color=royal_blue opacity=30
+S722B63B6|display_marker group=IARU3 id=41 label="Digital" start_freq=21.070000 stop_freq=21.074000 color=medium_purple opacity=30
+S722B63B6|display_marker group=IARU3 id=42 label="FT8" start_freq=21.074000 stop_freq=21.077200 color=orange opacity=30
+S722B63B6|display_marker group=IARU3 id=43 label="Digital" start_freq=21.077200 stop_freq=21.149000 color=medium_purple opacity=30
+S722B63B6|display_marker group=IARU3 id=44 label="Beacons" start_freq=21.149000 stop_freq=21.151000 color=red opacity=30
+S722B63B6|display_marker group=IARU3 id=45 label="Phone" start_freq=21.151000 stop_freq=21.450000 color=lime_green opacity=30
+S722B63B6|display_marker group=IARU3 id=46 label="CW" start_freq=24.890000 stop_freq=24.915000 color=royal_blue opacity=30
+S722B63B6|display_marker group=IARU3 id=47 label="FT8" start_freq=24.915000 stop_freq=24.918200 color=orange opacity=30
+S722B63B6|display_marker group=IARU3 id=48 label="Digital" start_freq=24.918200 stop_freq=24.929000 color=medium_purple opacity=30
+S722B63B6|display_marker group=IARU3 id=49 label="Beacons" start_freq=24.929000 stop_freq=24.931000 color=red opacity=30
+S722B63B6|display_marker group=IARU3 id=50 label="All Modes" start_freq=24.931000 stop_freq=24.940000 color=gray opacity=30
+S722B63B6|display_marker group=IARU3 id=51 label="Phone" start_freq=24.940000 stop_freq=24.990000 color=lime_green opacity=30
+S722B63B6|display_marker group=IARU3 id=52 label="CW" start_freq=28.000000 stop_freq=28.070000 color=royal_blue opacity=30
+S722B63B6|display_marker group=IARU3 id=53 label="Digital" start_freq=28.070000 stop_freq=28.074000 color=medium_purple opacity=30
+S722B63B6|display_marker group=IARU3 id=54 label="FT8" start_freq=28.074000 stop_freq=28.077200 color=orange opacity=30
+S722B63B6|display_marker group=IARU3 id=55 label="Digital" start_freq=28.077200 stop_freq=28.190000 color=medium_purple opacity=30
+S722B63B6|display_marker group=IARU3 id=56 label="Beacons" start_freq=28.190000 stop_freq=28.225000 color=red opacity=30
+S722B63B6|display_marker group=IARU3 id=57 label="All Modes" start_freq=28.225000 stop_freq=29.100000 color=gray opacity=30
+S722B63B6|display_marker group=IARU3 id=58 label="All Modes" start_freq=29.100000 stop_freq=29.300000 color=gray opacity=30
+S722B63B6|display_marker group=IARU3 id=59 label="Satellite" start_freq=29.300000 stop_freq=29.510000 color=yellow opacity=30
+S722B63B6|display_marker group=IARU3 id=60 label="FM" start_freq=29.520000 stop_freq=29.700000 color=dark_orange opacity=30
+S722B63B6|display_marker group=IARU3 id=61 label="CW" start_freq=50.000000 stop_freq=50.100000 color=royal_blue opacity=30
+S722B63B6|display_marker group=IARU3 id=62 label="Phone" start_freq=50.100000 stop_freq=50.313000 color=lime_green opacity=30
+S722B63B6|display_marker group=IARU3 id=63 label="FT8" start_freq=50.313000 stop_freq=50.316200 color=orange opacity=30
+S722B63B6|display_marker group=IARU3 id=64 label="Phone" start_freq=50.316200 stop_freq=50.500000 color=lime_green opacity=30
+S722B63B6|display_marker group=IARU3 id=65 label="FM" start_freq=50.500000 stop_freq=54.000000 color=dark_orange opacity=30
+S722B63B6|display_marker group=IARU3 id=66 label="CW" start_freq=144.000000 stop_freq=144.100000 color=royal_blue opacity=30
+S722B63B6|display_marker group=IARU3 id=67 label="Phone" start_freq=144.100000 stop_freq=144.174000 color=lime_green opacity=30
+S722B63B6|display_marker group=IARU3 id=68 label="FT8" start_freq=144.174000 stop_freq=144.177200 color=orange opacity=30
+S722B63B6|display_marker group=IARU3 id=69 label="Phone" start_freq=144.177200 stop_freq=144.400000 color=lime_green opacity=30
+S722B63B6|display_marker group=IARU3 id=70 label="All Modes" start_freq=144.400000 stop_freq=148.000000 color=gray opacity=30
+R18|0|
+R19|0|
+S722B63B6|filt_preset ssb 0 name=1.8k low=100 high=1900
+S722B63B6|filt_preset ssb 1 name=2.1k low=100 high=2200
+S722B63B6|filt_preset ssb 2 name=2.4k low=100 high=2500
+S722B63B6|filt_preset ssb 3 name=2.7k low=100 high=2800
+S722B63B6|filt_preset ssb 4 name=2.9k low=100 high=3000
+S722B63B6|filt_preset ssb 5 name=3.3k low=100 high=3400
+S722B63B6|filt_preset am 0 name=5.6k low=-2800 high=2800
+S722B63B6|filt_preset am 1 name=6.0k low=-3000 high=3000
+S722B63B6|filt_preset am 2 name=8.0k low=-4000 high=4000
+S722B63B6|filt_preset am 3 name=10k low=-5000 high=5000
+S722B63B6|filt_preset am 4 name=12k low=-6000 high=6000
+S722B63B6|filt_preset am 5 name=16k low=-8000 high=8000
+S722B63B6|filt_preset cw 0 name=50 low=-25 high=25
+S722B63B6|filt_preset cw 1 name=100 low=-50 high=50
+S722B63B6|filt_preset cw 2 name=250 low=-125 high=125
+S722B63B6|filt_preset cw 3 name=400 low=-200 high=200
+S722B63B6|filt_preset cw 4 name=500 low=-250 high=250
+S722B63B6|filt_preset cw 5 name=800 low=-400 high=400
+S722B63B6|filt_preset digital 0 name=100 low=0 high=100
+S722B63B6|filt_preset digital 1 name=300 low=0 high=300
+S722B63B6|filt_preset digital 2 name=600 low=0 high=600
+S722B63B6|filt_preset digital 3 name=1.0k low=0 high=1000
+S722B63B6|filt_preset digital 4 name=3.0k low=0 high=3000
+S722B63B6|filt_preset digital 5 name=6.0k low=0 high=6000
+S722B63B6|filt_preset rtty 0 name=250 low=-125 high=125
+S722B63B6|filt_preset rtty 1 name=300 low=-150 high=150
+S722B63B6|filt_preset rtty 2 name=350 low=-175 high=175
+S722B63B6|filt_preset rtty 3 name=400 low=-200 high=200
+S722B63B6|filt_preset rtty 4 name=500 low=-250 high=250
+S722B63B6|filt_preset rtty 5 name=1.0k low=-500 high=500
+R20|0|
+S722B63B6|rapidm status global_config=Unknown initialization_state=Uninitialized operational_state=Failed
+S722B63B6|rapidm id primary error ="No modem found or initialization failed"
+S722B63B6|rapidm status modulation=Unknown snr=0 ber=0
+R21|0|
+R22|0|
+S722B63B6|log available_levels=TRACE,DEBUG,INFO,WARN,ERROR
+S722B63B6|log module=24lc128 level=WARN
+S722B63B6|log module=ad7478 level=WARN
+S722B63B6|log module=ad9122 level=WARN
+S722B63B6|log module=ad9467 level=WARN
+S722B63B6|log module=ad9511 level=WARN
+S722B63B6|log module=ad9512 level=WARN
+S722B63B6|log module=ad9545 level=WARN
+S722B63B6|log module=adau1761 level=WARN
+S722B63B6|log module=adl5201 level=WARN
+S722B63B6|log module=ale_configs level=WARN
+S722B63B6|log module=alpha level=WARN
+S722B63B6|log module=alsa level=WARN
+S722B63B6|log module=amp level=WARN
+S722B63B6|log module=antenna level=WARN
+S722B63B6|log module=apd level=WARN
+S722B63B6|log module=atu level=WARN
+S722B63B6|log module=atu_memories level=WARN
+S722B63B6|log module=audio_client level=WARN
+S722B63B6|log module=audio_mixer level=WARN
+S722B63B6|log module=avs level=WARN
+S722B63B6|log module=band_p level=WARN
+S722B63B6|log module=bit level=WARN
+S722B63B6|log module=bite2 level=WARN
+S722B63B6|log module=bq32000 level=WARN
+S722B63B6|log module=cal level=WARN
+S722B63B6|log module=chrony_client level=WARN
+S722B63B6|log module=cli level=WARN
+S722B63B6|log module=client_com level=WARN
+S722B63B6|log module=client_mgr level=WARN
+S722B63B6|log module=codec level=WARN
+S722B63B6|log module=config level=WARN
+S722B63B6|log module=crypto level=WARN
+S722B63B6|log module=ctrl level=WARN
+S722B63B6|log module=cw level=WARN
+S722B63B6|log module=cwx level=WARN
+S722B63B6|log module=dac_filter level=WARN
+S722B63B6|log module=dax level=WARN
+S722B63B6|log module=dcp level=WARN
+S722B63B6|log module=deadc level=WARN
+S722B63B6|log module=deatu level=WARN
+S722B63B6|log module=decpu level=WARN
+S722B63B6|log module=defpga level=WARN
+S722B63B6|log module=delpf level=WARN
+S722B63B6|log module=delpfe level=WARN
+S722B63B6|log module=depre level=WARN
+S722B63B6|log module=discovery level=WARN
+S722B63B6|log module=display level=WARN
+S722B63B6|log module=drv_relays level=WARN
+S722B63B6|log module=dsp level=WARN
+S722B63B6|log module=dvk level=WARN
+S722B63B6|log module=eco level=WARN
+S722B63B6|log module=ethernet level=WARN
+S722B63B6|log module=factory level=WARN
+S722B63B6|log module=fan_control level=WARN
+S722B63B6|log module=fdx level=WARN
+S722B63B6|log module=fft level=WARN
+S722B63B6|log module=fft_stream level=WARN
+S722B63B6|log module=filt_preset level=WARN
+S722B63B6|log module=filter level=WARN
+S722B63B6|log module=flexera level=WARN
+S722B63B6|log module=fpga level=WARN
+S722B63B6|log module=gpio level=WARN
+S722B63B6|log module=gps level=WARN
+S722B63B6|log module=ha_api level=WARN
+S722B63B6|log module=hal level=WARN
+S722B63B6|log module=hal_buffer level=WARN
+S722B63B6|log module=hal_display level=WARN
+S722B63B6|log module=hal_listener level=WARN
+S722B63B6|log module=hal_mic level=WARN
+S722B63B6|log module=hal_nvm level=WARN
+S722B63B6|log module=hal_radio level=WARN
+S722B63B6|log module=hal_relays level=WARN
+S722B63B6|log module=hal_vita level=WARN
+S722B63B6|log module=hfdl_selcal level=WARN
+S722B63B6|log module=i2c level=WARN
+S722B63B6|log module=integ level=WARN
+S722B63B6|log module=interlock level=WARN
+S722B63B6|log module=interlock_list level=WARN
+S722B63B6|log module=io level=WARN
+S722B63B6|log module=iq level=WARN
+S722B63B6|log module=itemized_q level=WARN
+S722B63B6|log module=led level=WARN
+S722B63B6|log module=libusb level=WARN
+S722B63B6|log module=license level=WARN
+S722B63B6|log module=linux_iio level=WARN
+S722B63B6|log module=llist level=WARN
+S722B63B6|log module=lock level=WARN
+S722B63B6|log module=log level=WARN
+S722B63B6|log module=ltc2107 level=WARN
+S722B63B6|log module=m24C64 level=WARN
+S722B63B6|log module=mcu level=WARN
+S722B63B6|log module=memories level=WARN
+S722B63B6|log module=menu level=WARN
+S722B63B6|log module=meter level=WARN
+S722B63B6|log module=microburst level=WARN
+S722B63B6|log module=mmx level=WARN
+S722B63B6|log module=mutex level=WARN
+S722B63B6|log module=mysql level=WARN
+S722B63B6|log module=n1mm level=WARN
+S722B63B6|log module=navtex level=WARN
+S722B63B6|log module=nblanker level=WARN
+S722B63B6|log module=network level=WARN
+S722B63B6|log module=noise_estimate level=WARN
+S722B63B6|log module=ntp_sources level=WARN
+S722B63B6|log module=oscillator level=WARN
+S722B63B6|log module=pa100 level=WARN
+S722B63B6|log module=pca9544 level=WARN
+S722B63B6|log module=pca9555 level=WARN
+S722B63B6|log module=pcf8575 level=WARN
+S722B63B6|log module=pic level=WARN
+S722B63B6|log module=pic_bootloader level=WARN
+S722B63B6|log module=pmic level=WARN
+S722B63B6|log module=portaudio level=WARN
+S722B63B6|log module=powermeter level=WARN
+S722B63B6|log module=preset_configs level=WARN
+S722B63B6|log module=profiles level=WARN
+S722B63B6|log module=prologix level=WARN
+S722B63B6|log module=psoc level=WARN
+S722B63B6|log module=psoc_pa level=WARN
+S722B63B6|log module=radio level=WARN
+S722B63B6|log module=rapidm level=WARN
+S722B63B6|log module=record level=WARN
+S722B63B6|log module=regions level=WARN
+S722B63B6|log module=remote_audio level=WARN
+S722B63B6|log module=remoteapi level=WARN
+S722B63B6|log module=rwlock level=WARN
+S722B63B6|log module=rx1_filter level=WARN
+S722B63B6|log module=sched_dsp level=WARN
+S722B63B6|log module=scu level=WARN
+S722B63B6|log module=sdr_process level=WARN
+S722B63B6|log module=si47xx level=WARN
+S722B63B6|log module=sig_chain_ptt level=WARN
+S722B63B6|log module=signal level=WARN
+S722B63B6|log module=slice level=WARN
+S722B63B6|log module=smoothlake level=WARN
+S722B63B6|log module=spi level=WARN
+S722B63B6|log module=spots level=WARN
+S722B63B6|log module=status level=WARN
+S722B63B6|log module=storage level=WARN
+S722B63B6|log module=stream level=WARN
+S722B63B6|log module=sys_test level=WARN
+S722B63B6|log module=tcp level=WARN
+S722B63B6|log module=test level=WARN
+S722B63B6|log module=tfs level=WARN
+S722B63B6|log module=thread level=WARN
+S722B63B6|log module=timed_tx level=WARN
+S722B63B6|log module=tnf level=WARN
+S722B63B6|log module=transport level=WARN
+S722B63B6|log module=turf level=WARN
+S722B63B6|log module=two_tone level=WARN
+S722B63B6|log module=tx level=WARN
+S722B63B6|log module=txsc level=WARN
+S722B63B6|log module=txvga level=WARN
+S722B63B6|log module=unit_test level=WARN
+S722B63B6|log module=usb_cable level=WARN
+S722B63B6|log module=utils level=WARN
+S722B63B6|log module=virt_gpo level=WARN
+S722B63B6|log module=vita level=WARN
+S722B63B6|log module=wan level=WARN
+S722B63B6|log module=waterfall level=WARN
+S722B63B6|log module=waveform level=WARN
+S722B63B6|log module=waveform_sched level=WARN
+S722B63B6|log module=web level=WARN
+S722B63B6|log module=xvtr level=WARN
+R23|0|
+S722B63B6|interlock acc_txreq_enable=0 rca_txreq_enable=0 acc_tx_enabled=0 tx1_enabled=0 tx2_enabled=0 tx3_enabled=0 tx_delay=0 acc_tx_delay=0 tx1_delay=0 tx2_delay=0 tx3_delay=0 acc_txreq_polarity=0 rca_txreq_polarity=0 timeout=0
+R24|0|
+R25|500000A3|Invalid subscription object name
+S722B63B6|apd enable=1 configurable=1
+S722B63B6|apd sampler tx_ant=ANT1 valid_samplers=RX_A,XVTA selected_sampler=INVALID
+S722B63B6|apd sampler tx_ant=ANT2 valid_samplers=RX_B,XVTB selected_sampler=INVALID
+S722B63B6|apd sampler tx_ant=XVTA valid_samplers=RX_A selected_sampler=INVALID
+S722B63B6|apd sampler tx_ant=XVTB valid_samplers=RX_B selected_sampler=INVALID
+S722B63B6|apd freq=7.007000 tx_error_mHz=9.536743
+R26|0|
+S722B63B6|dvk status=idle enabled=1
+S722B63B6|dvk added id=1 name="Recording 1" duration=7125
+S722B63B6|dvk added id=2 name="Recording 2" duration=2880
+S722B63B6|dvk added id=3 name="Recording 3" duration=0
+S722B63B6|dvk added id=4 name="Recording 4" duration=0
+S722B63B6|dvk added id=5 name="Recording 5" duration=0
+S722B63B6|dvk added id=6 name="Recording 6" duration=0
+S722B63B6|dvk added id=7 name="Recording 7" duration=0
+S722B63B6|dvk added id=8 name="Recording 8" duration=0
+S722B63B6|dvk added id=9 name="Recording 9" duration=0
+S722B63B6|dvk added id=10 name="Recording 10" duration=0
+S722B63B6|dvk added id=11 name="Recording 11" duration=0
+S722B63B6|dvk added id=12 name="Recording 12" duration=0
+R27|0|
+R28|500000A3|Invalid subscription object name
+R29|500000A3|Invalid subscription object name
+S722B63B6|navtex status=unlicensed
+R30|0|
+S0|interlock tx_client_handle=0x00000000 state=RECEIVE reason= source= tx_allowed=0 amplifier=
+S0|atu status=TUNE_ABORTED atu_enabled=1 memories_enabled=1 using_mem=1
+S0|gps lat=38.433716667#lon=-90.454646667#grid=EM48sk#altitude=235 m#tracked=16#visible=30#speed=0 kts#freq_error=0 ppb#status=Fine Lock#time=13:11:27Z#track=0.0
+S0|gps lat=38.433716667#lon=-90.454646667#grid=EM48sk#altitude=235 m#tracked=16#visible=30#speed=0 kts#freq_error=0 ppb#status=Fine Lock#time=13:11:28Z#track=0.0
+S0|gps lat=38.433716667#lon=-90.454646667#grid=EM48sk#altitude=235 m#tracked=14#visible=30#speed=0 kts#freq_error=-1 ppb#status=Fine Lock#time=13:11:29Z#track=0.0
+S0|gps lat=38.433716667#lon=-90.454646667#grid=EM48sk#altitude=235 m#tracked=16#visible=30#speed=0 kts#freq_error=-1 ppb#status=Fine Lock#time=13:11:30Z#track=0.0
+S0|gps lat=38.433716667#lon=-90.454646667#grid=EM48sk#altitude=235 m#tracked=15#visible=30#speed=0 kts#freq_error=0 ppb#status=Fine Lock#time=13:11:31Z#track=0.0

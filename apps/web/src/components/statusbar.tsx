@@ -38,7 +38,7 @@ function AddPanafallButton() {
   const { panCount } = usePanafallLayout();
   const disabled = () =>
     !state.status.radio?.availablePanadapters || panCount() >= 4;
-  const create = () => radio().createPanadapter({ x: 200 }).catch(console.log);
+  const create = () => radio()?.createPanadapter({ x: 200 }).catch(console.log);
   return (
     <Button
       disabled={disabled()}
@@ -116,7 +116,7 @@ function NetworkStatus() {
         <div class="grid grid-cols-2 gap-1 font-mono">
           <InfoItem
             label="Latency (RTT)"
-            value={`${Math.round(runtime.network.endToEnd.currentMs)} ms`}
+            value={`${Math.round(runtime.network.endToEnd.currentMs ?? 0)} ms`}
           />
           <InfoItem
             label="Packets Total"
@@ -154,8 +154,10 @@ export function StatusBar() {
   );
 
   createEffect(() => {
+    const id = voltageMeter()?.id;
+    if (id === undefined) return;
     const sub = radio()
-      ?.meter(voltageMeter()?.id)
+      ?.meter(id)
       ?.on("data", ({ value }) => setVoltage(value));
     onCleanup(() => {
       sub?.unsubscribe();
@@ -164,8 +166,10 @@ export function StatusBar() {
   });
 
   createEffect(() => {
+    const id = tempMeter()?.id;
+    if (id === undefined) return;
     const sub = radio()
-      ?.meter(tempMeter()?.id)
+      ?.meter(id)
       ?.on("data", ({ value }) => setTemp(value));
     onCleanup(() => {
       sub?.unsubscribe();
@@ -189,11 +193,13 @@ export function StatusBar() {
             {voltage()?.toFixed(2)}V
           </span>
         </Show>
-        <Show when={tempMeter() && temp() !== undefined}>
-          <span class="textbox-trim-both textbox-edge-cap-alphabetic flex gap-1 items-center">
-            <MaterialSymbolsDeviceThermostat />
-            {`${temp()?.toFixed(1)}${tempMeter().units?.replace("deg", "°")}`}
-          </span>
+        <Show when={temp() !== undefined ? tempMeter() : undefined}>
+          {(meter) => (
+            <span class="textbox-trim-both textbox-edge-cap-alphabetic flex gap-1 items-center">
+              <MaterialSymbolsDeviceThermostat />
+              {`${temp()?.toFixed(1)}${meter().units?.replace("deg", "°")}`}
+            </span>
+          )}
         </Show>
       </div>
       <div class="grow not-sm:hidden" />

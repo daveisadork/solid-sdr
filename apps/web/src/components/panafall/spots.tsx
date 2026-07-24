@@ -186,8 +186,8 @@ export function Spots(props: { pan: PanadapterState }) {
   const [layout, setLayout] = createSignal<LayoutItem[]>([]);
 
   const estimateWidthFunc = createMemo(() => {
-    const charW = singleSize.width - emptySize.width;
-    const padding = emptySize.width;
+    const charW = (singleSize.width ?? 0) - (emptySize.width ?? 0);
+    const padding = emptySize.width ?? 0;
 
     return (text: string) => text.length * charW + padding;
   });
@@ -329,8 +329,9 @@ export function Spots(props: { pan: PanadapterState }) {
       style={{
         "--spots-position": `${preferences.spots.position}%`,
         "--spot-spacing": `${preferences.spots.verticalSpacing}%`,
-        "--spot-override-color": preferences.spots.overrideColor,
-        "--spot-override-bg-color": preferences.spots.overrideBackgroundColor,
+        "--spot-override-color": preferences.spots.overrideColor ?? undefined,
+        "--spot-override-bg-color":
+          preferences.spots.overrideBackgroundColor ?? undefined,
       }}
     >
       <Key each={layout().filter((l) => l.type === "spot")} by="key">

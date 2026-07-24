@@ -73,7 +73,7 @@ function InnerDaxSettings() {
             <Select
               class="flex flex-col gap-2 grow shrink"
               value={preferences.dax.tx.inputDeviceId}
-              onChange={(value: string) => {
+              onChange={(value) => {
                 if (!value) return;
                 setPreferences("dax", "tx", "inputDeviceId", value);
               }}
@@ -209,7 +209,7 @@ function InnerDaxSettings() {
                 <Select
                   class="flex flex-col gap-2 grow shrink"
                   value={preferences.dax.rx[channel].outputDeviceId}
-                  onChange={(value: string) => {
+                  onChange={(value) => {
                     if (!value) return;
                     setPreferences(
                       "dax",
@@ -249,7 +249,7 @@ function InnerDaxSettings() {
                 <Select<DaxChannelMode>
                   class="flex flex-col gap-2"
                   value={preferences.dax.rx[channel].channelMode}
-                  onChange={(value: DaxChannelMode) => {
+                  onChange={(value) => {
                     if (!value) return;
                     setPreferences("dax", "rx", channel, "channelMode", value);
                   }}

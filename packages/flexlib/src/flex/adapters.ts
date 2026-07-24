@@ -23,35 +23,35 @@ export type FlexRadioDescriptor = Pick<RadioSnapshot, DescriptorKeys> & {
   readonly protocol: "tcp" | "tls";
 
   /** Whether discovery reports this as a system model radio. */
-  readonly isSystemModel?: boolean;
+  readonly isSystemModel: boolean;
   /** Turf/region string reported in discovery metadata. */
-  readonly turfRegion?: string;
-  /** Radio status from discovery, e.g. "Available", "In Use". */
-  readonly status?: string;
+  readonly turfRegion: string;
+  /** Radio status from discovery, e.g. "Available". */
+  readonly status: string;
   /** Discovery protocol version string. */
-  readonly discoveryProtocolVersion?: string;
+  readonly discoveryProtocolVersion: string;
   /** Maximum licensed SmartSDR version. */
-  readonly maxLicensedVersion?: string;
+  readonly maxLicensedVersion: string;
   /** Radio license identifier. */
-  readonly radioLicenseId?: string;
+  readonly radioLicenseId: string;
   /** Minimum compatible software version. */
-  readonly minSoftwareVersion?: string;
+  readonly minSoftwareVersion: string;
   /** True if the radio's license status is unknown (v4.1+). */
   readonly hasUnknownRadioLicense?: boolean;
   /** True if the radio requires an additional license (pre-v4.1). */
   readonly requiresAdditionalLicense?: boolean;
   /** Whether the radio is connected to SmartLink (WAN). */
-  readonly wanConnected?: boolean;
+  readonly wanConnected: boolean;
   /** Whether an external port link is detected. */
-  readonly externalPortLink?: boolean;
+  readonly externalPortLink: boolean;
   /** Number of licensed client connections. */
-  readonly licensedClients?: number;
+  readonly licensedClients: number;
   /** Number of available (unused) client connections. */
-  readonly availableClients?: number;
+  readonly availableClients: number;
   /** Maximum number of slices supported. */
-  readonly maxSlices?: number;
+  readonly maxSlices: number;
   /** Maximum number of panadapters supported. */
-  readonly maxPanadapters?: number;
+  readonly maxPanadapters: number;
   /** Front-panel controller MAC address. */
   readonly fpcMac?: string;
   /** IP addresses of currently connected clients. */

@@ -43,16 +43,22 @@ const tabs = {
 };
 
 export function Settings() {
-  const [activeTab, setActiveTab] = createSignal(null);
+  const [activeTab, setActiveTab] = createSignal<keyof typeof tabs | null>(
+    null,
+  );
   const { state } = useFlexRadio();
   const disconnected = () => !state.clientHandle;
+  const activeTabComponent = () => {
+    const tab = activeTab();
+    return tab != null ? tabs[tab] : undefined;
+  };
   return (
     <>
       <Dialog
         open={activeTab() !== null}
         onOpenChange={(open) => !open && setActiveTab(null)}
       >
-        <Dynamic component={tabs[activeTab()]} />
+        <Dynamic component={activeTabComponent()} />
       </Dialog>
       <DropdownMenu>
         <DropdownMenuTrigger

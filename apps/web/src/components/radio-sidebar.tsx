@@ -105,15 +105,19 @@ function TxSection() {
   );
 
   createEffect(() => {
+    const id = fwdPwrMeter()?.id;
+    if (id === undefined) return;
     const sub = radio()
-      ?.meter(fwdPwrMeter()?.id)
+      ?.meter(id)
       ?.on("data", (event) => setFwdPwrWatts(dbmToWatts(event.value, 1)));
     onCleanup(() => sub?.unsubscribe());
   });
 
   createEffect(() => {
+    const id = refPwrMeter()?.id;
+    if (id === undefined) return;
     const sub = radio()
-      ?.meter(refPwrMeter()?.id)
+      ?.meter(id)
       ?.on("data", (event) => setRefPwrWatts(dbmToWatts(event.value, 1)));
     onCleanup(() => sub?.unsubscribe());
   });
@@ -127,12 +131,16 @@ function TxSection() {
 
   return (
     <AccordionItem value="tx">
-      <CreateProfileDialog
-        open={createProfile()}
-        onOpenChange={setCreateProfile}
-        radio={radio()}
-        kind="tx"
-      />
+      <Show when={radio()}>
+        {(radio) => (
+          <CreateProfileDialog
+            open={createProfile()}
+            onOpenChange={setCreateProfile}
+            radio={radio()}
+            kind="tx"
+          />
+        )}
+      </Show>
       <AccordionTrigger>Transmit</AccordionTrigger>
       <AccordionContent>
         <div class="text-sm flex flex-col gap-3 overflow-visible">
@@ -224,7 +232,7 @@ function TxSection() {
           <Select
             class="flex flex-col gap-2 select-none relative"
             value={state.status.radio.profileTxSelection}
-            onChange={(value: string) => {
+            onChange={(value) => {
               if (!value || value === state.status.radio.profileTxSelection)
                 return;
               radio()?.loadTxProfile(value);
@@ -264,11 +272,10 @@ function TxSection() {
                     !state.status.radio.profileTxSelection ||
                     !state.status.radio.profileUnsavedChangesTx
                   }
-                  onSelect={() =>
-                    radio().createTxProfile(
-                      state.status.radio.profileTxSelection,
-                    )
-                  }
+                  onSelect={() => {
+                    const profile = state.status.radio.profileTxSelection;
+                    if (profile) radio()?.createTxProfile(profile);
+                  }}
                 >
                   Save
                 </DropdownMenuItem>
@@ -277,21 +284,19 @@ function TxSection() {
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   disabled={!state.status.radio.profileTxSelection}
-                  onSelect={() =>
-                    radio().resetTxProfile(
-                      state.status.radio.profileTxSelection,
-                    )
-                  }
+                  onSelect={() => {
+                    const profile = state.status.radio.profileTxSelection;
+                    if (profile) radio()?.resetTxProfile(profile);
+                  }}
                 >
                   Reset
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   disabled={!state.status.radio.profileTxSelection}
-                  onSelect={() =>
-                    radio().deleteTxProfile(
-                      state.status.radio.profileTxSelection,
-                    )
-                  }
+                  onSelect={() => {
+                    const profile = state.status.radio.profileTxSelection;
+                    if (profile) radio()?.deleteTxProfile(profile);
+                  }}
                 >
                   Delete
                 </DropdownMenuItem>
@@ -450,8 +455,10 @@ function MicSection() {
     )
       return setMicPeakValue(-150);
 
+    const id = micPeakMeter()?.id;
+    if (id === undefined) return;
     const sub = radio()
-      ?.meter(micPeakMeter()?.id)
+      ?.meter(id)
       ?.on("data", ({ value }) => setMicPeakValue(roundToDecimals(value, 1)));
     onCleanup(() => sub?.unsubscribe());
   });
@@ -463,20 +470,26 @@ function MicSection() {
       !state.status.radio.speechProcessorEnabled
     )
       return setCompPeakValue(-150);
+    const id = compPeakMeter()?.id;
+    if (id === undefined) return;
     const sub = radio()
-      ?.meter(compPeakMeter()?.id)
+      ?.meter(id)
       ?.on("data", ({ value }) => setCompPeakValue(roundToDecimals(value, 1)));
     onCleanup(() => sub?.unsubscribe());
   });
 
   return (
     <div class="flex flex-col gap-3">
-      <CreateProfileDialog
-        open={createProfile()}
-        onOpenChange={setCreateProfile}
-        radio={radio()}
-        kind="mic"
-      />
+      <Show when={radio()}>
+        {(radio) => (
+          <CreateProfileDialog
+            open={createProfile()}
+            onOpenChange={setCreateProfile}
+            radio={radio()}
+            kind="mic"
+          />
+        )}
+      </Show>
       <Show when={micMeter()}>
         {(acc) => {
           const meter = acc();
@@ -537,7 +550,7 @@ function MicSection() {
       <Select
         class="flex flex-col gap-2 select-none relative"
         value={state.status.radio.profileMicSelection}
-        onChange={(value: string) => {
+        onChange={(value) => {
           if (!value || value === state.status.radio.profileMicSelection)
             return;
           radio()?.loadMicProfile(value);
@@ -577,9 +590,10 @@ function MicSection() {
                 !state.status.radio.profileMicSelection ||
                 !state.status.radio.profileUnsavedChangesMic
               }
-              onSelect={() =>
-                radio().createMicProfile(state.status.radio.profileMicSelection)
-              }
+              onSelect={() => {
+                const profile = state.status.radio.profileMicSelection;
+                if (profile) radio()?.createMicProfile(profile);
+              }}
             >
               Save
             </DropdownMenuItem>
@@ -588,17 +602,19 @@ function MicSection() {
             </DropdownMenuItem>
             <DropdownMenuItem
               disabled={!state.status.radio.profileMicSelection}
-              onSelect={() =>
-                radio().resetMicProfile(state.status.radio.profileMicSelection)
-              }
+              onSelect={() => {
+                const profile = state.status.radio.profileMicSelection;
+                if (profile) radio()?.resetMicProfile(profile);
+              }}
             >
               Reset
             </DropdownMenuItem>
             <DropdownMenuItem
               disabled={!state.status.radio.profileMicSelection}
-              onSelect={() =>
-                radio().deleteMicProfile(state.status.radio.profileMicSelection)
-              }
+              onSelect={() => {
+                const profile = state.status.radio.profileMicSelection;
+                if (profile) radio()?.deleteMicProfile(profile);
+              }}
             >
               Delete
             </DropdownMenuItem>
@@ -609,7 +625,7 @@ function MicSection() {
       <Select
         class="flex flex-col gap-2 select-none"
         value={state.status.radio.micSelection}
-        onChange={(value: string) => {
+        onChange={(value) => {
           if (!value || value === state.status.radio.micSelection) return;
           radio()?.setMicSelection(value);
         }}
@@ -1026,8 +1042,8 @@ function EqSection() {
                     }}
                   />
                   <div class="grid w-full grid-cols-8 h-48 text-xs">
-                    <For each={Object.keys(eq.bands)}>
-                      {(band: EqualizerBand) => {
+                    <For each={Object.keys(eq.bands) as EqualizerBand[]}>
+                      {(band) => {
                         return (
                           <Slider
                             orientation="vertical"

@@ -489,7 +489,7 @@ export function AppSettings() {
           </CardHeader>
           <CardContent class="flex flex-col gap-4">
             <TextField
-              value={preferences.guiClientId}
+              value={preferences.guiClientId ?? ""}
               onChange={(value) =>
                 setPreferences("guiClientId", value.length ? value : null)
               }

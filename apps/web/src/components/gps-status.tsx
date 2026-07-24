@@ -90,7 +90,7 @@ export function GpsStatus(props: { class?: string }) {
                   <Button
                     variant="outline"
                     class="rounded-l-none"
-                    onClick={() => writeClipboard(radio().gpsGrid)}
+                    onClick={() => writeClipboard(radio().gpsGrid ?? "")}
                   >
                     <ClipboardOutline />
                   </Button>
@@ -110,7 +110,7 @@ export function GpsStatus(props: { class?: string }) {
                     variant="outline"
                     class="rounded-l-none"
                     onClick={() =>
-                      writeClipboard(radio().gpsLatitude?.toString())
+                      writeClipboard(radio().gpsLatitude?.toString() ?? "")
                     }
                   >
                     <ClipboardOutline />
@@ -131,7 +131,7 @@ export function GpsStatus(props: { class?: string }) {
                     variant="outline"
                     class="rounded-l-none"
                     onClick={() =>
-                      writeClipboard(radio().gpsLongitude?.toString())
+                      writeClipboard(radio().gpsLongitude?.toString() ?? "")
                     }
                   >
                     <ClipboardOutline />

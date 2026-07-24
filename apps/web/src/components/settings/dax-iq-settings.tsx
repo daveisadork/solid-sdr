@@ -67,7 +67,7 @@ export function InnerDaxIqSettings() {
                     <Select
                       class="flex flex-col gap-2 grow shrink"
                       value={preferences.dax.iq[channel]?.outputDeviceId}
-                      onChange={(value: string) => {
+                      onChange={(value) => {
                         if (!value) return;
                         setPreferences(
                           "dax",
@@ -105,7 +105,7 @@ export function InnerDaxIqSettings() {
                     <Select<number>
                       class="flex flex-col gap-2"
                       value={preferences.dax.iq[channel]?.sampleRate}
-                      onChange={(value: number | null) => {
+                      onChange={(value) => {
                         if (!value) return;
                         setPreferences(
                           "dax",

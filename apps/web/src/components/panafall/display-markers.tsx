@@ -16,6 +16,9 @@ const COLORS = {
   dark_orange: "rgb(255, 149, 0)",
 };
 
+const markerColor = (name: string) =>
+  COLORS[name as keyof typeof COLORS] ?? COLORS.gray;
+
 function DisplayMarker(props: {
   marker: DisplayMarkerState;
   freqToAnchorX: (freq: number) => number;
@@ -26,7 +29,7 @@ function DisplayMarker(props: {
 
   createEffect(() => {
     const el = textRef();
-    setHidden(textSize.width && el.scrollWidth > el.clientWidth);
+    setHidden(Boolean(textSize.width && el && el.scrollWidth > el.clientWidth));
   });
 
   const getMarkerOffset = (marker: DisplayMarkerState) =>
@@ -44,7 +47,7 @@ function DisplayMarker(props: {
       style={{
         "--marker-offset": `${getMarkerOffset(props.marker)}px`,
         "--marker-width": `${getMarkerWidth(props.marker)}px`,
-        "--marker-color": `oklch(from ${COLORS[props.marker.colorName]} l c h / ${props.marker.opacity ?? 100}%)`,
+        "--marker-color": `oklch(from ${markerColor(props.marker.colorName)} l c h / ${props.marker.opacity}%)`,
       }}
       ref={setTextRef}
     >

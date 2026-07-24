@@ -43,7 +43,7 @@ export function Panadapter(props: {
   waterfall: WaterfallState;
   controller: PanadapterController;
 }) {
-  const { state } = useFlexRadio();
+  const { state, radio } = useFlexRadio();
   const { preferences } = usePreferences();
 
   const [canvasRef, setCanvasRef] = createSignal<HTMLCanvasElement>();
@@ -279,7 +279,17 @@ export function Panadapter(props: {
       </div>
       <div class="absolute inset-0 translate-x-(--drag-offset) z-(--z-cell-overlays) pointer-events-none">
         <For each={slices()}>
-          {(slice) => <Slice slice={slice} pan={props.pan} />}
+          {(slice) => (
+            <Show when={radio()?.slice(slice.id)}>
+              {(sliceController) => (
+                <Slice
+                  slice={slice}
+                  sliceController={sliceController}
+                  pan={props.pan}
+                />
+              )}
+            </Show>
+          )}
         </For>
         <For each={Object.values(state.status.tnf)}>
           {(tnf) => <Tnf tnf={tnf} pan={props.pan} />}

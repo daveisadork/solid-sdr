@@ -7,7 +7,13 @@ import {
 } from "@repo/flexlib";
 import { createPointerListeners } from "@solid-primitives/pointer";
 import { createElementSize } from "@solid-primitives/resize-observer";
-import type { Component, ComponentProps, JSX, ValidComponent } from "solid-js";
+import type {
+  Accessor,
+  Component,
+  ComponentProps,
+  JSX,
+  ValidComponent,
+} from "solid-js";
 import {
   batch,
   createEffect,
@@ -33,7 +39,7 @@ import useFlexRadio, {
   type SliceState,
 } from "~/context/flexradio";
 import { usePanafall } from "~/context/panafall";
-import { type SliceTxMeter, usePreferences } from "~/context/preferences";
+import { usePreferences } from "~/context/preferences";
 import { useRuntime } from "~/context/runtime";
 import { ceilToDevicePixels, cn, degToRad, radToDeg } from "~/lib/utils";
 import MaterialSymbolsChevronLeft from "~icons/material-symbols/chevron-left";
@@ -414,7 +420,7 @@ export function FilterControls(props: {
         {(entries) => (
           <ToggleGroup
             value={selectedPreset()?.index.toString()}
-            onChange={(value: string) => {
+            onChange={(value) => {
               const entry = entries().find((e) => e.index.toString() === value);
               if (!entry) return;
               const [low, high] = mirrorForMode(
@@ -756,7 +762,7 @@ const OptDspControls = (props: {
                 class="flex flex-col gap-2 select-none"
                 value={props.slice.fmToneValue}
                 options={toneValues.map((v) => v.hz)}
-                onChange={(v: string) => {
+                onChange={(v) => {
                   if (!v || v === props.slice.fmToneValue) return;
                   props.controller.setFmToneValue(v);
                 }}
@@ -1071,8 +1077,8 @@ const DaxChannelSelect = (props: {
         { length: state.status.radio.sliceCount + 1 },
         (_, i) => i,
       )}
-      onChange={(v: number) => {
-        if (v === props.slice.daxChannel) return;
+      onChange={(v) => {
+        if (v == null || v === props.slice.daxChannel) return;
         props.controller.setDaxChannel(v);
       }}
       itemComponent={(props) => (
@@ -1124,7 +1130,8 @@ const SliceSettings = (props: {
                   const ctrl = props.controller;
                   ctrl.setTuneStep(
                     ctrl.tuneStepListHz.findLast((v) => v < ctrl.tuneStepHz) ??
-                      ctrl.tuneStepListHz.at(0),
+                      ctrl.tuneStepListHz.at(0) ??
+                      ctrl.tuneStepHz,
                   );
                 }}
               >
@@ -1140,7 +1147,8 @@ const SliceSettings = (props: {
                   const ctrl = props.controller;
                   ctrl.setTuneStep(
                     ctrl.tuneStepListHz.find((v) => v > ctrl.tuneStepHz) ??
-                      ctrl.tuneStepListHz.at(-1),
+                      ctrl.tuneStepListHz.at(-1) ??
+                      ctrl.tuneStepHz,
                   );
                 }}
               >
@@ -1152,7 +1160,7 @@ const SliceSettings = (props: {
           <Select
             class="flex flex-col gap-2 select-none"
             value={preferences.sliceTxMeter}
-            onChange={(value: SliceTxMeter) => {
+            onChange={(value) => {
               if (!value) return;
               if (value !== preferences.sliceTxMeter) {
                 setPreferences("sliceTxMeter", value);
@@ -1189,7 +1197,7 @@ const RxAntennaSelect = (props: {
     <Select
       value={props.slice.rxAntenna}
       options={Array.from(props.slice.availableRxAntennas)}
-      onChange={(v: string) => {
+      onChange={(v) => {
         if (!v || v === props.slice.rxAntenna) return;
         props.controller.setRxAntenna(v);
       }}
@@ -1220,7 +1228,7 @@ const TxAntennaSelect = (props: {
     <Select
       value={props.slice.txAntenna}
       options={Array.from(props.slice.availableTxAntennas)}
-      onChange={(v: string) => {
+      onChange={(v) => {
         if (!v || v === props.slice.txAntenna) return;
         props.controller.setTxAntenna(v);
       }}
@@ -1266,7 +1274,7 @@ const ModeControls = (props: {
         <div class="p-4 flex flex-col gap-4 max-h-(--kb-popper-content-available-height) overflow-x-auto">
           <ToggleGroup
             value={props.slice.mode}
-            onChange={(mode: string) => {
+            onChange={(mode) => {
               if (!mode || mode === props.slice.mode) return;
               props.controller.setMode(mode);
             }}
@@ -1386,8 +1394,12 @@ const ExtraSliceControls = <T extends ValidComponent = "div">(
   );
 };
 
-export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
-  const { radio, state } = useFlexRadio();
+export function Slice(props: {
+  slice: SliceState;
+  pan: PanadapterState;
+  sliceController: Accessor<SliceController>;
+}) {
+  const { state } = useFlexRadio();
   const {
     pxToMHz,
     panadapterController,
@@ -1402,7 +1414,7 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
     panadapterWrapperSize,
     panafallPortalRef,
   } = usePanafall();
-  const sliceController = createMemo(() => radio()?.slice(props.slice.id));
+  const sliceController = () => props.sliceController();
   const [flag, setFlag] = createSignal<HTMLElement>();
   const [filterWidth, setFilterWidth] = createSignal(0);
   const [filterOffset, setFilterOffset] = createSignal(0);
@@ -1422,13 +1434,13 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
   const [compactLayout, setCompactLayout] = createSignal(false);
 
   const splitParent = createMemo(() => {
-    const split = runtime.split[props.slice.id];
-    return split ? state.status.slice[split.parent] : null;
+    const parent = runtime.split[props.slice.id]?.parent;
+    return parent != null ? state.status.slice[parent] : null;
   });
 
   const splitChild = createMemo(() => {
-    const split = runtime.split[props.slice.id];
-    return split ? state.status.slice[split.child] : null;
+    const child = runtime.split[props.slice.id]?.child;
+    return child != null ? state.status.slice[child] : null;
   });
 
   const splitPartner = () => splitParent() || splitChild();
@@ -1476,8 +1488,11 @@ export function Slice(props: { slice: SliceState; pan: PanadapterState }) {
     if (props.slice.diversityParent) return "left";
     if (props.slice.diversityChild) return "right";
 
-    if (splitPartner()?.frequencyMHz > props.slice.frequencyMHz) return "left";
-    if (splitPartner()?.frequencyMHz < props.slice.frequencyMHz) return "right";
+    const partnerFreqMHz = splitPartner()?.frequencyMHz;
+    if (partnerFreqMHz !== undefined) {
+      if (partnerFreqMHz > props.slice.frequencyMHz) return "left";
+      if (partnerFreqMHz < props.slice.frequencyMHz) return "right";
+    }
 
     const width = panadapterWrapperSize.width ?? 0;
     if (!width) return side;

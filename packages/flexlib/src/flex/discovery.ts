@@ -1,11 +1,12 @@
 import {
   parseBooleanFlag,
   parseCsvList,
-  parseInteger as parseOptionalInteger,
-  valueOrUndefined,
+  parseInteger,
 } from "../util/parsers.js";
 import type { FlexRadioDescriptor } from "./adapters.js";
 import { parseDiscoveredGuiClients } from "./gui-client.js";
+import type { Mutable } from "./state/common.js";
+import { logParseError, logUnknownAttribute } from "./state/common.js";
 
 export function parseDiscoveryPayload(payload: string): Map<string, string> {
   const map = new Map<string, string>();
@@ -32,37 +33,165 @@ export function decodeDiscoveryPayload(
   defaultProtocol: "tcp" | "tls" = "tcp",
 ): FlexRadioDescriptor {
   const fields = parseDiscoveryPayload(payload);
+  const partial: Mutable<Partial<FlexRadioDescriptor>> = {};
 
-  const serial = valueOrUndefined(fields.get("serial"));
-  const model = valueOrUndefined(fields.get("model"));
-  const nickname = valueOrUndefined(fields.get("nickname")) ?? "";
-  const callsign = valueOrUndefined(fields.get("callsign")) ?? "";
-  const version = valueOrUndefined(fields.get("version"));
-  const host = valueOrUndefined(fields.get("ip"));
-  const port = parseInteger(fields.get("port"), "port");
-  const availableSlices =
-    parseInteger(fields.get("available_slices"), "available_slices") ?? 0;
-  const availablePanadapters =
-    parseInteger(
-      fields.get("available_panadapters"),
-      "available_panadapters",
-    ) ?? 0;
+  let protocolField: "tcp" | "tls" | undefined;
+  let tlsFlag: boolean | undefined;
+  let inUseIps: string[] = [];
+  let inUseHosts: string[] = [];
+  let guiClientIps: string[] = [];
+  let guiClientHosts: string[] = [];
+  let guiClientPrograms: string[] = [];
+  let guiClientStations: string[] = [];
+  let guiClientHandles: string[] = [];
 
-  if (!serial) throw new Error("Discovery payload missing serial");
-  if (!model) throw new Error("Discovery payload missing model");
-  if (!version) throw new Error("Discovery payload missing version");
-  if (!host) throw new Error("Discovery payload missing ip");
-  if (port === undefined) throw new Error("Discovery payload missing port");
-
-  const inUseIps = parseCsvList(fields.get("inuse_ip"));
-  const inUseHosts = parseCsvList(fields.get("inuse_host"));
-  const guiClientIps = parseCsvList(fields.get("gui_client_ips"));
-  const guiClientHosts = parseCsvList(fields.get("gui_client_hosts"));
-  const guiClientPrograms = parseCsvList(fields.get("gui_client_programs"));
-  const guiClientStations = parseCsvList(
-    normalizeStations(fields.get("gui_client_stations")),
-  );
-  const guiClientHandles = parseCsvList(fields.get("gui_client_handles"));
+  for (const [key, value] of fields) {
+    switch (key) {
+      case "serial":
+        partial.serial = value;
+        break;
+      case "model":
+        partial.model = value;
+        break;
+      case "nickname":
+        partial.nickname = value;
+        break;
+      case "callsign":
+        partial.callsign = value;
+        break;
+      case "version":
+        partial.version = value;
+        break;
+      case "ip":
+        partial.host = value;
+        break;
+      case "port": {
+        const parsed = parseInteger(value);
+        if (parsed !== undefined) partial.port = parsed;
+        else logParseError("discovery", key, value);
+        break;
+      }
+      case "available_slices": {
+        const parsed = parseInteger(value);
+        if (parsed !== undefined) partial.availableSlices = parsed;
+        else logParseError("discovery", key, value);
+        break;
+      }
+      case "available_panadapters": {
+        const parsed = parseInteger(value);
+        if (parsed !== undefined) partial.availablePanadapters = parsed;
+        else logParseError("discovery", key, value);
+        break;
+      }
+      case "protocol":
+        if (value === "tcp" || value === "tls") protocolField = value;
+        else logParseError("discovery", key, value);
+        break;
+      case "tls":
+        tlsFlag = parseBooleanFlag(value);
+        break;
+      case "is_system_model": {
+        const parsed = parseBooleanFlag(value);
+        if (parsed !== undefined) partial.isSystemModel = parsed;
+        else logParseError("discovery", key, value);
+        break;
+      }
+      case "turf_region":
+        partial.turfRegion = value;
+        break;
+      case "status":
+        partial.status = value;
+        break;
+      case "discovery_protocol_version":
+        partial.discoveryProtocolVersion = value;
+        break;
+      case "max_licensed_version":
+        partial.maxLicensedVersion = value;
+        break;
+      case "radio_license_id":
+        partial.radioLicenseId = value;
+        break;
+      case "min_software_version":
+        partial.minSoftwareVersion = value;
+        break;
+      case "license_is_unknown": {
+        const parsed = parseBooleanFlag(value);
+        if (parsed !== undefined) partial.hasUnknownRadioLicense = parsed;
+        else logParseError("discovery", key, value);
+        break;
+      }
+      case "requires_additional_license": {
+        const parsed = parseBooleanFlag(value);
+        if (parsed !== undefined) partial.requiresAdditionalLicense = parsed;
+        else logParseError("discovery", key, value);
+        break;
+      }
+      case "wan_connected": {
+        const parsed = parseBooleanFlag(value);
+        if (parsed !== undefined) partial.wanConnected = parsed;
+        else logParseError("discovery", key, value);
+        break;
+      }
+      case "external_port_link": {
+        const parsed = parseBooleanFlag(value);
+        if (parsed !== undefined) partial.externalPortLink = parsed;
+        else logParseError("discovery", key, value);
+        break;
+      }
+      case "licensed_clients": {
+        const parsed = parseInteger(value);
+        if (parsed !== undefined) partial.licensedClients = parsed;
+        else logParseError("discovery", key, value);
+        break;
+      }
+      case "available_clients": {
+        const parsed = parseInteger(value);
+        if (parsed !== undefined) partial.availableClients = parsed;
+        else logParseError("discovery", key, value);
+        break;
+      }
+      case "max_slices": {
+        const parsed = parseInteger(value);
+        if (parsed !== undefined) partial.maxSlices = parsed;
+        else logParseError("discovery", key, value);
+        break;
+      }
+      case "max_panadapters": {
+        const parsed = parseInteger(value);
+        if (parsed !== undefined) partial.maxPanadapters = parsed;
+        else logParseError("discovery", key, value);
+        break;
+      }
+      case "fpc_mac":
+        if (value) partial.fpcMac = value.replace(/-/g, ":");
+        break;
+      case "inuse_ip":
+        inUseIps = parseCsvList(value);
+        break;
+      case "inuse_host":
+        inUseHosts = parseCsvList(value);
+        break;
+      case "gui_client_ips":
+        guiClientIps = parseCsvList(value);
+        break;
+      case "gui_client_hosts":
+        guiClientHosts = parseCsvList(value);
+        break;
+      case "gui_client_programs":
+        guiClientPrograms = parseCsvList(value);
+        break;
+      case "gui_client_stations":
+        // 0x7f encodes spaces inside station names on the wire
+        guiClientStations = parseCsvList(value.replace(/\u007f/g, " "));
+        break;
+      case "gui_client_handles":
+        guiClientHandles = parseCsvList(value);
+        break;
+      default:
+        logUnknownAttribute("discovery", key, value);
+        break;
+    }
+  }
 
   const guiClients = parseDiscoveredGuiClients({
     programs: guiClientPrograms,
@@ -72,91 +201,20 @@ export function decodeDiscoveryPayload(
     ips: guiClientIps,
   });
 
-  const fpcMacRaw = valueOrUndefined(fields.get("fpc_mac"));
+  if (inUseIps.length > 0) partial.inUseIps = inUseIps;
+  if (inUseHosts.length > 0) partial.inUseHosts = inUseHosts;
+  if (guiClientIps.length > 0) partial.guiClientIps = guiClientIps;
+  if (guiClientHosts.length > 0) partial.guiClientHosts = guiClientHosts;
+  if (guiClientPrograms.length > 0)
+    partial.guiClientPrograms = guiClientPrograms;
+  if (guiClientStations.length > 0)
+    partial.guiClientStations = guiClientStations;
+  if (guiClientHandles.length > 0) partial.guiClientHandles = guiClientHandles;
+  if (guiClients.length > 0) partial.guiClients = guiClients;
 
-  const descriptor: FlexRadioDescriptor = {
-    serial,
-    model,
-    nickname,
-    callsign,
-    availableSlices,
-    availablePanadapters,
-    version,
-    host,
-    port,
-    protocol: resolveProtocol(fields, defaultProtocol),
-    lastSeen: timestamp,
+  partial.protocol =
+    protocolField ?? (tlsFlag === true ? "tls" : defaultProtocol);
+  partial.lastSeen = timestamp;
 
-    isSystemModel: parseBooleanFlag(fields.get("is_system_model")) ?? undefined,
-    turfRegion: valueOrUndefined(fields.get("turf_region")),
-    status: valueOrUndefined(fields.get("status")),
-    discoveryProtocolVersion: valueOrUndefined(
-      fields.get("discovery_protocol_version"),
-    ),
-    maxLicensedVersion: valueOrUndefined(fields.get("max_licensed_version")),
-    radioLicenseId: valueOrUndefined(fields.get("radio_license_id")),
-    minSoftwareVersion: valueOrUndefined(fields.get("min_software_version")),
-    hasUnknownRadioLicense:
-      parseBooleanFlag(fields.get("license_is_unknown")) ?? undefined,
-    requiresAdditionalLicense:
-      parseBooleanFlag(fields.get("requires_additional_license")) ?? undefined,
-    wanConnected: parseBooleanFlag(fields.get("wan_connected")) ?? undefined,
-    externalPortLink:
-      parseBooleanFlag(fields.get("external_port_link")) ?? undefined,
-    licensedClients: parseInteger(
-      fields.get("licensed_clients"),
-      "licensed_clients",
-    ),
-    availableClients: parseInteger(
-      fields.get("available_clients"),
-      "available_clients",
-    ),
-    maxSlices: parseInteger(fields.get("max_slices"), "max_slices"),
-    maxPanadapters: parseInteger(
-      fields.get("max_panadapters"),
-      "max_panadapters",
-    ),
-    fpcMac: fpcMacRaw ? fpcMacRaw.replace(/-/g, ":") : undefined,
-    inUseIps: inUseIps.length > 0 ? inUseIps : undefined,
-    inUseHosts: inUseHosts.length > 0 ? inUseHosts : undefined,
-    guiClientIps: guiClientIps.length > 0 ? guiClientIps : undefined,
-    guiClientHosts: guiClientHosts.length > 0 ? guiClientHosts : undefined,
-    guiClientPrograms:
-      guiClientPrograms.length > 0 ? guiClientPrograms : undefined,
-    guiClientStations:
-      guiClientStations.length > 0 ? guiClientStations : undefined,
-    guiClientHandles:
-      guiClientHandles.length > 0 ? guiClientHandles : undefined,
-    guiClients: guiClients.length > 0 ? guiClients : undefined,
-  };
-
-  return descriptor;
-}
-
-function resolveProtocol(
-  fields: Map<string, string>,
-  defaultProtocol: "tcp" | "tls",
-): "tcp" | "tls" {
-  const protocol = valueOrUndefined(fields.get("protocol"));
-  if (protocol === "tcp" || protocol === "tls") return protocol;
-  const tlsFlag = parseBooleanFlag(fields.get("tls"));
-  if (tlsFlag === true) return "tls";
-  return defaultProtocol;
-}
-
-function parseInteger(
-  value: string | undefined,
-  field: string,
-): number | undefined {
-  if (value === undefined) return undefined;
-  const parsed = parseOptionalInteger(value);
-  if (parsed === undefined) {
-    throw new Error(`Discovery payload has invalid integer for ${field}`);
-  }
-  return parsed;
-}
-
-function normalizeStations(value: string | undefined): string | undefined {
-  if (!value) return value;
-  return value.replace(/\u007f/g, " ");
+  return partial as FlexRadioDescriptor;
 }

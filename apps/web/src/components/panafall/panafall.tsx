@@ -122,7 +122,7 @@ export function Panafall(props: { index: number }) {
     originX: 0,
     originFreq: 0,
   });
-  const pos = createMousePosition(clickRef);
+  const pos = createMousePosition(() => clickRef() ?? window);
   const windowSize = createWindowSize();
 
   const {
@@ -331,12 +331,16 @@ export function Panafall(props: { index: number }) {
         <Show when={panadapter()}>
           {(pan) => (
             <>
-              <CreateProfileDialog
-                radio={radio()}
-                kind="global"
-                open={createProfile()}
-                onOpenChange={setCreateProfile}
-              />
+              <Show when={radio()}>
+                {(radio) => (
+                  <CreateProfileDialog
+                    radio={radio()}
+                    kind="global"
+                    open={createProfile()}
+                    onOpenChange={setCreateProfile}
+                  />
+                )}
+              </Show>
               <div class="relative size-full overflow-visible select-none">
                 <Resizable
                   class="size-full overflow-visible select-none"
@@ -418,11 +422,13 @@ export function Panafall(props: { index: number }) {
                       if (dragState.dragging) return;
                       setDragState("originX", 0);
                       const slice = activeSlice();
-                      const offset = ["DIGU", "FDVU"].includes(slice?.mode)
-                        ? slice.diguOffsetHz
-                        : ["DIGL", "FDVL"].includes(slice?.mode)
-                          ? slice.diglOffsetHz
-                          : 0;
+                      const offset = slice
+                        ? ["DIGU", "FDVU"].includes(slice.mode)
+                          ? slice.diguOffsetHz
+                          : ["DIGL", "FDVL"].includes(slice.mode)
+                            ? slice.diglOffsetHz
+                            : 0
+                        : 0;
                       const freq = roundToDecimals(
                         xToFreq(clientXToCellX(e.clientX)),
                         3,
@@ -439,7 +445,7 @@ export function Panafall(props: { index: number }) {
                         <ContextMenuItem
                           class="pl-8"
                           onSelect={() => {
-                            radio().requestSlice({
+                            radio()?.requestSlice({
                               panadapterStreamId: pan().streamId,
                               frequencyMHz: roundToDecimals(
                                 xToFreq(cellPosX()),
@@ -457,7 +463,7 @@ export function Panafall(props: { index: number }) {
                         <ContextMenuItem
                           class="pl-8"
                           onSelect={() => {
-                            radio().createTnf(
+                            radio()?.createTnf(
                               roundToDecimals(xToFreq(cellPosX()), 6),
                             );
                           }}
@@ -485,7 +491,7 @@ export function Panafall(props: { index: number }) {
                                   {(profile) => (
                                     <ContextMenuItem
                                       onSelect={() =>
-                                        radio().saveGlobalProfile(profile())
+                                        radio()?.saveGlobalProfile(profile())
                                       }
                                     >
                                       {`Save ${profile()}`}
@@ -503,7 +509,7 @@ export function Panafall(props: { index: number }) {
                                 <ContextMenuCheckboxItem
                                   checked={state.status.radio.profileAutoSave}
                                   onChange={(checked) => {
-                                    radio().setProfileAutoSave(checked);
+                                    radio()?.setProfileAutoSave(checked);
                                   }}
                                 >
                                   Enable Profile Auto-Save
@@ -515,7 +521,7 @@ export function Panafall(props: { index: number }) {
                                   state.status.radio.profileGlobalSelection
                                 }
                                 onChange={(profile) =>
-                                  radio().loadGlobalProfile(profile)
+                                  radio()?.loadGlobalProfile(profile)
                                 }
                               >
                                 <For
@@ -539,7 +545,7 @@ export function Panafall(props: { index: number }) {
                         <ContextMenuCheckboxItem
                           checked={state.status.radio.tnfEnabled}
                           onChange={(checked) => {
-                            radio().setTnfEnabled(checked);
+                            radio()?.setTnfEnabled(checked);
                           }}
                         >
                           Globally Enable TNFs

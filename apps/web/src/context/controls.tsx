@@ -1343,7 +1343,7 @@ export const CONTROL_DEFINITIONS = [
     editor: {
       kind: "choice",
       getChoices(ctx) {
-        return ctx.state.status.radio.profileDisplayList;
+        return ctx.state.status.radio.profileDisplayList ?? [];
       },
     },
     execute(ctx, action) {
@@ -1351,7 +1351,7 @@ export const CONTROL_DEFINITIONS = [
       if (!radioController) return;
 
       const profiles = ctx.state.status.radio.profileDisplayList;
-      if (profiles.length === 0) return;
+      if (!profiles || profiles.length === 0) return;
 
       const value =
         action.op === "cycle"
@@ -1890,9 +1890,9 @@ export const ControlsProvider: ParentComponent = (props) => {
   });
 
   const activePan = createMemo(() => {
-    const slice = activeSlice();
-    if (!slice) return undefined;
-    return radio()?.panadapter(slice.panadapterStreamId);
+    const panId = activeSlice()?.panadapterStreamId;
+    if (!panId) return undefined;
+    return radio()?.panadapter(panId);
   });
 
   const getSlice = (selector?: SliceSelector) => {
@@ -1906,9 +1906,9 @@ export const ControlsProvider: ParentComponent = (props) => {
   const getPan = (selector?: SliceSelector) => {
     if (!selector) return activePan();
 
-    const slice = getSlice(selector);
-    if (!slice) return undefined;
-    return radio()?.panadapter(slice.panadapterStreamId);
+    const panId = getSlice(selector)?.panadapterStreamId;
+    if (!panId) return undefined;
+    return radio()?.panadapter(panId);
   };
 
   const getWaterfall = (selector?: SliceSelector) => {

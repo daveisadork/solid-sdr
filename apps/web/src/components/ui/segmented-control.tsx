@@ -6,24 +6,33 @@ import { splitProps } from "solid-js";
 
 import { cn } from "~/lib/utils";
 
-type SegmentedControlRootProps =
-  SegmentedControlPrimitive.SegmentedControlRootProps & {
-    class?: string | undefined;
-  };
+type SegmentedControlRootProps<TValue extends string = string> = Omit<
+  SegmentedControlPrimitive.SegmentedControlRootProps,
+  "value" | "defaultValue" | "onChange"
+> & {
+  class?: string | undefined;
+  value?: TValue;
+  defaultValue?: TValue;
+  onChange?: (value: TValue) => void;
+};
 
-const SegmentedControl = <T extends ValidComponent = "div">(
-  props: PolymorphicProps<T, SegmentedControlRootProps>,
+const SegmentedControl = <
+  TValue extends string = string,
+  T extends ValidComponent = "div",
+>(
+  props: PolymorphicProps<T, SegmentedControlRootProps<TValue>>,
 ) => {
-  const [local, others] = splitProps(props as SegmentedControlRootProps, [
-    "class",
-  ]);
+  const [local, others] = splitProps(
+    props as SegmentedControlRootProps<TValue>,
+    ["class"],
+  );
   return (
     <SegmentedControlPrimitive.Root
       class={cn(
         "group/segmented-control relative flex w-full select-none flex-col justify-between space-y-2",
         local.class,
       )}
-      {...others}
+      {...(others as SegmentedControlPrimitive.SegmentedControlRootProps)}
     />
   );
 };

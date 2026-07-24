@@ -117,10 +117,9 @@ export type { WaterfallSnapshot } from "./waterfall.js";
 export type { WaveformSnapshot } from "./waveform.js";
 export type { XvtrSnapshot } from "./xvtr.js";
 
-type ChangeMetadata<TSnapshot> = {
-  readonly diff?: SnapshotDiff<TSnapshot>;
-  readonly removed: boolean;
-};
+type ChangeMetadata<TSnapshot> =
+  | { readonly removed: false; readonly diff: SnapshotDiff<TSnapshot> }
+  | { readonly removed: true; readonly diff?: undefined };
 
 export type DisplayMarkerStateChange = {
   readonly entity: "displayMarker";

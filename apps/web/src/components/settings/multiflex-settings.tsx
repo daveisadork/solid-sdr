@@ -1,4 +1,4 @@
-import { For } from "solid-js";
+import { For, Show } from "solid-js";
 import useFlexRadio from "~/context/flexradio";
 import { Checkbox } from "../ui/checkbox";
 import { DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
@@ -26,7 +26,7 @@ export function MultiflexSettings() {
       >
         <SimpleSwitch
           checked={state.status.radio.mfEnabled}
-          onChange={(isChecked) => radio().setMfEnabled(isChecked)}
+          onChange={(isChecked) => radio()?.setMfEnabled(isChecked)}
           label="Enable multiFLEX"
         />
         <Table class="whitespace-nowrap">
@@ -41,8 +41,12 @@ export function MultiflexSettings() {
           <TableBody>
             <For each={Object.values(state.status.guiClient)}>
               {(client) => {
-                const txSlice = () =>
-                  state.status.slice[client.transmitSliceId];
+                const txSlice = () => {
+                  const sliceId = client.transmitSliceId;
+                  return sliceId != null
+                    ? state.status.slice[sliceId]
+                    : undefined;
+                };
                 return (
                   <TableRow>
                     <TableCell>
@@ -50,14 +54,16 @@ export function MultiflexSettings() {
                         disabled={!client.isThisClient}
                         checked={client.isLocalPtt}
                         onChange={(checked) =>
-                          radio().setLocalPttEnabled(checked)
+                          radio()?.setLocalPttEnabled(checked)
                         }
                       />
                     </TableCell>
                     <TableCell>{client.station}</TableCell>
                     <TableCell>{txSlice()?.txAntenna}</TableCell>
                     <TableCell>
-                      {txSlice() ? `${txSlice().frequencyMHz} MHz` : ""}
+                      <Show when={txSlice()}>
+                        {(slice) => `${slice().frequencyMHz} MHz`}
+                      </Show>
                     </TableCell>
                   </TableRow>
                 );

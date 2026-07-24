@@ -1,6 +1,7 @@
 import * as NumberFieldPrimitive from "@kobalte/core/number-field";
 import * as SelectPrimitive from "@kobalte/core/select";
 import * as TextFieldPrimitive from "@kobalte/core/text-field";
+import type { Radio } from "@repo/flexlib";
 import type {
   ColumnFiltersState,
   SortingState,
@@ -84,7 +85,7 @@ const NumberFieldCell = (
   );
 };
 
-function MemorySettingsInner() {
+function MemorySettingsInner(componentProps: { radio: Radio }) {
   const [sorting, setSorting] = createSignal<SortingState>([]);
   const [columnFilters, setColumnFilters] = createSignal<ColumnFiltersState>(
     [],
@@ -93,7 +94,8 @@ function MemorySettingsInner() {
     {},
   );
   const [rowSelection, setRowSelection] = createSignal({});
-  const { state, radio } = useFlexRadio();
+  const { state } = useFlexRadio();
+  const connectedRadio = () => componentProps.radio;
 
   const modeList = createMemo(() => {
     return Array.from(
@@ -141,7 +143,9 @@ function MemorySettingsInner() {
         return (
           <Button
             class="size-6 p-0"
-            onClick={() => radio().memory(props.row.original.id)?.apply()}
+            onClick={() =>
+              connectedRadio().memory(props.row.original.id)?.apply()
+            }
           >
             <IcBaselinePlayCircleOutline />
           </Button>
@@ -155,7 +159,7 @@ function MemorySettingsInner() {
         <TextFieldCell
           value={props.row.original.group}
           onChange={(value) =>
-            radio().memory(props.row.original.id)?.setGroup(value)
+            connectedRadio().memory(props.row.original.id)?.setGroup(value)
           }
         />
       ),
@@ -167,7 +171,7 @@ function MemorySettingsInner() {
         <TextFieldCell
           value={props.row.original.owner}
           onChange={(value) =>
-            radio().memory(props.row.original.id)?.setOwner(value)
+            connectedRadio().memory(props.row.original.id)?.setOwner(value)
           }
         />
       ),
@@ -179,7 +183,7 @@ function MemorySettingsInner() {
         <NumberFieldCell
           rawValue={props.row.original.frequencyMHz}
           onRawValueChange={(value) =>
-            radio().memory(props.row.original.id)?.setFrequency(value)
+            connectedRadio().memory(props.row.original.id)?.setFrequency(value)
           }
         />
       ),
@@ -191,7 +195,7 @@ function MemorySettingsInner() {
         <TextFieldCell
           value={props.row.original.name}
           onChange={(value) =>
-            radio().memory(props.row.original.id)?.setName(value)
+            connectedRadio().memory(props.row.original.id)?.setName(value)
           }
         />
       ),
@@ -203,9 +207,9 @@ function MemorySettingsInner() {
         <SelectPrimitive.Root
           options={modeList()}
           value={props.row.original.mode?.trim()}
-          onChange={(value?: string) => {
+          onChange={(value) => {
             if (!value || value === props.row.original.mode) return;
-            radio().memory(props.row.original.id)?.setMode(value);
+            connectedRadio().memory(props.row.original.id)?.setMode(value);
           }}
           itemComponent={(props) => {
             return (
@@ -237,7 +241,7 @@ function MemorySettingsInner() {
         <NumberFieldCell
           rawValue={props.row.original.stepHz}
           onRawValueChange={(value) =>
-            radio().memory(props.row.original.id)?.setStep(value)
+            connectedRadio().memory(props.row.original.id)?.setStep(value)
           }
         />
       ),
@@ -249,10 +253,10 @@ function MemorySettingsInner() {
         <SelectPrimitive.Root
           options={["DOWN", "SIMPLEX", "UP"]}
           value={props.row.original.repeaterOffsetDirection}
-          onChange={(value?: string) => {
+          onChange={(value) => {
             if (!value || value === props.row.original.repeaterOffsetDirection)
               return;
-            radio()
+            connectedRadio()
               .memory(props.row.original.id)
               ?.setRepeaterOffsetDirection(value);
           }}
@@ -279,7 +283,9 @@ function MemorySettingsInner() {
         <NumberFieldCell
           rawValue={props.row.original.repeaterOffsetMHz}
           onRawValueChange={(value) =>
-            radio().memory(props.row.original.id)?.setRepeaterOffset(value)
+            connectedRadio()
+              .memory(props.row.original.id)
+              ?.setRepeaterOffset(value)
           }
         />
       ),
@@ -291,9 +297,11 @@ function MemorySettingsInner() {
         <SelectPrimitive.Root
           options={["OFF", "CTCSS_TX"]}
           value={props.row.original.fmToneMode}
-          onChange={(value?: string) => {
+          onChange={(value) => {
             if (!value || value === props.row.original.fmToneMode) return;
-            radio().memory(props.row.original.id)?.setFmToneMode(value);
+            connectedRadio()
+              .memory(props.row.original.id)
+              ?.setFmToneMode(value);
           }}
           itemComponent={(props) => {
             return (
@@ -318,9 +326,11 @@ function MemorySettingsInner() {
         <SelectPrimitive.Root
           options={toneValues.map((v) => v.hz)}
           value={props.row.original.fmToneValue}
-          onChange={(value?: string) => {
+          onChange={(value) => {
             if (!value || value === props.row.original.fmToneValue) return;
-            radio().memory(props.row.original.id)?.setFmToneMode(value);
+            connectedRadio()
+              .memory(props.row.original.id)
+              ?.setFmToneMode(value);
           }}
           itemComponent={(props) => (
             <SelectItem item={props.item} class="font-mono">
@@ -346,7 +356,9 @@ function MemorySettingsInner() {
         <Checkbox
           checked={props.row.original.squelchEnabled}
           onChange={(enabled) =>
-            radio().memory(props.row.original.id)?.setSquelchEnabled(enabled)
+            connectedRadio()
+              .memory(props.row.original.id)
+              ?.setSquelchEnabled(enabled)
           }
           aria-label="Select row"
         />
@@ -359,7 +371,9 @@ function MemorySettingsInner() {
         <NumberFieldCell
           rawValue={props.row.original.squelchLevel}
           onRawValueChange={(value) =>
-            radio().memory(props.row.original.id)?.setSquelchLevel(value)
+            connectedRadio()
+              .memory(props.row.original.id)
+              ?.setSquelchLevel(value)
           }
         />
       ),
@@ -371,7 +385,7 @@ function MemorySettingsInner() {
         <NumberFieldCell
           rawValue={props.row.original.filterLowHz}
           onRawValueChange={(value) =>
-            radio().memory(props.row.original.id)?.setFilterLow(value)
+            connectedRadio().memory(props.row.original.id)?.setFilterLow(value)
           }
         />
       ),
@@ -383,7 +397,7 @@ function MemorySettingsInner() {
         <NumberFieldCell
           rawValue={props.row.original.filterHighHz}
           onRawValueChange={(value) =>
-            radio().memory(props.row.original.id)?.setFilterHigh(value)
+            connectedRadio().memory(props.row.original.id)?.setFilterHigh(value)
           }
         />
       ),
@@ -395,7 +409,7 @@ function MemorySettingsInner() {
         <NumberFieldCell
           rawValue={props.row.original.rttyMarkHz}
           onRawValueChange={(value) =>
-            radio().memory(props.row.original.id)?.setRttyMark(value)
+            connectedRadio().memory(props.row.original.id)?.setRttyMark(value)
           }
         />
       ),
@@ -407,7 +421,7 @@ function MemorySettingsInner() {
         <NumberFieldCell
           rawValue={props.row.original.rttyShiftHz}
           onRawValueChange={(value) =>
-            radio().memory(props.row.original.id)?.setRttyShift(value)
+            connectedRadio().memory(props.row.original.id)?.setRttyShift(value)
           }
         />
       ),
@@ -419,7 +433,7 @@ function MemorySettingsInner() {
         <NumberFieldCell
           rawValue={props.row.original.diglOffsetHz}
           onRawValueChange={(value) =>
-            radio().memory(props.row.original.id)?.setDiglOffset(value)
+            connectedRadio().memory(props.row.original.id)?.setDiglOffset(value)
           }
         />
       ),
@@ -431,7 +445,7 @@ function MemorySettingsInner() {
         <NumberFieldCell
           rawValue={props.row.original.diguOffsetHz}
           onRawValueChange={(value) =>
-            radio().memory(props.row.original.id)?.setDiguOffset(value)
+            connectedRadio().memory(props.row.original.id)?.setDiguOffset(value)
           }
         />
       ),
@@ -495,7 +509,7 @@ function MemorySettingsInner() {
                       checked={column.getIsVisible()}
                       onChange={(value) => column.toggleVisibility(!!value)}
                     >
-                      {column.columnDef.header.toString() ?? column.id}
+                      {column.columnDef.header?.toString() ?? column.id}
                     </DropdownMenuCheckboxItem>
                   );
                 }}
@@ -589,7 +603,7 @@ function MemorySettingsInner() {
               table()
                 .getSelectedRowModel()
                 .flatRows.map((mem) =>
-                  radio().memory(mem.original.id).remove(),
+                  connectedRadio().memory(mem.original.id)?.remove(),
                 ),
             ).then(() => table().setRowSelection({}));
           }}
@@ -599,7 +613,7 @@ function MemorySettingsInner() {
         <Button
           onClick={() => {
             console.log("Creating memory");
-            radio().createMemory().catch(console.error);
+            connectedRadio().createMemory().catch(console.error);
           }}
         >
           Add New
@@ -610,17 +624,17 @@ function MemorySettingsInner() {
 }
 
 export function MemorySettings() {
-  const { state } = useFlexRadio();
+  const { state, radio } = useFlexRadio();
   return (
     <DialogContent class="translate-y-0 top-1/12 flex flex-col max-h-10/12 overflow-hidden sm:max-w-10/12 sm:w-auto">
       <DialogHeader>
         <DialogTitle>Memory Settings</DialogTitle>
       </DialogHeader>
       <Show
-        when={state.clientHandle}
+        when={state.clientHandle ? radio() : null}
         fallback={<div class="text-sm w-sm">Not Connected</div>}
       >
-        <MemorySettingsInner />
+        {(radio) => <MemorySettingsInner radio={radio()} />}
       </Show>
     </DialogContent>
   );

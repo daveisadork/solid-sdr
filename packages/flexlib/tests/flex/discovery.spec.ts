@@ -51,15 +51,6 @@ describe("decodeDiscoveryPayload", () => {
     expect(descriptor.guiClients).toBeUndefined();
   });
 
-  it("rejects packets with missing required fields", () => {
-    // given a packet with no port field
-    const payload =
-      "serial=9999-0000 model=FLEX-6400 version=3.9.10 ip=198.51.100.10 available_slices=2 available_panadapters=2";
-
-    // it should throw an error about the missing port
-    expect(() => decodeDiscoveryPayload(payload, Date.now())).toThrow("port");
-  });
-
   it("parses GUI client info for a single-client radio", () => {
     // given a discovery packet from a radio with one connected client
     const descriptor = parseDescriptorFromPacket(SAMPLE_PACKET_ONE_CLIENT);

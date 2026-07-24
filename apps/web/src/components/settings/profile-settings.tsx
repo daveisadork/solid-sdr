@@ -81,11 +81,13 @@ export function CreateProfileDialog(
           event.preventDefault();
           const profileName = name();
           if (!profileName.length) return;
-          const method = {
-            global: "saveGlobalProfile",
-            tx: "createTxProfile",
-            mic: "createMicProfile",
-          }[local.kind];
+          const method = (
+            {
+              global: "saveGlobalProfile",
+              tx: "createTxProfile",
+              mic: "createMicProfile",
+            } as const
+          )[local.kind];
 
           local.radio[method](profileName)
             .then(() => {
@@ -409,7 +411,7 @@ export function ProfileSettings() {
         <DialogTitle>Profile Manager</DialogTitle>
       </DialogHeader>
       <Show when={radio()} fallback={<div class="text-sm">Not Connected</div>}>
-        <ProfileSettingsInner radio={radio()} />
+        {(radio) => <ProfileSettingsInner radio={radio()} />}
       </Show>
     </DialogContent>
   );

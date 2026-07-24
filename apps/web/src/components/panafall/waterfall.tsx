@@ -159,7 +159,7 @@ export function Waterfall(props: {
 
   const widthMultiplier = createMemo(
     () =>
-      (binBandwidth() * wrapperSize.width) /
+      (binBandwidth() * (wrapperSize.width ?? 0)) /
       (props.pan.bandwidthMHz * 1_000_000),
   );
 
@@ -280,8 +280,9 @@ export function Waterfall(props: {
         if (offscreen.width !== totalBins) {
           offscreen.width = totalBins;
         }
-        if (offscreen.height !== targetCanvasHeight()) {
-          offscreen.height = targetCanvasHeight();
+        const targetHeight = targetCanvasHeight();
+        if (targetHeight !== null && offscreen.height !== targetHeight) {
+          offscreen.height = targetHeight;
         }
 
         const xOffset =

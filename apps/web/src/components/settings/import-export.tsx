@@ -523,7 +523,11 @@ function ImportExportInner(props: { radio: Radio }) {
       });
       showToast({ title: "Imported Successfully", variant: "success" });
     } catch (err) {
-      showToast({ title: "Import Failed", description: err, variant: "error" });
+      showToast({
+        title: "Import Failed",
+        description: err instanceof Error ? err.message : String(err),
+        variant: "error",
+      });
     } finally {
       setImporting(false);
     }
@@ -647,7 +651,7 @@ export function ImportExport() {
       </DialogHeader>
 
       <Show when={radio()} fallback={<div class="text-sm">Not Connected</div>}>
-        <ImportExportInner radio={radio()} />
+        {(radio) => <ImportExportInner radio={radio()} />}
       </Show>
     </DialogContent>
   );

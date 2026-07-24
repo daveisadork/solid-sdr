@@ -140,12 +140,16 @@ export const AudioProvider: ParentComponent = (props) => {
 
   // Create/destroy remote audio RX radio stream
   createEffect((promise?: Promise<AudioStreamController>) => {
-    if (!state.clientHandle || !preferences.remoteAudio.rx.enabled) return;
-    return remoteAudioRxStreamId()
-      ? onCleanup(() =>
-          promise?.then((stream) => radio()?.audioStream(stream.id)?.close()),
-        )
-      : radio()?.createRemoteAudioRxStream({ compression: "OPUS" });
+    if (!state.clientHandle || !preferences.remoteAudio.rx.enabled) {
+      return undefined;
+    }
+    if (remoteAudioRxStreamId()) {
+      onCleanup(() =>
+        promise?.then((stream) => radio()?.audioStream(stream.id)?.close()),
+      );
+      return promise;
+    }
+    return radio()?.createRemoteAudioRxStream({ compression: "OPUS" });
   });
 
   // Create/destroy remote audio TX radio stream
@@ -154,13 +158,16 @@ export const AudioProvider: ParentComponent = (props) => {
       !state.clientHandle ||
       !preferences.remoteAudio.rx.enabled ||
       !preferences.remoteAudio.tx.enabled
-    )
-      return;
-    return remoteAudioTxStreamId()
-      ? onCleanup(() =>
-          promise?.then((stream) => radio()?.audioStream(stream.id)?.close()),
-        )
-      : radio()?.createRemoteAudioTxStream({ compression: "OPUS" });
+    ) {
+      return undefined;
+    }
+    if (remoteAudioTxStreamId()) {
+      onCleanup(() =>
+        promise?.then((stream) => radio()?.audioStream(stream.id)?.close()),
+      );
+      return promise;
+    }
+    return radio()?.createRemoteAudioTxStream({ compression: "OPUS" });
   });
 
   // getUserMedia constraints for remote audio TX
@@ -451,7 +458,7 @@ export const AudioProvider: ParentComponent = (props) => {
         daxIqSinks,
         daxTxStream,
         remoteAudioTxStream,
-        remoteAudioRxStream: rtcRemoteAudioRxStream,
+        remoteAudioRxStream: () => rtcRemoteAudioRxStream() ?? undefined,
       }}
     >
       {props.children}

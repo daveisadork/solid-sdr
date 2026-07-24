@@ -42,7 +42,7 @@ export const SimpleSlider = (props: SimpleSliderProps) => {
   const fillStyle = createMemo((): JSX.CSSProperties => {
     const min = props.minValue ?? 0;
     const max = props.maxValue ?? 100;
-    const [value] = props.value;
+    const [value = min] = props.value ?? [];
     const valuePercent = ((value - min) / (max - min)) * 100;
     return {
       right: valuePercent > 50 ? `${100 - valuePercent}%` : "50%",

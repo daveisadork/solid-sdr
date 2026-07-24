@@ -23,14 +23,14 @@ export interface FeatureLicenseFeature {
 
 export interface FeatureLicenseSubscription {
   readonly name: string;
-  readonly expiration?: Date;
+  readonly expiration: Date;
 }
 
 export interface FeatureLicenseSnapshot {
-  readonly radioId?: string;
-  readonly issueDate?: Date;
-  readonly lastRefreshDate?: Date;
-  readonly highestMajorVersion?: number;
+  readonly radioId: string;
+  readonly issueDate: Date;
+  readonly lastRefreshDate: Date;
+  readonly highestMajorVersion: number;
   readonly region?: string;
   readonly features: Readonly<Record<string, FeatureLicenseFeature>>;
   readonly subscriptions: Readonly<Record<string, FeatureLicenseSubscription>>;
@@ -55,7 +55,9 @@ export function createFeatureLicenseSnapshot(
   }
 
   const rawDiff = freezeAttributes(attributes);
-  const partial: Mutable<Partial<FeatureLicenseSnapshot>> = {};
+  const partial: Mutable<Partial<FeatureLicenseSnapshot>> = previous
+    ? {}
+    : { smartSdrPlusActive: false, smartSdrPlusEarlyAccessActive: false };
 
   switch (context.identifier) {
     case "feature":
@@ -140,6 +142,22 @@ function applySubscriptionAttributes(
   }
 
   const expiration = parseExpiration(attributes.expiration);
+  if (expiration === undefined) {
+    logParseError(
+      "license",
+      "subscription.expiration",
+      attributes.expiration ?? "",
+    );
+    // A plus subscription without a valid expiration must not stay active.
+    if (name === "smartsdr+") {
+      partial.smartSdrPlusActive = false;
+      partial.smartSdrPlusExpiration = undefined;
+    } else if (name === "smartsdr+_early_access") {
+      partial.smartSdrPlusEarlyAccessActive = false;
+      partial.smartSdrPlusEarlyAccessExpiration = undefined;
+    }
+    return;
+  }
   const subscription: FeatureLicenseSubscription = Object.freeze({
     name,
     expiration,
@@ -150,7 +168,7 @@ function applySubscriptionAttributes(
     [name]: subscription,
   });
 
-  const active = expiration !== undefined && expiration.getTime() > Date.now();
+  const active = expiration.getTime() > Date.now();
   if (name === "smartsdr+") {
     partial.smartSdrPlusActive = active;
     partial.smartSdrPlusExpiration = expiration;

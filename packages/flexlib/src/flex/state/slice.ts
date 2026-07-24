@@ -34,6 +34,7 @@ export interface SliceSnapshot {
   readonly isQskEnabled: boolean;
   readonly rxAntenna: string;
   readonly txAntenna: string;
+  /** Unset while a slice is detached (its panadapter closed, removal pending). */
   readonly panadapterStreamId?: string;
   readonly daxChannel: number;
   readonly daxIqChannel: number;

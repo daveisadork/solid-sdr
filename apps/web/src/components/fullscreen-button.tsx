@@ -37,11 +37,11 @@ export function FullscreenButton(props: FullscreenButtonProps) {
       <Tooltip>
         <TooltipTrigger
           as={ToggleButton<"button">}
+          {...others}
           class={cn("aspect-square size-control", local.class)}
           aria-label={label()}
           pressed={fullscreen()}
           onChange={setFullscreen}
-          {...others}
         >
           <Dynamic
             component={fullscreen() ? FullscreenExit : Fullscreen}

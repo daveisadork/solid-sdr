@@ -17,7 +17,7 @@ export function ReleaseNotification() {
   const [hasNewVersion, setHasNewVersion] = createSignal(false);
   const [dismissed, setDismissed] = createSignal(false);
   const show = () => hasNewVersion() && !dismissed();
-  const [element, setElement] = createSignal<HTMLElement>(null);
+  const [element, setElement] = createSignal<HTMLElement | null>(null);
   const { present } = createPresence({
     show,
     element,

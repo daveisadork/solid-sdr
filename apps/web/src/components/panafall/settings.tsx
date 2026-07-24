@@ -18,12 +18,7 @@ import useFlexRadio, {
   type WaterfallState,
 } from "~/context/flexradio";
 import { usePanafall } from "~/context/panafall";
-import {
-  type FillStyle,
-  type GradientStyle,
-  type PeakStyle,
-  usePreferences,
-} from "~/context/preferences";
+import { usePreferences } from "~/context/preferences";
 import BaselineDisplaySettings from "~icons/ic/baseline-display-settings";
 import {
   Accordion,
@@ -224,7 +219,7 @@ function DisplaySettings(props: {
     <div class="text-sm flex flex-col gap-3">
       <SegmentedControl
         value={preferences.peakStyle}
-        onChange={(value: PeakStyle) => {
+        onChange={(value) => {
           if (!value) return;
           setPreferences("peakStyle", value);
         }}
@@ -247,7 +242,7 @@ function DisplaySettings(props: {
       </SegmentedControl>
       <SegmentedControl
         value={preferences.fillStyle}
-        onChange={(value: FillStyle) => {
+        onChange={(value) => {
           if (!value) return;
           setPreferences("fillStyle", value);
         }}
@@ -270,7 +265,7 @@ function DisplaySettings(props: {
       </SegmentedControl>
       <SegmentedControl
         value={preferences.gradientStyle}
-        onChange={(value: GradientStyle) => {
+        onChange={(value) => {
           if (!value) return;
           setPreferences("gradientStyle", value);
         }}
@@ -294,29 +289,34 @@ function DisplaySettings(props: {
       <Select
         class="flex flex-col gap-2 select-none"
         value={props.waterfall.gradientIndex}
-        onChange={(value: number) => {
-          if (Number.isFinite(value) && value !== props.waterfall.gradientIndex)
+        onChange={(value) => {
+          if (
+            value != null &&
+            Number.isFinite(value) &&
+            value !== props.waterfall.gradientIndex
+          )
             props.waterfallController.setGradientIndex(value);
         }}
         options={preferences.palette.gradients.map((_, index) => index)}
-        itemComponent={(props) => {
-          const gradient = preferences.palette.gradients.at(
-            props.item.rawValue,
-          );
-          return (
-            <SelectItem item={props.item}>
-              <div class="flex items-center gap-2">
-                <div
-                  class="h-6 w-6 rounded-sm"
-                  style={{
-                    "background-image": createGradientStyle(gradient.stops),
-                  }}
-                />
-                <div>{gradient.name}</div>
-              </div>
-            </SelectItem>
-          );
-        }}
+        itemComponent={(itemProps) => (
+          <SelectItem item={itemProps.item}>
+            <Show
+              when={preferences.palette.gradients.at(itemProps.item.rawValue)}
+            >
+              {(gradient) => (
+                <div class="flex items-center gap-2">
+                  <div
+                    class="h-6 w-6 rounded-sm"
+                    style={{
+                      "background-image": createGradientStyle(gradient().stops),
+                    }}
+                  />
+                  <div>{gradient().name}</div>
+                </div>
+              )}
+            </Show>
+          </SelectItem>
+        )}
       >
         <SelectLabel>Waterfall Gradient</SelectLabel>
         <SelectTrigger>
@@ -476,7 +476,7 @@ function AntennaSettings(props: {
       <Select
         class="flex flex-col gap-2 select-none"
         value={props.panadapter.rxAntenna}
-        onChange={(value: string) => {
+        onChange={(value) => {
           if (!value) return;
           if (value !== props.panadapter.rxAntenna) {
             props.panadapterController.setRxAntenna(value);
@@ -650,19 +650,19 @@ function BandSettings(props: {
       .toArray(),
   );
 
+  const selectedBand = createMemo(() => {
+    if (!props.panadapter.xvtr) return props.panadapter.band;
+    const xvtr = Object.values(state.status.xvtr).find(
+      (entry) => entry.name === props.panadapter.xvtr,
+    );
+    return xvtr ? `x${xvtr.id}` : props.panadapter.band;
+  });
+
   return (
     <ToggleGroup
       class="grid grid-cols-3 gap-2"
-      value={
-        props.panadapter.xvtr
-          ? `x${
-              Object.values(state.status.xvtr).find(
-                (xvtr) => xvtr.name === props.panadapter.xvtr,
-              ).id
-            }`
-          : props.panadapter.band
-      }
-      onChange={(value: string) => {
+      value={selectedBand()}
+      onChange={(value) => {
         if (!value) return;
         props.panadapterController.setBand(value);
       }}
@@ -698,6 +698,15 @@ export function PanSettings() {
 
   const { radio, state } = useFlexRadio();
 
+  const daxIqChannelOptions = () => {
+    const connectedRadio = radio();
+    if (!connectedRadio) return [];
+    return Array.from(
+      { length: connectedRadio.modelInfo.maxDaxIqChannels + 1 },
+      (_, i) => i,
+    );
+  };
+
   return (
     <div class="absolute max-h-[calc(100%-var(--cell-inset-bottom))] p-2 flex z-(--z-chrome) pointer-events-none">
       <div ref={setMenuRef}>
@@ -731,7 +740,7 @@ export function PanSettings() {
               class="hover:bg-accent"
               onClick={() =>
                 radio()
-                  .requestSlice({
+                  ?.requestSlice({
                     panadapterStreamId: panadapter().streamId,
                   })
                   .catch((e) => {
@@ -748,7 +757,9 @@ export function PanSettings() {
               size="xs"
               variant="ghost"
               class="hover:bg-accent"
-              onClick={() => radio().createTnf(panadapter().centerFrequencyMHz)}
+              onClick={() =>
+                radio()?.createTnf(panadapter().centerFrequencyMHz)
+              }
             >
               +TNF
             </Button>
@@ -763,12 +774,9 @@ export function PanSettings() {
             </ToggleGroupItem>
             <Select
               value={panadapter().daxIqChannel}
-              options={Array.from(
-                { length: radio()?.modelInfo.maxDaxIqChannels + 1 },
-                (_, i) => i,
-              )}
-              onChange={(v: number) => {
-                if (v === panadapter().daxIqChannel) return;
+              options={daxIqChannelOptions()}
+              onChange={(v) => {
+                if (v == null || v === panadapter().daxIqChannel) return;
                 panadapterController().setDaxIqChannel(v);
               }}
               itemComponent={(props) => (
@@ -808,7 +816,9 @@ export function PanSettings() {
           excludedElements={[
             menuRef,
             // this is a hack so interacting with a select box doesn't close the whole menu
-            () => document.querySelector("[data-popper-positioner]"),
+            () =>
+              document.querySelector<HTMLElement>("[data-popper-positioner]") ??
+              undefined,
           ]}
           bypassTopMostLayerCheck
         >

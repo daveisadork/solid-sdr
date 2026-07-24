@@ -176,18 +176,22 @@ export const PanafallProvider: ParentComponent<{
   const [panadapterWrapper, setPanadapterWrapper] = createSignal<HTMLElement>();
   const panadapterWrapperSize = createElementSize(panadapterWrapper);
   const cellEdges = () => props.edges ?? ALL_EDGES;
-  const panadapter = createMemo(
-    () => state.status.panadapter[props.streamId ?? state.selectedPanadapter],
-  );
-  const waterfall = createMemo(
-    () => state.status.waterfall[panadapter()?.waterfallStreamId],
-  );
-  const panadapterController = createMemo(() =>
-    radio()?.panadapter(panadapter()?.streamId),
-  );
-  const waterfallController = createMemo(() =>
-    radio()?.waterfall(waterfall()?.streamId),
-  );
+  const panadapter = createMemo(() => {
+    const streamId = props.streamId ?? state.selectedPanadapter;
+    return streamId != null ? state.status.panadapter[streamId] : undefined;
+  });
+  const waterfall = createMemo(() => {
+    const streamId = panadapter()?.waterfallStreamId;
+    return streamId != null ? state.status.waterfall[streamId] : undefined;
+  });
+  const panadapterController = createMemo(() => {
+    const streamId = panadapter()?.streamId;
+    return streamId != null ? radio()?.panadapter(streamId) : undefined;
+  });
+  const waterfallController = createMemo(() => {
+    const streamId = waterfall()?.streamId;
+    return streamId != null ? radio()?.waterfall(streamId) : undefined;
+  });
   const slices = createMemo(() => {
     const streamId = panadapter()?.streamId;
     return Object.values(state.status.slice).filter(
@@ -277,54 +281,64 @@ export const PanafallProvider: ParentComponent<{
   const isSliceDetached = (slice: SliceState): boolean =>
     sliceDetachedSide(slice) !== null;
 
+  const panafallScope = createMemo(() => {
+    const pan = panadapter();
+    const wf = waterfall();
+    const panController = panadapterController();
+    const wfController = waterfallController();
+    return pan && wf && panController && wfController
+      ? {
+          panadapter: pan,
+          waterfall: wf,
+          panadapterController: panController,
+          waterfallController: wfController,
+        }
+      : undefined;
+  });
+
   return (
-    <Show
-      when={
-        panadapter() &&
-        waterfall() &&
-        panadapterController() &&
-        waterfallController()
-      }
-    >
-      <PanafallContext.Provider
-        value={{
-          activeSlice,
-          clientXToCellX,
-          freqToX,
-          freqToAnchorX,
-          mhzPerPx,
-          mhzToPx,
-          mhzToAnchorPx,
-          panadapter,
-          setPanadapterWrapper,
-          panadapterWrapperSize,
-          panadapterController,
-          pxPerMHz,
-          pxToMHz,
-          setPanafallPortalRef,
-          panafallPortalRef,
-          setPanafallControlsRef,
-          panafallControlsRef,
-          setPanadapterControlsRef,
-          panadapterControlsRef,
-          setWaterfallControlsRef,
-          waterfallControlsRef,
-          slices,
-          waterfall,
-          waterfallController,
-          visibleInsets,
-          settledInsets,
-          isSliceDetached,
-          sliceDetachedSide,
-          sliceAnchorX,
-          visualAnchorX,
-          dragOffset,
-          setDragOffset,
-          xToFreq,
-        }}
-      >
-        {props.children}
-      </PanafallContext.Provider>
+    <Show when={panafallScope()}>
+      {(scope) => (
+        <PanafallContext.Provider
+          value={{
+            activeSlice,
+            clientXToCellX,
+            freqToX,
+            freqToAnchorX,
+            mhzPerPx,
+            mhzToPx,
+            mhzToAnchorPx,
+            panadapter: () => scope().panadapter,
+            setPanadapterWrapper,
+            panadapterWrapperSize,
+            panadapterController: () => scope().panadapterController,
+            pxPerMHz,
+            pxToMHz,
+            setPanafallPortalRef,
+            panafallPortalRef,
+            setPanafallControlsRef,
+            panafallControlsRef,
+            setPanadapterControlsRef,
+            panadapterControlsRef,
+            setWaterfallControlsRef,
+            waterfallControlsRef,
+            slices,
+            waterfall: () => scope().waterfall,
+            waterfallController: () => scope().waterfallController,
+            visibleInsets,
+            settledInsets,
+            isSliceDetached,
+            sliceDetachedSide,
+            sliceAnchorX,
+            visualAnchorX,
+            dragOffset,
+            setDragOffset,
+            xToFreq,
+          }}
+        >
+          {props.children}
+        </PanafallContext.Provider>
+      )}
     </Show>
   );
 };

@@ -208,15 +208,19 @@ export function TxMeter() {
   );
 
   createEffect(() => {
+    const id = fwdPwrMeter()?.id;
+    if (id === undefined) return;
     const sub = radio()
-      ?.meter(fwdPwrMeter()?.id)
+      ?.meter(id)
       ?.on("data", (event) => setFwdPwrWatts(dbmToWatts(event.value, 1)));
     onCleanup(() => sub?.unsubscribe());
   });
 
   createEffect(() => {
+    const id = refPwrMeter()?.id;
+    if (id === undefined) return;
     const sub = radio()
-      ?.meter(refPwrMeter()?.id)
+      ?.meter(id)
       ?.on("data", (event) => setRefPwrWatts(dbmToWatts(event.value, 1)));
     onCleanup(() => sub?.unsubscribe());
   });

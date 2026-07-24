@@ -100,7 +100,7 @@ function TxBandSettings(props: { radio: Radio }) {
           <Select
             class="flex flex-col gap-2 select-none"
             value={state.status.radio.profileTxSelection}
-            onChange={(value: string) => {
+            onChange={(value) => {
               if (!value) return;
               props.radio.loadTxProfile(value);
             }}
@@ -137,88 +137,108 @@ function TxBandSettings(props: { radio: Radio }) {
             </TableHeader>
             <TableBody>
               <For each={Object.values(state.status.txBandSetting)}>
-                {(bandSettings) => {
-                  const ctrl = props.radio.txBandSetting(bandSettings.id);
-                  return (
-                    <TableRow>
-                      <TableCell class="font-bold">
-                        {bandSettings.bandName}
-                      </TableCell>
-                      <TableCell>
-                        <NumberFieldPrimitive.Root
-                          rawValue={bandSettings.rfPower}
-                          onRawValueChange={(value) => ctrl.setRfPower(value)}
-                          minValue={0}
-                          maxValue={100}
-                        >
-                          <NumberFieldPrimitive.Input size={4} />
-                        </NumberFieldPrimitive.Root>
-                      </TableCell>
-                      <TableCell>
-                        <NumberFieldPrimitive.Root
-                          rawValue={bandSettings.tunePower}
-                          onRawValueChange={(value) => ctrl.setTunePower(value)}
-                          minValue={0}
-                          maxValue={100}
-                        >
-                          <NumberFieldPrimitive.Input size={4} />
-                        </NumberFieldPrimitive.Root>
-                      </TableCell>
-                      <TableCell>
-                        <Checkbox
-                          checked={bandSettings.pttInhibit}
-                          onChange={(checked) => ctrl.setPttInhibit(checked)}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Checkbox
-                          checked={bandSettings.accTxEnabled}
-                          onChange={(checked) => ctrl.setAccTxEnabled(checked)}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Checkbox
-                          checked={bandSettings.rcaTxReqEnabled}
-                          onChange={(checked) =>
-                            ctrl.setRcaTxReqEnabled(checked)
-                          }
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Checkbox
-                          checked={bandSettings.accTxReqEnabled}
-                          onChange={(checked) =>
-                            ctrl.setAccTxReqEnabled(checked)
-                          }
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Checkbox
-                          checked={bandSettings.rcaTx1Enabled}
-                          onChange={(checked) => ctrl.setRcaTx1Enabled(checked)}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Checkbox
-                          checked={bandSettings.rcaTx2Enabled}
-                          onChange={(checked) => ctrl.setRcaTx2Enabled(checked)}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Checkbox
-                          checked={bandSettings.rcaTx3Enabled}
-                          onChange={(checked) => ctrl.setRcaTx3Enabled(checked)}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Checkbox
-                          checked={bandSettings.hwAlcEnabled}
-                          onChange={(checked) => ctrl.setHwAlcEnabled(checked)}
-                        />
-                      </TableCell>
-                    </TableRow>
-                  );
-                }}
+                {(bandSettings) => (
+                  <Show when={props.radio.txBandSetting(bandSettings.id)}>
+                    {(controller) => {
+                      const ctrl = controller();
+                      return (
+                        <TableRow>
+                          <TableCell class="font-bold">
+                            {bandSettings.bandName}
+                          </TableCell>
+                          <TableCell>
+                            <NumberFieldPrimitive.Root
+                              rawValue={bandSettings.rfPower}
+                              onRawValueChange={(value) =>
+                                ctrl.setRfPower(value)
+                              }
+                              minValue={0}
+                              maxValue={100}
+                            >
+                              <NumberFieldPrimitive.Input size={4} />
+                            </NumberFieldPrimitive.Root>
+                          </TableCell>
+                          <TableCell>
+                            <NumberFieldPrimitive.Root
+                              rawValue={bandSettings.tunePower}
+                              onRawValueChange={(value) =>
+                                ctrl.setTunePower(value)
+                              }
+                              minValue={0}
+                              maxValue={100}
+                            >
+                              <NumberFieldPrimitive.Input size={4} />
+                            </NumberFieldPrimitive.Root>
+                          </TableCell>
+                          <TableCell>
+                            <Checkbox
+                              checked={bandSettings.pttInhibit}
+                              onChange={(checked) =>
+                                ctrl.setPttInhibit(checked)
+                              }
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Checkbox
+                              checked={bandSettings.accTxEnabled}
+                              onChange={(checked) =>
+                                ctrl.setAccTxEnabled(checked)
+                              }
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Checkbox
+                              checked={bandSettings.rcaTxReqEnabled}
+                              onChange={(checked) =>
+                                ctrl.setRcaTxReqEnabled(checked)
+                              }
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Checkbox
+                              checked={bandSettings.accTxReqEnabled}
+                              onChange={(checked) =>
+                                ctrl.setAccTxReqEnabled(checked)
+                              }
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Checkbox
+                              checked={bandSettings.rcaTx1Enabled}
+                              onChange={(checked) =>
+                                ctrl.setRcaTx1Enabled(checked)
+                              }
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Checkbox
+                              checked={bandSettings.rcaTx2Enabled}
+                              onChange={(checked) =>
+                                ctrl.setRcaTx2Enabled(checked)
+                              }
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Checkbox
+                              checked={bandSettings.rcaTx3Enabled}
+                              onChange={(checked) =>
+                                ctrl.setRcaTx3Enabled(checked)
+                              }
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Checkbox
+                              checked={bandSettings.hwAlcEnabled}
+                              onChange={(checked) =>
+                                ctrl.setHwAlcEnabled(checked)
+                              }
+                            />
+                          </TableCell>
+                        </TableRow>
+                      );
+                    }}
+                  </Show>
+                )}
               </For>
             </TableBody>
           </Table>
@@ -235,9 +255,9 @@ function NetworkSettings(props: { radio: Radio }) {
     preferences.networkMtu,
   );
   const [staticNetwork, setStaticNetwork] = createStore({
-    ip: state.status.radio.staticIp,
-    gateway: state.status.radio.staticGateway,
-    netmask: state.status.radio.staticNetmask,
+    ip: state.status.radio.staticIp ?? "",
+    gateway: state.status.radio.staticGateway ?? "",
+    netmask: state.status.radio.staticNetmask ?? "",
     ipTouched: false,
     gatewayTouched: false,
     netmaskTouched: false,
@@ -590,21 +610,21 @@ function RadioSettingsInner(props: { radio: Radio }) {
           <Show when={state.status.radio.gpsInstalled} fallback="Not Installed">
             <InfoItem
               label="Latitude"
-              value={state.status.radio.gpsLatitude.toString()}
+              value={state.status.radio.gpsLatitude?.toString()}
             />
             <InfoItem
               label="Longitude"
-              value={state.status.radio.gpsLongitude.toString()}
+              value={state.status.radio.gpsLongitude?.toString()}
             />
             <InfoItem label="Grid Square" value={state.status.radio.gpsGrid} />
             <InfoItem label="Altitude" value={state.status.radio.gpsAltitude} />
             <InfoItem
               label="Satellites Tracked"
-              value={state.status.radio.gpsSatellitesTracked.toString()}
+              value={state.status.radio.gpsSatellitesTracked?.toString()}
             />
             <InfoItem
               label="Satellites Visible"
-              value={state.status.radio.gpsSatellitesVisible.toString()}
+              value={state.status.radio.gpsSatellitesVisible?.toString()}
             />
             <InfoItem label="Speed" value={state.status.radio.gpsSpeed} />
             <InfoItem
@@ -624,7 +644,7 @@ function RadioSettingsInner(props: { radio: Radio }) {
           <Select
             class="flex flex-col gap-2 select-none"
             value={state.status.radio.profileTxSelection}
-            onChange={(value: string) => {
+            onChange={(value) => {
               if (!value) return;
               props.radio.loadTxProfile(value);
             }}
@@ -836,7 +856,7 @@ function RadioSettingsInner(props: { radio: Radio }) {
           />
           <SegmentedControl
             value={state.status.radio.tuneMode}
-            onChange={(value: "single_tone" | "two_tone") => {
+            onChange={(value) => {
               if (!value) return;
               props.radio.setTuneMode(value);
             }}
@@ -916,7 +936,7 @@ function RadioSettingsInner(props: { radio: Radio }) {
 
           <SegmentedControl
             value={state.status.radio.cwIambicMode}
-            onChange={(value: "a" | "b") => {
+            onChange={(value) => {
               if (!value) return;
               props.radio.setCwIambicMode(value);
             }}
@@ -1081,7 +1101,7 @@ function RadioSettingsInner(props: { radio: Radio }) {
         <CardContent class="flex flex-col gap-4">
           <SegmentedControl
             value={state.status.radio.oscillatorSetting}
-            onChange={(value: RadioOscillatorSetting) => {
+            onChange={(value) => {
               if (!value) return;
               props.radio.setOscillatorSetting(value);
             }}
@@ -1359,148 +1379,154 @@ function RadioSettingsInner(props: { radio: Radio }) {
         </CardHeader>
         <CardContent class="flex flex-col gap-4">
           <For each={Object.values(state.status.xvtr)}>
-            {(xvtr) => {
-              const ctrl = props.radio.xvtr(xvtr.id);
-              return (
-                <Card class="bg-transparent">
-                  <CardHeader>
-                    <div class="flex items-center">
-                      <CardTitle class="grow">{xvtr.name || "????"}</CardTitle>
-                      <Badge variant={xvtr.valid ? "success" : "warning"}>
-                        {xvtr.valid ? "Valid" : "Invalid"}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent class="select-none flex flex-col gap-4">
-                    <TextField
-                      class="flex flex-col gap-2"
-                      value={xvtr.name}
-                      onChange={(value) => ctrl.setName(value)}
-                    >
-                      <TextFieldLabel>Name</TextFieldLabel>
-                      <TextFieldInput placeholder="Name" />
-                    </TextField>
-                    <div class="grid grid-cols-2 gap-4">
-                      <NumberField
-                        class="flex flex-col gap-2 select-none"
-                        rawValue={xvtr.rfFreqMHz}
-                        format={false}
-                        minValue={0}
-                        onRawValueChange={(value) => {
-                          if (value === xvtr.rfFreqMHz) return;
-                          ctrl.setRfFreqMHz(value);
-                        }}
-                      >
-                        <NumberFieldLabel class="select-none">
-                          RF Freq MHz
-                        </NumberFieldLabel>
-                        <NumberFieldGroup class="select-none">
-                          <NumberFieldInput />
-                        </NumberFieldGroup>
-                      </NumberField>
-                      <NumberField
-                        class="flex flex-col gap-2 select-none"
-                        rawValue={xvtr.ifFreqMHz}
-                        format={false}
-                        minValue={0}
-                        onRawValueChange={(value) => {
-                          if (value === xvtr.ifFreqMHz) return;
-                          ctrl.setIfFreqMHz(value);
-                        }}
-                      >
-                        <NumberFieldLabel class="select-none">
-                          IF Freq MHz
-                        </NumberFieldLabel>
-                        <NumberFieldGroup class="select-none">
-                          <NumberFieldInput />
-                        </NumberFieldGroup>
-                      </NumberField>
-                      <NumberField
-                        class="flex flex-col gap-2 select-none"
-                        rawValue={xvtr.rfFreqMHz - xvtr.ifFreqMHz}
-                        minValue={0}
-                        format={false}
-                        readOnly
-                      >
-                        <NumberFieldLabel class="select-none">
-                          LO Freq MHz
-                        </NumberFieldLabel>
-                        <NumberFieldGroup class="select-none">
-                          <NumberFieldInput />
-                        </NumberFieldGroup>
-                      </NumberField>
-                      <NumberField
-                        class="flex flex-col gap-2 select-none"
-                        rawValue={xvtr.loErrorMHz}
-                        format={false}
-                        minValue={0}
-                        onRawValueChange={(value) => {
-                          if (value === xvtr.loErrorMHz) return;
-                          ctrl.setLoErrorMHz(value);
-                        }}
-                      >
-                        <NumberFieldLabel class="select-none">
-                          LO Error MHz
-                        </NumberFieldLabel>
-                        <NumberFieldGroup class="select-none">
-                          <NumberFieldInput />
-                        </NumberFieldGroup>
-                      </NumberField>
-                    </div>
-                    <SimpleSwitch
-                      checked={xvtr.rxOnly}
-                      onChange={(isChecked) => {
-                        ctrl.setRxOnly(isChecked);
-                      }}
-                      label="RX Only"
-                    />
-                    <NumberField
-                      class="flex flex-col gap-2 select-none"
-                      rawValue={xvtr.maxPowerDbm}
-                      format={false}
-                      minValue={0}
-                      onRawValueChange={(value) => {
-                        if (value === xvtr.maxPowerDbm) return;
-                        ctrl.setMaxPowerDbm(value);
-                      }}
-                    >
-                      <NumberFieldLabel class="select-none">
-                        Max Power dBm
-                      </NumberFieldLabel>
-                      <NumberFieldGroup class="select-none">
-                        <NumberFieldInput />
-                      </NumberFieldGroup>
-                    </NumberField>
-                    <NumberField
-                      class="flex flex-col gap-2 select-none"
-                      rawValue={xvtr.rxGainDb}
-                      format={false}
-                      minValue={0}
-                      onRawValueChange={(value) => {
-                        if (value === xvtr.rxGainDb) return;
-                        ctrl.setRxGainDb(value);
-                      }}
-                    >
-                      <NumberFieldLabel class="select-none">
-                        RX Gain dB
-                      </NumberFieldLabel>
-                      <NumberFieldGroup class="select-none">
-                        <NumberFieldInput />
-                      </NumberFieldGroup>
-                    </NumberField>
-                  </CardContent>
-                  <CardFooter class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 items-stretch">
-                    <ConfirmButton
-                      variant="destructive"
-                      message={`Are you sure you want to remove XVTR ${xvtr.name}?`}
-                      onConfirm={() => ctrl.remove()}
-                    >
-                      Remove {xvtr.name}
-                    </ConfirmButton>
-                  </CardFooter>
-                </Card>
-              );
-            }}
+            {(xvtr) => (
+              <Show when={props.radio.xvtr(xvtr.id)}>
+                {(controller) => {
+                  const ctrl = controller();
+                  return (
+                    <Card class="bg-transparent">
+                      <CardHeader>
+                        <div class="flex items-center">
+                          <CardTitle class="grow">
+                            {xvtr.name || "????"}
+                          </CardTitle>
+                          <Badge variant={xvtr.valid ? "success" : "warning"}>
+                            {xvtr.valid ? "Valid" : "Invalid"}
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent class="select-none flex flex-col gap-4">
+                        <TextField
+                          class="flex flex-col gap-2"
+                          value={xvtr.name}
+                          onChange={(value) => ctrl.setName(value)}
+                        >
+                          <TextFieldLabel>Name</TextFieldLabel>
+                          <TextFieldInput placeholder="Name" />
+                        </TextField>
+                        <div class="grid grid-cols-2 gap-4">
+                          <NumberField
+                            class="flex flex-col gap-2 select-none"
+                            rawValue={xvtr.rfFreqMHz}
+                            format={false}
+                            minValue={0}
+                            onRawValueChange={(value) => {
+                              if (value === xvtr.rfFreqMHz) return;
+                              ctrl.setRfFreqMHz(value);
+                            }}
+                          >
+                            <NumberFieldLabel class="select-none">
+                              RF Freq MHz
+                            </NumberFieldLabel>
+                            <NumberFieldGroup class="select-none">
+                              <NumberFieldInput />
+                            </NumberFieldGroup>
+                          </NumberField>
+                          <NumberField
+                            class="flex flex-col gap-2 select-none"
+                            rawValue={xvtr.ifFreqMHz}
+                            format={false}
+                            minValue={0}
+                            onRawValueChange={(value) => {
+                              if (value === xvtr.ifFreqMHz) return;
+                              ctrl.setIfFreqMHz(value);
+                            }}
+                          >
+                            <NumberFieldLabel class="select-none">
+                              IF Freq MHz
+                            </NumberFieldLabel>
+                            <NumberFieldGroup class="select-none">
+                              <NumberFieldInput />
+                            </NumberFieldGroup>
+                          </NumberField>
+                          <NumberField
+                            class="flex flex-col gap-2 select-none"
+                            rawValue={xvtr.rfFreqMHz - xvtr.ifFreqMHz}
+                            minValue={0}
+                            format={false}
+                            readOnly
+                          >
+                            <NumberFieldLabel class="select-none">
+                              LO Freq MHz
+                            </NumberFieldLabel>
+                            <NumberFieldGroup class="select-none">
+                              <NumberFieldInput />
+                            </NumberFieldGroup>
+                          </NumberField>
+                          <NumberField
+                            class="flex flex-col gap-2 select-none"
+                            rawValue={xvtr.loErrorMHz}
+                            format={false}
+                            minValue={0}
+                            onRawValueChange={(value) => {
+                              if (value === xvtr.loErrorMHz) return;
+                              ctrl.setLoErrorMHz(value);
+                            }}
+                          >
+                            <NumberFieldLabel class="select-none">
+                              LO Error MHz
+                            </NumberFieldLabel>
+                            <NumberFieldGroup class="select-none">
+                              <NumberFieldInput />
+                            </NumberFieldGroup>
+                          </NumberField>
+                        </div>
+                        <SimpleSwitch
+                          checked={xvtr.rxOnly}
+                          onChange={(isChecked) => {
+                            ctrl.setRxOnly(isChecked);
+                          }}
+                          label="RX Only"
+                        />
+                        <NumberField
+                          class="flex flex-col gap-2 select-none"
+                          rawValue={xvtr.maxPowerDbm}
+                          format={false}
+                          minValue={0}
+                          onRawValueChange={(value) => {
+                            if (value === xvtr.maxPowerDbm) return;
+                            ctrl.setMaxPowerDbm(value);
+                          }}
+                        >
+                          <NumberFieldLabel class="select-none">
+                            Max Power dBm
+                          </NumberFieldLabel>
+                          <NumberFieldGroup class="select-none">
+                            <NumberFieldInput />
+                          </NumberFieldGroup>
+                        </NumberField>
+                        <NumberField
+                          class="flex flex-col gap-2 select-none"
+                          rawValue={xvtr.rxGainDb}
+                          format={false}
+                          minValue={0}
+                          onRawValueChange={(value) => {
+                            if (value === xvtr.rxGainDb) return;
+                            ctrl.setRxGainDb(value);
+                          }}
+                        >
+                          <NumberFieldLabel class="select-none">
+                            RX Gain dB
+                          </NumberFieldLabel>
+                          <NumberFieldGroup class="select-none">
+                            <NumberFieldInput />
+                          </NumberFieldGroup>
+                        </NumberField>
+                      </CardContent>
+                      <CardFooter class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 items-stretch">
+                        <ConfirmButton
+                          variant="destructive"
+                          message={`Are you sure you want to remove XVTR ${xvtr.name}?`}
+                          onConfirm={() => ctrl.remove()}
+                        >
+                          Remove {xvtr.name}
+                        </ConfirmButton>
+                      </CardFooter>
+                    </Card>
+                  );
+                }}
+              </Show>
+            )}
           </For>
         </CardContent>
         <CardFooter class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 items-stretch">
@@ -1518,9 +1544,10 @@ function RadioSettingsInner(props: { radio: Radio }) {
             <Select
               class="flex flex-col gap-2 select-none"
               value={state.status.apd.selectedSamplerPortAnt1}
-              onChange={(value: ApdSamplerPort) =>
-                props.radio.apd().setSamplerPort("ANT1", value)
-              }
+              onChange={(value) => {
+                if (!value) return;
+                props.radio.apd().setSamplerPort("ANT1", value);
+              }}
               options={Array.from(state.status.apd.availableSamplerPortsAnt1)}
               itemComponent={(props) => {
                 return (
@@ -1541,9 +1568,10 @@ function RadioSettingsInner(props: { radio: Radio }) {
             <Select
               class="flex flex-col gap-2 select-none"
               value={state.status.apd.selectedSamplerPortAnt2}
-              onChange={(value: ApdSamplerPort) =>
-                props.radio.apd().setSamplerPort("ANT2", value)
-              }
+              onChange={(value) => {
+                if (!value) return;
+                props.radio.apd().setSamplerPort("ANT2", value);
+              }}
               options={Array.from(state.status.apd.availableSamplerPortsAnt2)}
               itemComponent={(props) => {
                 return (
@@ -1564,9 +1592,10 @@ function RadioSettingsInner(props: { radio: Radio }) {
             <Select
               class="flex flex-col gap-2 select-none"
               value={state.status.apd.selectedSamplerPortXvta}
-              onChange={(value: ApdSamplerPort) =>
-                props.radio.apd().setSamplerPort("XVTA", value)
-              }
+              onChange={(value) => {
+                if (!value) return;
+                props.radio.apd().setSamplerPort("XVTA", value);
+              }}
               options={Array.from(state.status.apd.availableSamplerPortsXvta)}
               itemComponent={(props) => {
                 return (
@@ -1588,9 +1617,10 @@ function RadioSettingsInner(props: { radio: Radio }) {
               <Select
                 class="flex flex-col gap-2 select-none"
                 value={state.status.apd.selectedSamplerPortXvtb}
-                onChange={(value: ApdSamplerPort) =>
-                  props.radio.apd().setSamplerPort("XVTB", value)
-                }
+                onChange={(value) => {
+                  if (!value) return;
+                  props.radio.apd().setSamplerPort("XVTB", value);
+                }}
                 options={Array.from(state.status.apd.availableSamplerPortsXvtb)}
                 itemComponent={(props) => {
                   return (
@@ -1641,7 +1671,7 @@ export function RadioSettings() {
         style={{ "scrollbar-width": "thin" }}
       >
         <Show
-          when={state.clientHandle}
+          when={state.clientHandle ? radio() : null}
           fallback={
             <Card class="bg-transparent">
               <CardHeader>
@@ -1650,7 +1680,7 @@ export function RadioSettings() {
             </Card>
           }
         >
-          <RadioSettingsInner radio={radio()} />
+          {(radio) => <RadioSettingsInner radio={radio()} />}
         </Show>
       </div>
     </DialogContent>

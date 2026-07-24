@@ -10,7 +10,7 @@ export interface ParsedMidiMessage {
 }
 
 export function parseMidiMessage(message: MIDIMessageEvent): ParsedMidiMessage {
-  const [status = 0, data1, data2] = message.data;
+  const [status = 0, data1, data2] = message.data ?? [];
   const command = status >> 4;
   const channel = status & 0x0f;
   const port = (message.target as MIDIPort).id;

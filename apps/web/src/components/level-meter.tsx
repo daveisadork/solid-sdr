@@ -52,7 +52,8 @@ type LevelMeterProps<T extends ValidComponent = "div"> =
     compressionThreshold?: number | undefined;
     compressionFactor?: number | undefined;
     labelStyle?: "peak" | "instant" | "none";
-    meter: MeterState;
+    /** May be absent while the slice's LEVEL meter has not arrived yet. */
+    meter: MeterState | undefined;
   };
 
 export const LevelMeter = <T extends ValidComponent = "div">(
@@ -72,8 +73,10 @@ export const LevelMeter = <T extends ValidComponent = "div">(
   const { radio } = useFlexRadio();
 
   createEffect(() => {
+    const id = local.meter?.id;
+    if (id === undefined) return;
     const sub = radio()
-      ?.meter(local.meter?.id)
+      ?.meter(id)
       ?.on("data", (e) => setValue(e.value));
     onCleanup(() => sub?.unsubscribe());
   });
@@ -117,7 +120,8 @@ export const LevelMeter = <T extends ValidComponent = "div">(
       const unscale = unscaleMeterValue();
       switch (local.labelStyle) {
         case "none":
-          return () => null;
+          // label element is not rendered for "none"; value is never shown
+          return () => "";
         case "instant":
           return ({ value }) =>
             preferences.sMeterEnabled

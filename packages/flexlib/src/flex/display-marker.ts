@@ -46,23 +46,23 @@ export class DisplayMarkerControllerImpl implements DisplayMarkerController {
     return this.current();
   }
 
-  get label(): string | undefined {
+  get label(): string {
     return this.current().label;
   }
 
-  get startFrequencyMHz(): number | undefined {
+  get startFrequencyMHz(): number {
     return this.current().startFrequencyMHz;
   }
 
-  get stopFrequencyMHz(): number | undefined {
+  get stopFrequencyMHz(): number {
     return this.current().stopFrequencyMHz;
   }
 
-  get colorName(): string | undefined {
+  get colorName(): string {
     return this.current().colorName;
   }
 
-  get opacity(): number | undefined {
+  get opacity(): number {
     return this.current().opacity;
   }
 

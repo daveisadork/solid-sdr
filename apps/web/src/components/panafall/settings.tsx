@@ -20,12 +20,6 @@ import useFlexRadio, {
 import { usePanafall } from "~/context/panafall";
 import { usePreferences } from "~/context/preferences";
 import BaselineDisplaySettings from "~icons/ic/baseline-display-settings";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "../ui/accordion";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
 import {
@@ -60,7 +54,6 @@ import {
   SelectValue,
 } from "../ui/select";
 import { Separator } from "../ui/separator";
-import { Sidebar, SidebarContent, SidebarRail } from "../ui/sidebar";
 import { SimpleSlider } from "../ui/simple-slider";
 import { SimpleSwitch } from "../ui/simple-switch";
 import { SliderToggle } from "../ui/slider-toggle";
@@ -92,102 +85,6 @@ function createGradientStyle(
   return `linear-gradient(to ${to}, ${stops
     .map(({ color, offset }) => `${color} ${offset * 100}%`)
     .join(", ")})`;
-}
-
-export function PanafallSettings(props: {
-  panadapter: PanadapterState;
-  waterfall: WaterfallState;
-  panadapterController: PanadapterController;
-  waterfallController: WaterfallController;
-}) {
-  return (
-    <Accordion
-      multiple
-      collapsible
-      defaultValue={["display", "band", "antenna"]}
-      // value={preferences.sidebarPanels}
-      // onChange={(value) => setPreferences("sidebarPanels", value)}
-      class="select-none h-full flex flex-col"
-    >
-      <AccordionItem value="display">
-        <AccordionTrigger>Display</AccordionTrigger>
-        <AccordionContent>
-          <DisplaySettings
-            panadapter={props.panadapter}
-            panadapterController={props.panadapterController}
-            waterfall={props.waterfall}
-            waterfallController={props.waterfallController}
-          />
-        </AccordionContent>
-      </AccordionItem>
-      <AccordionItem value="band">
-        <AccordionTrigger>Band</AccordionTrigger>
-        <AccordionContent>
-          <BandSettings
-            panadapter={props.panadapter}
-            panadapterController={props.panadapterController}
-          />
-        </AccordionContent>
-      </AccordionItem>
-      <AccordionItem value="antenna">
-        <AccordionTrigger>Antenna</AccordionTrigger>
-        <AccordionContent>
-          <AntennaSettings
-            panadapter={props.panadapter}
-            panadapterController={props.panadapterController}
-          />
-        </AccordionContent>
-      </AccordionItem>
-      <div class="grow" />
-      <div class="p-4">
-        <Button
-          size="sm"
-          variant="destructive"
-          class="w-full"
-          onClick={() => {
-            if (
-              confirm(
-                `Are you sure you want to remove Panadapter ${props.panadapter.id}?`,
-              )
-            ) {
-              props.panadapterController.close();
-            }
-          }}
-        >
-          Remove Panadapter
-        </Button>
-      </div>
-    </Accordion>
-  );
-}
-
-export function PanafallSettingsSidebar() {
-  const { waterfall, panadapter, waterfallController, panadapterController } =
-    usePanafall();
-  return (
-    <Sidebar
-      gap={false}
-      side="left"
-      variant="floating"
-      class="absolute h-[calc(100%-var(--cell-inset-bottom))] z-(--z-chrome) pr-0"
-    >
-      <SidebarRail />
-      <SidebarContent
-        class="gap-0 overflow-y-auto overflow-x-hidden pointer-events-auto"
-        style={{
-          "scrollbar-gutter": "stable both-edges",
-          "scrollbar-width": "thin",
-        }}
-      >
-        <PanafallSettings
-          waterfall={waterfall()}
-          panadapter={panadapter()}
-          waterfallController={waterfallController()}
-          panadapterController={panadapterController()}
-        />
-      </SidebarContent>
-    </Sidebar>
-  );
 }
 
 function DisplaySettings(props: {
@@ -708,7 +605,7 @@ export function PanSettings() {
   };
 
   return (
-    <div class="absolute max-h-[calc(100%-var(--cell-inset-bottom))] p-2 flex z-(--z-chrome) pointer-events-none">
+    <div class="absolute top-0 left-(--cell-inset-left) max-h-[calc(100%-var(--cell-inset-bottom))] p-2 flex z-(--z-chrome) pointer-events-none transition-[left] duration-200 ease-linear">
       <div ref={setMenuRef}>
         <ToggleGroup
           class="grid grid-cols-1 gap-1 pointer-events-auto rounded-lg fancy-bg-card border shadow-black overflow-auto max-h-full"

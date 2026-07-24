@@ -18,7 +18,6 @@ import Upload from "~icons/material-symbols/upload";
 import MdiGithub from "~icons/mdi/github";
 import {
   type FillStyle,
-  type PanadapterSettingsStyle,
   type PeakStyle,
   usePreferences,
 } from "../../context/preferences";
@@ -372,31 +371,6 @@ export function AppSettings() {
                 <SegmentedControlIndicator />
                 <SegmentedControlItemsList>
                   <For each={["color", "classic"]}>
-                    {(style) => (
-                      <SegmentedControlItem value={style}>
-                        <SegmentedControlItemLabel class="capitalize">
-                          {style}
-                        </SegmentedControlItemLabel>
-                      </SegmentedControlItem>
-                    )}
-                  </For>
-                </SegmentedControlItemsList>
-              </SegmentedControlGroup>
-            </SegmentedControl>
-            <SegmentedControl
-              value={preferences.panadapterSettingsStyle}
-              onChange={(value: PanadapterSettingsStyle) => {
-                if (!value) return;
-                setPreferences("panadapterSettingsStyle", value);
-              }}
-            >
-              <SegmentedControlLabel>
-                Panadapter Settings Style
-              </SegmentedControlLabel>
-              <SegmentedControlGroup>
-                <SegmentedControlIndicator />
-                <SegmentedControlItemsList>
-                  <For each={["sidebar", "floating"]}>
                     {(style) => (
                       <SegmentedControlItem value={style}>
                         <SegmentedControlItemLabel class="capitalize">

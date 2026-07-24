@@ -22,7 +22,6 @@ import { SLOT_COUNT } from "~/lib/panafall-layout";
 export type PeakStyle = "none" | "points" | "line";
 export type FillStyle = "none" | "solid" | "gradient";
 export type GradientStyle = "color" | "classic";
-export type PanadapterSettingsStyle = "sidebar" | "floating";
 export type SliceTxMeter = "power" | "swr";
 
 export interface Gradient {
@@ -111,11 +110,10 @@ export interface Preferences {
   };
   /** Per panafall index: fractions of the pan/waterfall vertical split. */
   panadapterSizes: [number, number][];
-  /** Per panafall index: whether the settings sidebar is open. */
-  panadapterSettingsOpen: boolean[];
-  panadapterSettingsStyle: PanadapterSettingsStyle;
   radioPanelOpen: boolean;
   sidebarPanels: string[];
+  toolsPanelOpen: boolean;
+  toolsPanel: string;
   guiClientId: string | null;
 }
 
@@ -182,14 +180,14 @@ const getDefaults = (): Preferences => ({
   sMeterEnabled: true,
   showTuningGuide: false,
   preventScreenSleep: false,
-  panadapterSettingsStyle: "floating",
   panadapterSizes: Array.from(
     { length: SLOT_COUNT },
     () => [0.25, 0.75] as [number, number],
   ),
-  panadapterSettingsOpen: Array.from({ length: SLOT_COUNT }, () => false),
   radioPanelOpen: true,
   sidebarPanels: ["tx", "p-cw", "phone", "rx", "eq"],
+  toolsPanelOpen: false,
+  toolsPanel: "cwx",
   showTxFilterInPan: true,
   dax: {
     rx: defaultDaxRxConfig(),

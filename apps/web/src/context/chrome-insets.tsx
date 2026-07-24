@@ -39,11 +39,16 @@ export const ChromeInsetsProvider: ParentComponent = (props) => {
   const { preferences } = usePreferences();
   const isMobile = useIsMobile();
 
-  // Reserved for the future app-level left sidebar (CWX/DVK).
-  const left = () => 0;
-  // On mobile the radio sidebar is a Sheet overlay and never squeezed content.
-  // Without transparency effects the sidebar squeezes the whole panafall via
+  // On mobile the sidebars are Sheet overlays and never squeeze content.
+  // Without transparency effects a sidebar squeezes the whole panafall via
   // its gap spacer instead of floating over it, so no inset is needed.
+  const left = createMemo(() =>
+    !isMobile() &&
+    preferences.toolsPanelOpen &&
+    preferences.enableTransparencyEffects
+      ? SIDEBAR_WIDTH_PX
+      : 0,
+  );
   const right = createMemo(() =>
     !isMobile() &&
     preferences.radioPanelOpen &&

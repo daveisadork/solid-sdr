@@ -16,6 +16,7 @@ import { usePreferences } from "~/context/preferences";
 import { type NetworkQuality, useRuntime } from "~/context/runtime";
 import { createPermission } from "~/lib/permission";
 import { formatKbps } from "~/lib/utils";
+import BaselineViewSidebar from "~icons/ic/baseline-view-sidebar";
 import MaterialSymbolsAddChartOutline from "~icons/material-symbols/add-chart-outline";
 import MaterialSymbolsDeviceThermostat from "~icons/material-symbols/device-thermostat";
 import MaterialSymbolsElectricBolt from "~icons/material-symbols/electric-bolt";
@@ -32,6 +33,7 @@ import { FullscreenButton } from "./fullscreen-button";
 import { GpsStatus } from "./gps-status";
 import { Settings } from "./settings";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "./ui/hover-card";
+import { SidebarTrigger } from "./ui/sidebar";
 
 function AddPanafallButton() {
   const { state, radio } = useFlexRadio();
@@ -184,6 +186,11 @@ export function StatusBar() {
         "border-t": !preferences.enableTransparencyEffects,
       }}
     >
+      <Show when={radio()}>
+        <SidebarTrigger class="size-control aspect-square">
+          <BaselineViewSidebar class="size-full -scale-x-100" />
+        </SidebarTrigger>
+      </Show>
       <Connect />
       <AddPanafallButton />
       <div class="flex items-center justify-around h-full not-pointer-coarse:gap-4 not-sm:hidden pointer-coarse:flex-col shrink-0">

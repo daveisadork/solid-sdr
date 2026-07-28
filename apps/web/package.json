@@ -29,7 +29,7 @@
     "tailwindcss-animate": "^1.0.7",
     "typescript": "^7.0.2",
     "unplugin-icons": "^23.0.1",
-    "vite": "^6.4.3",
+    "vite": "^8.1.5",
     "vite-plugin-solid": "^2.11.13",
     "vitest": "^4.1.10"
   },

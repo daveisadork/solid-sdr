@@ -36,6 +36,84 @@ export interface CwxSnapshot {
 }
 
 /**
+ * A transient CWX progress notification.
+ *
+ * These arrive as `sent=`/`erase=` keys in `cwx` status messages and describe
+ * transmit progress rather than persistent state, so they are delivered as
+ * events instead of being folded into {@link CwxSnapshot}.
+ */
+export type CwxProgressEvent =
+  | {
+      readonly kind: "charSent";
+      /** Absolute position in the radio's CWX buffer of the sent character. */
+      readonly radioIndex: number;
+    }
+  | {
+      readonly kind: "erased";
+      /** First buffer index that was erased (inclusive). */
+      readonly start: number;
+      /** Last buffer index that was erased (inclusive). */
+      readonly stop: number;
+    };
+
+const NO_PROGRESS: readonly CwxProgressEvent[] = Object.freeze([]);
+
+/**
+ * Extracts ordered `sent=`/`erase=` progress events from a raw `cwx` status
+ * line.
+ *
+ * The parsed attribute map cannot be used here: a single status line may carry
+ * several `sent=` pairs and a map collapses them to the last one. Quoted values
+ * (macro text) are skipped so a macro containing `sent=` cannot fake an event.
+ */
+export function parseCwxProgressEvents(
+  raw: string,
+): readonly CwxProgressEvent[] {
+  const payloadStart = raw.indexOf("|cwx");
+  if (payloadStart === -1) return NO_PROGRESS;
+  const segment = raw.slice(payloadStart + 4);
+
+  const events: CwxProgressEvent[] = [];
+  let index = 0;
+  while (index < segment.length) {
+    while (index < segment.length && segment[index] === " ") index += 1;
+    if (index >= segment.length) break;
+
+    const equals = segment.indexOf("=", index);
+    if (equals === -1) break;
+    const key = segment.slice(index, equals).toLowerCase();
+
+    index = equals + 1;
+    let end = index;
+    let quoted = false;
+    while (end < segment.length) {
+      const char = segment[end];
+      if (char === '"' && segment[end - 1] !== "\\") quoted = !quoted;
+      else if (char === " " && !quoted) break;
+      end += 1;
+    }
+    const value = segment.slice(index, end);
+    index = end + 1;
+
+    if (key === "sent") {
+      const radioIndex = parseInteger(value);
+      if (radioIndex !== undefined)
+        events.push({ kind: "charSent", radioIndex });
+      else logParseError("cwx", "sent", value);
+    } else if (key === "erase") {
+      const [startText, stopText] = value.split(",");
+      const start = parseInteger(startText ?? "");
+      const stop = parseInteger(stopText ?? "");
+      if (start !== undefined && stop !== undefined)
+        events.push({ kind: "erased", start, stop });
+      else logParseError("cwx", "erase", value);
+    }
+  }
+
+  return events.length > 0 ? Object.freeze(events) : NO_PROGRESS;
+}
+
+/**
  * Parses wire attributes into an immutable {@link CwxSnapshot}.
  *
  * Macro attributes arrive as `macro1` through `macro12` (1-indexed on the wire,

@@ -73,6 +73,13 @@ export interface SpotPreferences {
   overrideBackgroundColor?: string | null;
 }
 
+export interface CwxPreferences {
+  /** Live mode transmits each character as it is typed. */
+  live: boolean;
+  /** Enable Alt+1…Alt+= macro hotkeys while the CWX panel is visible. */
+  macroHotkeys: boolean;
+}
+
 export interface Preferences {
   stationName: string;
   smoothScroll: boolean;
@@ -114,6 +121,7 @@ export interface Preferences {
   sidebarPanels: string[];
   toolsPanelOpen: boolean;
   toolsPanel: string;
+  cwx: CwxPreferences;
   guiClientId: string | null;
 }
 
@@ -188,6 +196,10 @@ const getDefaults = (): Preferences => ({
   sidebarPanels: ["tx", "p-cw", "phone", "rx", "eq"],
   toolsPanelOpen: false,
   toolsPanel: "cwx",
+  cwx: {
+    live: false,
+    macroHotkeys: true,
+  },
   showTxFilterInPan: true,
   dax: {
     rx: defaultDaxRxConfig(),

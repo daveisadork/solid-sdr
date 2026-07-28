@@ -1,6 +1,7 @@
 import { Show } from "solid-js";
 import useFlexRadio from "~/context/flexradio";
 import { usePreferences } from "~/context/preferences";
+import { CwxPanel } from "./cwx-panel";
 import { Sidebar, SidebarContent } from "./ui/sidebar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 
@@ -23,7 +24,7 @@ export function ToolsSidebar() {
         class="absolute h-[calc(100%-var(--inset-bottom))] pr-0 bg-transparent pointer-events-none z-(--z-chrome)"
       >
         <SidebarContent
-          class="absolute inset-y-4 inset-x-0 gap-0 overflow-y-auto overflow-x-hidden pointer-events-auto"
+          class="absolute inset-0 gap-0 overflow-y-auto overflow-x-hidden pointer-events-auto"
           style={{
             "scrollbar-gutter": "stable",
             "scrollbar-width": "thin",
@@ -32,7 +33,7 @@ export function ToolsSidebar() {
           <Tabs
             value={preferences.toolsPanel}
             onChange={(value) => setPreferences("toolsPanel", value)}
-            class="select-none flex flex-col p-2"
+            class="select-none flex min-h-0 flex-1 flex-col p-2"
           >
             <TabsList class="grid w-full grid-cols-2">
               <TabsTrigger value="cwx">CWX</TabsTrigger>
@@ -44,9 +45,9 @@ export function ToolsSidebar() {
             <TabsContent
               forceMount
               value="cwx"
-              class="flex flex-col gap-3 py-2 not-data-selected:hidden"
+              class="flex min-h-0 flex-1 flex-col gap-3 not-data-selected:hidden"
             >
-              <div class="text-sm text-muted-foreground">Coming soon</div>
+              <CwxPanel />
             </TabsContent>
             <TabsContent
               forceMount

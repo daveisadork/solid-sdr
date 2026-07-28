@@ -80,7 +80,7 @@ export function GpsStatus(props: { class?: string }) {
           <HoverCardContent class="w-80 fancy-bg-background">
             <div class="flex flex-col gap-4">
               <TextField
-                class="grid w-full max-w-sm items-center gap-1.5"
+                class="grid w-full max-w-sm items-center gap-2"
                 value={radio().gpsGrid}
                 readOnly
               >
@@ -97,7 +97,7 @@ export function GpsStatus(props: { class?: string }) {
                 </div>
               </TextField>
               <NumberField
-                class="grid w-full max-w-sm items-center gap-1.5"
+                class="grid w-full max-w-sm items-center gap-2"
                 value={radio().gpsLatitude}
                 format={false}
                 step={0.000001}
@@ -118,7 +118,7 @@ export function GpsStatus(props: { class?: string }) {
                 </NumberFieldGroup>
               </NumberField>
               <NumberField
-                class="grid w-full max-w-sm items-center gap-1.5"
+                class="grid w-full max-w-sm items-center gap-2"
                 value={radio().gpsLongitude}
                 step={0.000001}
                 format={false}

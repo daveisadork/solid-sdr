@@ -2919,6 +2919,30 @@ class RadioImpl {
       this.command(`client program ${programName}`).catch(() => {});
     }
 
+    // Register as a GUI client first, before any query or subscription, so the
+    // radio has restored this client's persisted settings by the time later
+    // commands land. TCP ordering makes the fire-and-forget below safe.
+    const isGui = info.isGui !== false; // default true
+    if (isGui) {
+      const guiClientId = info.guiClientId?.trim();
+      if (guiClientId) {
+        this._clientId = guiClientId;
+        // Restoring persistence can outrun the command timeout. A late or
+        // missing reply must not fail the connect, because aborting here
+        // leaves the radio holding a half-initialized session for this id.
+        this.command(`client gui ${guiClientId}`).catch((error) => {
+          this.logger?.warn?.("client gui registration failed", { error });
+        });
+      } else {
+        // The id-less form is the only one whose reply we need: it carries the
+        // id the radio just minted for us.
+        const response = await this.command("client gui");
+        this._clientId = response.message?.trim() || null;
+      }
+    } else if (info.boundClientId) {
+      await this.bindGuiClient(info.boundClientId);
+    }
+
     // Refresh radio info — these methods parse the replies and patch the store
     this.emitProgress("sync", "radio-info");
     await Promise.all([
@@ -2942,18 +2966,6 @@ class RadioImpl {
       () => {},
     );
     await this.command("client set send_reduced_bw_dax=1").catch(() => {});
-
-    // Register as GUI client
-    const isGui = info.isGui !== false; // default true
-    if (isGui) {
-      const guiClientId = info.guiClientId;
-      const response = await this.command(
-        guiClientId ? `client gui ${guiClientId}` : "client gui",
-      );
-      this._clientId = response.message?.trim() ?? null;
-    } else if (info.boundClientId) {
-      await this.bindGuiClient(info.boundClientId);
-    }
 
     // The radio rejects "client station" from non-GUI clients (0x500000AA)
     const stationName = info.station;

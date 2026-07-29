@@ -164,7 +164,6 @@ export interface StatusState {
 export interface AppState {
   clientHandle: string | null;
   clientHandleInt: number | null;
-  clientId: string | null;
   selectedPanadapter: string | null;
   discoveredRadios: Record<string, FlexRadioDescriptor>;
   connectModal: ConnectModalState;
@@ -175,7 +174,6 @@ export const initialState = () =>
   ({
     clientHandle: null,
     clientHandleInt: null,
-    clientId: null,
     selectedPanadapter: null,
     connectModal: {
       status: ConnectionState.disconnected,
@@ -610,6 +608,18 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         },
         networkMtu: preferences.networkMtu,
       });
+      setState({
+        clientHandle: radio.clientHandle,
+        clientHandleInt: radio.clientHandle
+          ? parseInt(radio.clientHandle, 16)
+          : null,
+      });
+      // Tearing down a connection clears radio.clientId. Persisting that null
+      // would make the next connect send a bare "client gui", and the radio
+      // answers that by minting a new id with an all-default settings record.
+      if (radio.clientId) {
+        setPreferences("guiClientId", radio.clientId);
+      }
     } catch (error) {
       console.error("Failed to connect to radio", error);
       showToast({
@@ -619,6 +629,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
       setState("connectModal", "status", ConnectionState.disconnected);
       setState("connectModal", "selectedRadio", null);
       setState("connectModal", "stage", ConnectionStage.TCP);
+      setState({ clientHandle: null, clientHandleInt: null });
       cleanupRadioSubscriptions();
       if (activeRadio() === radio) {
         setActiveRadio(null);
@@ -629,14 +640,6 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         console.error("Error while closing failed session", closeError);
       }
     }
-    setState({
-      clientHandle: radio.clientHandle,
-      clientHandleInt: radio.clientHandle
-        ? parseInt(radio.clientHandle, 16)
-        : null,
-      clientId: radio.clientId,
-    });
-    setPreferences("guiClientId", radio.clientId);
   };
 
   onCleanup(() => {

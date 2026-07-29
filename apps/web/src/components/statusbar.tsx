@@ -186,13 +186,11 @@ export function StatusBar() {
         "border-t": !preferences.enableTransparencyEffects,
       }}
     >
-      <Show when={radio()}>
-        <SidebarTrigger class="size-control aspect-square">
-          <BaselineViewSidebar class="size-full -scale-x-100" />
-        </SidebarTrigger>
-      </Show>
       <Connect />
       <AddPanafallButton />
+      <SidebarTrigger class="size-control aspect-square">
+        <BaselineViewSidebar class="size-full! -scale-x-100" />
+      </SidebarTrigger>
       <div class="flex items-center justify-around h-full not-pointer-coarse:gap-4 not-sm:hidden pointer-coarse:flex-col shrink-0">
         <Show when={voltage() !== undefined}>
           <span class="textbox-trim-both textbox-edge-cap-alphabetic flex gap-1 items-center">

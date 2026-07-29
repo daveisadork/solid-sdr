@@ -22,7 +22,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { SimpleSlider } from "./ui/simple-slider";
 import { SimpleSwitch } from "./ui/simple-switch";
-import { TextField, TextFieldInput, TextFieldTextArea } from "./ui/text-field";
+import { TextField, TextFieldInput } from "./ui/text-field";
 import { Toggle } from "./ui/toggle";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
@@ -62,46 +62,109 @@ interface MessageStamp {
   freqMHz: number;
 }
 
-interface QueuedMessage {
-  id: number;
+/**
+ * Transmit progress for one block of text, whether it is still being edited in
+ * the composer or already committed to the history.
+ */
+interface MessageBuffer {
   /** Text as submitted, one character per CWX buffer position. */
   text: string;
-  /** Frozen frequency/time header, or null while a live line is uncommitted. */
-  stamp: MessageStamp | null;
-  /** Buffer position of the first character, or -1 if the radio didn't say. */
-  radioIndex: number;
+  /**
+   * Radio buffer index of each character, filled in from the send replies.
+   * Held per character rather than as a start offset because an erase moves
+   * the radio's append point back, so later characters do not continue on
+   * from where the earlier ones landed. Official keeps the same mapping in
+   * `AMUViewModel._charIndex`.
+   */
+  indices: number[];
   /** Characters confirmed transmitted via `sent=` status. */
   sent: number;
   /** Offset from which characters were dropped via `erase=` status. */
   erasedFrom: number | null;
-  /** Live-mode entries absorb subsequent contiguous keystrokes. */
-  live: boolean;
 }
+
+interface QueuedMessage extends MessageBuffer {
+  id: number;
+  /** Frequency and time frozen at the moment the message was committed. */
+  stamp: MessageStamp;
+}
+
+const EMPTY_BUFFER: MessageBuffer = {
+  text: "",
+  indices: [],
+  sent: 0,
+  erasedFrom: null,
+};
+
+/** Radio buffer indices for `length` characters starting at `start`. */
+const indexRange = (start: number, length: number) =>
+  Array.from({ length }, (_, offset) => start + offset);
+
+/** True while the radio still owes this buffer some characters. */
+const isSending = (buffer: MessageBuffer) =>
+  buffer.sent < (buffer.erasedFrom ?? buffer.text.length);
+
+const applyCharSent = (buffer: MessageBuffer, radioIndex: number) => {
+  const position = buffer.indices.indexOf(radioIndex);
+  if (position < 0) return;
+  buffer.sent = Math.max(buffer.sent, position + 1);
+};
+
+const applyErase = (buffer: MessageBuffer, start: number, stop: number) => {
+  let earliest: number | null = null;
+  buffer.indices.forEach((index, position) => {
+    if (index < start || index > stop) return;
+    if (earliest === null || position < earliest) earliest = position;
+  });
+  if (earliest === null) return;
+  buffer.erasedFrom =
+    buffer.erasedFrom === null
+      ? earliest
+      : Math.min(buffer.erasedFrom, earliest);
+};
+
+/** Hz with de-DE thousands separators, as the panadapter readouts do it. */
+const formatHz = (frequencyMHz: number) =>
+  Math.round(frequencyMHz * 1_000_000).toLocaleString("de-DE");
+
+/** Shared bubble shape; the composer is the same box in input colours. */
+const BUBBLE =
+  "text-sm font-mono rounded-md border whitespace-pre-wrap break-words uppercase";
+
+/**
+ * The TextField focus ring, moved onto the composer bubble: the ring belongs on
+ * the box with the border and radius, but focus lands on the editable inside
+ * it. Scoped to the editable so the send button's own ring doesn't light it up.
+ */
+const COMPOSER_RING =
+  "ring-offset-background has-[[contenteditable]:focus-visible]:ring-2 has-[[contenteditable]:focus-visible]:ring-ring has-[[contenteditable]:focus-visible]:ring-offset-2";
 
 export function CwxPanel() {
   const { state, radio } = useFlexRadio();
   const { preferences, setPreferences } = usePreferences();
 
-  const [draft, setDraft] = createSignal("");
   const [setupOpen, setSetupOpen] = createSignal(false);
   const [history, setHistory] = createStore<QueuedMessage[]>([]);
+  /** The message being edited — conceptually the newest, unstamped entry. */
+  const [composerBuffer, setComposerBuffer] = createStore<MessageBuffer>({
+    ...EMPTY_BUFFER,
+  });
   let nextId = 1;
   let nextBlock = 1;
   let transcript: HTMLDivElement | undefined;
-  let composer: HTMLTextAreaElement | undefined;
-  /** Composer text already dispatched in live mode; normally "". */
+  let composer: HTMLDivElement | undefined;
+  /** Composer text already handed to the radio in live mode. */
   let liveSent = "";
 
   const cwx = () => radio()?.cwx();
   const macros = () => state.status.cwx.macros ?? EMPTY_MACROS;
   const live = () => preferences.cwx.live;
 
-  /** True while the radio still has queued characters left to key. */
-  const pending = createMemo(() =>
-    history.some(
-      (message) => message.sent < (message.erasedFrom ?? message.text.length),
-    ),
-  );
+  /**
+   * The queued message the radio is actually working through — the oldest one
+   * still owed characters. Only that entry carries the stop button.
+   */
+  const sendingId = createMemo(() => history.find(isSending)?.id);
 
   const txSlice = createMemo(() =>
     Object.values(state.status.slice).find(
@@ -131,30 +194,20 @@ export function CwxPanel() {
       controller.on("charSent", ({ radioIndex }) => {
         setHistory(
           produce((items) => {
-            for (const message of items) {
-              if (message.radioIndex < 0) continue;
-              const offset = radioIndex - message.radioIndex;
-              if (offset < 0 || offset >= message.text.length) continue;
-              message.sent = Math.max(message.sent, offset + 1);
-            }
+            for (const message of items) applyCharSent(message, radioIndex);
           }),
+        );
+        setComposerBuffer(
+          produce((buffer) => applyCharSent(buffer, radioIndex)),
         );
       }),
       controller.on("eraseSent", ({ start, stop }) => {
         setHistory(
           produce((items) => {
-            for (const message of items) {
-              if (message.radioIndex < 0) continue;
-              const end = message.radioIndex + message.text.length;
-              if (stop < message.radioIndex || start >= end) continue;
-              const offset = Math.max(0, start - message.radioIndex);
-              message.erasedFrom =
-                message.erasedFrom === null
-                  ? offset
-                  : Math.min(message.erasedFrom, offset);
-            }
+            for (const message of items) applyErase(message, start, stop);
           }),
         );
+        setComposerBuffer(produce((buffer) => applyErase(buffer, start, stop)));
       }),
     ];
     onCleanup(() => {
@@ -162,53 +215,36 @@ export function CwxPanel() {
     });
   });
 
-  const record = (
-    text: string,
-    radioIndex: number,
-    isLive: boolean,
-    stamp: MessageStamp | null,
-  ) => {
+  const pushHistory = (message: Omit<QueuedMessage, "id">) => {
+    const id = nextId++;
     setHistory(
       produce((items) => {
-        const last = items.at(-1);
-        // Live keystrokes land in consecutive buffer slots, so fold them into
-        // one transcript line instead of one line per character.
-        if (
-          isLive &&
-          last?.live &&
-          last.radioIndex >= 0 &&
-          radioIndex === last.radioIndex + last.text.length
-        ) {
-          last.text += text;
-          return;
-        }
-        items.push({
-          id: nextId++,
-          text,
-          stamp,
-          radioIndex,
-          sent: 0,
-          erasedFrom: null,
-          live: isLive,
-        });
+        items.push({ ...message, id });
         if (items.length > MAX_HISTORY)
           items.splice(0, items.length - MAX_HISTORY);
       }),
     );
     scrollToLatest();
+    return id;
   };
 
-  const sendText = async (text: string, isLive: boolean) => {
+  /**
+   * Queues a whole message. The entry lands in the history immediately so a
+   * second one can be typed and queued while the radio is still keying the
+   * first; the radio's reply only fills in where the text sits in its buffer.
+   */
+  const sendMessage = async (text: string) => {
     const controller = cwx();
     if (!controller || !text) return;
+    const id = pushHistory({ ...EMPTY_BUFFER, text, stamp: stampNow() });
     const block = nextBlock++ & 0xffff;
-    // Stamped before the round trip so the header reads when the operator hit
-    // send, not when the radio got round to answering. A live line carries no
-    // stamp until Enter commits it, as in the official AMU.
-    const stamp = isLive ? null : stampNow();
     try {
       const queued = await controller.send(text, block);
-      record(text, queued.radioIndex, isLive, stamp);
+      setHistory(
+        (message) => message.id === id,
+        "indices",
+        indexRange(queued.radioIndex, text.length),
+      );
     } catch (error) {
       console.error("CWX send failed", error);
     }
@@ -218,33 +254,101 @@ export function CwxPanel() {
     const controller = cwx();
     const text = macros()[index];
     if (!controller || !text) return;
+    const id = pushHistory({ ...EMPTY_BUFFER, text, stamp: stampNow() });
     const block = nextBlock++ & 0xffff;
-    const stamp = stampNow();
     try {
       const queued = await controller.sendMacro(index, block);
-      record(text, queued.radioIndex, false, stamp);
+      setHistory(
+        (message) => message.id === id,
+        "indices",
+        indexRange(queued.radioIndex, text.length),
+      );
     } catch (error) {
       console.error("CWX macro send failed", error);
     }
   };
 
-  /**
-   * Clears the textarea itself, not just the signal: a live keystroke leaves
-   * the signal at "" both before and after, so the controlled binding has no
-   * change to push and the character would otherwise stay on screen — and be
-   * re-sent with the next one.
-   */
+  const readComposer = () => composer?.textContent ?? "";
+
   const clearComposer = () => {
-    setDraft("");
-    if (composer) composer.value = "";
+    if (composer) composer.replaceChildren();
+    setComposerBuffer({ ...EMPTY_BUFFER });
     liveSent = "";
   };
 
+  /**
+   * Repaints the composer with per-character progress colouring. Only live mode
+   * ever reaches this — standard mode has nothing sent to colour — and a live
+   * line is append-only, so collapsing the caret to the end is safe. Text is
+   * read back out of the DOM so a keystroke racing a `sent=` cannot be lost.
+   */
+  const paintComposer = () => {
+    if (!composer) return;
+    const text = composer.textContent ?? "";
+    const sent = Math.min(composerBuffer.sent, text.length);
+    const erasedFrom = composerBuffer.erasedFrom;
+    const parts: HTMLElement[] = [];
+    const push = (className: string, part: string) => {
+      if (!part) return;
+      const span = document.createElement("span");
+      span.className = className;
+      span.textContent = part;
+      parts.push(span);
+    };
+    // Sent characters are plain foreground and pending ones are muted. The
+    // history bubble gets its contrast the other way round, from a blue base
+    // against text-primary — but --primary equals --foreground, so that pair
+    // would be invisible here.
+    push("text-foreground", text.slice(0, sent));
+    push("text-muted-foreground", text.slice(sent, erasedFrom ?? undefined));
+    if (erasedFrom !== null)
+      push("text-muted-foreground/50 line-through", text.slice(erasedFrom));
+    composer.replaceChildren(...parts);
+    if (document.activeElement !== composer) return;
+    const range = document.createRange();
+    range.selectNodeContents(composer);
+    range.collapse(false);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+  };
+
+  createEffect(() => {
+    const sent = composerBuffer.sent;
+    const erasedFrom = composerBuffer.erasedFrom;
+    if (sent === 0 && erasedFrom === null) return;
+    paintComposer();
+  });
+
+  /** Moves the composer into the history, progress and all, and stamps it. */
+  const commit = () => {
+    // Not trimmed: these characters are already in the radio's buffer, and
+    // dropping a leading space would shift every progress offset.
+    const text = readComposer();
+    if (!text.trim()) return;
+    pushHistory({
+      text,
+      indices: [...composerBuffer.indices],
+      sent: Math.min(composerBuffer.sent, text.length),
+      erasedFrom: composerBuffer.erasedFrom,
+      stamp: stampNow(),
+    });
+    clearComposer();
+  };
+
+  /**
+   * Enter/Send. In live mode the characters are already on their way, so this
+   * only commits the line; in standard mode it queues the text.
+   */
   const submit = () => {
-    const text = draft().trim();
+    if (live()) {
+      commit();
+      return;
+    }
+    const text = readComposer().trim();
     if (!text) return;
     clearComposer();
-    void sendText(text, false);
+    void sendMessage(text);
   };
 
   const abort = async () => {
@@ -258,36 +362,50 @@ export function CwxPanel() {
     }
     // The radio answers with erase= status, but mark the untransmitted tails
     // immediately so the transcript can't sit showing pending text forever.
+    const markErased = (buffer: MessageBuffer) => {
+      if (buffer.sent >= buffer.text.length) return;
+      buffer.erasedFrom =
+        buffer.erasedFrom === null
+          ? buffer.sent
+          : Math.min(buffer.erasedFrom, buffer.sent);
+    };
     setHistory(
       produce((items) => {
-        for (const message of items) {
-          if (message.sent >= message.text.length) continue;
-          message.erasedFrom =
-            message.erasedFrom === null
-              ? message.sent
-              : Math.min(message.erasedFrom, message.sent);
-        }
+        for (const message of items) markErased(message);
       }),
     );
+    setComposerBuffer(produce(markErased));
   };
 
-  const handleInput = (value: string) => {
-    if (!live()) {
-      setDraft(value);
+  const handleInput = () => {
+    const text = readComposer();
+    setComposerBuffer("text", text);
+    if (!live()) return;
+    // Only text added since the last dispatch is new. Editing behind the
+    // caret cannot be unsent, so resync silently rather than re-keying.
+    if (!text.startsWith(liveSent)) {
+      liveSent = text;
       return;
     }
-    // Live mode hands each keystroke straight to the radio; the transcript,
-    // not the composer, is where the operator watches it go out. Only text
-    // added since the last dispatch is new, so a composer that failed to clear
-    // costs a stale glyph rather than a re-keyed character.
-    if (!value.startsWith(liveSent)) {
-      liveSent = value;
-      return;
+    const delta = text.slice(liveSent.length);
+    if (!delta) return;
+    liveSent = text;
+    void sendLive(delta);
+  };
+
+  const sendLive = async (delta: string) => {
+    const controller = cwx();
+    if (!controller) return;
+    const block = nextBlock++ & 0xffff;
+    try {
+      const queued = await controller.send(delta, block);
+      setComposerBuffer("indices", (indices) => [
+        ...indices,
+        ...indexRange(queued.radioIndex, delta.length),
+      ]);
+    } catch (error) {
+      console.error("CWX live send failed", error);
     }
-    const delta = value.slice(liveSent.length);
-    clearComposer();
-    liveSent = composer?.value ?? "";
-    if (delta) void sendText(delta, true);
   };
 
   const handleKeyDown = (event: KeyboardEvent) => {
@@ -296,31 +414,35 @@ export function CwxPanel() {
       void abort();
       return;
     }
-    if (event.key === "Enter" && !event.shiftKey) {
+    if (event.key === "Enter") {
       event.preventDefault();
-      if (live()) {
-        // End the live line without transmitting anything. Committing is what
-        // stamps a live line, so its header shows when the operator finished
-        // it rather than when the first character went out.
-        setHistory(
-          produce((items) => {
-            const last = items.at(-1);
-            if (!last?.live) return;
-            last.live = false;
-            last.stamp = stampNow();
-          }),
-        );
-        return;
-      }
       submit();
       return;
     }
-    if (event.key === "Backspace" && live() && !composer?.value) {
-      event.preventDefault();
+    // Mirrors AMUViewModel.RemoveLastCharacter: a character the radio has
+    // already keyed cannot be taken back, so the edit is refused outright.
+    // Otherwise it is dropped locally and the radio is told to unqueue it.
+    if (event.key === "Backspace" && live()) {
+      const text = readComposer();
+      if (!text || composerBuffer.sent >= text.length) {
+        event.preventDefault();
+        return;
+      }
+      // Drop our index for it up front so the erase= status that comes back
+      // finds nothing to strike through — the character is already gone here.
+      setComposerBuffer("indices", (indices) => indices.slice(0, -1));
       void cwx()
         ?.erase(1)
         .catch((error) => console.error("CWX erase failed", error));
     }
+  };
+
+  const handlePaste = (event: ClipboardEvent) => {
+    const text = event.clipboardData?.getData("text/plain");
+    if (text === undefined) return;
+    event.preventDefault();
+    // Insert as plain text; the radio keys characters, not formatting.
+    document.execCommand("insertText", false, text.replace(/\s+/g, " "));
   };
 
   createEffect(() => {
@@ -339,7 +461,7 @@ export function CwxPanel() {
   });
 
   return (
-    <div class="flex h-full min-h-0 flex-col gap-2">
+    <div class="flex h-full min-h-0 flex-col gap-3">
       <div
         ref={transcript}
         class="min-h-0 flex-1 overflow-y-auto rounded-md font-mono "
@@ -351,16 +473,33 @@ export function CwxPanel() {
           <For each={history}>
             {(message) => (
               <ContextMenu>
-                <ContextMenuTrigger class="block">
-                  <Show when={message.stamp}>
-                    {(stamp) => (
-                      <div class="px-1 mb-1 flex items-baseline justify-between gap-2 text-xs leading-none text-muted-foreground tabular-nums">
-                        <span>{stamp().freqMHz.toFixed(6)}</span>
-                        <span>{stamp().time}</span>
-                      </div>
-                    )}
-                  </Show>
-                  <div class="text-sm rounded-md border p-2 border-info-foreground bg-info text-info-foreground whitespace-pre-wrap break-all uppercase">
+                <ContextMenuTrigger class="block animate-in fade-in  duration-200">
+                  <div class="px-1 mb-1 flex items-baseline justify-between gap-2 text-xs leading-none text-muted-foreground tabular-nums">
+                    <span>{formatHz(message.stamp.freqMHz)}</span>
+                    <span>{message.stamp.time}</span>
+                  </div>
+                  <div
+                    class={`${BUBBLE} p-2 border-info-foreground bg-info text-info-foreground`}
+                  >
+                    {/* Floated so the message text wraps around it rather than
+                        reserving a gutter on every line. */}
+                    <Show when={message.id === sendingId()}>
+                      <Tooltip>
+                        <TooltipTrigger
+                          as={Button<"button">}
+                          size="icon"
+                          variant="destructive"
+                          class="float-right ml-2 -mt-1 -mr-1 size-7"
+                          onClick={() => void abort()}
+                          aria-label="Stop"
+                        >
+                          <IconStop />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          Stop sending and clear the buffer
+                        </TooltipContent>
+                      </Tooltip>
+                    </Show>
                     <span class="text-primary">
                       {message.text.slice(0, message.sent)}
                     </span>
@@ -379,7 +518,7 @@ export function CwxPanel() {
                 </ContextMenuTrigger>
                 <ContextMenuContent>
                   <ContextMenuItem
-                    onSelect={() => void sendText(message.text, false)}
+                    onSelect={() => void sendMessage(message.text)}
                   >
                     Resend
                   </ContextMenuItem>
@@ -393,70 +532,65 @@ export function CwxPanel() {
         </div>
       </div>
 
-      <div class="relative">
-        <TextField value={draft()} onChange={handleInput}>
-          <TextFieldTextArea
+      {/* The composer is the newest entry in the same stack — same bubble, in
+          input colours, and with no timestamp because it isn't committed. */}
+      <div>
+        <div class="px-1 mb-1 flex items-baseline gap-2 text-xs leading-none text-muted-foreground font-mono">
+          <span>{formatHz(txSlice()?.frequencyMHz ?? 0)}</span>
+        </div>
+        {/* The editable carries the padding rather than this wrapper, so the
+            whole bubble is the click target and focusing needs no handler.
+            contenteditable is focusable and maps to a textbox role on its own,
+            so no tabindex or explicit role either. */}
+        <div class={`${BUBBLE} ${COMPOSER_RING} border-border`}>
+          <Button
+            size="icon"
+            class="float-right mx-1 mt-1 mb-2 size-7"
+            onClick={submit}
+            disabled={!composerBuffer.text.trim()}
+            aria-label="Send"
+          >
+            <IconSend />
+          </Button>
+          {/* biome-ignore lint/a11y/useSemanticElements: an input or textarea
+              can neither colour individual characters as the radio keys them
+              nor let the text wrap around the floated send button. */}
+          <div
             ref={composer}
-            autoResize
-            rows="1"
-            class="border-border resize-none pr-11 font-mono text-sm uppercase min-h-0"
-            placeholder={
-              live() ? "Live — every keystroke is sent" : "Type, Enter to send"
-            }
+            contenteditable="plaintext-only"
+            role="textbox"
+            tabIndex={0}
+            aria-label="CWX message"
+            class="min-h-7 cursor-text p-2 outline-none"
+            onInput={handleInput}
             onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
           />
-        </TextField>
-        {/* The send affordance doubles as the abort: while the radio still has
-            characters queued, stopping matters more than queueing more, and on
-            a touch device there is no Escape key. Enter still sends. */}
-        <Show
-          when={pending()}
-          fallback={
-            <Button
-              size="icon"
-              class="absolute bottom-1.5 right-1.5 size-7"
-              onClick={submit}
-              disabled={live() || !draft()}
-              aria-label="Send"
-            >
-              <IconSend />
-            </Button>
-          }
-        >
-          <Tooltip>
-            <TooltipTrigger
-              as={Button<"button">}
-              size="icon"
-              variant="destructive"
-              class="absolute bottom-1.5 right-1.5 size-7"
-              onClick={() => void abort()}
-              aria-label="Stop"
-            >
-              <IconStop />
-            </TooltipTrigger>
-            <TooltipContent>Stop sending and clear the buffer</TooltipContent>
-          </Tooltip>
-        </Show>
+        </div>
       </div>
 
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 w-full min-w-0">
         <Toggle
           size="lg"
           variant="outline"
           pressed={live()}
           onChange={(pressed) => setPreferences("cwx", "live", pressed)}
-          class="data-pressed:border-destructive data-pressed:bg-destructive data-pressed:text-destructive-foreground"
+          class="data-pressed:border-destructive data-pressed:bg-destructive data-pressed:text-destructive-foreground min-w-0 flex-auto overflow-hidden px-2"
         >
           Live
         </Toggle>
-        <Button variant="outline" onClick={() => setSetupOpen(true)}>
+        <Button
+          variant="outline"
+          class="min-w-0 flex-auto overflow-hidden px-2"
+          onClick={() => setSetupOpen(true)}
+        >
           Setup
         </Button>
         <Popover>
           <PopoverTrigger
             as={Button<"button">}
             variant="outline"
-            class="tabular-nums"
+            class="min-w-0 flex-auto overflow-hidden px-2 tabular-nums"
           >
             {state.status.cwx.speed ?? 25} WPM
           </PopoverTrigger>
@@ -523,7 +657,7 @@ export function CwxPanel() {
                         console.error("CWX macro save failed", error),
                       );
                   }}
-                  onCapture={() => draft().trim()}
+                  onCapture={() => readComposer().trim()}
                   onSend={() => void sendMacro(index())}
                 />
               )}

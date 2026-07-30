@@ -473,7 +473,7 @@ export function CwxPanel() {
           <For each={history}>
             {(message) => (
               <ContextMenu>
-                <ContextMenuTrigger class="block animate-in fade-in  duration-200">
+                <ContextMenuTrigger class="block animate-in fade-in duration-200">
                   <div class="px-1 mb-1 flex items-baseline justify-between gap-2 text-xs leading-none text-muted-foreground tabular-nums">
                     <span>{formatHz(message.stamp.freqMHz)}</span>
                     <span>{message.stamp.time}</span>
@@ -557,8 +557,12 @@ export function CwxPanel() {
               nor let the text wrap around the floated send button. */}
           <div
             ref={composer}
-            contenteditable="plaintext-only"
+            contenteditable="true"
             role="textbox"
+            autocorrect="off"
+            spellcheck={false}
+            enterkeyhint="send"
+            autocapitalize="characters"
             tabIndex={0}
             aria-label="CWX message"
             class="min-h-7 cursor-text p-2 outline-none"

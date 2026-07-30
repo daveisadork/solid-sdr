@@ -24,6 +24,7 @@ import { ProfileSettings } from "./profile-settings";
 import { RadioSettings } from "./radio-settings";
 import { SpotsSettings } from "./spots-settings";
 import { WaveformSettings } from "./waveform-settings";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
 const tabs = {
   app: AppSettings,
@@ -61,12 +62,16 @@ export function Settings() {
         <Dynamic component={activeTabComponent()} />
       </Dialog>
       <DropdownMenu>
-        <DropdownMenuTrigger
-          as={Button<"button">}
-          class="size-control aspect-square"
-        >
-          <MdiSettings class="size-full" />
-        </DropdownMenuTrigger>
+        <Tooltip>
+          <DropdownMenuTrigger
+            as={TooltipTrigger}
+            class="size-control aspect-square"
+            aria-label="Settings"
+          >
+            <MdiSettings class="size-full" />
+          </DropdownMenuTrigger>
+          <TooltipContent>Settings</TooltipContent>
+        </Tooltip>
         <DropdownMenuContent>
           <DropdownMenuItem onSelect={() => setActiveTab("app")}>
             App Settings

@@ -34,6 +34,7 @@ import { GpsStatus } from "./gps-status";
 import { Settings } from "./settings";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "./ui/hover-card";
 import { SidebarTrigger } from "./ui/sidebar";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
 function AddPanafallButton() {
   const { state, radio } = useFlexRadio();
@@ -42,14 +43,29 @@ function AddPanafallButton() {
     !state.status.radio?.availablePanadapters || panCount() >= 4;
   const create = () => radio()?.createPanadapter({ x: 200 }).catch(console.log);
   return (
-    <Button
-      disabled={disabled()}
-      onClick={create}
-      class="size-control aspect-square disabled:opacity-50"
-      aria-label="Add panadapter"
-    >
-      <MaterialSymbolsAddChartOutline class="size-full" />
-    </Button>
+    <Tooltip>
+      <TooltipTrigger
+        as={Button}
+        disabled={disabled()}
+        onClick={create}
+        class="size-control aspect-square disabled:opacity-50"
+        aria-label="Add panadapter"
+      >
+        <MaterialSymbolsAddChartOutline class="size-full" />
+      </TooltipTrigger>
+      <TooltipContent>Add panadapter</TooltipContent>
+    </Tooltip>
+  );
+}
+
+function SidebarToggle() {
+  return (
+    <Tooltip>
+      <TooltipTrigger as={SidebarTrigger} class="size-control aspect-square">
+        <BaselineViewSidebar class="size-full! -scale-x-100" />
+      </TooltipTrigger>
+      <TooltipContent>Toggle CWX/DVK sidebar</TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -57,29 +73,41 @@ function RemoteAudioToggle() {
   const { preferences, setPreferences } = usePreferences();
   const audioPermission = createPermission("microphone");
 
+  const label = () =>
+    preferences.remoteAudio.rx.enabled
+      ? "Disable remote audio"
+      : "Enable remote audio";
+
   return (
-    <ToggleButton
-      class="size-control aspect-square"
-      classList={{
-        "text-error-foreground":
-          preferences.remoteAudio.rx.enabled && audioPermission() === "denied",
-        "text-warning-foreground":
-          preferences.remoteAudio.rx.enabled && audioPermission() === "prompt",
-      }}
-      pressed={preferences.remoteAudio.rx.enabled}
-      onChange={(pressed) =>
-        setPreferences("remoteAudio", "rx", "enabled", pressed)
-      }
-    >
-      <Dynamic
-        component={
-          preferences.remoteAudio.rx.enabled
-            ? MaterialSymbolsVolumeUp
-            : MaterialSymbolsVolumeOff
+    <Tooltip>
+      <TooltipTrigger
+        as={ToggleButton}
+        class="size-control aspect-square"
+        classList={{
+          "text-error-foreground":
+            preferences.remoteAudio.rx.enabled &&
+            audioPermission() === "denied",
+          "text-warning-foreground":
+            preferences.remoteAudio.rx.enabled &&
+            audioPermission() === "prompt",
+        }}
+        pressed={preferences.remoteAudio.rx.enabled}
+        aria-label={label()}
+        onChange={(pressed) =>
+          setPreferences("remoteAudio", "rx", "enabled", pressed)
         }
-        class="size-full pointer-events-none"
-      />
-    </ToggleButton>
+      >
+        <Dynamic
+          component={
+            preferences.remoteAudio.rx.enabled
+              ? MaterialSymbolsVolumeUp
+              : MaterialSymbolsVolumeOff
+          }
+          class="size-full pointer-events-none"
+        />
+      </TooltipTrigger>
+      <TooltipContent>{label()}</TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -181,16 +209,14 @@ export function StatusBar() {
 
   return (
     <div
-      class="absolute inset-x-0 bottom-0 h-statusbar flex shrink-0 items-center w-full gap-4 py-2 px-3 not-sm:justify-around text-sm font-mono select-none z-(--z-chrome) fancy-bg-background"
+      class="absolute inset-x-0 bottom-0 h-statusbar flex shrink-0 items-center w-full sm:gap-4 sm:px-3 justify-evenly text-sm font-mono select-none z-(--z-chrome) fancy-bg-background"
       classList={{
         "border-t": !preferences.enableTransparencyEffects,
       }}
     >
       <Connect />
       <AddPanafallButton />
-      <SidebarTrigger class="size-control aspect-square">
-        <BaselineViewSidebar class="size-full! -scale-x-100" />
-      </SidebarTrigger>
+      <SidebarToggle />
       <div class="flex items-center justify-around h-full not-pointer-coarse:gap-4 not-sm:hidden pointer-coarse:flex-col shrink-0">
         <Show when={voltage() !== undefined}>
           <span class="textbox-trim-both textbox-edge-cap-alphabetic flex gap-1 items-center">

@@ -1,3 +1,4 @@
+import { debounce } from "@solid-primitives/scheduled";
 import {
   createEffect,
   createMemo,
@@ -55,6 +56,9 @@ const EMPTY_MACROS: readonly string[] = Array.from({ length: 12 }, () => "");
 /** Keeps the transcript bounded; official caps the stack at MAX_NUM_AMUS. */
 const MAX_HISTORY = 100;
 
+/** Coalesces a slider drag into one command without feeling laggy. */
+const COMMAND_DEBOUNCE_MS = 200;
+
 interface MessageStamp {
   /** UTC time of day the message was committed, as `HH:mm:ssZ`. */
   time: string;
@@ -79,7 +83,11 @@ interface MessageBuffer {
   indices: number[];
   /** Characters confirmed transmitted via `sent=` status. */
   sent: number;
-  /** Offset from which characters were dropped via `erase=` status. */
+  /**
+   * Offset from which characters were dropped via `erase=` status. Never below
+   * `sent`, so the two never describe the same character — the transcript slices
+   * the text at both offsets and would otherwise render the overlap twice.
+   */
   erasedFrom: number | null;
 }
 
@@ -104,10 +112,26 @@ const indexRange = (start: number, length: number) =>
 const isSending = (buffer: MessageBuffer) =>
   buffer.sent < (buffer.erasedFrom ?? buffer.text.length);
 
+/**
+ * Marks characters from `position` on as dropped, never moving the mark behind
+ * `sent`: a character the radio has confirmed is already on the air, so a
+ * confirmation outranks any erase reaching back over it.
+ */
+const markErasedFrom = (buffer: MessageBuffer, position: number) => {
+  const mark = Math.max(position, buffer.sent);
+  buffer.erasedFrom =
+    buffer.erasedFrom === null ? mark : Math.min(buffer.erasedFrom, mark);
+};
+
 const applyCharSent = (buffer: MessageBuffer, radioIndex: number) => {
   const position = buffer.indices.indexOf(radioIndex);
   if (position < 0) return;
   buffer.sent = Math.max(buffer.sent, position + 1);
+  // Confirmations outrun an abort: a character already keyed when the buffer was
+  // cleared is reported after we optimistically marked its offset as erased. The
+  // radio's word wins, so the mark gives way rather than being left behind sent.
+  if (buffer.erasedFrom !== null && buffer.erasedFrom < buffer.sent)
+    buffer.erasedFrom = buffer.sent;
 };
 
 const applyErase = (buffer: MessageBuffer, start: number, stop: number) => {
@@ -117,10 +141,7 @@ const applyErase = (buffer: MessageBuffer, start: number, stop: number) => {
     if (earliest === null || position < earliest) earliest = position;
   });
   if (earliest === null) return;
-  buffer.erasedFrom =
-    buffer.erasedFrom === null
-      ? earliest
-      : Math.min(buffer.erasedFrom, earliest);
+  markErasedFrom(buffer, earliest);
 };
 
 /** Hz with de-DE thousands separators, as the panadapter readouts do it. */
@@ -152,6 +173,8 @@ export function CwxPanel() {
   let nextId = 1;
   let nextBlock = 1;
   let transcript: HTMLDivElement | undefined;
+  let stack: HTMLDivElement | undefined;
+  let stackGlide: Animation | undefined;
   let composer: HTMLDivElement | undefined;
   /** Composer text already handed to the radio in live mode. */
   let liveSent = "";
@@ -159,6 +182,47 @@ export function CwxPanel() {
   const cwx = () => radio()?.cwx();
   const macros = () => state.status.cwx.macros ?? EMPTY_MACROS;
   const live = () => preferences.cwx.live;
+
+  /**
+   * Local echo for the delay and speed sliders. The radio only announces a CWX
+   * change when `synccwx` mirrors it onto the cw side successfully, so driving
+   * these straight from state made them lag or sit still depending on whether
+   * the value happened to be valid for cw.
+   */
+  const [rawDelay, setRawDelay] = createSignal(state.status.cwx.delay);
+  const [rawSpeed, setRawSpeed] = createSignal(state.status.cwx.speed);
+
+  createEffect(() => setRawDelay(state.status.cwx.delay));
+  createEffect(() => setRawSpeed(state.status.cwx.speed));
+
+  const applyDelay = (value: number) => {
+    if (value === state.status.cwx.delay) return;
+    // Under the cw delay's speed-derived floor the radio still applies the CWX
+    // value and reports a range error from the mirroring write, so a rejection
+    // here does not mean the setting failed.
+    cwx()
+      ?.setDelay(value)
+      .catch(() => {});
+  };
+  const debouncedApplyDelay = debounce(applyDelay, COMMAND_DEBOUNCE_MS);
+
+  const applySpeed = (value: number) => {
+    if (value === state.status.cwx.speed) return;
+    cwx()
+      ?.setSpeed(value)
+      .catch((error) => console.error("CWX speed set failed", error));
+  };
+  const debouncedApplySpeed = debounce(applySpeed, COMMAND_DEBOUNCE_MS);
+
+  createEffect(() => {
+    if (rawDelay() === state.status.cwx.delay) return;
+    debouncedApplyDelay(rawDelay());
+  });
+
+  createEffect(() => {
+    if (rawSpeed() === state.status.cwx.speed) return;
+    debouncedApplySpeed(rawSpeed());
+  });
 
   /**
    * The queued message the radio is actually working through — the oldest one
@@ -182,10 +246,42 @@ export function CwxPanel() {
     freqMHz: txSlice()?.frequencyMHz ?? 0,
   });
 
-  const scrollToLatest = () =>
-    queueMicrotask(() => {
-      if (transcript) transcript.scrollTop = transcript.scrollHeight;
-    });
+  /**
+   * Pins the transcript to the newest message. Measured from the stack's own
+   * layout height rather than scrollHeight: a transform on a descendant extends
+   * a scroll container's overflow area, so mid-glide scrollHeight overshoots by
+   * the translate and the browser then claws the scroll back as it unwinds.
+   * offsetHeight is the stack's border box and ignores descendant transforms.
+   */
+  const scrollToLatest = () => {
+    if (!transcript || !stack) return;
+    transcript.scrollTop = stack.offsetHeight;
+  };
+
+  /**
+   * Glides the transcript up to its new position instead of jumping. Every
+   * existing message ends up the new entry's height plus one gap higher, so a
+   * single transform on the stack restores the whole pre-send layout — steadier
+   * and cheaper than FLIPping each bubble. Covers both regimes: the shift is a
+   * scroll change once the transcript overflows and free-space collapse under
+   * justify-end before that, and both reduce to the same offset.
+   */
+  const glideStack = (layoutDelta: number) => {
+    if (!stack) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    // A send landing mid-glide resumes from wherever the stack currently sits;
+    // cancelling without carrying that over would snap it to its resting place.
+    const current = getComputedStyle(stack).transform;
+    const inFlight =
+      current && current !== "none" ? new DOMMatrixReadOnly(current).m42 : 0;
+    const delta = layoutDelta + inFlight;
+    if (delta <= 0) return;
+    stackGlide?.cancel();
+    stackGlide = stack.animate(
+      { transform: [`translateY(${delta}px)`, "none"] },
+      { duration: 220, easing: "cubic-bezier(0.22, 1, 0.36, 1)" },
+    );
+  };
 
   createEffect(() => {
     const controller = cwx();
@@ -217,6 +313,13 @@ export function CwxPanel() {
 
   const pushHistory = (message: Omit<QueuedMessage, "id">) => {
     const id = nextId++;
+    // FLIP anchor: the newest existing entry, measured before the mutation and
+    // again after, tells us how far the transcript moved once the new entry took
+    // its space. Solid applies the DOM update synchronously, so no frame is
+    // painted between the two reads, and any in-flight transform is present in
+    // both and cancels out of the difference.
+    const anchor = stack?.lastElementChild;
+    const before = anchor?.getBoundingClientRect().top;
     setHistory(
       produce((items) => {
         items.push({ ...message, id });
@@ -225,6 +328,8 @@ export function CwxPanel() {
       }),
     );
     scrollToLatest();
+    if (anchor && before !== undefined)
+      glideStack(before - anchor.getBoundingClientRect().top);
     return id;
   };
 
@@ -364,10 +469,7 @@ export function CwxPanel() {
     // immediately so the transcript can't sit showing pending text forever.
     const markErased = (buffer: MessageBuffer) => {
       if (buffer.sent >= buffer.text.length) return;
-      buffer.erasedFrom =
-        buffer.erasedFrom === null
-          ? buffer.sent
-          : Math.min(buffer.erasedFrom, buffer.sent);
+      markErasedFrom(buffer, buffer.sent);
     };
     setHistory(
       produce((items) => {
@@ -464,16 +566,16 @@ export function CwxPanel() {
     <div class="flex h-full min-h-0 flex-col gap-3">
       <div
         ref={transcript}
-        class="min-h-0 flex-1 overflow-y-auto rounded-md font-mono "
+        class="min-h-0 flex-1 overflow-y-auto rounded-md font-mono select-text"
         style={{ "scrollbar-width": "thin" }}
       >
         {/* min-h-full + justify-end stacks messages up from the bottom, so the
             newest sits above the composer and older ones ride up. */}
-        <div class="flex min-h-full flex-col justify-end gap-3">
+        <div ref={stack} class="flex min-h-full flex-col justify-end gap-3">
           <For each={history}>
             {(message) => (
               <ContextMenu>
-                <ContextMenuTrigger class="block animate-in fade-in duration-200">
+                <div class="block animate-in fade-in duration-200 motion-reduce:animate-none">
                   <div class="px-1 mb-1 flex items-baseline justify-between gap-2 text-xs leading-none text-muted-foreground tabular-nums">
                     <span>{formatHz(message.stamp.freqMHz)}</span>
                     <span>{message.stamp.time}</span>
@@ -515,7 +617,7 @@ export function CwxPanel() {
                       </span>
                     </Show>
                   </div>
-                </ContextMenuTrigger>
+                </div>
                 <ContextMenuContent>
                   <ContextMenuItem
                     onSelect={() => void sendMessage(message.text)}
@@ -596,17 +698,14 @@ export function CwxPanel() {
             variant="outline"
             class="min-w-0 flex-auto overflow-hidden px-2 tabular-nums"
           >
-            {state.status.cwx.speed ?? 25} WPM
+            {rawSpeed()} WPM
           </PopoverTrigger>
           <PopoverContent class="w-56">
             <SimpleSlider
               minValue={5}
               maxValue={100}
-              value={[state.status.cwx.speed ?? 25]}
-              onChange={([value]) => {
-                if (value === state.status.cwx.speed) return;
-                void cwx()?.setSpeed(value);
-              }}
+              value={[rawSpeed()]}
+              onChange={([value]) => setRawSpeed(value)}
               getValueLabel={(params) => `${params.values[0]} WPM`}
               label="Speed"
             />
@@ -623,12 +722,8 @@ export function CwxPanel() {
           <SimpleSlider
             minValue={0}
             maxValue={2000}
-            step={10}
-            value={[state.status.cwx.delay ?? 0]}
-            onChange={([value]) => {
-              if (value === state.status.cwx.delay) return;
-              void cwx()?.setDelay(value);
-            }}
+            value={[rawDelay()]}
+            onChange={([value]) => setRawDelay(value)}
             getValueLabel={(params) => `${params.values[0]} ms`}
             label="Break-in Delay"
             description="Time the transmitter stays keyed after the last character."

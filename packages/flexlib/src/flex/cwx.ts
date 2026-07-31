@@ -147,13 +147,24 @@ export class CwxControllerImpl implements CwxController {
     return this.current().macros;
   }
 
+  /**
+   * The CWX delay's own range really is 0–2000 ms; the speed-derived floor
+   * belongs to the separate `cw` delay (see `minBreakInDelayMs`).
+   *
+   * Patched before the command and never rolled back, because a rejection here
+   * does not mean the write failed. With `synccwx` on the radio applies the CWX
+   * value, then tries to mirror it onto the `cw` delay, and answers with the
+   * range error from *that* write while keeping the CWX change — and it emits no
+   * `cwx` status in this case, so the optimistic patch is the only way a caller
+   * ever learns the value.
+   */
   async setDelay(ms: number): Promise<void> {
     const clamped = clampInteger(ms, 0, 2000, "CWX delay");
-    await this.radio.command(`cwx delay ${clamped}`);
     const change = this.radio
       .getStore()
       .patchCwx({ break_in_delay: clamped.toString(10) });
     if (change) this.radio.applyStateChange(change);
+    await this.radio.command(`cwx delay ${clamped}`);
   }
 
   async setSpeed(wpm: number): Promise<void> {

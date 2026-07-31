@@ -200,6 +200,32 @@ function isCwTransmitMode(mode?: string) {
 }
 
 /**
+ * One control per macro slot rather than a single parameterised target: firing
+ * a macro is a command, and the choice editor's ops (`set`/`cycle`) have no
+ * sensible reading for "which macro to send".
+ *
+ * Macros are numbered 1–12 on the wire and in the official UI while our
+ * controller takes them 0-based, so the offset lives here and the target keeps
+ * the number an operator would recognise.
+ */
+function defineCwxMacroControl<TNumber extends number>(macroNumber: TNumber) {
+  return defineControl<CommandAction<`cwx.macro.${TNumber}`>>({
+    target: `cwx.macro.${macroNumber}`,
+    label: `CWX Macro ${macroNumber}`,
+    scope: "radio",
+    ops: [],
+    editor: { kind: "command" },
+    execute(ctx) {
+      ctx
+        .radio()
+        ?.cwx()
+        ?.sendMacro(macroNumber - 1)
+        .catch((error) => console.error("CWX macro send failed", error));
+    },
+  });
+}
+
+/**
  * Add new controls here.
  *
  * Each entry is the source of truth for:
@@ -1815,6 +1841,39 @@ export const CONTROL_DEFINITIONS = [
       radioController.setCwSpeedWpm(value);
     },
   }),
+
+  defineControl<BooleanControlAction<"cwx.qsk">>({
+    target: "cwx.qsk",
+    label: "CWX QSK Enabled",
+    scope: "radio",
+    ops: ["toggle", "set"],
+    editor: { kind: "boolean" },
+    execute(ctx, action) {
+      ctx
+        .radio()
+        ?.cwx()
+        ?.setQskEnabled(
+          resolveBooleanAction(
+            action,
+            ctx.state.status.cwx.qskEnabled ?? false,
+          ),
+        )
+        .catch((error) => console.error("CWX QSK set failed", error));
+    },
+  }),
+
+  defineCwxMacroControl(1),
+  defineCwxMacroControl(2),
+  defineCwxMacroControl(3),
+  defineCwxMacroControl(4),
+  defineCwxMacroControl(5),
+  defineCwxMacroControl(6),
+  defineCwxMacroControl(7),
+  defineCwxMacroControl(8),
+  defineCwxMacroControl(9),
+  defineCwxMacroControl(10),
+  defineCwxMacroControl(11),
+  defineCwxMacroControl(12),
 ] as const;
 
 type ControlDefinitionUnion = (typeof CONTROL_DEFINITIONS)[number];

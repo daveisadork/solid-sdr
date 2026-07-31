@@ -110,6 +110,14 @@ const INPUT_LABELS: Record<InputType, string> = {
   relative: "Free-spinning control",
 };
 
+/**
+ * Category headings that the generic capitalisation of a target's first segment
+ * gets wrong. Anything absent falls back to that capitalisation.
+ */
+const CATEGORY_LABELS: Record<string, string> = {
+  cwx: "CWX",
+};
+
 const BEHAVIOR_LABELS: Record<Behavior, string> = {
   "set-value": "Set value",
   "select-from-list": "Pick from list",
@@ -392,13 +400,14 @@ function AddMappingDialog(props: { class?: string | undefined }) {
     const categories = new Map<string, TargetCategory>();
 
     for (const control of CONTROL_DEFINITIONS.toSorted((a, b) =>
-      a.label.localeCompare(b.label),
+      // numeric so Macro 2 sorts before Macro 10 rather than lexicographically
+      a.label.localeCompare(b.label, undefined, { numeric: true }),
     )) {
       const { target, label } = control;
       const [category, _] = control.target.split(".");
       if (!categories.has(category)) {
         categories.set(category, {
-          label: `${category.charAt(0).toLocaleUpperCase() + category.slice(1)} Controls`,
+          label: `${CATEGORY_LABELS[category] ?? category.charAt(0).toLocaleUpperCase() + category.slice(1)} Controls`,
           options: [],
         });
       }

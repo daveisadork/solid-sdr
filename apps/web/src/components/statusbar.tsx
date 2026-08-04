@@ -209,7 +209,7 @@ export function StatusBar() {
 
   return (
     <div
-      class="absolute inset-x-0 bottom-0 h-statusbar flex shrink-0 items-center w-full sm:gap-4 sm:px-3 justify-evenly text-sm font-mono select-none z-(--z-chrome) fancy-bg-background"
+      class="absolute inset-x-0 bottom-0 h-statusbar flex shrink-0 items-center w-full py-2 sm:gap-4 sm:px-3 justify-evenly text-sm font-mono select-none z-(--z-chrome) fancy-bg-background"
       classList={{
         "border-t": !preferences.enableTransparencyEffects,
       }}

@@ -789,8 +789,7 @@ function CwSection() {
         maxValue={2000}
         value={[rawDelay()]}
         onChange={([value]) => {
-          if (value < minDelay()) return;
-          setRawDelay(value);
+          setRawDelay(Math.max(value, minDelay()));
         }}
         getValueLabel={(params) => `${params.values[0]} ms`}
       />

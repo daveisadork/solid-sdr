@@ -23,7 +23,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { SimpleSlider } from "./ui/simple-slider";
 import { SimpleSwitch } from "./ui/simple-switch";
-import { TextField, TextFieldInput } from "./ui/text-field";
+import { TextField, TextFieldInput, TextFieldLabel } from "./ui/text-field";
 import { Toggle } from "./ui/toggle";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
@@ -719,31 +719,31 @@ export function CwxPanel() {
             <DialogTitle>CWX Setup</DialogTitle>
           </DialogHeader>
 
+          <SimpleSwitch
+            checked={state.status.cwx.qskEnabled ?? false}
+            onChange={(isChecked) => void cwx()?.setQskEnabled(isChecked)}
+            label="QSK"
+          />
           <SimpleSlider
             minValue={0}
             maxValue={2000}
             value={[rawDelay()]}
             onChange={([value]) => setRawDelay(value)}
             getValueLabel={(params) => `${params.values[0]} ms`}
-            label="Break-in Delay"
+            label="Break-In Delay"
             description="Time the transmitter stays keyed after the last character."
-          />
-          <SimpleSwitch
-            checked={state.status.cwx.qskEnabled ?? false}
-            onChange={(isChecked) => void cwx()?.setQskEnabled(isChecked)}
-            label="QSK"
           />
           <SimpleSwitch
             checked={preferences.cwx.macroHotkeys}
             onChange={(isChecked) =>
               setPreferences("cwx", "macroHotkeys", isChecked)
             }
-            label="Macro hotkeys"
-            description="Alt + 1…9, 0, -, = sends a macro while the CWX panel is open."
+            label="Enable Macro Hotkeys"
+            description="Alt + 1-9, 0, -, = sends a macro while the CWX panel is open."
           />
 
-          <div class="flex flex-col gap-1">
-            <span class="text-sm font-medium">Macros</span>
+          <div class="flex flex-col gap-2">
+            <span class="font-medium">Macros</span>
             <For each={MACRO_HOTKEYS}>
               {(hotkey, index) => (
                 <MacroEditor
@@ -759,17 +759,6 @@ export function CwxPanel() {
                   onCapture={() => readComposer().trim()}
                   onSend={() => void sendMacro(index())}
                 />
-              )}
-            </For>
-          </div>
-
-          <div class="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-            <span>Prosigns:</span>
-            <For each={PROSIGNS}>
-              {([char, name]) => (
-                <span>
-                  <span class="font-mono text-foreground">{char}</span> {name}
-                </span>
               )}
             </For>
           </div>
@@ -796,36 +785,24 @@ function MacroEditor(props: {
   return (
     <TextField
       value={value()}
-      onChange={setValue}
-      class="flex flex-row items-center gap-1.5"
+      onChange={(value) => setValue(value.toUpperCase())}
+      class="flex flex-row items-center gap-1"
     >
-      <span class="w-3 shrink-0 text-center text-[0.625rem] text-muted-foreground">
+      <TextFieldLabel class="shrink-0 text-center pr-2 font-mono">
         {props.hotkey}
-      </span>
+      </TextFieldLabel>
       <TextFieldInput
-        class="h-8 min-w-0 px-2 font-mono text-xs"
+        class="min-w-0 font-mono"
         placeholder="empty"
-        title="Enter to save · double-click to capture the composer text"
+        autocorrect="off"
+        spellcheck={false}
+        autocapitalize="characters"
         onBlur={commit}
-        onKeyDown={(event: KeyboardEvent) => {
-          if (event.key === "Enter") {
-            event.preventDefault();
-            commit();
-          }
-          if (event.key === "Escape") {
-            event.preventDefault();
-            setValue(props.text);
-          }
-        }}
-        onDblClick={() => {
-          const captured = props.onCapture();
-          if (captured) setValue(captured);
-        }}
       />
       <Button
         size="icon"
-        variant="ghost"
-        class="size-8 shrink-0"
+        variant="outline"
+        class="shrink-0"
         disabled={!props.text}
         onClick={props.onSend}
         aria-label={`Send macro ${props.hotkey}`}

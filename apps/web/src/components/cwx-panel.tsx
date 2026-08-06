@@ -13,12 +13,6 @@ import { usePreferences } from "~/context/preferences";
 import IconSend from "~icons/mdi/send";
 import IconStop from "~icons/mdi/stop-circle-outline";
 import { Button } from "./ui/button";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger,
-} from "./ui/context-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { SimpleSlider } from "./ui/simple-slider";
@@ -41,14 +35,6 @@ const MACRO_HOTKEYS = [
   { code: "Digit0", label: "0" },
   { code: "Minus", label: "-" },
   { code: "Equal", label: "=" },
-];
-
-const PROSIGNS: [string, string][] = [
-  ["=", "BT"],
-  ["+", "AR"],
-  ["(", "KN"],
-  ["&", "BK"],
-  ["$", "SK"],
 ];
 
 const EMPTY_MACROS: readonly string[] = Array.from({ length: 12 }, () => "");
@@ -574,61 +560,51 @@ export function CwxPanel() {
         <div ref={stack} class="flex min-h-full flex-col justify-end gap-3">
           <For each={history}>
             {(message) => (
-              <ContextMenu>
-                <div class="block animate-in fade-in duration-200 motion-reduce:animate-none">
-                  <div class="px-1 mb-1 flex items-baseline justify-between gap-2 text-xs leading-none text-muted-foreground tabular-nums">
-                    <span>{formatHz(message.stamp.freqMHz)}</span>
-                    <span>{message.stamp.time}</span>
-                  </div>
-                  <div
-                    class={`${BUBBLE} p-2 border-info-foreground bg-info text-info-foreground`}
-                  >
-                    {/* Floated so the message text wraps around it rather than
-                        reserving a gutter on every line. */}
-                    <Show when={message.id === sendingId()}>
-                      <Tooltip>
-                        <TooltipTrigger
-                          as={Button<"button">}
-                          size="icon"
-                          variant="destructive"
-                          class="float-right ml-2 -mt-1 -mr-1 size-7"
-                          onClick={() => void abort()}
-                          aria-label="Stop"
-                        >
-                          <IconStop />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          Stop sending and clear the buffer
-                        </TooltipContent>
-                      </Tooltip>
-                    </Show>
-                    <span class="text-primary">
-                      {message.text.slice(0, message.sent)}
-                    </span>
-                    <span class="text-muted-foreground">
-                      {message.text.slice(
-                        message.sent,
-                        message.erasedFrom ?? undefined,
-                      )}
-                    </span>
-                    <Show when={message.erasedFrom !== null}>
-                      <span class="text-muted-foreground/50 line-through">
-                        {message.text.slice(message.erasedFrom ?? 0)}
-                      </span>
-                    </Show>
-                  </div>
+              <div class="block animate-in fade-in duration-200 motion-reduce:animate-none">
+                <div class="px-1 mb-1 flex items-baseline justify-between gap-2 text-xs leading-none text-muted-foreground tabular-nums">
+                  <span>{formatHz(message.stamp.freqMHz)}</span>
+                  <span>{message.stamp.time}</span>
                 </div>
-                <ContextMenuContent>
-                  <ContextMenuItem
-                    onSelect={() => void sendMessage(message.text)}
-                  >
-                    Resend
-                  </ContextMenuItem>
-                  <ContextMenuItem onSelect={() => setHistory([])}>
-                    Clear history
-                  </ContextMenuItem>
-                </ContextMenuContent>
-              </ContextMenu>
+                <div
+                  class={`${BUBBLE} p-2 border-info-foreground bg-info text-info-foreground`}
+                >
+                  {/* Floated so the message text wraps around it rather than
+                        reserving a gutter on every line. */}
+                  <Show when={message.id === sendingId()}>
+                    <Tooltip>
+                      <TooltipTrigger
+                        as={Button<"button">}
+                        size="icon"
+                        variant="destructive"
+                        class="float-right ml-2 -mt-1 -mr-1 size-7"
+                        // prevent stealing focus from the composer and closing the device keyboard
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => void abort()}
+                        aria-label="Stop"
+                      >
+                        <IconStop />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        Stop sending and clear the buffer
+                      </TooltipContent>
+                    </Tooltip>
+                  </Show>
+                  <span class="text-primary">
+                    {message.text.slice(0, message.sent)}
+                  </span>
+                  <span class="text-muted-foreground">
+                    {message.text.slice(
+                      message.sent,
+                      message.erasedFrom ?? undefined,
+                    )}
+                  </span>
+                  <Show when={message.erasedFrom !== null}>
+                    <span class="text-muted-foreground/50 line-through">
+                      {message.text.slice(message.erasedFrom ?? 0)}
+                    </span>
+                  </Show>
+                </div>
+              </div>
             )}
           </For>
         </div>
@@ -648,6 +624,8 @@ export function CwxPanel() {
           <Button
             size="icon"
             class="float-right mx-1 mt-1 mb-2 size-7"
+            // prevent stealing focus from the composer and closing the device keyboard
+            onMouseDown={(e) => e.preventDefault()}
             onClick={submit}
             disabled={!composerBuffer.text.trim()}
             aria-label="Send"
@@ -714,53 +692,57 @@ export function CwxPanel() {
       </div>
 
       <Dialog open={setupOpen()} onOpenChange={setSetupOpen}>
-        <DialogContent class="max-h-[85svh] overflow-y-auto sm:max-w-md">
+        <DialogContent class="flex flex-col max-h-10/12 overflow-hidden sm:max-w-md">
           <DialogHeader>
             <DialogTitle>CWX Setup</DialogTitle>
           </DialogHeader>
+          <div
+            class="flex flex-col gap-4 overflow-y-auto shrink"
+            style={{ "scrollbar-width": "thin" }}
+          >
+            <SimpleSwitch
+              checked={state.status.cwx.qskEnabled ?? false}
+              onChange={(isChecked) => void cwx()?.setQskEnabled(isChecked)}
+              label="QSK"
+            />
+            <SimpleSlider
+              minValue={0}
+              maxValue={2000}
+              value={[rawDelay()]}
+              onChange={([value]) => setRawDelay(value)}
+              getValueLabel={(params) => `${params.values[0]} ms`}
+              label="Break-In Delay"
+              description="Time the transmitter stays keyed after the last character."
+            />
+            <SimpleSwitch
+              checked={preferences.cwx.macroHotkeys}
+              onChange={(isChecked) =>
+                setPreferences("cwx", "macroHotkeys", isChecked)
+              }
+              label="Enable Macro Hotkeys"
+              description="Alt + 1-9, 0, -, = sends a macro while the CWX panel is open."
+            />
 
-          <SimpleSwitch
-            checked={state.status.cwx.qskEnabled ?? false}
-            onChange={(isChecked) => void cwx()?.setQskEnabled(isChecked)}
-            label="QSK"
-          />
-          <SimpleSlider
-            minValue={0}
-            maxValue={2000}
-            value={[rawDelay()]}
-            onChange={([value]) => setRawDelay(value)}
-            getValueLabel={(params) => `${params.values[0]} ms`}
-            label="Break-In Delay"
-            description="Time the transmitter stays keyed after the last character."
-          />
-          <SimpleSwitch
-            checked={preferences.cwx.macroHotkeys}
-            onChange={(isChecked) =>
-              setPreferences("cwx", "macroHotkeys", isChecked)
-            }
-            label="Enable Macro Hotkeys"
-            description="Alt + 1-9, 0, -, = sends a macro while the CWX panel is open."
-          />
-
-          <div class="flex flex-col gap-2">
-            <span class="font-medium">Macros</span>
-            <For each={MACRO_HOTKEYS}>
-              {(hotkey, index) => (
-                <MacroEditor
-                  text={macros()[index()] ?? ""}
-                  hotkey={hotkey.label}
-                  onSave={(text) => {
-                    void cwx()
-                      ?.setMacro(index(), text)
-                      .catch((error) =>
-                        console.error("CWX macro save failed", error),
-                      );
-                  }}
-                  onCapture={() => readComposer().trim()}
-                  onSend={() => void sendMacro(index())}
-                />
-              )}
-            </For>
+            <div class="flex flex-col gap-2">
+              <span class="font-medium">Macros</span>
+              <For each={MACRO_HOTKEYS}>
+                {(hotkey, index) => (
+                  <MacroEditor
+                    text={macros()[index()] ?? ""}
+                    hotkey={hotkey.label}
+                    onSave={(text) => {
+                      void cwx()
+                        ?.setMacro(index(), text)
+                        .catch((error) =>
+                          console.error("CWX macro save failed", error),
+                        );
+                    }}
+                    onCapture={() => readComposer().trim()}
+                    onSend={() => void sendMacro(index())}
+                  />
+                )}
+              </For>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

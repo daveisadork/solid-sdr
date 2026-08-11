@@ -1842,6 +1842,49 @@ export const CONTROL_DEFINITIONS = [
     },
   }),
 
+  defineControl<NormalizedControlAction<"cwx.speed">>({
+    target: "cwx.speed",
+    label: "CWX Speed",
+    scope: "radio",
+    ops: ["adjust", "set"],
+    editor: { kind: "normalized" },
+    execute(ctx, action) {
+      const cwxController = ctx.radio()?.cwx();
+      if (!cwxController) return;
+
+      const value =
+        action.op === "adjust"
+          ? ctx.state.status.cwx.speed + action.delta
+          : fromNormalized(action.value, 100, 5);
+
+      cwxController
+        .setSpeed(value)
+        .catch((error) => console.error("CWX speed set failed", error));
+    },
+  }),
+
+  defineControl<NormalizedControlAction<"cwx.delay">>({
+    target: "cwx.delay",
+    label: "CWX Break-In Delay",
+    scope: "radio",
+    ops: ["adjust", "set"],
+    editor: { kind: "normalized" },
+    execute(ctx, action) {
+      const cwxController = ctx.radio()?.cwx();
+      if (!cwxController) return;
+
+      const value =
+        action.op === "adjust"
+          ? ctx.state.status.cwx.delay + action.delta
+          : fromNormalized(action.value, 2000);
+
+      // Under the cw delay's speed-derived floor the radio still applies the
+      // CWX value and reports a range error from the mirroring write, so a
+      // rejection here does not mean the setting failed.
+      cwxController.setDelay(value).catch(() => {});
+    },
+  }),
+
   defineControl<BooleanControlAction<"cwx.qsk">>({
     target: "cwx.qsk",
     label: "CWX QSK Enabled",

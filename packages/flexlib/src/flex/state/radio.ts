@@ -444,10 +444,9 @@ function applyRadioSourceAttributes(
       case "gps": {
         const normalized = value?.toLowerCase();
         if (normalized) {
-          partial.gpsInstalled = normalized !== "not present";
-          if (normalized === "locked") partial.gpsLock = true;
-          if (normalized === "not present") partial.gpsLock = false;
           partial.gpsStatus = value;
+          partial.gpsInstalled = normalized !== "not present";
+          partial.gpsLock = GPS_LOCKED_STATUSES.has(normalized);
         }
         break;
       }
@@ -1180,6 +1179,8 @@ const ATU_TUNE_STATUS_BY_TOKEN: Record<string, RadioAtuTuneStatus> = {
   TGXL_OK: "TGXL_OK",
   TGXL_ABORTED: "TGXL_ABORTED",
 };
+
+const GPS_LOCKED_STATUSES = new Set(["locked", "fine lock", "coarse lock"]);
 
 function parseAtuTuneStatus(
   value: string | undefined,

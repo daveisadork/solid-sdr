@@ -237,6 +237,13 @@
   --animate-content-hide: content-hide 0.2s ease-out;
   --animate-caret-blink: caret-blink 1.25s ease-out infinite;
 
+  /* GPS lock-state indicators, ported from SmartSDR's MainWindow storyboards.
+   * All three are 1s linear loops; only the brightness envelope differs.
+   * warmup/holdphase breathe continuously; locking is a brief blink. */
+  --animate-yellow-warmup: yellow-warmup 1s ease-in-out infinite;
+  --animate-blue-holdphase: blue-holdphase 1s linear infinite;
+  --animate-blue-locking: blue-locking 1s ease-in-out infinite;
+
   @keyframes accordion-down {
     from {
       height: 0;
@@ -291,6 +298,40 @@
     20%,
     50% {
       opacity: 0;
+    }
+  }
+
+  @keyframes yellow-warmup {
+    0%,
+    100% {
+      color: var(--color-yellow-500);
+    }
+
+    50% {
+      color: var(--color-muted-foreground);
+    }
+  }
+
+  @keyframes blue-holdphase {
+    0%,
+    100% {
+      color: var(--color-blue-500);
+    }
+
+    50% {
+      color: var(--color-muted-foreground);
+    }
+  }
+
+  @keyframes blue-locking {
+    0%,
+    100% {
+      color: var(--color-blue-500);
+    }
+
+    10%,
+    90% {
+      color: var(--color-muted-foreground);
     }
   }
   /* --font-mono: "Noto Sans Mono", ui-monospace, monospace; */

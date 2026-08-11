@@ -15,6 +15,10 @@ import {
 import { Separator } from "./ui/separator";
 import { TextField, TextFieldInput, TextFieldLabel } from "./ui/text-field";
 
+const WARMUP_STATUSES = new Set(["Warming Up", "Out of Holdover"]);
+const HOLDOVER_STATUSES = new Set(["Holdover", "Free Run"]);
+const LOCKING_STATUSES = new Set(["Locking", "Pull In"]);
+
 export function GpsStatus(props: { class?: string }) {
   const { state } = useFlexRadio();
   const radio = () => state.status.radio;
@@ -60,108 +64,116 @@ export function GpsStatus(props: { class?: string }) {
   };
 
   return (
-    <Show when={radio().gpsGrid}>
-      <div
-        class={cn(
-          "flex items-center h-full justify-around cursor-default select-none pointer-coarse:flex-col not-pointer-coarse:gap-4",
-          props.class,
-        )}
-      >
-        <HoverCard>
-          <HoverCardTrigger
-            as={"div"}
-            class="flex gap-1 items-center font-mono"
-          >
-            <MaterialSymbolsSatelliteAlt />
-            <span class="textbox-trim-both textbox-edge-cap-alphabetic">
+    <Show when={radio().gpsInstalled}>
+      <HoverCard>
+        <HoverCardTrigger
+          as={"div"}
+          class={cn("flex gap-1 items-center font-mono", props.class)}
+        >
+          <div class="aspect-square size-control flex items-center">
+            <MaterialSymbolsSatelliteAlt
+              class="size-[90%]"
+              classList={{
+                "animate-yellow-warmup": WARMUP_STATUSES.has(
+                  radio().gpsStatus ?? "",
+                ),
+                "animate-blue-locking": LOCKING_STATUSES.has(
+                  radio().gpsStatus ?? "",
+                ),
+                "animate-blue-holdphase": radio().gpsStatus === "Hold Phase",
+                "text-yellow-500": HOLDOVER_STATUSES.has(
+                  radio().gpsStatus ?? "",
+                ),
+              }}
+            />
+          </div>
+          <Show when={radio().gpsGrid}>
+            <span class="textbox-trim-both textbox-edge-cap-alphabetic pointer-coarse:hidden">
               {radio().gpsGrid}
             </span>
-          </HoverCardTrigger>
-          <HoverCardContent class="w-80 fancy-bg-background">
-            <div class="flex flex-col gap-4">
-              <TextField
-                class="grid w-full max-w-sm items-center gap-2"
-                value={radio().gpsGrid}
-                readOnly
-              >
-                <TextFieldLabel for="grid-square">Grid Square</TextFieldLabel>
-                <div class="flex w-full">
-                  <TextFieldInput class="rounded-r-none border-r-0" />
-                  <Button
-                    variant="outline"
-                    class="rounded-l-none"
-                    onClick={() => writeClipboard(radio().gpsGrid ?? "")}
-                  >
-                    <ClipboardOutline />
-                  </Button>
-                </div>
-              </TextField>
-              <NumberField
-                class="grid w-full max-w-sm items-center gap-2"
-                value={radio().gpsLatitude}
-                format={false}
-                step={0.000001}
-                readOnly
-              >
-                <NumberFieldLabel for="latitude">Latitude</NumberFieldLabel>
-                <NumberFieldGroup class="flex w-full">
-                  <NumberFieldInput class="rounded-r-none border-r-0" />
-                  <Button
-                    variant="outline"
-                    class="rounded-l-none"
-                    onClick={() =>
-                      writeClipboard(radio().gpsLatitude?.toString() ?? "")
-                    }
-                  >
-                    <ClipboardOutline />
-                  </Button>
-                </NumberFieldGroup>
-              </NumberField>
-              <NumberField
-                class="grid w-full max-w-sm items-center gap-2"
-                value={radio().gpsLongitude}
-                step={0.000001}
-                format={false}
-                readOnly
-              >
-                <NumberFieldLabel for="longitude">Longitude</NumberFieldLabel>
-                <NumberFieldGroup class="flex w-full">
-                  <NumberFieldInput class="rounded-r-none border-r-0" />
-                  <Button
-                    variant="outline"
-                    class="rounded-l-none"
-                    onClick={() =>
-                      writeClipboard(radio().gpsLongitude?.toString() ?? "")
-                    }
-                  >
-                    <ClipboardOutline />
-                  </Button>
-                </NumberFieldGroup>
-              </NumberField>
-            </div>
-            <Show when={extraDetails().length > 0}>
-              <Separator class="my-3" />
-              <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                <For each={extraDetails()}>
-                  {(item) => (
-                    <>
-                      <dt class="font-medium text-foreground">{item.label}</dt>
-                      <dd class="font-mono text-right text-foreground/80">
-                        {item.value}
-                      </dd>
-                    </>
-                  )}
-                </For>
-              </dl>
-            </Show>
-          </HoverCardContent>
-        </HoverCard>
-        <Show when={radio().gpsUtcTime}>
-          <span class="font-mono textbox-trim-both textbox-edge-cap-alphabetic">
-            {radio().gpsUtcTime}
-          </span>
-        </Show>
-      </div>
+          </Show>
+        </HoverCardTrigger>
+        <HoverCardContent class="w-80 fancy-bg-background">
+          <div class="flex flex-col gap-4">
+            <TextField
+              class="grid w-full max-w-sm items-center gap-2"
+              value={radio().gpsGrid}
+              readOnly
+            >
+              <TextFieldLabel for="grid-square">Grid Square</TextFieldLabel>
+              <div class="flex w-full">
+                <TextFieldInput class="rounded-r-none border-r-0" />
+                <Button
+                  variant="outline"
+                  class="rounded-l-none"
+                  onClick={() => writeClipboard(radio().gpsGrid ?? "")}
+                >
+                  <ClipboardOutline />
+                </Button>
+              </div>
+            </TextField>
+            <NumberField
+              class="grid w-full max-w-sm items-center gap-2"
+              value={radio().gpsLatitude}
+              format={false}
+              step={0.000001}
+              readOnly
+              changeOnWheel={false}
+            >
+              <NumberFieldLabel for="latitude">Latitude</NumberFieldLabel>
+              <NumberFieldGroup class="flex w-full">
+                <NumberFieldInput class="rounded-r-none border-r-0" />
+                <Button
+                  variant="outline"
+                  class="rounded-l-none"
+                  onClick={() =>
+                    writeClipboard(radio().gpsLatitude?.toString() ?? "")
+                  }
+                >
+                  <ClipboardOutline />
+                </Button>
+              </NumberFieldGroup>
+            </NumberField>
+            <NumberField
+              class="grid w-full max-w-sm items-center gap-2"
+              value={radio().gpsLongitude}
+              step={0.000001}
+              format={false}
+              changeOnWheel={false}
+              readOnly
+            >
+              <NumberFieldLabel for="longitude">Longitude</NumberFieldLabel>
+              <NumberFieldGroup class="flex w-full">
+                <NumberFieldInput class="rounded-r-none border-r-0" />
+                <Button
+                  variant="outline"
+                  class="rounded-l-none"
+                  onClick={() =>
+                    writeClipboard(radio().gpsLongitude?.toString() ?? "")
+                  }
+                >
+                  <ClipboardOutline />
+                </Button>
+              </NumberFieldGroup>
+            </NumberField>
+          </div>
+          <Show when={extraDetails().length > 0}>
+            <Separator class="my-3" />
+            <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs text-muted-foreground">
+              <For each={extraDetails()}>
+                {(item) => (
+                  <>
+                    <dt class="font-medium text-foreground">{item.label}</dt>
+                    <dd class="font-mono text-right text-foreground/80">
+                      {item.value}
+                    </dd>
+                  </>
+                )}
+              </For>
+            </dl>
+          </Show>
+        </HoverCardContent>
+      </HoverCard>
     </Show>
   );
 }

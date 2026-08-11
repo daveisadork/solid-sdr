@@ -29,6 +29,18 @@ describe("CWX snapshot", () => {
     expect(cwx?.qskEnabled).toBe(true);
   });
 
+  it("fills the macro slots even when the first status omits them", () => {
+    // given a fresh store
+    const store = createRadioStateStore();
+
+    // when the radio's opening cwx status carries no macro attributes
+    store.apply(makeStatus("S1|cwx wpm=30 break_in_delay=5 qsk_enabled=1"));
+
+    // then the slots are still there to be read, all empty
+    const cwx = store.getCwx();
+    expect(cwx?.macros).toEqual(Array.from({ length: 12 }, () => ""));
+  });
+
   it("parses macros from status updates", () => {
     // given a store with initial cwx state
     const store = createRadioStateStore();

@@ -125,7 +125,7 @@ export function createCwxSnapshot(
 ): SnapshotUpdate<CwxSnapshot> {
   const rawDiff = freezeAttributes(attributes);
   const partial: Mutable<Partial<CwxSnapshot>> = {};
-  let macrosChanged = false;
+  let macrosChanged = !previous?.macros;
   let macros: string[] | undefined;
 
   for (const [key, value] of Object.entries(attributes)) {
@@ -176,12 +176,12 @@ export function createCwxSnapshot(
     }
   }
 
-  if (macrosChanged && macros) {
-    partial.macros = Object.freeze(macros);
+  if (macrosChanged) {
+    partial.macros = Object.freeze(macros ?? EMPTY_MACROS);
   }
 
   const snapshot = Object.freeze({
-    ...(previous ?? {}),
+    ...(previous ?? EMPTY_ATTRIBUTES),
     ...partial,
     raw: Object.freeze({
       ...(previous?.raw ?? EMPTY_ATTRIBUTES),

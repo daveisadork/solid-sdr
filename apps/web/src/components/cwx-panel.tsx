@@ -37,8 +37,6 @@ const MACRO_HOTKEYS = [
   { code: "Equal", label: "=" },
 ];
 
-const EMPTY_MACROS: readonly string[] = Array.from({ length: 12 }, () => "");
-
 /** Keeps the transcript bounded; official caps the stack at MAX_NUM_AMUS. */
 const MAX_HISTORY = 100;
 
@@ -166,7 +164,7 @@ export function CwxPanel() {
   let liveSent = "";
 
   const cwx = () => radio()?.cwx();
-  const macros = () => state.status.cwx.macros ?? EMPTY_MACROS;
+  const macros = () => state.status.cwx.macros;
   const live = () => preferences.cwx.live;
 
   /**
@@ -393,7 +391,7 @@ export function CwxPanel() {
     push("text-foreground", text.slice(0, sent));
     push("text-muted-foreground", text.slice(sent, erasedFrom ?? undefined));
     if (erasedFrom !== null)
-      push("text-muted-foreground/50 line-through", text.slice(erasedFrom));
+      push("text-muted-foreground line-through", text.slice(erasedFrom));
     composer.replaceChildren(...parts);
     if (document.activeElement !== composer) return;
     const range = document.createRange();
@@ -453,6 +451,7 @@ export function CwxPanel() {
     }
     // The radio answers with erase= status, but mark the untransmitted tails
     // immediately so the transcript can't sit showing pending text forever.
+    // Live mode is the only one whose composer text reached the radio.
     const markErased = (buffer: MessageBuffer) => {
       if (buffer.sent >= buffer.text.length) return;
       markErasedFrom(buffer, buffer.sent);
@@ -462,11 +461,18 @@ export function CwxPanel() {
         for (const message of items) markErased(message);
       }),
     );
-    setComposerBuffer(produce(markErased));
+    if (live()) setComposerBuffer(produce(markErased));
   };
 
   const handleInput = () => {
     const text = readComposer();
+    // An emptied composer is a fresh line. Dropping the progress here also
+    // drops the painted spans, which the browser otherwise carries forward as
+    // typing style and re-applies to the next character as legacy markup.
+    if (!text) {
+      clearComposer();
+      return;
+    }
     setComposerBuffer("text", text);
     if (!live()) return;
     // Only text added since the last dispatch is new. Editing behind the
@@ -498,6 +504,11 @@ export function CwxPanel() {
 
   const handleKeyDown = (event: KeyboardEvent) => {
     if (event.key === "Escape") {
+      // Only meaningful while the radio still owes characters. Standard mode
+      // keeps the composer out of this: its text is a draft the radio has
+      // never seen, so a buffer clear cannot have dropped any of it.
+      if (sendingId() === undefined && !(live() && isSending(composerBuffer)))
+        return;
       event.preventDefault();
       void abort();
       return;
@@ -565,9 +576,7 @@ export function CwxPanel() {
                   <span>{formatHz(message.stamp.freqMHz)}</span>
                   <span>{message.stamp.time}</span>
                 </div>
-                <div
-                  class={`${BUBBLE} p-2 border-info-foreground bg-info text-info-foreground`}
-                >
+                <div class={`${BUBBLE} p-2 border-info-foreground bg-info`}>
                   {/* Floated so the message text wraps around it rather than
                         reserving a gutter on every line. */}
                   <Show when={message.id === sendingId()}>
@@ -589,9 +598,7 @@ export function CwxPanel() {
                       </TooltipContent>
                     </Tooltip>
                   </Show>
-                  <span class="text-primary">
-                    {message.text.slice(0, message.sent)}
-                  </span>
+                  <span>{message.text.slice(0, message.sent)}</span>
                   <span class="text-muted-foreground">
                     {message.text.slice(
                       message.sent,
@@ -599,7 +606,7 @@ export function CwxPanel() {
                     )}
                   </span>
                   <Show when={message.erasedFrom !== null}>
-                    <span class="text-muted-foreground/50 line-through">
+                    <span class="text-muted-foreground line-through">
                       {message.text.slice(message.erasedFrom ?? 0)}
                     </span>
                   </Show>
@@ -728,7 +735,7 @@ export function CwxPanel() {
               <For each={MACRO_HOTKEYS}>
                 {(hotkey, index) => (
                   <MacroEditor
-                    text={macros()[index()] ?? ""}
+                    text={macros()[index()]}
                     hotkey={hotkey.label}
                     onSave={(text) => {
                       void cwx()

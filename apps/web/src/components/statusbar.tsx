@@ -15,7 +15,7 @@ import { usePanafallLayout } from "~/context/panafall-layout";
 import { usePreferences } from "~/context/preferences";
 import { type NetworkQuality, useRuntime } from "~/context/runtime";
 import { createPermission } from "~/lib/permission";
-import { formatKbps } from "~/lib/utils";
+import { cn, formatKbps } from "~/lib/utils";
 import BaselineViewSidebar from "~icons/ic/baseline-view-sidebar";
 import MaterialSymbolsAddChartOutline from "~icons/material-symbols/add-chart-outline";
 import MaterialSymbolsDeviceThermostat from "~icons/material-symbols/device-thermostat";
@@ -35,6 +35,7 @@ import { Settings } from "./settings";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "./ui/hover-card";
 import { SidebarTrigger } from "./ui/sidebar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
+import { createDateNow } from "~/lib/date-now";
 
 function AddPanafallButton() {
   const { state, radio } = useFlexRadio();
@@ -170,6 +171,31 @@ function NetworkStatus() {
   );
 }
 
+function Clock(props: { class?: string }) {
+  const { state } = useFlexRadio();
+  const radio = () => state.status.radio;
+  const dateNow = createDateNow();
+
+  const utcTime = () =>
+    radio().gpsLock
+      ? radio().gpsUtcTime
+      : `${dateNow().toISOString().slice(11, 19)}Z`;
+
+  return (
+    <div
+      class={cn(
+        "flex items-center h-full justify-around cursor-default select-none pointer-coarse:flex-col not-pointer-coarse:gap-4 font-mono textbox-trim-both textbox-edge-cap-alphabetic",
+        props.class,
+      )}
+    >
+      <span class="not-pointer-coarse:hidden">
+        {dateNow().toLocaleDateString(undefined, { timeZone: "UTC" })}
+      </span>
+      <span>{utcTime()}</span>
+    </div>
+  );
+}
+
 export function StatusBar() {
   const { state, radio } = useFlexRadio();
   const { preferences } = usePreferences();
@@ -239,6 +265,7 @@ export function StatusBar() {
       <FullscreenButton />
       <NetworkStatus />
       <GpsStatus class="not-sm:hidden" />
+      <Clock class="not-sm:hidden" />
     </div>
   );
 }

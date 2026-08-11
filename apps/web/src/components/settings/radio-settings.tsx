@@ -543,6 +543,11 @@ function RadioSettingsInner(props: { radio: Radio }) {
             label="Backlight Brightness"
           />
         </CardContent>
+        <CardFooter class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 items-stretch">
+          <Button onClick={() => props.radio.rebootRadio()}>
+            Reboot Radio
+          </Button>
+        </CardFooter>
       </Card>
       <Card class="bg-transparent">
         <CardHeader>

@@ -14,6 +14,7 @@ import useFlexRadio from "~/context/flexradio";
 import { usePanafallLayout } from "~/context/panafall-layout";
 import { usePreferences } from "~/context/preferences";
 import { type NetworkQuality, useRuntime } from "~/context/runtime";
+import { createDateNow } from "~/lib/date-now";
 import { createPermission } from "~/lib/permission";
 import { cn, formatKbps } from "~/lib/utils";
 import BaselineViewSidebar from "~icons/ic/baseline-view-sidebar";
@@ -35,7 +36,6 @@ import { Settings } from "./settings";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "./ui/hover-card";
 import { SidebarTrigger } from "./ui/sidebar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
-import { createDateNow } from "~/lib/date-now";
 
 function AddPanafallButton() {
   const { state, radio } = useFlexRadio();

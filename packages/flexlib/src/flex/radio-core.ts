@@ -18,6 +18,7 @@ import {
   formatMegahertz,
   toInteger,
 } from "./controller-helpers.js";
+import { clampBreakInDelayMs } from "./cw-break-in-delay.js";
 import {
   FlexClientClosedError,
   FlexCommandRejectedError,
@@ -2499,7 +2500,12 @@ class RadioImpl {
   }
 
   async setCwBreakInDelayMs(delayMs: number): Promise<void> {
-    const clamped = clampInteger(delayMs, 0, 2_000, "CW break-in delay");
+    // Floor depends on the current keying speed; below it the radio rejects the
+    // command outright rather than clamping, leaving the old value in place.
+    const clamped = clampBreakInDelayMs(
+      delayMs,
+      this.snapshot()?.cwSpeedWpm ?? 5,
+    );
     await this.commandAndPatch(
       `cw break_in_delay ${clamped}`,
       { break_in_delay: clamped.toString(10) },

@@ -15,6 +15,7 @@ export * from "./transport.js";
 export type { FlexRadioDescriptor, Logger } from "./adapters.js";
 export * from "./apd.js";
 export * from "./audio-stream.js";
+export * from "./cw-break-in-delay.js";
 export * from "./cwx.js";
 // Discovery parsing
 export { decodeDiscoveryPayload, parseDiscoveryPayload } from "./discovery.js";

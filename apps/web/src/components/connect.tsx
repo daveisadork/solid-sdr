@@ -35,6 +35,7 @@ import {
 } from "./ui/dropdown-menu";
 import { ProgressCircle } from "./ui/progress-circle";
 import { Skeleton } from "./ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
 const STATUS_MAP: Record<string, ComponentProps<typeof Badge>["variant"]> = {
   Available: "success",
@@ -72,6 +73,9 @@ export default function Connect() {
     return status;
   }, state.connectModal.status);
 
+  const label = () =>
+    state.clientHandle ? "Disconnect from radio" : "Connect to radio";
+
   return (
     <Dialog
       open={open()}
@@ -80,18 +84,23 @@ export default function Connect() {
         setOpen(openState);
       }}
     >
-      <DialogTrigger
-        as={ButtonPrimitive.Button<"button">}
-        class="size-control aspect-square"
-        title={state.clientHandle ? "Disconnect" : "Connect"}
-      >
-        <Dynamic
-          component={
-            state.clientHandle ? MdiCheckNetworkOutline : MdiCloseNetworkOutline
-          }
-          class="size-full"
-        />
-      </DialogTrigger>
+      <Tooltip>
+        <DialogTrigger
+          as={TooltipTrigger}
+          class="size-control aspect-square"
+          aria-label={label()}
+        >
+          <Dynamic
+            component={
+              state.clientHandle
+                ? MdiCheckNetworkOutline
+                : MdiCloseNetworkOutline
+            }
+            class="size-full"
+          />
+        </DialogTrigger>
+        <TooltipContent>{label()}</TooltipContent>
+      </Tooltip>
       <DialogContent class="flex flex-col sm:max-w-md data-closed:slide-out-to-left data-closed:slide-out-to-bottom data-expanded:slide-in-from-left data-expanded:slide-in-from-bottom overflow-hidden">
         <DialogHeader>
           <DialogTitle>Connect</DialogTitle>

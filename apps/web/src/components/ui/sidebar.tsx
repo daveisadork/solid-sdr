@@ -85,14 +85,20 @@ type SidebarProviderProps = Omit<ComponentProps<"div">, "style"> & {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   style?: JSX.CSSProperties;
+  /** Cmd/Ctrl+key toggle. Defaults to "b"; pass null to disable. */
+  shortcut?: string | null;
 };
 
 const SidebarProvider: Component<SidebarProviderProps> = (rawProps) => {
-  const props = mergeProps({ defaultOpen: true }, rawProps);
+  const props = mergeProps(
+    { defaultOpen: true, shortcut: SIDEBAR_KEYBOARD_SHORTCUT as string | null },
+    rawProps,
+  );
   const [local, others] = splitProps(props, [
     "defaultOpen",
     "open",
     "onOpenChange",
+    "shortcut",
     "class",
     "style",
     "children",
@@ -123,11 +129,10 @@ const SidebarProvider: Component<SidebarProviderProps> = (rawProps) => {
 
   // Adds a keyboard shortcut to toggle the sidebar.
   createEffect(() => {
+    const shortcut = local.shortcut;
+    if (shortcut == null) return;
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (
-        event.key === SIDEBAR_KEYBOARD_SHORTCUT &&
-        (event.metaKey || event.ctrlKey)
-      ) {
+      if (event.key === shortcut && (event.metaKey || event.ctrlKey)) {
         event.preventDefault();
         toggleSidebar();
       }

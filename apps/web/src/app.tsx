@@ -16,6 +16,7 @@ import { FPSCounter } from "./components/fps";
 import { Panafalls } from "./components/panafall/panafalls";
 import { RadioSidebar } from "./components/radio-sidebar";
 import { ReleaseNotification } from "./components/release-notification";
+import { ToolsSidebar } from "./components/tools-sidebar";
 import { Button } from "./components/ui/button";
 import { Callout, CalloutContent, CalloutTitle } from "./components/ui/callout";
 import { AudioProvider } from "./context/audio";
@@ -35,20 +36,34 @@ function AppInner() {
       <PanafallLayoutProvider>
         <div class="absolute inset-0 flex flex-col items-stretch isolate">
           <DebugBanner />
+          {/* Outer provider: left tools sidebar (no keyboard shortcut yet).
+              Inner provider: right radio sidebar (Cmd+B). The inner one is
+              display:contents so the left gap spacer, panafalls, and right
+              gap spacer all share one flex row. StatusBar lives inside the
+              outer provider so its SidebarTrigger reaches the left context
+              (required for the mobile Sheet path). */}
           <SidebarProvider
             class="relative grow h-auto overflow-visible min-h-0 bg-transparent"
-            open={!!preferences.radioPanelOpen}
-            onOpenChange={(open) => setPreferences("radioPanelOpen", open)}
+            open={!!preferences.toolsPanelOpen}
+            onOpenChange={(open) => setPreferences("toolsPanelOpen", open)}
+            shortcut={null}
           >
-            <Panafalls />
-            <RadioSidebar />
-            <Show when={radio()}>
-              <SidebarTrigger class="z-(--z-chrome) absolute right-control-inset top-control-inset select-none aspect-square fancy-bg-background size-control pointer-coarse:border pointer-coarse:right-2 pointer-coarse:top-2">
-                <BaselineViewSidebar />
-              </SidebarTrigger>
-            </Show>
+            <ToolsSidebar />
+            <SidebarProvider
+              class="contents"
+              open={!!preferences.radioPanelOpen}
+              onOpenChange={(open) => setPreferences("radioPanelOpen", open)}
+            >
+              <Panafalls />
+              <RadioSidebar />
+              <Show when={radio()}>
+                <SidebarTrigger class="z-(--z-chrome) absolute right-control-inset top-control-inset select-none aspect-square fancy-bg-background size-control pointer-coarse:border pointer-coarse:right-2 pointer-coarse:top-2">
+                  <BaselineViewSidebar />
+                </SidebarTrigger>
+              </Show>
+            </SidebarProvider>
+            <StatusBar />
           </SidebarProvider>
-          <StatusBar />
           <Show when={preferences.showFps}>
             <FPSCounter />
           </Show>

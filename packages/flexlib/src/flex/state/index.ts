@@ -13,7 +13,12 @@ import {
   parseIntegerHex,
   setRadioStateLogger,
 } from "./common.js";
-import { type CwxSnapshot, createCwxSnapshot } from "./cwx.js";
+import {
+  type CwxProgressEvent,
+  type CwxSnapshot,
+  createCwxSnapshot,
+  parseCwxProgressEvents,
+} from "./cwx.js";
 import {
   createDisplayMarkerSnapshot,
   type DisplayMarkerSnapshot,
@@ -72,7 +77,7 @@ import { createXvtrSnapshot, type XvtrSnapshot } from "./xvtr.js";
 export type { ApdSamplerPort, ApdSnapshot, ApdTxAntenna } from "./apd.js";
 export type { AudioStreamKind, AudioStreamSnapshot } from "./audio-stream.js";
 export type { SnapshotDiff } from "./common.js";
-export type { CwxSnapshot } from "./cwx.js";
+export type { CwxProgressEvent, CwxSnapshot } from "./cwx.js";
 export type { DisplayMarkerSnapshot } from "./display-marker.js";
 export type { DvkRecording, DvkSnapshot, DvkStatus } from "./dvk.js";
 export type { EqualizerId, EqualizerSnapshot } from "./equalizer.js";
@@ -155,7 +160,11 @@ export type RadioStateChange =
   | ({ entity: "featureLicense" } & ChangeMetadata<FeatureLicenseSnapshot>)
   | ({ entity: "filterPreset" } & ChangeMetadata<FilterPresetSnapshot>)
   | ({ entity: "apd" } & ChangeMetadata<ApdSnapshot>)
-  | ({ entity: "cwx" } & ChangeMetadata<CwxSnapshot>)
+  | ({
+      entity: "cwx";
+      /** Transient transmit-progress events carried by this status line. */
+      readonly progress?: readonly CwxProgressEvent[];
+    } & ChangeMetadata<CwxSnapshot>)
   | ({ entity: "dvk" } & ChangeMetadata<DvkSnapshot>)
   | {
       entity: "unknown";
@@ -1993,11 +2002,13 @@ export function createRadioStateStore(
     const { snapshot, diff } = createCwxSnapshot(message.attributes, cwx);
     const diffKeys = Object.keys(diff as Record<string, unknown>);
     cwx = snapshot;
-    if (diffKeys.length === 0) return undefined;
+    const progress = parseCwxProgressEvents(message.raw);
+    if (diffKeys.length === 0 && progress.length === 0) return undefined;
     return {
       entity: "cwx",
       removed: false,
       diff,
+      ...(progress.length > 0 ? { progress } : {}),
     };
   }
 

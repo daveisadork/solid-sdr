@@ -1,30 +1,19 @@
-import { For, Match, Show, Switch } from "solid-js";
+import { For, Show } from "solid-js";
 import { PanafallProvider } from "~/context/panafall";
 import { usePanafallLayout } from "~/context/panafall-layout";
-import { usePreferences } from "~/context/preferences";
 import { type CellEdges, cellEdges, type SlotId } from "~/lib/panafall-layout";
-import BaselineDisplaySettings from "~icons/ic/baseline-display-settings";
 import { TuningPanel } from "../tuning-panel";
-import { SidebarProvider, SidebarTrigger } from "../ui/sidebar";
 import { Panafall } from "./panafall";
-import { PanafallSettingsSidebar, PanSettings } from "./settings";
+import { PanSettings } from "./settings";
 
 function PanafallCell(props: { slot: SlotId; edges: CellEdges }) {
-  const { preferences, setPreferences } = usePreferences();
   const { streamForSlot } = usePanafallLayout();
   return (
     <Show when={streamForSlot(props.slot)} keyed>
       {(streamId) => (
         <PanafallProvider streamId={streamId} edges={props.edges}>
-          <SidebarProvider
-            open={
-              preferences.panadapterSettingsStyle === "sidebar" &&
-              Boolean(preferences.panadapterSettingsOpen[props.slot])
-            }
-            onOpenChange={(open) =>
-              setPreferences("panadapterSettingsOpen", props.slot, open)
-            }
-            class="relative grow h-auto overflow-x-clip min-h-0 bg-transparent select-none"
+          <div
+            class="relative flex w-full grow h-auto overflow-x-clip min-h-0 bg-transparent select-none"
             style={{
               // Chrome insets for the viewport edges this cell touches
               // (animation chain: see ChromeInsetsProvider). Defined on the
@@ -43,19 +32,9 @@ function PanafallCell(props: { slot: SlotId; edges: CellEdges }) {
                 "calc(100% - var(--cell-inset-left) - var(--cell-inset-right))",
             }}
           >
-            <Switch>
-              <Match when={preferences.panadapterSettingsStyle === "sidebar"}>
-                <PanafallSettingsSidebar />
-                <SidebarTrigger class="z-(--z-chrome) absolute left-control-inset top-control-inset select-none aspect-square fancy-bg-background size-control pointer-coarse:border">
-                  <BaselineDisplaySettings />
-                </SidebarTrigger>
-              </Match>
-              <Match when={preferences.panadapterSettingsStyle === "floating"}>
-                <PanSettings />
-              </Match>
-            </Switch>
+            <PanSettings />
             <Panafall index={props.slot} />
-          </SidebarProvider>
+          </div>
         </PanafallProvider>
       )}
     </Show>

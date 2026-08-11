@@ -1,3 +1,4 @@
+import { minBreakInDelayMs } from "@repo/flexlib";
 import type { EqualizerBand } from "@repo/flexlib/flex/state/equalizer";
 import { debounce } from "@solid-primitives/scheduled";
 import {
@@ -69,6 +70,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 
 const PROCESSOR_LEVELS = ["Norm", "DX", "DX+"];
 const VOICE_MODES = new Set(["USB", "LSB", "AM", "SAM", "FM", "NFM"]);
+
+/** Coalesces a slider drag into one command without feeling laggy. */
+const COMMAND_DEBOUNCE_MS = 200;
 
 function TxSection() {
   const { state, radio } = useFlexRadio();
@@ -727,6 +731,10 @@ function CwSection() {
   const { state, radio } = useFlexRadio();
 
   const [rawPitch, setRawPitch] = createSignal(state.status.radio.cwPitchHz);
+  const [rawDelay, setRawDelay] = createSignal(
+    state.status.radio.cwBreakInDelayMs,
+  );
+  const [rawSpeed, setRawSpeed] = createSignal(state.status.radio.cwSpeedWpm);
 
   createEffect(() => setRawPitch(state.status.radio.cwPitchHz));
 
@@ -734,6 +742,40 @@ function CwSection() {
     rawPitch() !== state.status.radio.cwPitchHz
       ? radio()?.setCwPitchHz(rawPitch())
       : null;
+
+  // The radio rejects anything under one dit rather than clamping, so the floor
+  // moves with the keying speed. Enforced by refusing the change rather than by
+  // the slider's own minValue, which would rescale the whole track every time
+  // the speed moved. Read from confirmed state, not the speed slider's local
+  // value, so a drag in progress can't move the floor before the radio agrees.
+  const minDelay = createMemo(() =>
+    minBreakInDelayMs(state.status.radio.cwSpeedWpm),
+  );
+
+  createEffect(() => setRawDelay(state.status.radio.cwBreakInDelayMs));
+  createEffect(() => setRawSpeed(state.status.radio.cwSpeedWpm));
+
+  const applyDelay = (value: number) => {
+    if (value === state.status.radio.cwBreakInDelayMs) return;
+    radio()?.setCwBreakInDelayMs(value);
+  };
+  const debouncedApplyDelay = debounce(applyDelay, COMMAND_DEBOUNCE_MS);
+
+  const applySpeed = (value: number) => {
+    if (value === state.status.radio.cwSpeedWpm) return;
+    radio()?.setCwSpeedWpm(value);
+  };
+  const debouncedApplySpeed = debounce(applySpeed, COMMAND_DEBOUNCE_MS);
+
+  createEffect(() => {
+    if (rawDelay() === state.status.radio.cwBreakInDelayMs) return;
+    debouncedApplyDelay(rawDelay());
+  });
+
+  createEffect(() => {
+    if (rawSpeed() === state.status.radio.cwSpeedWpm) return;
+    debouncedApplySpeed(rawSpeed());
+  });
 
   return (
     <div class="flex flex-col gap-3">
@@ -743,23 +785,19 @@ function CwSection() {
         onSwitchChange={(isChecked) => {
           radio()?.setCwBreakIn(isChecked);
         }}
-        minValue={41}
+        minValue={0}
         maxValue={2000}
-        value={[state.status.radio.cwBreakInDelayMs]}
+        value={[rawDelay()]}
         onChange={([value]) => {
-          if (value === state.status.radio.cwBreakInDelayMs) return;
-          radio()?.setCwBreakInDelayMs(value);
+          setRawDelay(Math.max(value, minDelay()));
         }}
         getValueLabel={(params) => `${params.values[0]} ms`}
       />
       <SimpleSlider
         minValue={5}
         maxValue={100}
-        value={[state.status.radio.cwSpeedWpm]}
-        onChange={([value]) => {
-          if (value === state.status.radio.cwSpeedWpm) return;
-          radio()?.setCwSpeedWpm(value);
-        }}
+        value={[rawSpeed()]}
+        onChange={([value]) => setRawSpeed(value)}
         getValueLabel={(params) => `${params.values[0]} WPM`}
         label="Speed"
       />

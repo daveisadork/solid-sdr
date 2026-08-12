@@ -30,6 +30,7 @@ import SvgSpinners180Ring from "~icons/svg-spinners/180-ring";
 import { usePreferences } from "../../context/preferences";
 import { MidiValueRing } from "../midi-value-ring";
 import { Button } from "../ui/button";
+import { Callout, CalloutContent, CalloutTitle } from "../ui/callout";
 import { Card, CardHeader, CardTitle } from "../ui/card";
 import {
   Combobox,
@@ -245,8 +246,9 @@ function behaviorOptions(
           return [
             { value: "scale-value", label: BEHAVIOR_LABELS["scale-value"] },
           ];
+        default:
+          return [] as never;
       }
-      break;
 
     case "ranged":
       switch (editorKind) {
@@ -283,7 +285,7 @@ function behaviorOptions(
       break;
   }
 
-  return [];
+  return [] as never;
 }
 
 function describeControl(mapping: MidiMapping) {
@@ -334,7 +336,10 @@ function describeBehavior(mapping: MidiMapping) {
   }
 }
 
-function AddMappingDialog(props: { class?: string | undefined }) {
+function AddMappingDialog(props: {
+  class?: string | undefined;
+  disabled?: boolean | undefined;
+}) {
   const { setPreferences } = usePreferences();
   const { inputs } = createMIDIPorts();
   const { getChoices } = useControls();
@@ -681,7 +686,7 @@ function AddMappingDialog(props: { class?: string | undefined }) {
 
   return (
     <Dialog open={open()} onOpenChange={setOpen}>
-      <DialogTrigger as={Button} class={props.class}>
+      <DialogTrigger as={Button} class={props.class} disabled={props.disabled}>
         New
       </DialogTrigger>
       <DialogContent class="translate-y-0 flex flex-col top-1/12 max-h-10/12 overflow-hidden">
@@ -1185,7 +1190,7 @@ function AddMappingDialog(props: { class?: string | undefined }) {
 
 function MidiSettingsInner() {
   const { preferences, setPreferences } = usePreferences();
-  const { inputs } = createMIDIPorts();
+  const { inputs, error: midiError } = createMIDIPorts();
   const [importFile, setImportFile] = createSignal<File>();
 
   const downloadUrl = createMemo(() => {
@@ -1213,6 +1218,14 @@ function MidiSettingsInner() {
   return (
     <>
       <div class="flex flex-col gap-4 overflow-auto shrink">
+        <Show when={midiError()}>
+          {(err) => (
+            <Callout variant="error">
+              <CalloutTitle>MIDI Error</CalloutTitle>
+              <CalloutContent>{err().message}</CalloutContent>
+            </Callout>
+          )}
+        </Show>
         <Table class="whitespace-nowrap">
           <TableHeader>
             <TableRow>
@@ -1274,7 +1287,7 @@ function MidiSettingsInner() {
             Export
           </Button>
         </div>
-        <AddMappingDialog />
+        <AddMappingDialog disabled={Boolean(midiError())} />
       </DialogFooter>
     </>
   );

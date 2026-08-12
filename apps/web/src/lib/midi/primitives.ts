@@ -1,10 +1,12 @@
 import { ReactiveMap } from "@solid-primitives/map";
-import { type Accessor, createMemo, createSignal } from "solid-js";
+import { type Accessor, batch, createMemo, createSignal } from "solid-js";
+import { showToast } from "~/components/ui/toast";
 import { synchronizeMaps } from "../utils";
 
 const inputs = new ReactiveMap<string, MIDIInput>();
 const outputs = new ReactiveMap<string, MIDIOutput>();
 const [access, setAccess] = createSignal<MIDIAccess | undefined>();
+const [error, setError] = createSignal<Error | undefined>();
 
 let accessRequest: Promise<MIDIAccess | undefined> | undefined;
 let attachedAccess: MIDIAccess | undefined;
@@ -22,17 +24,35 @@ function ensureMIDIAccess(options?: MIDIOptions) {
   if (accessRequest || typeof navigator === "undefined") return accessRequest;
   if (!navigator.requestMIDIAccess) return;
 
-  accessRequest = navigator.requestMIDIAccess(options).then((midi) => {
-    if (attachedAccess !== midi) {
-      attachedAccess?.removeEventListener("statechange", onStateChange);
-      attachedAccess = midi;
-      midi.addEventListener("statechange", onStateChange);
-    }
-
-    setAccess(midi);
-    syncPorts(midi);
-    return midi;
-  });
+  accessRequest = navigator.requestMIDIAccess(options).then(
+    (midi) => {
+      if (attachedAccess !== midi) {
+        attachedAccess?.removeEventListener("statechange", onStateChange);
+        attachedAccess = midi;
+        midi.addEventListener("statechange", onStateChange);
+      }
+      batch(() => {
+        setError(undefined);
+        setAccess(midi);
+        syncPorts(midi);
+      });
+      return midi;
+    },
+    (error: Error) => {
+      setError(error);
+      // Chrome rejects with InvalidStateError when the platform MIDI service
+      // fails to start, which outlives any one mount. Dropping the memo lets
+      // the next caller try again instead of inheriting the failure.
+      accessRequest = undefined;
+      console.error("Error initializing MIDI support", error);
+      showToast({
+        title: "MIDI Error",
+        description: error.message,
+        variant: "error",
+      });
+      return undefined;
+    },
+  );
 
   return accessRequest;
 }
@@ -46,7 +66,7 @@ export function createMIDIAccess(
 
 export function createMIDIPorts(options?: MIDIOptions) {
   void ensureMIDIAccess(options);
-  return { inputs, outputs };
+  return { inputs, outputs, error };
 }
 
 export function createReactiveMIDIAccess(

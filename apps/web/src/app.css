@@ -1,6 +1,7 @@
 /* @import url("https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,100..700;1,100..700&display=swap"); */
 /* @import url("https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,100..700;1,100..700&family=Source+Code+Pro:ital,wght@0,200..900;1,200..900&display=swap"); */
 @import url("https://fonts.googleapis.com/css2?family=Google+Sans+Code:ital,wght@0,300..800;1,300..800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Major+Mono+Display&display=swap");
 /* @import url("https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,100..700;1,100..700&family=Roboto:ital,wght@0,100..900;1,100..900&display=swap"); */
 /* @import url("https://fonts.googleapis.com/css2?family=Noto+Sans+Mono:wght@100..900&family=Noto+Sans:ital,wght@0,100..900;1,100..900&display=swap"); */
 @import "tailwindcss";
@@ -340,6 +341,7 @@
   /*   "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"; */
   /* --font-mono: "Source Code Pro", ui-monospace, monospace; */
   --font-mono: "Google Sans Code", ui-monospace, monospace;
+  --font-logo: "Major Mono Display", ui-monospace, monospace;
   /* --font-mono: "Inconsolata", ui-monospace, SFMono-Regular, Menlo, Monaco, */
   /*   Consolas, "Liberation Mono", "Courier New", monospace; */
   --text-trim-both: trim-both;

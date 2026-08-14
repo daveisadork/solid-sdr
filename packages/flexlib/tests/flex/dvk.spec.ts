@@ -71,18 +71,56 @@ describe("DVK snapshot", () => {
     expect(dvk?.recordings[0].durationMs).toBe(3000);
   });
 
+  it("applies marker-less update messages to the recording", () => {
+    // given a store with a recording (wire shapes captured from a FLEX-8600)
+    const store = createRadioStateStore();
+    store.apply(makeStatus("S1|dvk status=idle enabled=1"));
+    store.apply(
+      makeStatus('S2|dvk added id=14 name="Recording 14" duration=0'),
+    );
+
+    // when rename and upload confirmations arrive (no `added` marker)
+    store.apply(makeStatus('S3|dvk id=14 name="ITEST Probe" duration=0'));
+    store.apply(makeStatus('S4|dvk id=14 name="ITEST Probe" duration=500'));
+
+    // then the recording reflects both updates
+    const dvk = store.getDvk();
+    expect(dvk?.recordings).toHaveLength(1);
+    expect(dvk?.recordings[0].name).toBe("ITEST Probe");
+    expect(dvk?.recordings[0].durationMs).toBe(500);
+    // and the global status fields are untouched
+    expect(dvk?.status).toBe("idle");
+    expect(dvk?.statusRecordingId).toBeUndefined();
+  });
+
   it("tracks playback status", () => {
     // given a store with dvk
     const store = createRadioStateStore();
     store.apply(makeStatus("S1|dvk status=idle enabled=1"));
 
     // when playback starts
-    store.apply(makeStatus("S2|dvk status=playback id=1"));
+    store.apply(makeStatus("S2|dvk status=playback id=1 enabled=1"));
 
     // then status and id are updated
     const dvk = store.getDvk();
     expect(dvk?.status).toBe("playback");
     expect(dvk?.statusRecordingId).toBe("1");
+  });
+
+  it("clears statusRecordingId when activity ends", () => {
+    // given an active preview (wire shapes captured from a FLEX-8600)
+    const store = createRadioStateStore();
+    store.apply(makeStatus("S1|dvk status=idle enabled=1"));
+    store.apply(makeStatus("S2|dvk status=preview id=24 enabled=1"));
+    expect(store.getDvk()?.statusRecordingId).toBe("24");
+
+    // when the end-of-preview broadcast arrives (no id key)
+    store.apply(makeStatus("S0|dvk status=idle enabled=1"));
+
+    // then the slot id does not linger
+    const dvk = store.getDvk();
+    expect(dvk?.status).toBe("idle");
+    expect(dvk?.statusRecordingId).toBeUndefined();
   });
 
   it("forces status to disabled when enabled=0 arrives alone", () => {
@@ -130,7 +168,7 @@ describe("DVK snapshot", () => {
     expect(dvk?.statusRecordingId).toBe("5");
   });
 
-  it("does not override when enabled key is absent", () => {
+  it("does not override enabled when its key is absent", () => {
     // given a store in playback
     const store = createRadioStateStore();
     store.apply(makeStatus("S1|dvk status=playback enabled=1 id=5"));
@@ -138,11 +176,12 @@ describe("DVK snapshot", () => {
     // when a status-only update arrives without enabled key
     store.apply(makeStatus("S2|dvk status=idle"));
 
-    // then enabled is unchanged and status/id are not forced
+    // then enabled is unchanged, status applies, and the id is cleared
+    // (a status without an id means the activity is over)
     const dvk = store.getDvk();
     expect(dvk?.enabled).toBe(true);
     expect(dvk?.status).toBe("idle");
-    expect(dvk?.statusRecordingId).toBe("5");
+    expect(dvk?.statusRecordingId).toBeUndefined();
   });
 
   it("snapshot includes dvk", () => {
@@ -174,8 +213,11 @@ describe("DVK controller", () => {
     dvk.on("change", (c) => changes.push(c));
 
     // when commands are sent
-    await dvk.create("New Rec");
-    expect(connection.lastCommand()).toBe('dvk create name="New Rec"');
+    // create is bare; the reply carries the allocated slot as `N-"Name"`
+    connection.prepareResponse("dvk create", { message: '13-"Recording 13"' });
+    const createdId = await dvk.create();
+    expect(connection.lastCommand()).toBe("dvk create");
+    expect(createdId).toBe("13");
 
     await dvk.startRecording("1");
     expect(connection.lastCommand()).toBe("dvk rec_start id=1");
@@ -205,6 +247,18 @@ describe("DVK controller", () => {
     expect(connection.lastCommand()).toBe("dvk clear id=1");
   });
 
+  it("create throws when the reply does not carry a slot id", async () => {
+    // given a connected radio with dvk state
+    const { radio, connection } = await createConnectedRadio();
+    connection.emitStatus("S1|dvk status=idle enabled=1");
+
+    // when the create reply is not the expected `N-"Name"` shape
+    connection.prepareResponse("dvk create", { message: "" });
+
+    // then create rejects instead of returning a bogus id
+    await expect(radio.dvk().create()).rejects.toThrow("dvk create reply");
+  });
+
   it("rejects names containing quotes", async () => {
     // given a connected radio with dvk state
     const { radio, connection } = await createConnectedRadio();
@@ -214,7 +268,7 @@ describe("DVK controller", () => {
 
     // when names contain forbidden quote characters
     // then the commands are refused before reaching the wire
-    await expect(dvk.create('CQ "DX"')).rejects.toThrow("quotes");
+    await expect(dvk.setName("1", 'CQ "DX"')).rejects.toThrow("quotes");
     await expect(dvk.setName("1", "it's")).rejects.toThrow("quotes");
     expect(connection.lastCommand()).toBe(before);
   });
@@ -229,7 +283,7 @@ describe("DVK controller", () => {
     dvk.on("change", (c) => changes.push(c));
 
     // when status changes
-    connection.emitStatus("S2|dvk status=recording id=1");
+    connection.emitStatus("S2|dvk status=recording id=1 enabled=1");
 
     // then change event fires
     expect(changes).toHaveLength(1);
@@ -355,5 +409,37 @@ describe("DVK upload/download", () => {
     expect(connection.commands).toContain("dvk download id=2");
     expect(accept).toHaveBeenCalledWith(42607);
     expect(bytes).toEqual(expected);
+  });
+
+  it("download retries while the file server is busy", async () => {
+    // given a connected radio whose file server is busy (as it is for ~2s
+    // after an upload)
+    const { radio, connection } = await createConnectedRadio();
+    connection.emitStatus("S1|dvk status=idle enabled=1");
+    const expected = new Uint8Array([0xca, 0xfe]);
+    connection.downloadReceiver = {
+      accept: vi.fn(),
+      result: () => Promise.resolve(expected),
+    };
+    connection.prepareResponse("dvk download", {
+      code: 0x50000053,
+      message: "File server busy",
+    });
+
+    // when the download starts against the busy rejection
+    const pending = radio.dvk().download("2");
+    // wait out the first (rejected) attempt, then let the retry succeed
+    await vi.waitFor(() => {
+      expect(
+        connection.commands.filter((c) => c === "dvk download id=2"),
+      ).toHaveLength(1);
+    });
+    connection.prepareResponse("dvk download", { message: "42607" });
+
+    // then the retry completes the transfer
+    expect(await pending).toEqual(expected);
+    expect(
+      connection.commands.filter((c) => c === "dvk download id=2").length,
+    ).toBeGreaterThanOrEqual(2);
   });
 });

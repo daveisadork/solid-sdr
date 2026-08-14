@@ -1,5 +1,9 @@
 import { type Subscription, TypedEventEmitter } from "../util/events.js";
-import { FlexError, FlexStateUnavailableError } from "./errors.js";
+import {
+  FlexCommandRejectedError,
+  FlexError,
+  FlexStateUnavailableError,
+} from "./errors.js";
 import type { FileUpload } from "./file-transfer.js";
 import type { RadioSession } from "./radio-core.js";
 import type {
@@ -18,6 +22,9 @@ export interface DvkControllerEvents {
  * is a generous sanity ceiling rather than a tight bound.
  */
 export const DVK_MAX_WAV_FILE_SIZE_BYTES = 5_000_000;
+
+// Reply codes are hex on the wire; this is "File server busy".
+const FILE_SERVER_BUSY_CODE = 0x50000053;
 
 /**
  * Validates that `data` is a WAV file in the format the radio stores DVK
@@ -91,8 +98,14 @@ export interface DvkController extends Readonly<Omit<DvkSnapshot, "raw">> {
     listener: (payload: DvkControllerEvents[TKey]) => void,
   ): Subscription;
 
-  /** Creates a new recording with the given name. */
-  create(name: string): Promise<void>;
+  /**
+   * Allocates a recording slot and returns its id.
+   *
+   * The radio either reuses an existing empty slot or mints a new one; the
+   * reply carries the allocated slot as `N-"Name"`. Slots get a default name
+   * — use {@link setName} to rename.
+   */
+  create(): Promise<string>;
 
   /** Starts recording into the specified recording slot. */
   startRecording(id: string): Promise<void>;
@@ -167,9 +180,15 @@ export class DvkControllerImpl implements DvkController {
     return this.current().recordings;
   }
 
-  async create(name: string): Promise<void> {
-    validateName(name);
-    await this.radio.command(`dvk create name="${name}"`);
+  async create(): Promise<string> {
+    const response = await this.radio.command("dvk create");
+    const match = /^(\d+)-"/.exec(response.message ?? "");
+    if (!match) {
+      throw new FlexError(
+        `Unexpected dvk create reply: ${JSON.stringify(response.message)}`,
+      );
+    }
+    return match[1];
   }
 
   async startRecording(id: string): Promise<void> {
@@ -220,10 +239,24 @@ export class DvkControllerImpl implements DvkController {
     return this.radio.uploadFile({ target: "dvk_recording", filename, data });
   }
 
-  download(id: string): Promise<Uint8Array> {
-    return this.radio
-      .createDownloadWithCommand(`dvk download id=${id}`)
-      .start();
+  async download(id: string): Promise<Uint8Array> {
+    // The radio's file server stays busy for ~2 s after an upload and
+    // rejects downloads with "File server busy" until it releases, so
+    // retry that specific rejection for a bounded window.
+    const deadline = Date.now() + 5_000;
+    for (;;) {
+      try {
+        return await this.radio
+          .createDownloadWithCommand(`dvk download id=${id}`)
+          .start();
+      } catch (error) {
+        const busy =
+          error instanceof FlexCommandRejectedError &&
+          error.response.code === FILE_SERVER_BUSY_CODE;
+        if (!busy || Date.now() >= deadline) throw error;
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+    }
   }
 
   on<TKey extends keyof DvkControllerEvents>(

@@ -259,18 +259,24 @@ describe("DVK controller", () => {
     await expect(radio.dvk().create()).rejects.toThrow("dvk create reply");
   });
 
-  it("rejects names containing quotes", async () => {
+  it("rejects names containing double quotes, allows single quotes", async () => {
     // given a connected radio with dvk state
     const { radio, connection } = await createConnectedRadio();
     connection.emitStatus("S1|dvk status=idle enabled=1");
     const dvk = radio.dvk();
     const before = connection.lastCommand();
 
-    // when names contain forbidden quote characters
-    // then the commands are refused before reaching the wire
-    await expect(dvk.setName("1", 'CQ "DX"')).rejects.toThrow("quotes");
-    await expect(dvk.setName("1", "it's")).rejects.toThrow("quotes");
+    // when a name contains a double quote (the radio has no escape syntax
+    // and would silently ignore the rename)
+    // then the command is refused before reaching the wire
+    await expect(dvk.setName("1", 'CQ "DX"')).rejects.toThrow("double quotes");
     expect(connection.lastCommand()).toBe(before);
+
+    // but single quotes round-trip fine on a real radio (contractions)
+    await dvk.setName("1", "It's CQ time");
+    expect(connection.lastCommand()).toBe(
+      `dvk set_name name="It's CQ time" id=1`,
+    );
   });
 
   it("emits change events on status updates", async () => {

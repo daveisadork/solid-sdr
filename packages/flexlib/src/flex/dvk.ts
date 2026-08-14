@@ -72,13 +72,13 @@ export function validateDvkWavFile(data: Uint8Array): void {
 }
 
 /**
- * Names travel the wire quote-delimited (`name="X"`) and come back the same
- * way in status messages. No escape syntax is known, so an embedded quote
- * would corrupt the command or the reply parse.
+ * Names travel the wire quote-delimited (`name="X"`). The radio has no
+ * escape syntax — a name containing a double quote is silently ignored
+ * (the old name is kept), so reject it up front. Single quotes are fine.
  */
 function validateName(name: string): void {
-  if (name.includes('"') || name.includes("'")) {
-    throw new FlexError("DVK recording names may not contain quotes");
+  if (name.includes('"')) {
+    throw new FlexError("DVK recording names may not contain double quotes");
   }
 }
 

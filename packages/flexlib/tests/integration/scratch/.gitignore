@@ -1,0 +1,6 @@
+# Ephemeral experiment tests — never committed. Drop a *.itest.ts here to run
+# one-off experiments against the radio with the full harness (recon,
+# tx-inhibit guard, cleanup helpers), then delete it or promote it to a real
+# test next to the others.
+*
+!.gitignore

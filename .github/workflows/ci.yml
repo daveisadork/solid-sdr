@@ -56,7 +56,7 @@ jobs:
         run: pnpm lint --filter=@repo/server
 
       - name: Typecheck
-        run: pnpm check-types
+        run: pnpm typecheck
 
       - name: Test
         run: pnpm test

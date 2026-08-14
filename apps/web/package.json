@@ -5,12 +5,11 @@
   "author": "Dave Hayes <dwhayes@gmail.com>",
   "type": "module",
   "scripts": {
-    "start": "vite",
     "dev": "vite",
     "dev:server": "vite build --watch",
     "build": "vite build",
     "serve": "vite preview",
-    "check-types": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "biome check src",

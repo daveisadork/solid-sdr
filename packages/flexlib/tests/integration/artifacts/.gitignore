@@ -1,0 +1,4 @@
+# Per-run capture output (handshake wire logs, raw discovery packets).
+# Curated captures get promoted by hand into tests/integration/fixtures/.
+*
+!.gitignore

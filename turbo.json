@@ -8,7 +8,7 @@
       "outputs": ["dist/**"]
     },
     "lint": {},
-    "check-types": {},
+    "typecheck": {},
     "dev": {
       "cache": false,
       "persistent": true

@@ -58,7 +58,7 @@
     "build": "tsdown",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check-types": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
     "lint": "biome check src tests",
     "lint:fix": "biome check --write src tests"
   },

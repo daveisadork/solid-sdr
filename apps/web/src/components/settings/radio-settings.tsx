@@ -848,6 +848,13 @@ function RadioSettingsInner(props: { radio: Radio }) {
           <CardTitle>TX Misc</CardTitle>
         </CardHeader>
         <CardContent class="flex flex-col gap-4">
+          <SimpleSwitch
+            checked={state.status.radio.txInhibit}
+            onChange={(isChecked) => {
+              props.radio.setTxInhibit(isChecked);
+            }}
+            label="TX Inhibit (Global)"
+          />
           <SimpleSlider
             minValue={0}
             maxValue={100}

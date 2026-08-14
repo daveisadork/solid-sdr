@@ -1,4 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import {
+  DVK_MAX_WAV_FILE_SIZE_BYTES,
+  validateDvkWavFile,
+} from "../../src/flex/dvk.js";
 import type { RadioStateChange } from "../../src/flex/state/index.js";
 import { createRadioStateStore } from "../../src/flex/state/index.js";
 import { createConnectedRadio, makeStatus } from "../helpers.js";
@@ -38,8 +42,8 @@ describe("DVK snapshot", () => {
     // given a store with a recording
     const store = createRadioStateStore();
     store.apply(makeStatus("S1|dvk status=idle enabled=1"));
-    store.apply(makeStatus("S2|dvk added id=1 name=CQ duration=2000"));
-    store.apply(makeStatus("S3|dvk added id=2 name=73 duration=1500"));
+    store.apply(makeStatus('S2|dvk added id=1 name="CQ" duration=2000'));
+    store.apply(makeStatus('S3|dvk added id=2 name="73" duration=1500'));
     expect(store.getDvk()?.recordings).toHaveLength(2);
 
     // when a recording is deleted
@@ -55,10 +59,10 @@ describe("DVK snapshot", () => {
     // given a store with a recording
     const store = createRadioStateStore();
     store.apply(makeStatus("S1|dvk status=idle enabled=1"));
-    store.apply(makeStatus("S2|dvk added id=1 name=CQ duration=2000"));
+    store.apply(makeStatus('S2|dvk added id=1 name="CQ" duration=2000'));
 
     // when the same recording is re-added with updated info
-    store.apply(makeStatus("S3|dvk added id=1 name=CQ-DX duration=3000"));
+    store.apply(makeStatus('S3|dvk added id=1 name="CQ-DX" duration=3000'));
 
     // then it is updated in place
     const dvk = store.getDvk();
@@ -157,7 +161,7 @@ describe("DVK controller", () => {
     // given a connected radio with dvk state
     const { radio, connection } = await createConnectedRadio();
     connection.emitStatus("S1|dvk status=idle enabled=1");
-    connection.emitStatus("S2|dvk added id=1 name=CQ duration=2000");
+    connection.emitStatus('S2|dvk added id=1 name="CQ" duration=2000');
 
     // then controller reflects state
     const dvk = radio.dvk();
@@ -176,29 +180,43 @@ describe("DVK controller", () => {
     await dvk.startRecording("1");
     expect(connection.lastCommand()).toBe("dvk rec_start id=1");
 
-    await dvk.stopRecording();
-    expect(connection.lastCommand()).toBe("dvk rec_stop");
+    await dvk.stopRecording("1");
+    expect(connection.lastCommand()).toBe("dvk rec_stop id=1");
 
     await dvk.startPreview("1");
     expect(connection.lastCommand()).toBe("dvk preview_start id=1");
 
-    await dvk.stopPreview();
-    expect(connection.lastCommand()).toBe("dvk preview_stop");
+    await dvk.stopPreview("1");
+    expect(connection.lastCommand()).toBe("dvk preview_stop id=1");
 
     await dvk.startPlayback("1");
     expect(connection.lastCommand()).toBe("dvk playback_start id=1");
 
-    await dvk.stopPlayback();
-    expect(connection.lastCommand()).toBe("dvk playback_stop");
+    await dvk.stopPlayback("1");
+    expect(connection.lastCommand()).toBe("dvk playback_stop id=1");
 
     await dvk.remove("1");
     expect(connection.lastCommand()).toBe("dvk remove id=1");
 
     await dvk.setName("1", "Renamed");
-    expect(connection.lastCommand()).toBe('dvk set_name id=1 name="Renamed"');
+    expect(connection.lastCommand()).toBe('dvk set_name name="Renamed" id=1');
 
-    await dvk.clearAll();
-    expect(connection.lastCommand()).toBe("dvk clear");
+    await dvk.clear("1");
+    expect(connection.lastCommand()).toBe("dvk clear id=1");
+  });
+
+  it("rejects names containing quotes", async () => {
+    // given a connected radio with dvk state
+    const { radio, connection } = await createConnectedRadio();
+    connection.emitStatus("S1|dvk status=idle enabled=1");
+    const dvk = radio.dvk();
+    const before = connection.lastCommand();
+
+    // when names contain forbidden quote characters
+    // then the commands are refused before reaching the wire
+    await expect(dvk.create('CQ "DX"')).rejects.toThrow("quotes");
+    await expect(dvk.setName("1", "it's")).rejects.toThrow("quotes");
+    expect(connection.lastCommand()).toBe(before);
   });
 
   it("emits change events on status updates", async () => {
@@ -216,5 +234,126 @@ describe("DVK controller", () => {
     // then change event fires
     expect(changes).toHaveLength(1);
     expect(dvk.status).toBe("recording");
+  });
+});
+
+/** Minimal WAV file: RIFF/WAVE with a fmt chunk and an empty data chunk. */
+function makeWav({
+  channels = 2,
+  sampleRate = 24_000,
+  bitsPerSample = 16,
+} = {}): Uint8Array {
+  const buf = new Uint8Array(44);
+  const view = new DataView(buf.buffer);
+  const tag = (offset: number, text: string) => {
+    for (let i = 0; i < 4; i++) buf[offset + i] = text.charCodeAt(i);
+  };
+  tag(0, "RIFF");
+  view.setUint32(4, 36, true);
+  tag(8, "WAVE");
+  tag(12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true); // PCM
+  view.setUint16(22, channels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * channels * (bitsPerSample / 8), true);
+  view.setUint16(32, channels * (bitsPerSample / 8), true);
+  view.setUint16(34, bitsPerSample, true);
+  tag(36, "data");
+  view.setUint32(40, 0, true);
+  return buf;
+}
+
+describe("validateDvkWavFile", () => {
+  it("accepts 2-channel 16-bit 24 kHz WAV", () => {
+    expect(() => validateDvkWavFile(makeWav())).not.toThrow();
+  });
+
+  it("rejects wrong sample rate, channel count, and bit depth", () => {
+    expect(() => validateDvkWavFile(makeWav({ sampleRate: 48_000 }))).toThrow(
+      "24000",
+    );
+    expect(() => validateDvkWavFile(makeWav({ channels: 1 }))).toThrow(
+      "2-channel",
+    );
+    expect(() => validateDvkWavFile(makeWav({ bitsPerSample: 32 }))).toThrow(
+      "16-bit",
+    );
+  });
+
+  it("rejects non-WAV bytes", () => {
+    expect(() => validateDvkWavFile(new Uint8Array([1, 2, 3]))).toThrow("RIFF");
+  });
+
+  it("rejects oversize files", () => {
+    const big = new Uint8Array(DVK_MAX_WAV_FILE_SIZE_BYTES + 1);
+    expect(() => validateDvkWavFile(big)).toThrow("maximum");
+  });
+});
+
+describe("DVK upload/download", () => {
+  it("marks the slot then uploads via the generic file path", async () => {
+    // given a connected radio with dvk state
+    const { radio, connection } = await createConnectedRadio();
+    connection.emitStatus("S1|dvk status=idle enabled=1");
+    connection.prepareResponse("file upload", { message: "4995" });
+
+    // when a WAV is uploaded into slot 3
+    const wav = makeWav();
+    const upload = await radio.dvk().upload("3", wav, "cq.wav");
+    await new Promise<void>((resolve) => upload.on("done", () => resolve()));
+
+    // then the slot is marked before the file upload command
+    const markIndex = connection.commands.indexOf("dvk upload id=3");
+    const uploadIndex = connection.commands.findIndex((c) =>
+      c.startsWith("file upload"),
+    );
+    expect(markIndex).toBeGreaterThanOrEqual(0);
+    expect(uploadIndex).toBeGreaterThan(markIndex);
+    expect(connection.commands[uploadIndex]).toBe(
+      `file upload ${wav.byteLength} dvk_recording cq.wav`,
+    );
+
+    // and the bytes reach the transport
+    const received = Buffer.concat(
+      connection.uploadedChunks.map((c) => Buffer.from(c)),
+    );
+    expect(received).toEqual(Buffer.from(wav));
+  });
+
+  it("refuses to upload an invalid WAV without touching the wire", async () => {
+    // given a connected radio with dvk state
+    const { radio, connection } = await createConnectedRadio();
+    connection.emitStatus("S1|dvk status=idle enabled=1");
+    const before = connection.commands.length;
+
+    // when a wrong-format WAV is uploaded
+    await expect(
+      radio.dvk().upload("3", makeWav({ sampleRate: 48_000 }), "cq.wav"),
+    ).rejects.toThrow("24000");
+
+    // then no command was sent
+    expect(connection.commands.length).toBe(before);
+  });
+
+  it("downloads a recording via a dvk download command", async () => {
+    // given a connected radio with dvk state and a download receiver
+    const { radio, connection } = await createConnectedRadio();
+    connection.emitStatus("S1|dvk status=idle enabled=1");
+    const expected = new Uint8Array([0xca, 0xfe]);
+    const accept = vi.fn();
+    connection.downloadReceiver = {
+      accept,
+      result: () => Promise.resolve(expected),
+    };
+    connection.prepareResponse("dvk download", { message: "42607" });
+
+    // when slot 2 is downloaded
+    const bytes = await radio.dvk().download("2");
+
+    // then the dvk download command carried the id and the port was accepted
+    expect(connection.commands).toContain("dvk download id=2");
+    expect(accept).toHaveBeenCalledWith(42607);
+    expect(bytes).toEqual(expected);
   });
 });

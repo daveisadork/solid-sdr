@@ -349,6 +349,18 @@ export interface RadioSession {
 
   /** Send a binary payload over the UDP data channel. */
   sendUdp(data: Uint8Array): Promise<void>;
+
+  /** Upload a file to the radio. See {@link Radio.uploadFile}. */
+  uploadFile(opts: UploadFileOptions): Promise<FileUpload>;
+
+  /** Prepare a `file download <target>` from the radio. See {@link Radio.createDownload}. */
+  createDownload(target: string): FileDownload;
+
+  /**
+   * Prepare a download initiated by an arbitrary command whose reply is the
+   * port the radio connects back on (e.g. `dvk download id=N`).
+   */
+  createDownloadWithCommand(command: string): FileDownload;
 }
 
 const DEFAULT_COMMAND_TIMEOUT_MS = 5_000;
@@ -1030,6 +1042,10 @@ class RadioImpl {
    * complete file bytes when the transfer is done.
    */
   createDownload(target: string): FileDownload {
+    return this.createDownloadWithCommand(`file download ${target}`);
+  }
+
+  createDownloadWithCommand(command: string): FileDownload {
     return new FileDownloadImpl(async () => {
       if (
         this._connectionState !== "connecting" &&
@@ -1042,7 +1058,7 @@ class RadioImpl {
 
       const receiver = await conn.prepareDownload(this._endpoint);
 
-      const response = await this.command(`file download ${target}`, {
+      const response = await this.command(command, {
         timeoutMs: 30_000,
       });
       const port = parseInt(response.message ?? "", 10);

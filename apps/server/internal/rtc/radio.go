@@ -269,12 +269,15 @@ func (rc *radioConn) setDownloadDC(dc *webrtc.DataChannel) {
 }
 
 var (
-	reFileDownloadCmd   = regexp.MustCompile(`^C(\d+)\|file download `)
+	// `dvk download id=N` replies are also a port the radio connects back on,
+	// so it takes the same listener-before-reply treatment as `file download`.
+	reFileDownloadCmd   = regexp.MustCompile(`^C(\d+)\|(?:file|dvk) download `)
 	reFileDownloadReply = regexp.MustCompile(`^R(\d+)\|0\|(\d+)\s*$`)
 )
 
 // noteOutgoingCommand inspects data the client is about to send to the radio
-// and records the sequence number of any `file download` command.
+// and records the sequence number of any `file download` or `dvk download`
+// command.
 func (rc *radioConn) noteOutgoingCommand(data []byte) {
 	line := strings.TrimRight(string(data), "\r\n")
 

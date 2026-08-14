@@ -2,6 +2,7 @@ import { Show } from "solid-js";
 import useFlexRadio from "~/context/flexradio";
 import { usePreferences } from "~/context/preferences";
 import { CwxPanel } from "./cwx-panel";
+import { DvkPanel } from "./dvk-panel";
 import { Sidebar, SidebarContent } from "./ui/sidebar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 
@@ -54,7 +55,7 @@ export function ToolsSidebar() {
               value="dvk"
               class="flex flex-col gap-3 py-2 not-data-selected:hidden"
             >
-              <div class="text-sm text-muted-foreground">Coming soon</div>
+              <DvkPanel />
             </TabsContent>
           </Tabs>
         </SidebarContent>

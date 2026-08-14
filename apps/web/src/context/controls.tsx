@@ -226,6 +226,40 @@ function defineCwxMacroControl<TNumber extends number>(macroNumber: TNumber) {
 }
 
 /**
+ * One control per DVK slot position, mirroring the CWX macro controls. Targets
+ * address the Nth recording in display order (sorted by id) rather than the
+ * radio's slot id — slot ids are monotonic and never reused, so a mapping
+ * bound to a raw id would go stale the first time a slot is removed.
+ *
+ * Playback keys the transmitter. The radio enforces its own interlock, but the
+ * control still refuses when TX is not allowed so a stray MIDI press can't
+ * queue up a transmission the panel's own button would have refused.
+ */
+function defineDvkPlaybackControl<TNumber extends number>(position: TNumber) {
+  return defineControl<CommandAction<`dvk.playback.${TNumber}`>>({
+    target: `dvk.playback.${position}`,
+    label: `DVK Playback ${position}`,
+    scope: "radio",
+    ops: [],
+    editor: { kind: "command" },
+    execute(ctx) {
+      const dvk = ctx.state.status.dvk;
+      if (dvk.enabled === false) return;
+      if (ctx.state.status.radio.txAllowed !== true) return;
+      const recording = [...(dvk.recordings ?? [])].sort(
+        (a, b) => Number(a.id) - Number(b.id),
+      )[position - 1];
+      if (!recording || recording.durationMs === 0) return;
+      ctx
+        .radio()
+        ?.dvk()
+        .startPlayback(recording.id)
+        .catch((error) => console.error("DVK playback start failed", error));
+    },
+  });
+}
+
+/**
  * Add new controls here.
  *
  * Each entry is the source of truth for:
@@ -1917,6 +1951,43 @@ export const CONTROL_DEFINITIONS = [
   defineCwxMacroControl(10),
   defineCwxMacroControl(11),
   defineCwxMacroControl(12),
+
+  defineDvkPlaybackControl(1),
+  defineDvkPlaybackControl(2),
+  defineDvkPlaybackControl(3),
+  defineDvkPlaybackControl(4),
+  defineDvkPlaybackControl(5),
+  defineDvkPlaybackControl(6),
+  defineDvkPlaybackControl(7),
+  defineDvkPlaybackControl(8),
+  defineDvkPlaybackControl(9),
+  defineDvkPlaybackControl(10),
+  defineDvkPlaybackControl(11),
+  defineDvkPlaybackControl(12),
+
+  defineControl<CommandAction<"dvk.stop">>({
+    target: "dvk.stop",
+    label: "DVK Stop",
+    scope: "radio",
+    ops: [],
+    editor: { kind: "command" },
+    execute(ctx) {
+      const dvk = ctx.state.status.dvk;
+      const id = dvk.statusRecordingId;
+      if (id === undefined) return;
+      const controller = ctx.radio()?.dvk();
+      if (!controller) return;
+      const stop =
+        dvk.status === "recording"
+          ? controller.stopRecording(id)
+          : dvk.status === "preview"
+            ? controller.stopPreview(id)
+            : dvk.status === "playback"
+              ? controller.stopPlayback(id)
+              : undefined;
+      stop?.catch((error) => console.error("DVK stop failed", error));
+    },
+  }),
 ] as const;
 
 type ControlDefinitionUnion = (typeof CONTROL_DEFINITIONS)[number];

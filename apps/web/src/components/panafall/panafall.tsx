@@ -111,7 +111,7 @@ export function PanafallToggleButton(props: PanafallToggleButtonProps) {
 
 export function Panafall(props: { index: number }) {
   const { preferences, setPreferences } = usePreferences();
-  const { radio, state } = useFlexRadio();
+  const { radio, state, isLicensed } = useFlexRadio();
   const [clickRef, setClickRef] = createSignal<HTMLElement>();
   const [createProfile, setCreateProfile] = createSignal(false);
 
@@ -567,12 +567,7 @@ export function Panafall(props: { index: number }) {
                         >
                           Show Spots
                         </ContextMenuCheckboxItem>
-                        <Show
-                          when={
-                            state.status.featureLicense.features
-                              .PANADAPTER_VISUALS?.enabled
-                          }
-                        >
+                        <Show when={isLicensed("PANADAPTER_VISUALS")}>
                           <ContextMenuCheckboxItem
                             checked={preferences.showDisplayMarkers}
                             onChange={(checked) => {

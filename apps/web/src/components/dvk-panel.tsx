@@ -1,4 +1,4 @@
-import { validateDvkWavFile } from "@repo/flexlib";
+import { type DvkRecording, validateDvkWavFile } from "@repo/flexlib";
 import {
   createEffect,
   createMemo,
@@ -10,12 +10,10 @@ import {
 import useFlexRadio from "~/context/flexradio";
 import { usePreferences } from "~/context/preferences";
 import IconTransmit from "~icons/mdi/access-point";
-import IconDelete from "~icons/mdi/delete-outline";
 import IconDotsVertical from "~icons/mdi/dots-vertical";
 import IconDownload from "~icons/mdi/download";
 import IconEraser from "~icons/mdi/eraser";
 import IconHeadphones from "~icons/mdi/headphones";
-import IconPlus from "~icons/mdi/plus";
 import IconRecord from "~icons/mdi/record";
 import IconStop from "~icons/mdi/stop";
 import IconUpload from "~icons/mdi/upload";
@@ -54,44 +52,19 @@ const MAX_RECORD_MS = 10_000;
 
 const formatDuration = (ms: number) => `${(ms / 1_000).toFixed(1)}s`;
 
-export function DvkPanel() {
+/** Panel and rows both read the radio directly rather than drilling props. */
+function useDvk() {
   const { state, radio } = useFlexRadio();
-  const { preferences, setPreferences } = usePreferences();
 
   const dvk = () => radio()?.dvk();
   const status = () => state.status.dvk.status;
   const activeId = () => state.status.dvk.statusRecordingId;
-  const licensed = () => status() !== "disabled";
+  const recordings = () => state.status.dvk.recordings ?? [];
   const busy = () =>
     status() === "recording" ||
     status() === "preview" ||
     status() === "playback";
   const txAllowed = () => state.status.radio.txAllowed === true;
-
-  /** Slots in stable display order; position = index + 1 (hotkey/MIDI number). */
-  const slots = createMemo(() =>
-    [...(state.status.dvk.recordings ?? [])].sort(
-      (a, b) => Number(a.id) - Number(b.id),
-    ),
-  );
-
-  /** A freshly created slot goes straight into rename, SmartSDR-style. */
-  const [renamingId, setRenamingId] = createSignal<string>();
-
-  const create = async () => {
-    const controller = dvk();
-    if (!controller) return;
-    try {
-      const id = await controller.create();
-      setRenamingId(id);
-    } catch (error) {
-      showToast({
-        title: "DVK slot creation failed",
-        description: error instanceof Error ? error.message : String(error),
-        variant: "error",
-      });
-    }
-  };
 
   const startPlayback = (id: string) => {
     void dvk()
@@ -99,6 +72,7 @@ export function DvkPanel() {
       .catch((error) => console.error("DVK playback start failed", error));
   };
 
+  /** Only one activity runs at a time, so the stop verb follows the status. */
   const stopActive = () => {
     const controller = dvk();
     const id = activeId();
@@ -113,6 +87,31 @@ export function DvkPanel() {
             : undefined;
     void stop?.catch((error) => console.error("DVK stop failed", error));
   };
+
+  return {
+    dvk,
+    status,
+    activeId,
+    recordings,
+    busy,
+    txAllowed,
+    startPlayback,
+    stopActive,
+  };
+}
+
+export function DvkPanel() {
+  const { preferences, setPreferences } = usePreferences();
+  const { dvk, recordings, busy, txAllowed, startPlayback, stopActive } =
+    useDvk();
+
+  /** Slots in stable display order; position = index + 1 (hotkey/MIDI number). */
+  const slots = createMemo(() =>
+    [...recordings()].sort((a, b) => Number(a.id) - Number(b.id)),
+  );
+
+  /** A freshly created slot goes straight into rename, SmartSDR-style. */
+  const [renamingId, setRenamingId] = createSignal<string>();
 
   // Upload goes through one hidden file input; the target slot is latched
   // when the picker opens because the change event arrives much later.
@@ -158,30 +157,6 @@ export function DvkPanel() {
     );
   };
 
-  const download = (id: string, name: string) => {
-    const controller = dvk();
-    if (!controller) return;
-    showToastPromise(
-      (async () => {
-        const data = await controller.download(id);
-        const url = URL.createObjectURL(
-          new Blob([data as BlobPart], { type: "audio/wav" }),
-        );
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `${name || `DVK ${id}`}.wav`;
-        a.click();
-        URL.revokeObjectURL(url);
-      })(),
-      {
-        loading: "Downloading recording…",
-        success: () => "Recording downloaded",
-        error: (error) =>
-          `Download failed: ${error instanceof Error ? error.message : String(error)}`,
-      },
-    );
-  };
-
   createEffect(() => {
     if (!preferences.dvk.playbackHotkeys) return;
     if (!preferences.toolsPanelOpen || preferences.toolsPanel !== "dvk") return;
@@ -199,7 +174,7 @@ export function DvkPanel() {
       event.preventDefault();
       const slot = slots()[index];
       if (!slot || slot.durationMs === 0) return;
-      if (!licensed() || busy() || !txAllowed()) return;
+      if (busy() || !txAllowed()) return;
       startPlayback(slot.id);
     };
     window.addEventListener("keydown", onKeyDown);
@@ -207,84 +182,25 @@ export function DvkPanel() {
   });
 
   return (
-    <div class="flex min-h-0 flex-col gap-3">
-      <Show when={!licensed()}>
-        <div class="rounded-md border border-border p-2 text-sm text-muted-foreground">
-          The Digital Voice Keyer requires a SmartSDR+ feature license.
-        </div>
-      </Show>
-
+    <div class="flex min-h-0 flex-1 flex-col gap-3">
       <div class="flex flex-col gap-2">
         <For each={slots()}>
           {(slot, index) => (
             <SlotRow
-              id={slot.id}
-              name={slot.name}
-              durationMs={slot.durationMs}
+              slot={slot}
               hotkey={SLOT_HOTKEYS[index()]?.label}
-              status={status()}
-              active={activeId() === slot.id && busy()}
-              busy={busy()}
-              licensed={licensed()}
-              txAllowed={txAllowed()}
               renaming={renamingId() === slot.id}
               onRenameStart={() => setRenamingId(slot.id)}
               onRenameEnd={() => setRenamingId(undefined)}
-              onRename={(name) => {
-                void dvk()
-                  ?.setName(slot.id, name)
-                  .catch((error) =>
-                    showToast({
-                      title: "Rename failed",
-                      description:
-                        error instanceof Error ? error.message : String(error),
-                      variant: "error",
-                    }),
-                  );
-              }}
-              onRecord={() =>
-                void dvk()
-                  ?.startRecording(slot.id)
-                  .catch((error) => console.error("DVK record failed", error))
-              }
-              onPreview={() =>
-                void dvk()
-                  ?.startPreview(slot.id)
-                  .catch((error) => console.error("DVK preview failed", error))
-              }
-              onPlayback={() => startPlayback(slot.id)}
-              onStop={stopActive}
               onUpload={() => pickUpload(slot.id)}
-              onDownload={() => download(slot.id, slot.name)}
-              onClear={() =>
-                void dvk()
-                  ?.clear(slot.id)
-                  .catch((error) => console.error("DVK clear failed", error))
-              }
-              onRemove={() =>
-                void dvk()
-                  ?.remove(slot.id)
-                  .catch((error) => console.error("DVK remove failed", error))
-              }
             />
           )}
         </For>
       </div>
 
-      <Show when={slots().length === 0 && licensed()}>
+      <Show when={slots().length === 0}>
         <div class="text-sm text-muted-foreground">No recordings yet.</div>
       </Show>
-
-      <div class="flex items-center gap-2">
-        <Button
-          variant="outline"
-          class="flex-auto"
-          disabled={!licensed() || busy()}
-          onClick={() => void create()}
-        >
-          <IconPlus /> New Slot
-        </Button>
-      </div>
 
       <SimpleSwitch
         checked={preferences.dvk.playbackHotkeys}
@@ -311,35 +227,63 @@ export function DvkPanel() {
 }
 
 function SlotRow(props: {
-  id: string;
-  name: string;
-  durationMs: number;
+  slot: DvkRecording;
   hotkey?: string;
-  status?: string;
-  active: boolean;
-  busy: boolean;
-  licensed: boolean;
-  txAllowed: boolean;
   renaming: boolean;
   onRenameStart: () => void;
   onRenameEnd: () => void;
-  onRename: (name: string) => void;
-  onRecord: () => void;
-  onPreview: () => void;
-  onPlayback: () => void;
-  onStop: () => void;
+  /** Upload is the panel's job — one hidden file input is shared by all rows. */
   onUpload: () => void;
-  onDownload: () => void;
-  onClear: () => void;
-  onRemove: () => void;
 }) {
+  const { dvk, status, activeId, busy, txAllowed, startPlayback, stopActive } =
+    useDvk();
+
   let nameInput: HTMLInputElement | undefined;
 
-  const empty = () => props.durationMs === 0;
+  const empty = () => props.slot.durationMs === 0;
   /** This row's activity, or undefined when the radio is busy elsewhere. */
-  const activity = () => (props.active ? props.status : undefined);
-  /** Everything but this row's own stop control locks while the radio is busy. */
-  const locked = () => !props.licensed || props.busy;
+  const activity = () =>
+    activeId() === props.slot.id && busy() ? status() : undefined;
+  const record = () =>
+    void dvk()
+      ?.startRecording(props.slot.id)
+      .catch((error) => console.error("DVK record failed", error));
+
+  const preview = () =>
+    void dvk()
+      ?.startPreview(props.slot.id)
+      .catch((error) => console.error("DVK preview failed", error));
+
+  const playback = () => startPlayback(props.slot.id);
+
+  const clear = () =>
+    void dvk()
+      ?.clear(props.slot.id)
+      .catch((error) => console.error("DVK clear failed", error));
+
+  const download = () => {
+    const controller = dvk();
+    if (!controller) return;
+    showToastPromise(
+      (async () => {
+        const data = await controller.download(props.slot.id);
+        const url = URL.createObjectURL(
+          new Blob([data as BlobPart], { type: "audio/wav" }),
+        );
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${props.slot.name || `DVK ${props.slot.id}`}.wav`;
+        a.click();
+        URL.revokeObjectURL(url);
+      })(),
+      {
+        loading: "Downloading recording…",
+        success: () => "Recording downloaded",
+        error: (error) =>
+          `Download failed: ${error instanceof Error ? error.message : String(error)}`,
+      },
+    );
+  };
 
   /**
    * The bar is pure CSS: on activation its width transitions 0→100% over the
@@ -351,7 +295,7 @@ function SlotRow(props: {
     const current = activity();
     if (!current) return { width: "0%", transition: "none" };
     const expectedMs =
-      current === "recording" ? MAX_RECORD_MS : props.durationMs;
+      current === "recording" ? MAX_RECORD_MS : props.slot.durationMs;
     return {
       width: "100%",
       transition: `width ${expectedMs}ms linear`,
@@ -367,15 +311,22 @@ function SlotRow(props: {
   const commitRename = () => {
     const value = nameInput?.value.trim();
     props.onRenameEnd();
-    if (!value || value === props.name) return;
+    if (!value || value === props.slot.name) return;
     // The ASCII double quote is unrepresentable on the wire (the radio
     // silently ignores it), but UTF-8 curly quotes round-trip intact —
     // convert typographically: opening after start/whitespace, else closing.
-    props.onRename(
-      value.replace(/"/g, (_match, offset: number, whole: string) =>
-        offset === 0 || /\s/.test(whole[offset - 1]) ? "“" : "”",
-      ),
+    const name = value.replace(/"/g, (_match, offset: number, whole: string) =>
+      offset === 0 || /\s/.test(whole[offset - 1]) ? "“" : "”",
     );
+    void dvk()
+      ?.setName(props.slot.id, name)
+      .catch((error) =>
+        showToast({
+          title: "Rename failed",
+          description: error instanceof Error ? error.message : String(error),
+          variant: "error",
+        }),
+      );
   };
 
   return (
@@ -395,17 +346,17 @@ function SlotRow(props: {
               <button
                 type="button"
                 class="min-w-0 flex-auto truncate text-left text-sm"
-                title={props.name}
+                title={props.slot.name}
                 onDblClick={props.onRenameStart}
               >
-                {props.name}
+                {props.slot.name}
               </button>
             }
           >
             <input
               ref={nameInput}
               class="min-w-0 flex-auto bg-transparent text-sm outline-none border-b border-border"
-              value={props.name}
+              value={props.slot.name}
               spellcheck={false}
               onBlur={commitRename}
               onKeyDown={(event) => {
@@ -414,14 +365,14 @@ function SlotRow(props: {
                   event.currentTarget.blur();
                 } else if (event.key === "Escape") {
                   event.stopPropagation();
-                  event.currentTarget.value = props.name;
+                  event.currentTarget.value = props.slot.name;
                   event.currentTarget.blur();
                 }
               }}
             />
           </Show>
           <span class="shrink-0 font-mono text-xs text-muted-foreground tabular-nums">
-            {formatDuration(props.durationMs)}
+            {formatDuration(props.slot.durationMs)}
           </span>
         </div>
 
@@ -431,11 +382,8 @@ function SlotRow(props: {
               as={Button<"button">}
               size="icon"
               variant={activity() === "recording" ? "destructive" : "outline"}
-              class="size-7 flex-auto"
-              disabled={activity() !== "recording" && locked()}
-              onClick={
-                activity() === "recording" ? props.onStop : props.onRecord
-              }
+              disabled={activity() !== "recording" && busy()}
+              onClick={activity() === "recording" ? stopActive : record}
               aria-label={
                 activity() === "recording" ? "Stop recording" : "Record"
               }
@@ -456,11 +404,8 @@ function SlotRow(props: {
               as={Button<"button">}
               size="icon"
               variant={activity() === "preview" ? "destructive" : "outline"}
-              class="size-7 flex-auto"
-              disabled={activity() !== "preview" && (locked() || empty())}
-              onClick={
-                activity() === "preview" ? props.onStop : props.onPreview
-              }
+              disabled={activity() !== "preview" && (busy() || empty())}
+              onClick={activity() === "preview" ? stopActive : preview}
               aria-label={activity() === "preview" ? "Stop preview" : "Preview"}
             >
               <Show
@@ -482,14 +427,10 @@ function SlotRow(props: {
               as={Button<"button">}
               size="icon"
               variant={activity() === "playback" ? "destructive" : "outline"}
-              class="size-7 flex-auto"
               disabled={
-                activity() !== "playback" &&
-                (locked() || empty() || !props.txAllowed)
+                activity() !== "playback" && (busy() || empty() || !txAllowed())
               }
-              onClick={
-                activity() === "playback" ? props.onStop : props.onPlayback
-              }
+              onClick={activity() === "playback" ? stopActive : playback}
               aria-label={
                 activity() === "playback" ? "Stop playback" : "Transmit"
               }
@@ -513,8 +454,8 @@ function SlotRow(props: {
               as={Button<"button">}
               size="icon"
               variant="ghost"
-              class="size-7 shrink-0"
-              disabled={locked()}
+              class="justify-self-end"
+              disabled={busy()}
               aria-label="Slot actions"
             >
               <IconDotsVertical />
@@ -526,14 +467,11 @@ function SlotRow(props: {
               <DropdownMenuItem onSelect={props.onUpload}>
                 <IconUpload /> Upload WAV…
               </DropdownMenuItem>
-              <DropdownMenuItem disabled={empty()} onSelect={props.onDownload}>
+              <DropdownMenuItem disabled={empty()} onSelect={download}>
                 <IconDownload /> Download WAV
               </DropdownMenuItem>
-              <DropdownMenuItem disabled={empty()} onSelect={props.onClear}>
+              <DropdownMenuItem disabled={empty()} onSelect={clear}>
                 <IconEraser /> Clear Audio
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={props.onRemove}>
-                <IconDelete /> Delete Slot
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

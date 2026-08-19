@@ -86,14 +86,11 @@ function InnerDisplayMarkers() {
 }
 
 export function DisplayMarkers() {
-  const { state } = useFlexRadio();
+  const { isLicensed } = useFlexRadio();
   const { preferences } = usePreferences();
   return (
     <Show
-      when={
-        state.status.featureLicense.features.PANADAPTER_VISUALS?.enabled &&
-        preferences.showDisplayMarkers
-      }
+      when={isLicensed("PANADAPTER_VISUALS") && preferences.showDisplayMarkers}
     >
       <InnerDisplayMarkers />
     </Show>

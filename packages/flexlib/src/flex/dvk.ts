@@ -99,12 +99,10 @@ export interface DvkController extends Readonly<Omit<DvkSnapshot, "raw">> {
   ): Subscription;
 
   /**
-   * Allocates a recording slot and returns its id.
+   * Mints a new recording slot and returns its id.
    *
-   * The radio either reuses an existing empty slot or mints a new one; the
-   * reply carries the allocated slot as `N-"Name"`. Slots get a default name
-   * — use {@link setName} to rename.
-   */
+   * @deprecated Almost certainly not what you want, record over an existing slot instead.
+   * */
   create(): Promise<string>;
 
   /** Starts recording into the specified recording slot. */
@@ -125,7 +123,10 @@ export interface DvkController extends Readonly<Omit<DvkSnapshot, "raw">> {
   /** Stops playback of the specified recording. */
   stopPlayback(id: string): Promise<void>;
 
-  /** Deletes a recording by ID. */
+  /** Deletes a recording slot by ID.
+   *
+   * @deprecated Almost certainly not what you want, use {@link clear} instead.
+   * */
   remove(id: string): Promise<void>;
 
   /** Renames a recording. */

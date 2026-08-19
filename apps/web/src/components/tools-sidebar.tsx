@@ -13,8 +13,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
  * mobile.
  */
 export function ToolsSidebar() {
-  const { state } = useFlexRadio();
+  const { state, isLicensed } = useFlexRadio();
   const { preferences, setPreferences } = usePreferences();
+
+  const dvk = () => isLicensed("DIGITAL_VOICE_KEYER");
 
   return (
     <Show when={state.clientHandle}>
@@ -24,39 +26,45 @@ export function ToolsSidebar() {
         variant={preferences.enableTransparencyEffects ? "floating" : "sidebar"}
         class="absolute h-[calc(100%-var(--inset-bottom))] pr-0 bg-transparent pointer-events-none z-(--z-chrome)"
       >
-        <SidebarContent
-          class="absolute inset-0 gap-0 overflow-y-auto overflow-x-hidden pointer-events-auto"
-          style={{
-            "scrollbar-gutter": "stable",
-            "scrollbar-width": "thin",
-          }}
-        >
+        <SidebarContent class="absolute inset-0 gap-0 overflow-hidden pointer-events-auto py-3">
           <Tabs
-            value={preferences.toolsPanel}
+            // A stored "dvk" outlives the radio it was set on; falling back
+            // keeps the preference intact for the next licensed radio.
+            value={dvk() ? preferences.toolsPanel : "cwx"}
             onChange={(value) => setPreferences("toolsPanel", value)}
-            class="select-none flex min-h-0 flex-1 flex-col p-2"
+            class="select-none flex min-h-0 flex-1 flex-col"
           >
-            <TabsList class="grid w-full grid-cols-2">
-              <TabsTrigger value="cwx">CWX</TabsTrigger>
-              <TabsTrigger value="dvk">DVK</TabsTrigger>
-            </TabsList>
+            <div class="px-3">
+              <TabsList class="grid w-full grid-cols-2">
+                <TabsTrigger value="cwx">CWX</TabsTrigger>
+                <TabsTrigger disabled={!dvk()} value="dvk">
+                  DVK
+                </TabsTrigger>
+              </TabsList>
+            </div>
             {/* forceMount keeps inactive tool state (e.g. CWX send progress)
                 alive across tab flips; Kobalte doesn't hide unselected
                 forceMounted panes, hence not-data-selected:hidden. */}
             <TabsContent
               forceMount
               value="cwx"
-              class="flex min-h-0 flex-1 flex-col gap-3 not-data-selected:hidden"
+              class="flex min-h-0 flex-1 flex-col gap-3 not-data-selected:hidden px-3"
             >
               <CwxPanel />
             </TabsContent>
-            <TabsContent
-              forceMount
-              value="dvk"
-              class="flex flex-col gap-3 py-2 not-data-selected:hidden"
-            >
-              <DvkPanel />
-            </TabsContent>
+            <Show when={dvk()}>
+              <TabsContent
+                forceMount={dvk()}
+                value="dvk"
+                class="flex min-h-0 flex-1 flex-col gap-3 not-data-selected:hidden overflow-y-auto px-3"
+                style={{
+                  "scrollbar-gutter": "stable",
+                  "scrollbar-width": "thin",
+                }}
+              >
+                <DvkPanel />
+              </TabsContent>
+            </Show>
           </Tabs>
         </SidebarContent>
       </Sidebar>

@@ -539,7 +539,7 @@ const AudioControls = (props: {
   slice: SliceState;
   controller: SliceController;
 }) => {
-  const { state } = useFlexRadio();
+  const { isLicensed } = useFlexRadio();
 
   return (
     <Popover>
@@ -662,9 +662,7 @@ const AudioControls = (props: {
             label="Diversity Reception"
           />
           <Show when={props.slice.diversityParent}>
-            <Show
-              when={state.status.featureLicense?.features?.DIV_ESC?.enabled}
-            >
+            <Show when={isLicensed("DIV_ESC")}>
               <SimpleSwitch
                 checked={props.slice.escEnabled}
                 disabled={props.slice.diversityChild}

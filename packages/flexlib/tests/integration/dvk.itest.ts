@@ -2,9 +2,12 @@
  * DVK (Digital Voice Keyer) integration tests.
  *
  * Verified radio behavior these tests guard (FLEX-8600 v4.2.20):
- * - `dvk create` allocates a slot and replies `N-"Name"`. It either reuses an
- *   existing empty slot or mints a new one (ids are monotonic, never reused).
- *   The `name=` argument is ignored; the slot keeps/gets a default name.
+ * - Slot ids are monotonic and never reused. The official SmartSDR panel
+ *   labels each slot's playback button `F<id>` and maps F1-F12 to ids 1-12,
+ *   so a slot minted past id 12 has no reachable keyboard shortcut there —
+ *   and that panel binds no create/remove command, so it cannot recover. This
+ *   suite therefore never calls create/remove: it borrows an existing empty
+ *   slot and restores it. Those two verbs are covered by unit tests only.
  * - Rename/upload/clear confirmations arrive as marker-less updates
  *   (`dvk id=N name="X" duration=D`); add/delete carry `added`/`deleted`.
  * - Upload → download round-trips byte-identically over the inverted-TCP
@@ -19,8 +22,8 @@
  * Safety: NEVER calls playback_start (it keys the transmitter). Recording
  * and preview are local to the radio (mic capture / speaker playback). Runs
  * under the harness tx-inhibit guard; every setting touched (mic source,
- * mic level, TX DAX) is restored, and the slot used is removed (if minted)
- * or restored to name + empty (if reused).
+ * mic level, TX DAX) is restored, and the borrowed slot is put back to its
+ * original name and left empty.
  */
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import { validateDvkWavFile } from "../../src/flex/dvk.js";
@@ -77,12 +80,9 @@ function buildTestWav(): Uint8Array {
 describe("DVK", () => {
   let client: FlexClient;
   let radio: Radio;
-  /** id -> pre-suite recording state, for restore verification. */
-  let baseline: Map<string, { name: string; durationMs: number }>;
+  /** An existing empty slot, borrowed for the run and restored afterwards. */
   let slotId: string | undefined;
   let slotOriginalName: string | undefined;
-  /** True when create minted a slot that was not in the baseline. */
-  let slotMintedByUs = false;
   /** Mic settings captured by the rec test; afterAll backstop restore. */
   let micSelectionToRestore: string | undefined;
   let daxToRestore: boolean | undefined;
@@ -114,12 +114,15 @@ describe("DVK", () => {
       () => radio.getStore().getDvk() !== undefined,
       "initial dvk status after sub dvk all",
     );
-    baseline = new Map(
-      dvk().recordings.map((r) => [
-        r.id,
-        { name: r.name, durationMs: r.durationMs },
-      ]),
-    );
+    const spare = dvk().recordings.find((r) => r.durationMs === 0);
+    if (!spare) {
+      throw new Error(
+        "no empty DVK slot to borrow — clear one on the radio before running " +
+          "this suite (it will not create a slot; see the file header)",
+      );
+    }
+    slotId = spare.id;
+    slotOriginalName = spare.name;
   });
 
   afterAll(async () => {
@@ -140,66 +143,34 @@ describe("DVK", () => {
       ) {
         await radio.setMicLevel(micLevelToRestore).catch(() => {});
       }
-      // A minted slot that a failed step left behind is ours — remove it.
-      if (slotId && slotMintedByUs && slot()) {
-        await dvk()
-          .remove(slotId)
-          .catch(() => {});
-      }
-      // Restore a reused slot: original name, empty content.
-      if (slotId && !slotMintedByUs) {
-        const original = baseline.get(slotId);
-        const current = slot();
-        if (original && current) {
-          if (current.durationMs !== original.durationMs) {
-            await dvk()
-              .clear(slotId)
-              .catch(() => {});
-          }
-          if (current.name !== original.name) {
-            await dvk()
-              .setName(slotId, original.name)
-              .catch(() => {});
-          }
-          await waitFor(() => {
-            const r = slot();
-            return (
-              r !== undefined &&
-              r.name === original.name &&
-              r.durationMs === original.durationMs
-            );
-          }, "slot restore to reflect in state").catch((e) =>
-            console.warn(`[flex-it] dvk slot restore not confirmed: ${e}`),
-          );
+      // Put the borrowed slot back: original name, empty content. Never
+      // remove it — the radio would never hand that id back out.
+      const current = slot();
+      if (slotId && slotOriginalName !== undefined && current) {
+        const originalName = slotOriginalName;
+        if (current.durationMs !== 0) {
+          await dvk()
+            .clear(slotId)
+            .catch(() => {});
         }
+        if (current.name !== originalName) {
+          await dvk()
+            .setName(slotId, originalName)
+            .catch(() => {});
+        }
+        await waitFor(() => {
+          const r = slot();
+          return (
+            r !== undefined && r.name === originalName && r.durationMs === 0
+          );
+        }, "slot restore to reflect in state").catch((e) =>
+          console.warn(`[flex-it] dvk slot restore not confirmed: ${e}`),
+        );
       }
     } finally {
       await radio.disconnect().catch(() => {});
       await client.close().catch(() => {});
     }
-  });
-
-  it("create allocates a slot and returns its id", async () => {
-    // The controller parses the `N-"Name"` reply and throws on any other
-    // shape, so this doubles as the reply-shape guard.
-    const id = await dvk().create();
-    expect(id).toMatch(/^\d+$/);
-
-    const original = baseline.get(id);
-    if (original) {
-      // Radio reused an existing slot. Refuse to go on if it has content.
-      expect(original.durationMs).toBe(0);
-      slotOriginalName = original.name;
-      slotMintedByUs = false;
-    } else {
-      // Radio minted a brand-new slot — ours to remove at the end.
-      slotMintedByUs = true;
-      await waitFor(
-        () => dvk().recordings.some((r) => r.id === id),
-        "minted slot to appear in state",
-      );
-    }
-    slotId = id;
   });
 
   it("set_name round-trips", async () => {
@@ -340,25 +311,5 @@ describe("DVK", () => {
       "clear to zero the slot duration",
     );
     expect(slot()).toBeDefined();
-  });
-
-  it("remove deletes a minted slot; a reused slot gets its name back", async () => {
-    const id = requireSlotId();
-    if (slotMintedByUs) {
-      await dvk().remove(id);
-      await waitFor(
-        () => dvk().recordings.every((r) => r.id !== id),
-        "removed slot to disappear from state",
-      );
-      slotId = undefined;
-    } else {
-      const originalName = slotOriginalName;
-      if (!originalName) throw new Error("reused slot has no recorded name");
-      await dvk().setName(id, originalName);
-      await waitFor(
-        () => slot()?.name === originalName,
-        "original name to reflect in state",
-      );
-    }
   });
 });

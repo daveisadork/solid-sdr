@@ -137,6 +137,7 @@ describe("createRadioStateStore", () => {
     expect(radio?.interlockTx1DelayMs).toBe(35);
     expect(radio?.interlockTxDelayMs).toBe(10);
     expect(radio?.interlockAmplifierHandles).toEqual(["AA", "BB"]);
+    expect(radio?.interlockPttSource).toBe("MIC");
     expect(radio?.txAllowed).toBe(false);
     expect(radio?.mox).toBe(true);
 
@@ -159,6 +160,12 @@ describe("createRadioStateStore", () => {
 
     store.apply(makeStatus("S1|interlock band 1 removed"));
     expect(store.getTxBandSetting("1")).toBeUndefined();
+  });
+
+  it("parses DVK as a ptt source", () => {
+    const store = createRadioStateStore();
+    store.apply(makeStatus("S1|interlock source=DVK"));
+    expect(store.getRadio()?.interlockPttSource).toBe("DVK");
   });
 
   it("parses transmit status fields", () => {

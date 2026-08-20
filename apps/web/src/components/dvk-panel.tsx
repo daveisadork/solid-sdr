@@ -67,26 +67,19 @@ function useDvk() {
   const busy = () => BUSY_STATUSES.has(state.status.dvk.status);
   const txAllowed = () => state.status.radio.txAllowed;
 
-  const startPlayback = (id: string) => {
-    void dvk()
-      ?.startPlayback(id)
-      .catch((error) => console.error("DVK playback start failed", error));
-  };
-
   /** Only one activity runs at a time, so the stop verb follows the status. */
-  const stopActive = () => {
+  const stopActive = async () => {
     const controller = dvk();
     const id = activeId();
     if (!controller || id === undefined) return;
-    const stop =
-      status() === "recording"
-        ? controller.stopRecording(id)
-        : status() === "preview"
-          ? controller.stopPreview(id)
-          : status() === "playback"
-            ? controller.stopPlayback(id)
-            : undefined;
-    void stop?.catch((error) => console.error("DVK stop failed", error));
+    switch (status()) {
+      case "recording":
+        return await controller.stopRecording(id);
+      case "preview":
+        return await controller.stopPreview(id);
+      case "playback":
+        return await controller.stopPlayback(id);
+    }
   };
 
   return {
@@ -96,15 +89,13 @@ function useDvk() {
     recordings,
     busy,
     txAllowed,
-    startPlayback,
     stopActive,
   };
 }
 
 export function DvkPanel() {
   const { preferences, setPreferences } = usePreferences();
-  const { dvk, recordings, busy, txAllowed, startPlayback, stopActive } =
-    useDvk();
+  const { dvk, recordings, busy, stopActive } = useDvk();
 
   // Upload goes through one hidden file input; the target slot is latched
   // when the picker opens because the change event arrives much later.
@@ -132,15 +123,15 @@ export function DvkPanel() {
       return;
     }
     showToastPromise(
-      (async () => {
-        const upload = await controller.upload(id, data, file.name);
-        await new Promise<void>((resolve, reject) => {
-          upload.on("done", () => resolve());
-          upload.on("failed", ({ reason }) =>
-            reject(new Error(reason ?? "upload failed")),
-          );
-        });
-      })(),
+      controller.upload(id, data, file.name).then(
+        (upload) =>
+          new Promise<boolean>((resolve, reject) => {
+            upload.on("done", () => resolve(true));
+            upload.on("failed", ({ reason }) =>
+              reject(new Error(reason ?? "upload failed")),
+            );
+          }),
+      ),
       {
         loading: "Uploading recording…",
         success: () => "Recording uploaded",
@@ -167,8 +158,7 @@ export function DvkPanel() {
       event.preventDefault();
       const slot = recordings()[index];
       if (!slot || slot.durationMs === 0) return;
-      if (busy() || !txAllowed()) return;
-      startPlayback(slot.id);
+      stopActive().then(() => dvk()?.startPlayback(slot.id));
     };
     window.addEventListener("keydown", onKeyDown);
     onCleanup(() => window.removeEventListener("keydown", onKeyDown));
@@ -200,10 +190,9 @@ export function DvkPanel() {
       />
       <SimpleSwitch
         checked={preferences.dvk.compactLayout}
-        onChange={(isChecked) => {
-          console.log(isChecked);
-          setPreferences("dvk", "compactLayout", isChecked);
-        }}
+        onChange={(isChecked) =>
+          setPreferences("dvk", "compactLayout", isChecked)
+        }
         label="Compact Layout"
         description="Hide editing controls"
       />
@@ -229,8 +218,7 @@ function SlotRow(props: {
   /** Upload is the panel's job — one hidden file input is shared by all rows. */
   onUpload: () => void;
 }) {
-  const { dvk, status, activeId, busy, txAllowed, startPlayback, stopActive } =
-    useDvk();
+  const { dvk, status, activeId, busy, txAllowed, stopActive } = useDvk();
 
   const [rawName, setRawName] = createSignal(props.slot.name);
 
@@ -250,32 +238,27 @@ function SlotRow(props: {
   };
 
   const empty = () => props.slot.durationMs === 0;
-  /** This row's activity, or undefined when the radio is busy elsewhere. */
+
   const activity = () =>
     activeId() === props.slot.id && busy() ? status() : null;
+
   const record = () =>
-    void dvk()
-      ?.startRecording(props.slot.id)
-      .catch((error) => console.error("DVK record failed", error));
+    stopActive().then(() => dvk()?.startRecording(props.slot.id));
+
+  const playback = () =>
+    stopActive().then(() => dvk()?.startPlayback(props.slot.id));
 
   const preview = () =>
-    void dvk()
-      ?.startPreview(props.slot.id)
-      .catch((error) => console.error("DVK preview failed", error));
+    stopActive().then(() => dvk()?.startPreview(props.slot.id));
 
-  const playback = () => startPlayback(props.slot.id);
-
-  const clear = () =>
-    void dvk()
-      ?.clear(props.slot.id)
-      .catch((error) => console.error("DVK clear failed", error));
+  const clear = () => dvk()?.clear(props.slot.id);
 
   const download = () => {
     const controller = dvk();
     if (!controller) return;
-    showToastPromise(
-      (async () => {
-        const data = await controller.download(props.slot.id);
+    showToastPromise(controller.download(props.slot.id), {
+      loading: "Downloading recording",
+      success: (data) => {
         const url = URL.createObjectURL(
           new Blob([data as BlobPart], { type: "audio/wav" }),
         );
@@ -284,15 +267,11 @@ function SlotRow(props: {
         a.download = `${props.slot.name || `DVK ${props.slot.id}`}.wav`;
         a.click();
         URL.revokeObjectURL(url);
-        return true;
-      })(),
-      {
-        loading: "Downloading recording…",
-        success: () => "Recording downloaded",
-        error: (error) =>
-          `Download failed: ${error instanceof Error ? error.message : String(error)}`,
+        return `Downloaded ${a.download}`;
       },
-    );
+      error: (error) =>
+        `Download failed: ${error instanceof Error ? error.message : String(error)}`,
+    });
   };
 
   /**
@@ -321,10 +300,10 @@ function SlotRow(props: {
             as={Toggle<"button">}
             variant="outline"
             class="group relative flex hover:bg-accent justify-start data-pressed:border-primary p-0 h-10"
-            pressed={activity() === "preview"}
-            disabled={activity() !== "preview" && (busy() || empty())}
-            onChange={(pressed) => (pressed ? preview() : stopActive())}
-            aria-label={activity() === "preview" ? "Stop" : "Transmit"}
+            pressed={activity() === "playback"}
+            disabled={empty() || !txAllowed()}
+            onChange={(pressed) => (pressed ? playback() : stopActive())}
+            aria-label={activity() === "playback" ? "Stop" : "Transmit"}
           >
             <div class="flex items-center justify-center h-full border-r border-r-input font-mono px-2 group-data-pressed:bg-primary group-data-pressed:text-primary-foreground">
               {props.hotkey ?? props.slot.id}
@@ -343,7 +322,7 @@ function SlotRow(props: {
             </div>
           </TooltipTrigger>
           <TooltipContent>
-            {activity() === "preview" ? "Stop" : "Transmit"}
+            {activity() === "playback" ? "Stop" : "Transmit"}
           </TooltipContent>
         </Tooltip>
       }
@@ -377,7 +356,6 @@ function SlotRow(props: {
             <ToggleGroup
               value={activity()}
               onChange={(value) => {
-                stopActive();
                 switch (value) {
                   case "playback":
                     playback();
@@ -388,6 +366,8 @@ function SlotRow(props: {
                   case "preview":
                     preview();
                     break;
+                  default:
+                    stopActive();
                 }
               }}
             >
@@ -396,10 +376,7 @@ function SlotRow(props: {
                   as={ToggleGroupItem}
                   size="icon"
                   value="recording"
-                  variant={
-                    activity() === "recording" ? "destructive" : "outline"
-                  }
-                  disabled={activity() !== "recording" && busy()}
+                  variant="outline"
                   aria-label={activity() === "recording" ? "Stop" : "Record"}
                 >
                   {(state) => (

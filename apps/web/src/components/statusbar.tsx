@@ -70,7 +70,7 @@ function SidebarToggle() {
   );
 }
 
-function RemoteAudioToggle() {
+function RemoteAudioToggle(props: { class?: string | undefined }) {
   const { preferences, setPreferences } = usePreferences();
   const audioPermission = createPermission("microphone");
 
@@ -83,7 +83,7 @@ function RemoteAudioToggle() {
     <Tooltip>
       <TooltipTrigger
         as={ToggleButton}
-        class="size-control aspect-square"
+        class={cn("size-control aspect-square", props.class)}
         classList={{
           "text-error-foreground":
             preferences.remoteAudio.rx.enabled &&
@@ -259,8 +259,7 @@ export function StatusBar() {
           )}
         </Show>
       </div>
-      <div class="grow not-sm:hidden" />
-      <RemoteAudioToggle />
+      <RemoteAudioToggle class="ms-auto" />
       <Settings />
       <FullscreenButton />
       <NetworkStatus />

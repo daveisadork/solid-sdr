@@ -70,6 +70,9 @@ const ToggleGroupItem = <T extends ValidComponent = "button">(
           variant: context.variant || local.variant,
         }),
         "hover:bg-accent data-pressed:bg-primary data-pressed:text-primary-foreground",
+        "[&_svg]:pointer-events-none",
+        "[&_svg]:size-4",
+        "[&_svg]:shrink-0",
         local.class,
       )}
       {...others}

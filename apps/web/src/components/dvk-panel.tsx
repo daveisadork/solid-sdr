@@ -1,12 +1,7 @@
 import { type DvkRecording, validateDvkWavFile } from "@repo/flexlib";
-import {
-  createEffect,
-  createMemo,
-  createSignal,
-  For,
-  onCleanup,
-  Show,
-} from "solid-js";
+import { Key } from "@solid-primitives/keyed";
+import { createEffect, createSignal, onCleanup, Show } from "solid-js";
+import { Dynamic } from "solid-js/web";
 import useFlexRadio from "~/context/flexradio";
 import { usePreferences } from "~/context/preferences";
 import IconTransmit from "~icons/mdi/access-point";
@@ -25,7 +20,14 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { SimpleSwitch } from "./ui/simple-switch";
+import {
+  TextField,
+  TextFieldDescription,
+  TextFieldInput,
+} from "./ui/text-field";
 import { showToast, showToastPromise } from "./ui/toast";
+import { Toggle } from "./ui/toggle";
+import { ToggleGroup, ToggleGroupItem } from "./ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
 /** Same layer as CWX macros: browsers reserve F1–F12, so Alt+<key>. */
@@ -50,7 +52,9 @@ const SLOT_HOTKEYS = [
  */
 const MAX_RECORD_MS = 10_000;
 
-const formatDuration = (ms: number) => `${(ms / 1_000).toFixed(1)}s`;
+const formatDuration = (ms: number) =>
+  ms ? `${(ms / 1_000).toFixed(1)}s` : "Empty";
+const BUSY_STATUSES = new Set(["recording", "preview", "playback"]);
 
 /** Panel and rows both read the radio directly rather than drilling props. */
 function useDvk() {
@@ -59,12 +63,9 @@ function useDvk() {
   const dvk = () => radio()?.dvk();
   const status = () => state.status.dvk.status;
   const activeId = () => state.status.dvk.statusRecordingId;
-  const recordings = () => state.status.dvk.recordings ?? [];
-  const busy = () =>
-    status() === "recording" ||
-    status() === "preview" ||
-    status() === "playback";
-  const txAllowed = () => state.status.radio.txAllowed === true;
+  const recordings = () => state.status.dvk.recordings;
+  const busy = () => BUSY_STATUSES.has(state.status.dvk.status);
+  const txAllowed = () => state.status.radio.txAllowed;
 
   const startPlayback = (id: string) => {
     void dvk()
@@ -104,14 +105,6 @@ export function DvkPanel() {
   const { preferences, setPreferences } = usePreferences();
   const { dvk, recordings, busy, txAllowed, startPlayback, stopActive } =
     useDvk();
-
-  /** Slots in stable display order; position = index + 1 (hotkey/MIDI number). */
-  const slots = createMemo(() =>
-    [...recordings()].sort((a, b) => Number(a.id) - Number(b.id)),
-  );
-
-  /** A freshly created slot goes straight into rename, SmartSDR-style. */
-  const [renamingId, setRenamingId] = createSignal<string>();
 
   // Upload goes through one hidden file input; the target slot is latched
   // when the picker opens because the change event arrives much later.
@@ -172,7 +165,7 @@ export function DvkPanel() {
       const index = SLOT_HOTKEYS.findIndex((key) => key.code === event.code);
       if (index === -1) return;
       event.preventDefault();
-      const slot = slots()[index];
+      const slot = recordings()[index];
       if (!slot || slot.durationMs === 0) return;
       if (busy() || !txAllowed()) return;
       startPlayback(slot.id);
@@ -182,35 +175,38 @@ export function DvkPanel() {
   });
 
   return (
-    <div class="flex min-h-0 flex-1 flex-col gap-3">
+    <div class="flex min-h-0 flex-1 flex-col gap-3 text-sm">
       <div class="flex flex-col gap-2">
-        <For each={slots()}>
+        <Key each={recordings()} by="id" fallback="No recordings">
           {(slot, index) => (
             <SlotRow
-              slot={slot}
+              slot={slot()}
+              compact={preferences.dvk.compactLayout}
               hotkey={SLOT_HOTKEYS[index()]?.label}
-              renaming={renamingId() === slot.id}
-              onRenameStart={() => setRenamingId(slot.id)}
-              onRenameEnd={() => setRenamingId(undefined)}
-              onUpload={() => pickUpload(slot.id)}
+              onUpload={() => pickUpload(slot().id)}
             />
           )}
-        </For>
+        </Key>
       </div>
 
-      <Show when={slots().length === 0}>
-        <div class="text-sm text-muted-foreground">No recordings yet.</div>
-      </Show>
-
       <SimpleSwitch
+        class="mt-auto"
         checked={preferences.dvk.playbackHotkeys}
         onChange={(isChecked) =>
           setPreferences("dvk", "playbackHotkeys", isChecked)
         }
-        label="Playback Hotkeys"
-        description="Alt + 1-9, 0, -, = transmits a recording while the DVK panel is open. Escape stops."
+        label="Enable Hotkeys"
+        description="Alt + 1-9, 0, -, = to TX, Esc to stop."
       />
-
+      <SimpleSwitch
+        checked={preferences.dvk.compactLayout}
+        onChange={(isChecked) => {
+          console.log(isChecked);
+          setPreferences("dvk", "compactLayout", isChecked);
+        }}
+        label="Compact Layout"
+        description="Hide editing controls"
+      />
       <input
         ref={fileInput}
         type="file"
@@ -229,21 +225,34 @@ export function DvkPanel() {
 function SlotRow(props: {
   slot: DvkRecording;
   hotkey?: string;
-  renaming: boolean;
-  onRenameStart: () => void;
-  onRenameEnd: () => void;
+  compact?: boolean;
   /** Upload is the panel's job — one hidden file input is shared by all rows. */
   onUpload: () => void;
 }) {
   const { dvk, status, activeId, busy, txAllowed, startPlayback, stopActive } =
     useDvk();
 
-  let nameInput: HTMLInputElement | undefined;
+  const [rawName, setRawName] = createSignal(props.slot.name);
+
+  createEffect(() => setRawName(props.slot.name));
+
+  const changeName = () => {
+    let opening = true;
+    const name = rawName()
+      .replace(/["“”]/g, () => {
+        const quote = opening ? "“" : "”";
+        opening = !opening;
+        return quote;
+      })
+      .trim();
+    if (name === props.slot.name) return setRawName(name);
+    dvk()?.setName(props.slot.id, name);
+  };
 
   const empty = () => props.slot.durationMs === 0;
   /** This row's activity, or undefined when the radio is busy elsewhere. */
   const activity = () =>
-    activeId() === props.slot.id && busy() ? status() : undefined;
+    activeId() === props.slot.id && busy() ? status() : null;
   const record = () =>
     void dvk()
       ?.startRecording(props.slot.id)
@@ -275,6 +284,7 @@ function SlotRow(props: {
         a.download = `${props.slot.name || `DVK ${props.slot.id}`}.wav`;
         a.click();
         URL.revokeObjectURL(url);
+        return true;
       })(),
       {
         loading: "Downloading recording…",
@@ -302,181 +312,173 @@ function SlotRow(props: {
     };
   };
 
-  createEffect(() => {
-    if (!props.renaming) return;
-    nameInput?.focus();
-    nameInput?.select();
-  });
-
-  const commitRename = () => {
-    const value = nameInput?.value.trim();
-    props.onRenameEnd();
-    if (!value || value === props.slot.name) return;
-    // The ASCII double quote is unrepresentable on the wire (the radio
-    // silently ignores it), but UTF-8 curly quotes round-trip intact —
-    // convert typographically: opening after start/whitespace, else closing.
-    const name = value.replace(/"/g, (_match, offset: number, whole: string) =>
-      offset === 0 || /\s/.test(whole[offset - 1]) ? "“" : "”",
-    );
-    void dvk()
-      ?.setName(props.slot.id, name)
-      .catch((error) =>
-        showToast({
-          title: "Rename failed",
-          description: error instanceof Error ? error.message : String(error),
-          variant: "error",
-        }),
-      );
-  };
-
   return (
-    <div class="relative overflow-hidden rounded-md border border-border">
-      <div
-        class="absolute inset-y-0 left-0 bg-primary/15"
-        style={progressStyle()}
-      />
-      <div class="relative flex flex-col gap-1 p-2">
-        <div class="flex items-baseline gap-2 min-w-0">
-          <span class="shrink-0 w-4 text-center font-mono text-xs text-muted-foreground">
-            {props.hotkey ?? ""}
-          </span>
-          <Show
-            when={props.renaming}
-            fallback={
-              <button
-                type="button"
-                class="min-w-0 flex-auto truncate text-left text-sm"
-                title={props.slot.name}
-                onDblClick={props.onRenameStart}
-              >
-                {props.slot.name}
-              </button>
-            }
+    <Show
+      when={!props.compact}
+      fallback={
+        <Tooltip>
+          <TooltipTrigger
+            as={Toggle<"button">}
+            variant="outline"
+            class="group relative flex hover:bg-accent justify-start data-pressed:border-primary p-0 h-10"
+            pressed={activity() === "preview"}
+            disabled={activity() !== "preview" && (busy() || empty())}
+            onChange={(pressed) => (pressed ? preview() : stopActive())}
+            aria-label={activity() === "preview" ? "Stop" : "Transmit"}
           >
-            <input
-              ref={nameInput}
-              class="min-w-0 flex-auto bg-transparent text-sm outline-none border-b border-border"
-              value={props.slot.name}
-              spellcheck={false}
-              onBlur={commitRename}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  event.currentTarget.blur();
-                } else if (event.key === "Escape") {
-                  event.stopPropagation();
-                  event.currentTarget.value = props.slot.name;
-                  event.currentTarget.blur();
+            <div class="flex items-center justify-center h-full border-r border-r-input font-mono px-2 group-data-pressed:bg-primary group-data-pressed:text-primary-foreground">
+              {props.hotkey ?? props.slot.id}
+            </div>
+            <div class="relative flex flex-col flex-1 items-stretch px-2 overflow-hidden text-left">
+              <div
+                class="absolute inset-y-0 left-0 bg-input"
+                style={progressStyle()}
+              />
+              <div class="text-nowrap text-ellipsis overflow-hidden">
+                {props.slot.name}
+              </div>
+              <span class="text-xs text-muted-foreground">
+                {formatDuration(props.slot.durationMs)}
+              </span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            {activity() === "preview" ? "Stop" : "Transmit"}
+          </TooltipContent>
+        </Tooltip>
+      }
+    >
+      <div class="relative flex flex-col gap-2 border rounded-md p-2">
+        <div
+          class="absolute inset-y-0 left-0 bg-primary/15 pointer-events-none"
+          style={progressStyle()}
+        />
+        <form
+          class="flex items-center gap-2 min-w-0 w-full"
+          onSubmit={(event) => {
+            event.preventDefault();
+            changeName();
+          }}
+        >
+          <TextField
+            value={rawName()}
+            onChange={setRawName}
+            class="flex flex-col gap-2 w-full"
+          >
+            <TextFieldInput onBlur={changeName} />
+            <TextFieldDescription class="flex">
+              <Show when={props.hotkey}>Alt + {props.hotkey}</Show>
+              <div class="ms-auto">{formatDuration(props.slot.durationMs)}</div>
+            </TextFieldDescription>
+          </TextField>
+        </form>
+        <Show when={true}>
+          <div class="flex items-center gap-1">
+            <ToggleGroup
+              value={activity()}
+              onChange={(value) => {
+                stopActive();
+                switch (value) {
+                  case "playback":
+                    playback();
+                    break;
+                  case "recording":
+                    record();
+                    break;
+                  case "preview":
+                    preview();
+                    break;
                 }
               }}
-            />
-          </Show>
-          <span class="shrink-0 font-mono text-xs text-muted-foreground tabular-nums">
-            {formatDuration(props.slot.durationMs)}
-          </span>
-        </div>
-
-        <div class="flex items-center gap-1">
-          <Tooltip>
-            <TooltipTrigger
-              as={Button<"button">}
-              size="icon"
-              variant={activity() === "recording" ? "destructive" : "outline"}
-              disabled={activity() !== "recording" && busy()}
-              onClick={activity() === "recording" ? stopActive : record}
-              aria-label={
-                activity() === "recording" ? "Stop recording" : "Record"
-              }
             >
-              <Show when={activity() === "recording"} fallback={<IconRecord />}>
-                <IconStop />
-              </Show>
-            </TooltipTrigger>
-            <TooltipContent>
-              {activity() === "recording"
-                ? "Stop recording"
-                : "Record over this slot (max 10 s)"}
-            </TooltipContent>
-          </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger
-              as={Button<"button">}
-              size="icon"
-              variant={activity() === "preview" ? "destructive" : "outline"}
-              disabled={activity() !== "preview" && (busy() || empty())}
-              onClick={activity() === "preview" ? stopActive : preview}
-              aria-label={activity() === "preview" ? "Stop preview" : "Preview"}
-            >
-              <Show
-                when={activity() === "preview"}
-                fallback={<IconHeadphones />}
+              <Tooltip>
+                <TooltipTrigger
+                  as={ToggleGroupItem}
+                  size="icon"
+                  value="recording"
+                  variant={
+                    activity() === "recording" ? "destructive" : "outline"
+                  }
+                  disabled={activity() !== "recording" && busy()}
+                  aria-label={activity() === "recording" ? "Stop" : "Record"}
+                >
+                  {(state) => (
+                    <Dynamic
+                      component={state.pressed() ? IconStop : IconRecord}
+                    />
+                  )}
+                </TooltipTrigger>
+                <TooltipContent>
+                  {activity() === "recording" ? "Stop" : "Record"}
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger
+                  as={ToggleGroupItem}
+                  size="icon"
+                  value="preview"
+                  variant="outline"
+                  disabled={empty()}
+                  aria-label={activity() === "preview" ? "Stop" : "Preview"}
+                >
+                  {(state) => (
+                    <Dynamic
+                      component={state.pressed() ? IconStop : IconHeadphones}
+                    />
+                  )}
+                </TooltipTrigger>
+                <TooltipContent>
+                  {activity() === "preview" ? "Stop" : "Preview"}
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger
+                  as={ToggleGroupItem}
+                  size="icon"
+                  variant="outline"
+                  value="playback"
+                  disabled={empty()}
+                  aria-label={
+                    activity() === "playback" ? "Stop playback" : "Transmit"
+                  }
+                >
+                  {(state) => (
+                    <Dynamic
+                      component={state.pressed() ? IconStop : IconTransmit}
+                    />
+                  )}
+                </TooltipTrigger>
+                <TooltipContent>
+                  {activity() === "playback" ? "Stop" : "Transmit"}
+                </TooltipContent>
+              </Tooltip>
+            </ToggleGroup>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                as={Button<"button">}
+                size="icon"
+                variant="outline"
+                class="shrink-0 ms-auto data-expanded:bg-input "
+                disabled={busy()}
+                aria-label="Slot actions"
               >
-                <IconStop />
-              </Show>
-            </TooltipTrigger>
-            <TooltipContent>
-              {activity() === "preview"
-                ? "Stop preview"
-                : "Play locally without transmitting"}
-            </TooltipContent>
-          </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger
-              as={Button<"button">}
-              size="icon"
-              variant={activity() === "playback" ? "destructive" : "outline"}
-              disabled={
-                activity() !== "playback" && (busy() || empty() || !txAllowed())
-              }
-              onClick={activity() === "playback" ? stopActive : playback}
-              aria-label={
-                activity() === "playback" ? "Stop playback" : "Transmit"
-              }
-            >
-              <Show
-                when={activity() === "playback"}
-                fallback={<IconTransmit />}
-              >
-                <IconStop />
-              </Show>
-            </TooltipTrigger>
-            <TooltipContent>
-              {activity() === "playback"
-                ? "Stop playback"
-                : "Play and transmit — keys the radio"}
-            </TooltipContent>
-          </Tooltip>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              as={Button<"button">}
-              size="icon"
-              variant="ghost"
-              class="justify-self-end"
-              disabled={busy()}
-              aria-label="Slot actions"
-            >
-              <IconDotsVertical />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem onSelect={props.onRenameStart}>
-                Rename
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={props.onUpload}>
-                <IconUpload /> Upload WAV…
-              </DropdownMenuItem>
-              <DropdownMenuItem disabled={empty()} onSelect={download}>
-                <IconDownload /> Download WAV
-              </DropdownMenuItem>
-              <DropdownMenuItem disabled={empty()} onSelect={clear}>
-                <IconEraser /> Clear Audio
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+                <IconDotsVertical />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onSelect={props.onUpload}>
+                  <IconUpload /> Upload WAV…
+                </DropdownMenuItem>
+                <DropdownMenuItem disabled={empty()} onSelect={download}>
+                  <IconDownload /> Download WAV
+                </DropdownMenuItem>
+                <DropdownMenuItem disabled={empty()} onSelect={clear}>
+                  <IconEraser /> Clear Audio
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </Show>
       </div>
-    </div>
+    </Show>
   );
 }

@@ -360,7 +360,7 @@ describe("DVK upload/download", () => {
 
     // when a WAV is uploaded into slot 3
     const wav = makeWav();
-    const upload = await radio.dvk().upload("3", wav, "cq.wav");
+    const upload = await radio.dvk().upload("3", wav);
     await new Promise<void>((resolve) => upload.on("done", () => resolve()));
 
     // then the slot is marked before the file upload command

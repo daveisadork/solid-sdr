@@ -182,11 +182,7 @@ describe("DVK", () => {
   });
 
   it("upload accepts a valid WAV and the slot reports its duration", async () => {
-    const upload = await dvk().upload(
-      requireSlotId(),
-      buildTestWav(),
-      "itest.wav",
-    );
+    const upload = await dvk().upload(requireSlotId(), buildTestWav());
     await new Promise<void>((resolve, reject) => {
       upload.on("done", () => resolve());
       upload.on("failed", ({ reason }) =>

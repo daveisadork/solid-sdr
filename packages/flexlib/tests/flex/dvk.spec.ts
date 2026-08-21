@@ -389,7 +389,7 @@ describe("DVK upload/download", () => {
 
     // when a wrong-format WAV is uploaded
     await expect(
-      radio.dvk().upload("3", makeWav({ sampleRate: 48_000 }), "cq.wav"),
+      radio.dvk().upload("3", makeWav({ sampleRate: 48_000 })),
     ).rejects.toThrow("24000");
 
     // then no command was sent

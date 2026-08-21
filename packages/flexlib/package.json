@@ -18,38 +18,68 @@
     "README.md"
   ],
   "main": "./dist/index.cjs",
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.cts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     },
     "./node": {
-      "types": "./dist/node.d.ts",
-      "import": "./dist/node.js",
-      "require": "./dist/node.cjs"
+      "import": {
+        "types": "./dist/node.d.mts",
+        "default": "./dist/node.mjs"
+      },
+      "require": {
+        "types": "./dist/node.d.cts",
+        "default": "./dist/node.cjs"
+      }
     },
     "./bridge": {
-      "types": "./dist/bridge.d.ts",
-      "import": "./dist/bridge.js",
-      "require": "./dist/bridge.cjs"
+      "import": {
+        "types": "./dist/bridge.d.mts",
+        "default": "./dist/bridge.mjs"
+      },
+      "require": {
+        "types": "./dist/bridge.d.cts",
+        "default": "./dist/bridge.cjs"
+      }
     },
     "./flex": {
-      "types": "./dist/flex.d.ts",
-      "import": "./dist/flex.js",
-      "require": "./dist/flex.cjs"
+      "import": {
+        "types": "./dist/flex.d.mts",
+        "default": "./dist/flex.mjs"
+      },
+      "require": {
+        "types": "./dist/flex.d.cts",
+        "default": "./dist/flex.cjs"
+      }
     },
     "./vita": {
-      "types": "./dist/vita.d.ts",
-      "import": "./dist/vita.js",
-      "require": "./dist/vita.cjs"
+      "import": {
+        "types": "./dist/vita.d.mts",
+        "default": "./dist/vita.mjs"
+      },
+      "require": {
+        "types": "./dist/vita.d.cts",
+        "default": "./dist/vita.cjs"
+      }
     },
     "./util": {
-      "types": "./dist/util.d.ts",
-      "import": "./dist/util.js",
-      "require": "./dist/util.cjs"
+      "import": {
+        "types": "./dist/util.d.mts",
+        "default": "./dist/util.mjs"
+      },
+      "require": {
+        "types": "./dist/util.d.cts",
+        "default": "./dist/util.cjs"
+      }
     },
     "./package.json": "./package.json"
   },

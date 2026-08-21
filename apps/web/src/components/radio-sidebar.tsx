@@ -263,9 +263,10 @@ function TxSection() {
             </SelectTrigger>
             <DropdownMenu>
               <DropdownMenuTrigger
-                as={Button}
+                as={Button<"button">}
                 size="icon"
-                class="absolute right-0 bottom-0"
+                variant="outline"
+                class="absolute right-0 bottom-0 data-expanded:bg-input"
               >
                 <MaterialSymbolsMoreVert />
               </DropdownMenuTrigger>
@@ -581,9 +582,10 @@ function MicSection() {
         </SelectTrigger>
         <DropdownMenu>
           <DropdownMenuTrigger
-            as={Button}
+            as={Button<"button">}
             size="icon"
-            class="absolute right-0 bottom-0"
+            variant="outline"
+            class="absolute right-0 bottom-0 data-expanded:bg-input"
           >
             <MaterialSymbolsMoreVert />
           </DropdownMenuTrigger>

@@ -64,10 +64,12 @@ function parseDvkStatus(value: string): DvkStatus | undefined {
 /**
  * Parses wire attributes into an immutable {@link DvkSnapshot}.
  *
- * DVK status messages come in two forms:
+ * DVK status messages come in three forms:
  * - Global status: `status=idle enabled=1 id=0`
  * - Recording lifecycle: `added id=1 name="Rec 1" duration=5000`
  *   or `deleted id=1`
+ * - Recording update (rename, upload, clear confirmations): same attributes
+ *   as `added` but without the marker, e.g. `id=1 name="Rec 1" duration=500`
  */
 export function createDvkSnapshot(
   attributes: Record<string, string>,
@@ -79,8 +81,18 @@ export function createDvkSnapshot(
   // Check for recording lifecycle events first
   const isAdded = "added" in attributes;
   const isDeleted = "deleted" in attributes;
+  // Rename/upload/clear confirmations carry the same attributes as `added`
+  // but without the marker: `id=1 name="Rec 1" duration=500`. Global status
+  // messages never carry name/duration, so their presence identifies the form.
+  const isUpdate =
+    !isAdded &&
+    !isDeleted &&
+    "id" in attributes &&
+    ("name" in attributes || "duration" in attributes) &&
+    !("status" in attributes) &&
+    !("enabled" in attributes);
 
-  if (isAdded || isDeleted) {
+  if (isAdded || isDeleted || isUpdate) {
     const recId = attributes.id;
     if (recId) {
       const prevRecordings = previous?.recordings ?? EMPTY_RECORDINGS;
@@ -90,9 +102,11 @@ export function createDvkSnapshot(
           partial.recordings = Object.freeze(filtered);
         }
       } else {
-        const name = attributes.name ?? "";
-        const durationMs = parseInteger(attributes.duration) ?? 0;
         const existing = prevRecordings.findIndex((r) => r.id === recId);
+        const prior = existing >= 0 ? prevRecordings[existing] : undefined;
+        const name = attributes.name ?? prior?.name ?? "";
+        const durationMs =
+          parseInteger(attributes.duration) ?? prior?.durationMs ?? 0;
         const recording: DvkRecording = Object.freeze({
           id: recId,
           name,
@@ -127,6 +141,13 @@ export function createDvkSnapshot(
           logUnknownAttribute("dvk", key, value);
           break;
       }
+    }
+
+    // Active statuses (recording/preview) always carry the slot id; the
+    // transition back to idle arrives without one. Keep the two in sync so
+    // a finished activity does not leave a stale id behind.
+    if ("status" in attributes && !("id" in attributes)) {
+      partial.statusRecordingId = undefined;
     }
 
     if ("enabled" in attributes && partial.enabled === false) {

@@ -52,7 +52,14 @@ export type RadioInterlockReason =
   | "NO_TX_ASSIGNED"
   | "TGXL";
 
-export type RadioPttSource = "SW" | "MIC" | "ACC" | "RCA" | "TUNE" | "SWCW";
+export type RadioPttSource =
+  | "SW"
+  | "MIC"
+  | "ACC"
+  | "RCA"
+  | "TUNE"
+  | "SWCW"
+  | "DVK";
 
 export type RadioCwIambicMode = "a" | "b" | "strict_b" | "bug";
 
@@ -1147,6 +1154,7 @@ const PTT_SOURCE_BY_TOKEN: Record<string, RadioPttSource> = {
   RCA: "RCA",
   TUNE: "TUNE",
   SWCW: "SWCW",
+  DVK: "DVK",
 };
 
 const INTERLOCK_MOX_STATES = new Set<RadioInterlockState>([

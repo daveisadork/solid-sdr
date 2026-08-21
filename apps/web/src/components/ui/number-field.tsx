@@ -29,7 +29,7 @@ const NumberFieldGroup: Component<ComponentProps<"div">> = (props) => {
   return (
     <div
       class={cn(
-        "relative rounded-md focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
+        "relative rounded-md focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background",
         local.class,
       )}
       {...others}

@@ -170,6 +170,40 @@ func TestConsumeInternalPingReply_ReportsRTT(t *testing.T) {
 	}
 }
 
+func TestNoteOutgoingCommand_ArmsFileDownload(t *testing.T) {
+	t.Parallel()
+
+	rc := &radioConn{}
+	rc.noteOutgoingCommand([]byte("C12|file download db_package\n"))
+
+	if !rc.pendingDownloadSeqOk || rc.pendingDownloadSeq != 12 {
+		t.Errorf("file download not armed: ok=%v seq=%d", rc.pendingDownloadSeqOk, rc.pendingDownloadSeq)
+	}
+}
+
+func TestNoteOutgoingCommand_ArmsDvkDownload(t *testing.T) {
+	t.Parallel()
+
+	rc := &radioConn{}
+	rc.noteOutgoingCommand([]byte("C34|dvk download id=2\n"))
+
+	if !rc.pendingDownloadSeqOk || rc.pendingDownloadSeq != 34 {
+		t.Errorf("dvk download not armed: ok=%v seq=%d", rc.pendingDownloadSeqOk, rc.pendingDownloadSeq)
+	}
+}
+
+func TestNoteOutgoingCommand_IgnoresOtherCommands(t *testing.T) {
+	t.Parallel()
+
+	rc := &radioConn{}
+	rc.noteOutgoingCommand([]byte("C56|dvk playback_start id=1\n"))
+	rc.noteOutgoingCommand([]byte("C57|file upload 100 dvk_recording cq.wav\n"))
+
+	if rc.pendingDownloadSeqOk {
+		t.Error("non-download commands should not arm the download interception")
+	}
+}
+
 func TestConsumeInternalPingReply_IgnoresNonInternalReply(t *testing.T) {
 	t.Parallel()
 

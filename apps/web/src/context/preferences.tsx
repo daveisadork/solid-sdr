@@ -80,6 +80,12 @@ export interface CwxPreferences {
   macroHotkeys: boolean;
 }
 
+export interface DvkPreferences {
+  /** Enable Alt+1…Alt+= playback hotkeys while the DVK panel is visible. */
+  playbackHotkeys: boolean;
+  compactLayout: boolean;
+}
+
 export interface Preferences {
   stationName: string;
   smoothScroll: boolean;
@@ -122,6 +128,7 @@ export interface Preferences {
   toolsPanelOpen: boolean;
   toolsPanel: string;
   cwx: CwxPreferences;
+  dvk: DvkPreferences;
   guiClientId: string | null;
 }
 
@@ -199,6 +206,10 @@ const getDefaults = (): Preferences => ({
   cwx: {
     live: false,
     macroHotkeys: true,
+  },
+  dvk: {
+    playbackHotkeys: true,
+    compactLayout: false,
   },
   showTxFilterInPan: true,
   dax: {

@@ -203,6 +203,26 @@ export const initialState = () =>
     },
   }) as AppState;
 
+/**
+ * Feature names exactly as the radio announces them in
+ * `license feature name=<NAME> enabled=<0|1> reason=<...>`. Closed on purpose
+ * so a typo is a compile error; add a name here when firmware gains one.
+ */
+export type LicensedFeature =
+  | "ALPHA"
+  | "AUTO_TUNE"
+  | "DIGITAL_VOICE_KEYER"
+  | "DIV_ESC"
+  | "FILTER_PRESET_CONF"
+  | "MULTIFLEX"
+  | "NAVTEX_WF"
+  | "NOISE_FLOOR"
+  | "NOISE_REDUCTION"
+  | "PANADAPTER_VISUALS"
+  | "RAPIDM_LOGGING"
+  | "SMARTLINK"
+  | "WFP";
+
 const FlexRadioContext = createContext<{
   state: AppState;
   setState: SetStoreFunction<AppState>;
@@ -210,6 +230,8 @@ const FlexRadioContext = createContext<{
   bands: ReactiveMap<string, string>;
   radio: () => Radio | null;
   client: Accessor<FlexClient>;
+  /** A feature the radio never announced is treated as unlicensed. */
+  isLicensed: (feature: LicensedFeature) => boolean;
   connect: (addr: { host: string; port: number }) => void;
   disconnect: (reason?: DisconnectedReason) => void;
   sendCommand: (command: string) => Promise<{
@@ -223,6 +245,9 @@ const WS_STATES = ["Connecting...", "Established", "Closing...", "Closed"];
 
 export const FlexRadioProvider: ParentComponent = (props) => {
   const [state, setState] = createStore(initialState());
+
+  const isLicensed = (feature: LicensedFeature) =>
+    state.status.featureLicense?.features?.[feature]?.enabled === true;
   const { preferences, setPreferences } = usePreferences();
   const { peerConnection, rtcState, signalingWsState } = useRtc();
   const [activeRadio, setActiveRadio] = createSignal<Radio | null>(null);
@@ -745,6 +770,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
               connect,
               disconnect,
               bands,
+              isLicensed,
               radio: activeRadio,
               client,
             }}

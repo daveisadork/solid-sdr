@@ -1,4 +1,4 @@
-import { createSignal } from "solid-js";
+import { createSignal, lazy } from "solid-js";
 import { Dynamic } from "solid-js/web";
 import useFlexRadio from "~/context/flexradio";
 import AreaChartIcon from "~icons/material-symbols/area-chart";
@@ -25,36 +25,54 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
-import { AppSettings } from "./app-settings";
-import { AudioSettings } from "./audio-settings";
-import { DaxIqSettings } from "./dax-iq-settings";
-import { DaxSettings } from "./dax-settings";
-import { ImportExport } from "./import-export";
-import { MemorySettings } from "./memory-settings";
-import { Meters } from "./meters";
-import { MidiSettings } from "./midi-settings";
-import { MultiflexSettings } from "./multiflex-settings";
-import { NetworkStats } from "./network-stats";
 import { ProfileSettings } from "./profile-settings";
-import { RadioSettings } from "./radio-settings";
-import { SpotsSettings } from "./spots-settings";
-import { WaveformSettings } from "./waveform-settings";
 
+// Lazy tabs keep settings-only code (and deps like @tanstack/table-core and
+// fflate) out of the entry chunk. ProfileSettings stays static because
+// CreateProfileDialog already pins its module into the entry chunk.
 const tabs = {
-  app: AppSettings,
-  radio: RadioSettings,
-  memory: MemorySettings,
-  spots: SpotsSettings,
-  midi: MidiSettings,
-  dax: DaxSettings,
-  daxIq: DaxIqSettings,
-  audio: AudioSettings,
-  multiflex: MultiflexSettings,
-  network: NetworkStats,
-  waveform: WaveformSettings,
-  meters: Meters,
+  app: lazy(() =>
+    import("./app-settings").then((m) => ({ default: m.AppSettings })),
+  ),
+  radio: lazy(() =>
+    import("./radio-settings").then((m) => ({ default: m.RadioSettings })),
+  ),
+  memory: lazy(() =>
+    import("./memory-settings").then((m) => ({ default: m.MemorySettings })),
+  ),
+  spots: lazy(() =>
+    import("./spots-settings").then((m) => ({ default: m.SpotsSettings })),
+  ),
+  midi: lazy(() =>
+    import("./midi-settings").then((m) => ({ default: m.MidiSettings })),
+  ),
+  dax: lazy(() =>
+    import("./dax-settings").then((m) => ({ default: m.DaxSettings })),
+  ),
+  daxIq: lazy(() =>
+    import("./dax-iq-settings").then((m) => ({ default: m.DaxIqSettings })),
+  ),
+  audio: lazy(() =>
+    import("./audio-settings").then((m) => ({ default: m.AudioSettings })),
+  ),
+  multiflex: lazy(() =>
+    import("./multiflex-settings").then((m) => ({
+      default: m.MultiflexSettings,
+    })),
+  ),
+  network: lazy(() =>
+    import("./network-stats").then((m) => ({ default: m.NetworkStats })),
+  ),
+  waveform: lazy(() =>
+    import("./waveform-settings").then((m) => ({
+      default: m.WaveformSettings,
+    })),
+  ),
+  meters: lazy(() => import("./meters").then((m) => ({ default: m.Meters }))),
   profiles: ProfileSettings,
-  "import/export": ImportExport,
+  "import/export": lazy(() =>
+    import("./import-export").then((m) => ({ default: m.ImportExport })),
+  ),
 };
 
 export function Settings() {

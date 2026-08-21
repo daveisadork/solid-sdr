@@ -142,7 +142,7 @@ export interface DvkController extends Readonly<Omit<DvkSnapshot, "raw">> {
    * then marks the target slot and streams the bytes via the generic file
    * upload path. The returned {@link FileUpload} emits progress/failed/done.
    */
-  upload(id: string, data: Uint8Array, filename: string): Promise<FileUpload>;
+  upload(id: string, data: Uint8Array): Promise<FileUpload>;
 
   /** Downloads the specified recording as raw WAV bytes. */
   download(id: string): Promise<Uint8Array>;
@@ -229,15 +229,11 @@ export class DvkControllerImpl implements DvkController {
     await this.radio.command(`dvk clear id=${id}`);
   }
 
-  async upload(
-    id: string,
-    data: Uint8Array,
-    filename: string,
-  ): Promise<FileUpload> {
+  async upload(id: string, data: Uint8Array): Promise<FileUpload> {
     validateDvkWavFile(data);
     // Marks the slot the following generic file upload lands in.
     await this.radio.command(`dvk upload id=${id}`);
-    return this.radio.uploadFile({ target: "dvk_recording", filename, data });
+    return this.radio.uploadFile({ target: "dvk_recording", data });
   }
 
   async download(id: string): Promise<Uint8Array> {

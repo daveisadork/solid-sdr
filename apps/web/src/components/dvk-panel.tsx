@@ -60,7 +60,11 @@ const BUSY_STATUSES = new Set(["recording", "preview", "playback"]);
 function useDvk() {
   const { state, radio } = useFlexRadio();
 
-  const dvk = () => radio()?.dvk();
+  const dvk = () => {
+    const controller = radio()?.dvk();
+    if (!controller) throw new Error("wtf");
+    return controller;
+  };
   const status = () => state.status.dvk.status;
   const activeId = () => state.status.dvk.statusRecordingId;
   const recordings = () => state.status.dvk.recordings;
@@ -123,10 +127,10 @@ export function DvkPanel() {
       return;
     }
     showToastPromise(
-      controller.upload(id, data, file.name).then(
+      controller.upload(id, data).then(
         (upload) =>
-          new Promise<boolean>((resolve, reject) => {
-            upload.on("done", () => resolve(true));
+          new Promise<void>((resolve, reject) => {
+            upload.on("done", () => resolve());
             upload.on("failed", ({ reason }) =>
               reject(new Error(reason ?? "upload failed")),
             );
@@ -354,6 +358,7 @@ function SlotRow(props: {
         <Show when={true}>
           <div class="flex items-center gap-1">
             <ToggleGroup
+              variant="outline"
               value={activity()}
               onChange={(value) => {
                 switch (value) {
@@ -376,7 +381,6 @@ function SlotRow(props: {
                   as={ToggleGroupItem}
                   size="icon"
                   value="recording"
-                  variant="outline"
                   aria-label={activity() === "recording" ? "Stop" : "Record"}
                 >
                   {(state) => (
@@ -394,7 +398,6 @@ function SlotRow(props: {
                   as={ToggleGroupItem}
                   size="icon"
                   value="preview"
-                  variant="outline"
                   disabled={empty()}
                   aria-label={activity() === "preview" ? "Stop" : "Preview"}
                 >
@@ -412,9 +415,8 @@ function SlotRow(props: {
                 <TooltipTrigger
                   as={ToggleGroupItem}
                   size="icon"
-                  variant="outline"
                   value="playback"
-                  disabled={empty()}
+                  disabled={empty() || !txAllowed()}
                   aria-label={
                     activity() === "playback" ? "Stop playback" : "Transmit"
                   }
@@ -448,7 +450,7 @@ function SlotRow(props: {
                 <DropdownMenuItem disabled={empty()} onSelect={download}>
                   <IconDownload /> Download WAV
                 </DropdownMenuItem>
-                <DropdownMenuItem disabled={empty()} onSelect={clear}>
+                <DropdownMenuItem onSelect={clear}>
                   <IconEraser /> Clear Audio
                 </DropdownMenuItem>
               </DropdownMenuContent>

@@ -85,7 +85,7 @@ const ToastClose = <T extends ValidComponent = "button">(
   return (
     <ToastPrimitive.CloseButton
       class={cn(
-        "absolute right-2 top-2 rounded-md p-1 text-foreground opacity-0 transition-opacity focus:opacity-100 focus:outline-none focus:ring-2 group-hover:opacity-100 group-[.destructive]:text-destructive-foreground group-[.error]:text-error-foreground group-[.success]:text-success-foreground group-[.warning]:text-warning-foreground",
+        "absolute right-2 top-2 rounded-md p-1 text-foreground opacity-0 transition-opacity focus:opacity-100 focus:outline-none focus:ring-offset-2 focus:ring-offset-background focus:ring-2 group-hover:opacity-100 group-[.destructive]:text-destructive-foreground group-[.error]:text-error-foreground group-[.success]:text-success-foreground group-[.warning]:text-warning-foreground",
         local.class,
       )}
       {...others}
@@ -165,7 +165,7 @@ function showToast(props: {
 
 function showToastPromise<T, U>(
   promise: Promise<T> | (() => Promise<T>),
-  options: {
+  options?: {
     loading?: JSX.Element;
     success?: (data: T) => JSX.Element;
     error?: (error: U) => JSX.Element;
@@ -181,17 +181,20 @@ function showToastPromise<T, U>(
     <Toast
       toastId={props.toastId}
       variant={variant[props.state]}
-      duration={options.duration}
+      duration={options?.duration}
     >
       <Switch>
-        <Match when={props.state === "pending"}>{options.loading}</Match>
+        <Match when={props.state === "pending"}>
+          {options?.loading ?? "Loading"}
+        </Match>
         <Match when={props.state === "fulfilled"}>
-          {props.data !== undefined && options.success?.(props.data)}
+          {options?.success?.(props.data as T) ?? "Success"}
         </Match>
         <Match when={props.state === "rejected"}>
-          {props.error !== undefined && options.error?.(props.error)}
+          {options?.error?.(props.error as U) ?? "Error"}
         </Match>
       </Switch>
+      <ToastClose />
     </Toast>
   ));
 }

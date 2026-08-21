@@ -371,7 +371,7 @@ describe("DVK upload/download", () => {
     expect(markIndex).toBeGreaterThanOrEqual(0);
     expect(uploadIndex).toBeGreaterThan(markIndex);
     expect(connection.commands[uploadIndex]).toBe(
-      `file upload ${wav.byteLength} dvk_recording cq.wav`,
+      `file upload ${wav.byteLength} dvk_recording`,
     );
 
     // and the bytes reach the transport

@@ -247,7 +247,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
   const [state, setState] = createStore(initialState());
 
   const isLicensed = (feature: LicensedFeature) =>
-    state.status.featureLicense.features[feature]?.enabled === true;
+    state.status.featureLicense?.features?.[feature]?.enabled === true;
   const { preferences, setPreferences } = usePreferences();
   const { peerConnection, rtcState, signalingWsState } = useRtc();
   const [activeRadio, setActiveRadio] = createSignal<Radio | null>(null);

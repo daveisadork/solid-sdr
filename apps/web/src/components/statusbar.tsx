@@ -259,7 +259,7 @@ export function StatusBar() {
           )}
         </Show>
       </div>
-      <RemoteAudioToggle class="ms-auto" />
+      <RemoteAudioToggle class="md:ms-auto" />
       <Settings />
       <FullscreenButton />
       <NetworkStatus />

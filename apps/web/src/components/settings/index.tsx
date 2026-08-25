@@ -1,4 +1,5 @@
-import { createSignal, lazy } from "solid-js";
+import { useMatch, useNavigate } from "@solidjs/router";
+import { createEffect, lazy } from "solid-js";
 import { Dynamic } from "solid-js/web";
 import useFlexRadio from "~/context/flexradio";
 import AreaChartIcon from "~icons/material-symbols/area-chart";
@@ -49,7 +50,7 @@ const tabs = {
   dax: lazy(() =>
     import("./dax-settings").then((m) => ({ default: m.DaxSettings })),
   ),
-  daxIq: lazy(() =>
+  "dax-iq": lazy(() =>
     import("./dax-iq-settings").then((m) => ({ default: m.DaxIqSettings })),
   ),
   audio: lazy(() =>
@@ -70,17 +71,24 @@ const tabs = {
   ),
   meters: lazy(() => import("./meters").then((m) => ({ default: m.Meters }))),
   profiles: ProfileSettings,
-  "import/export": lazy(() =>
+  "import-export": lazy(() =>
     import("./import-export").then((m) => ({ default: m.ImportExport })),
   ),
 };
 
 export function Settings() {
-  const [activeTab, setActiveTab] = createSignal<keyof typeof tabs | null>(
-    null,
-  );
+  const navigate = useNavigate();
+  const match = useMatch(() => "/settings/:tab");
   const { state } = useFlexRadio();
   const disconnected = () => !state.clientHandle;
+  const activeTab = () => {
+    const tab = match()?.params.tab;
+    return tab != null && tab in tabs ? (tab as keyof typeof tabs) : null;
+  };
+  const setActiveTab = (tab: keyof typeof tabs) => navigate(`/settings/${tab}`);
+  createEffect(() => {
+    if (match() && activeTab() === null) navigate("/", { replace: true });
+  });
   const activeTabComponent = () => {
     const tab = activeTab();
     return tab != null ? tabs[tab] : undefined;
@@ -89,7 +97,7 @@ export function Settings() {
     <>
       <Dialog
         open={activeTab() !== null}
-        onOpenChange={(open) => !open && setActiveTab(null)}
+        onOpenChange={(open) => !open && navigate("/")}
       >
         <Dynamic component={activeTabComponent()} />
       </Dialog>
@@ -155,7 +163,7 @@ export function Settings() {
           </DropdownMenuItem>
           <DropdownMenuItem
             disabled={disconnected()}
-            onSelect={() => setActiveTab("daxIq")}
+            onSelect={() => setActiveTab("dax-iq")}
           >
             <DropdownMenuIcon>
               <AreaChartIcon />
@@ -215,7 +223,7 @@ export function Settings() {
           </DropdownMenuItem>
           <DropdownMenuItem
             disabled={disconnected()}
-            onSelect={() => setActiveTab("import/export")}
+            onSelect={() => setActiveTab("import-export")}
           >
             <DropdownMenuIcon>
               <ApplicationExportIcon />

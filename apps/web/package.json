@@ -53,7 +53,7 @@
     "@solid-primitives/websocket": "^1.4.0",
     "@solid-primitives/workers": "^0.4.3",
     "@solidjs/router": "^1.0.0",
-    "@tanstack/solid-table": "^8.21.3",
+    "@tanstack/solid-table": "^9.1.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "fflate": "^0.8.3",

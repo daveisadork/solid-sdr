@@ -1,12 +1,7 @@
 import { getModelInfo } from "@repo/flexlib";
 import { Key } from "@solid-primitives/keyed";
-import {
-  type ComponentProps,
-  createEffect,
-  createSignal,
-  For,
-  Show,
-} from "solid-js";
+import { useMatch, useNavigate } from "@solidjs/router";
+import { type ComponentProps, createEffect, For, Show } from "solid-js";
 import { Dynamic } from "solid-js/web";
 import useFlexRadio, { ConnectionState } from "~/context/flexradio";
 import MdiCheckNetworkOutline from "~icons/mdi/check-network-outline";
@@ -46,31 +41,19 @@ const STATUS_MAP: Record<string, ComponentProps<typeof Badge>["variant"]> = {
 export default function Connect() {
   const { connect, disconnect, state, client } = useFlexRadio();
 
-  const [open, setOpen] = createSignal(
-    state.connectModal.status === ConnectionState.disconnected,
-  );
+  const navigate = useNavigate();
+  const match = useMatch(() => "/connect");
+  const open = () => Boolean(match());
 
+  // Opening the dialog acts as "disconnect" when a connection is live; the
+  // RouteGuard in app.tsx handles navigating here on connection loss and
+  // away again once connected.
   createEffect((lastOpen) => {
     if (open() && !lastOpen) {
       disconnect();
     }
     return open();
-  }, true);
-
-  createEffect((prevStatus) => {
-    const status = state.connectModal.status;
-    switch (status) {
-      case prevStatus:
-        break;
-      case ConnectionState.connected:
-        setOpen(false);
-        break;
-      case ConnectionState.disconnected:
-        setOpen(true);
-        break;
-    }
-    return status;
-  }, state.connectModal.status);
+  }, open());
 
   const label = () =>
     state.clientHandle ? "Disconnect from radio" : "Connect to radio";
@@ -80,7 +63,7 @@ export default function Connect() {
       open={open()}
       onOpenChange={(openState) => {
         (document.activeElement as HTMLElement)?.blur();
-        setOpen(openState);
+        navigate(openState ? "/connect" : "/");
       }}
     >
       <Tooltip>

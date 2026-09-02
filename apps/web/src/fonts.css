@@ -1,0 +1,156 @@
+/* google-sans-code-300 - latin_latin-ext_math_symbols_symbols2 */
+@font-face {
+  font-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
+  font-family: "Google Sans Code";
+  font-style: normal;
+  font-weight: 300;
+  src:
+    url("/fonts/google-sans-code-v17-latin_latin-ext_math_symbols_symbols2-300.woff2")
+    format("woff2"),
+    /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
+    url("/fonts/google-sans-code-v17-latin_latin-ext_math_symbols_symbols2-300.ttf")
+    format("truetype"); /* Chrome 4+, Firefox 3.5+, IE 9+, Safari 3.1+, iOS 4.2+, Android Browser 2.2+ */
+}
+/* google-sans-code-300italic - latin_latin-ext_math_symbols_symbols2 */
+@font-face {
+  font-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
+  font-family: "Google Sans Code";
+  font-style: italic;
+  font-weight: 300;
+  src:
+    url("/fonts/google-sans-code-v17-latin_latin-ext_math_symbols_symbols2-300italic.woff2")
+    format("woff2"),
+    /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
+    url("/fonts/google-sans-code-v17-latin_latin-ext_math_symbols_symbols2-300italic.ttf")
+    format("truetype"); /* Chrome 4+, Firefox 3.5+, IE 9+, Safari 3.1+, iOS 4.2+, Android Browser 2.2+ */
+}
+/* google-sans-code-regular - latin_latin-ext_math_symbols_symbols2 */
+@font-face {
+  font-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
+  font-family: "Google Sans Code";
+  font-style: normal;
+  font-weight: 400;
+  src:
+    url("/fonts/google-sans-code-v17-latin_latin-ext_math_symbols_symbols2-regular.woff2")
+    format("woff2"),
+    /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
+    url("/fonts/google-sans-code-v17-latin_latin-ext_math_symbols_symbols2-regular.ttf")
+    format("truetype"); /* Chrome 4+, Firefox 3.5+, IE 9+, Safari 3.1+, iOS 4.2+, Android Browser 2.2+ */
+}
+/* google-sans-code-italic - latin_latin-ext_math_symbols_symbols2 */
+@font-face {
+  font-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
+  font-family: "Google Sans Code";
+  font-style: italic;
+  font-weight: 400;
+  src:
+    url("/fonts/google-sans-code-v17-latin_latin-ext_math_symbols_symbols2-italic.woff2")
+    format("woff2"),
+    /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
+    url("/fonts/google-sans-code-v17-latin_latin-ext_math_symbols_symbols2-italic.ttf")
+    format("truetype"); /* Chrome 4+, Firefox 3.5+, IE 9+, Safari 3.1+, iOS 4.2+, Android Browser 2.2+ */
+}
+/* google-sans-code-500 - latin_latin-ext_math_symbols_symbols2 */
+@font-face {
+  font-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
+  font-family: "Google Sans Code";
+  font-style: normal;
+  font-weight: 500;
+  src:
+    url("/fonts/google-sans-code-v17-latin_latin-ext_math_symbols_symbols2-500.woff2")
+    format("woff2"),
+    /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
+    url("/fonts/google-sans-code-v17-latin_latin-ext_math_symbols_symbols2-500.ttf")
+    format("truetype"); /* Chrome 4+, Firefox 3.5+, IE 9+, Safari 3.1+, iOS 4.2+, Android Browser 2.2+ */
+}
+/* google-sans-code-500italic - latin_latin-ext_math_symbols_symbols2 */
+@font-face {
+  font-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
+  font-family: "Google Sans Code";
+  font-style: italic;
+  font-weight: 500;
+  src:
+    url("/fonts/google-sans-code-v17-latin_latin-ext_math_symbols_symbols2-500italic.woff2")
+    format("woff2"),
+    /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
+    url("/fonts/google-sans-code-v17-latin_latin-ext_math_symbols_symbols2-500italic.ttf")
+    format("truetype"); /* Chrome 4+, Firefox 3.5+, IE 9+, Safari 3.1+, iOS 4.2+, Android Browser 2.2+ */
+}
+/* google-sans-code-600 - latin_latin-ext_math_symbols_symbols2 */
+@font-face {
+  font-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
+  font-family: "Google Sans Code";
+  font-style: normal;
+  font-weight: 600;
+  src:
+    url("/fonts/google-sans-code-v17-latin_latin-ext_math_symbols_symbols2-600.woff2")
+    format("woff2"),
+    /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
+    url("/fonts/google-sans-code-v17-latin_latin-ext_math_symbols_symbols2-600.ttf")
+    format("truetype"); /* Chrome 4+, Firefox 3.5+, IE 9+, Safari 3.1+, iOS 4.2+, Android Browser 2.2+ */
+}
+/* google-sans-code-600italic - latin_latin-ext_math_symbols_symbols2 */
+@font-face {
+  font-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
+  font-family: "Google Sans Code";
+  font-style: italic;
+  font-weight: 600;
+  src:
+    url("/fonts/google-sans-code-v17-latin_latin-ext_math_symbols_symbols2-600italic.woff2")
+    format("woff2"),
+    /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
+    url("/fonts/google-sans-code-v17-latin_latin-ext_math_symbols_symbols2-600italic.ttf")
+    format("truetype"); /* Chrome 4+, Firefox 3.5+, IE 9+, Safari 3.1+, iOS 4.2+, Android Browser 2.2+ */
+}
+/* google-sans-code-700 - latin_latin-ext_math_symbols_symbols2 */
+@font-face {
+  font-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
+  font-family: "Google Sans Code";
+  font-style: normal;
+  font-weight: 700;
+  src:
+    url("/fonts/google-sans-code-v17-latin_latin-ext_math_symbols_symbols2-700.woff2")
+    format("woff2"),
+    /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
+    url("/fonts/google-sans-code-v17-latin_latin-ext_math_symbols_symbols2-700.ttf")
+    format("truetype"); /* Chrome 4+, Firefox 3.5+, IE 9+, Safari 3.1+, iOS 4.2+, Android Browser 2.2+ */
+}
+/* google-sans-code-700italic - latin_latin-ext_math_symbols_symbols2 */
+@font-face {
+  font-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
+  font-family: "Google Sans Code";
+  font-style: italic;
+  font-weight: 700;
+  src:
+    url("/fonts/google-sans-code-v17-latin_latin-ext_math_symbols_symbols2-700italic.woff2")
+    format("woff2"),
+    /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
+    url("/fonts/google-sans-code-v17-latin_latin-ext_math_symbols_symbols2-700italic.ttf")
+    format("truetype"); /* Chrome 4+, Firefox 3.5+, IE 9+, Safari 3.1+, iOS 4.2+, Android Browser 2.2+ */
+}
+/* google-sans-code-800 - latin_latin-ext_math_symbols_symbols2 */
+@font-face {
+  font-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
+  font-family: "Google Sans Code";
+  font-style: normal;
+  font-weight: 800;
+  src:
+    url("/fonts/google-sans-code-v17-latin_latin-ext_math_symbols_symbols2-800.woff2")
+    format("woff2"),
+    /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
+    url("/fonts/google-sans-code-v17-latin_latin-ext_math_symbols_symbols2-800.ttf")
+    format("truetype"); /* Chrome 4+, Firefox 3.5+, IE 9+, Safari 3.1+, iOS 4.2+, Android Browser 2.2+ */
+}
+/* google-sans-code-800italic - latin_latin-ext_math_symbols_symbols2 */
+@font-face {
+  font-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
+  font-family: "Google Sans Code";
+  font-style: italic;
+  font-weight: 800;
+  src:
+    url("/fonts/google-sans-code-v17-latin_latin-ext_math_symbols_symbols2-800italic.woff2")
+    format("woff2"),
+    /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
+    url("/fonts/google-sans-code-v17-latin_latin-ext_math_symbols_symbols2-800italic.ttf")
+    format("truetype"); /* Chrome 4+, Firefox 3.5+, IE 9+, Safari 3.1+, iOS 4.2+, Android Browser 2.2+ */
+}

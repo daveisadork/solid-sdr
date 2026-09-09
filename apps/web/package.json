@@ -30,7 +30,7 @@
     "unplugin-icons": "^23.0.1",
     "vite": "^8.2.2",
     "vite-plugin-solid": "^2.11.14",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.0"
   },
   "dependencies": {
     "@corvu/resizable": "^0.2.5",

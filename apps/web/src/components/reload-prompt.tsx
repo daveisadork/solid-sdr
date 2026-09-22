@@ -89,7 +89,7 @@ export function ReloadPrompt() {
           data-expanded={show() ? "" : undefined}
         >
           <CalloutTitle class="text-foreground">
-            A new version of SolidSDR is available.
+            SolidSDR has been updated.
           </CalloutTitle>
           <CalloutContent class="flex flex-col gap-2">
             <p class="text-foreground">

@@ -40,13 +40,30 @@ export default defineConfig({
     VitePWA({
       registerType: "prompt",
       injectRegister: false,
-      manifest: false,
       includeManifestIcons: false,
+      devOptions: {
+        enabled: true,
+        // generateSW globs dist, which does not exist in `vite`. Give workbox a dummy file.
+        suppressWarnings: true,
+      },
+      manifest: {
+        name: "SolidSDR",
+        short_name: "SolidSDR",
+        description: "Web client for FlexRadio SmartSDR radios.",
+        start_url: "/",
+        scope: "/",
+        display: "standalone",
+        background_color: "#011d2d",
+        theme_color: "#000000",
+      },
+      pwaAssets: {
+        config: true,
+      },
       workbox: {
         // Workbox-generated responses omit COOP/COEP. This app needs those
         // headers on documents for SharedArrayBuffer, so do not precache HTML
         // or intercept navigations.
-        globPatterns: ["**/*.{js,css,wasm}"],
+        globPatterns: ["**/*.{js,css,wasm,svg,png,ico}"],
         navigateFallback: "",
         cleanupOutdatedCaches: true,
         inlineWorkboxRuntime: true,

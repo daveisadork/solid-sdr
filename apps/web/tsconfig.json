@@ -10,7 +10,11 @@
     "skipLibCheck": true,
     "strict": true,
     "noEmit": true,
-    "types": ["vite/client", "unplugin-icons/types/solid"],
+    "types": [
+      "vite/client",
+      "unplugin-icons/types/solid",
+      "vite-plugin-pwa/solid"
+    ],
     "isolatedModules": true,
     "paths": {
       "~/*": ["./src/*"],

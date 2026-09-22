@@ -1,7 +1,8 @@
 import { useMatch, useNavigate } from "@solidjs/router";
-import { createEffect, lazy } from "solid-js";
+import { type Component, createEffect, ErrorBoundary, lazy } from "solid-js";
 import { Dynamic } from "solid-js/web";
 import useFlexRadio from "~/context/flexradio";
+import { reloadToNewVersion, requestAppReload } from "~/lib/app-reload";
 import AreaChartIcon from "~icons/material-symbols/area-chart";
 import BookmarksIcon from "~icons/material-symbols/bookmarks";
 import CableIcon from "~icons/material-symbols/cable";
@@ -17,7 +18,15 @@ import FloppyDiscMultipleIcon from "~icons/mdi/floppy-disc-multiple";
 import LocationMultipleIcon from "~icons/mdi/location-multiple";
 import MonitorMultipleIcon from "~icons/mdi/monitor-multiple";
 import MdiSettings from "~icons/mdi/settings";
-import { Dialog } from "../ui/dialog";
+import { Button } from "../ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,50 +37,77 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { ProfileSettings } from "./profile-settings";
 
+function lazyTab<T extends Component>(loader: () => Promise<{ default: T }>) {
+  return lazy(() =>
+    loader().catch((error: unknown) => {
+      requestAppReload();
+      throw error;
+    }),
+  );
+}
+
+function StaleChunkFallback() {
+  return (
+    <DialogContent>
+      <DialogHeader>
+        <DialogTitle>A new version of SolidSDR is available.</DialogTitle>
+        <DialogDescription>
+          Reload the page to use the new version.
+        </DialogDescription>
+      </DialogHeader>
+      <DialogFooter>
+        <Button onClick={() => reloadToNewVersion()}>Reload</Button>
+      </DialogFooter>
+    </DialogContent>
+  );
+}
+
 // Lazy tabs keep settings-only code (and deps like @tanstack/table-core and
 // fflate) out of the entry chunk. ProfileSettings stays static because
 // CreateProfileDialog already pins its module into the entry chunk.
 const tabs = {
-  app: lazy(() =>
+  app: lazyTab(() =>
     import("./app-settings").then((m) => ({ default: m.AppSettings })),
   ),
-  radio: lazy(() =>
+  radio: lazyTab(() =>
     import("./radio-settings").then((m) => ({ default: m.RadioSettings })),
   ),
-  memory: lazy(() =>
+  memory: lazyTab(() =>
     import("./memory-settings").then((m) => ({ default: m.MemorySettings })),
   ),
-  spots: lazy(() =>
+  spots: lazyTab(() =>
     import("./spots-settings").then((m) => ({ default: m.SpotsSettings })),
   ),
-  midi: lazy(() =>
+  midi: lazyTab(() =>
     import("./midi-settings").then((m) => ({ default: m.MidiSettings })),
   ),
-  dax: lazy(() =>
+  dax: lazyTab(() =>
     import("./dax-settings").then((m) => ({ default: m.DaxSettings })),
   ),
-  "dax-iq": lazy(() =>
+  "dax-iq": lazyTab(() =>
     import("./dax-iq-settings").then((m) => ({ default: m.DaxIqSettings })),
   ),
-  audio: lazy(() =>
+  audio: lazyTab(() =>
     import("./audio-settings").then((m) => ({ default: m.AudioSettings })),
   ),
-  multiflex: lazy(() =>
+  multiflex: lazyTab(() =>
     import("./multiflex-settings").then((m) => ({
       default: m.MultiflexSettings,
     })),
   ),
-  network: lazy(() =>
+  network: lazyTab(() =>
     import("./network-stats").then((m) => ({ default: m.NetworkStats })),
   ),
-  waveform: lazy(() =>
+  waveform: lazyTab(() =>
     import("./waveform-settings").then((m) => ({
       default: m.WaveformSettings,
     })),
   ),
-  meters: lazy(() => import("./meters").then((m) => ({ default: m.Meters }))),
+  meters: lazyTab(() =>
+    import("./meters").then((m) => ({ default: m.Meters })),
+  ),
   profiles: ProfileSettings,
-  "import-export": lazy(() =>
+  "import-export": lazyTab(() =>
     import("./import-export").then((m) => ({ default: m.ImportExport })),
   ),
 };
@@ -99,7 +135,9 @@ export function Settings() {
         open={activeTab() !== null}
         onOpenChange={(open) => !open && navigate("/")}
       >
-        <Dynamic component={activeTabComponent()} />
+        <ErrorBoundary fallback={() => <StaleChunkFallback />}>
+          <Dynamic component={activeTabComponent()} />
+        </ErrorBoundary>
       </Dialog>
       <DropdownMenu>
         <Tooltip>

@@ -3,8 +3,6 @@ import {
   minimal2023Preset,
 } from "@vite-pwa/assets-generator/config";
 
-const background = "#011d2d";
-
 export default defineConfig({
   headLinkOptions: {
     preset: "2023",
@@ -13,12 +11,12 @@ export default defineConfig({
     ...minimal2023Preset,
     maskable: {
       ...minimal2023Preset.maskable,
-      resizeOptions: { background, fit: "cover" },
+      padding: 0,
     },
     apple: {
       ...minimal2023Preset.apple,
-      resizeOptions: { background, fit: "cover" },
+      padding: 0,
     },
   },
-  images: ["public/icon-transparent.svg"],
+  images: ["public/favicon.svg"],
 });

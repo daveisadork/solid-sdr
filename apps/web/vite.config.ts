@@ -40,7 +40,6 @@ export default defineConfig({
     VitePWA({
       registerType: "prompt",
       injectRegister: false,
-      includeManifestIcons: false,
       devOptions: {
         enabled: true,
         // generateSW globs dist, which does not exist in `vite`. Give workbox a dummy file.
@@ -63,10 +62,38 @@ export default defineConfig({
         // Workbox-generated responses omit COOP/COEP. This app needs those
         // headers on documents for SharedArrayBuffer, so do not precache HTML
         // or intercept navigations.
-        globPatterns: ["**/*.{js,css,wasm,svg,png,ico}"],
+        globPatterns: ["**/*.{js,html,css,wasm,svg,png,ico,tff,woff2}"],
         navigateFallback: "",
         cleanupOutdatedCaches: true,
-        inlineWorkboxRuntime: true,
+        // runtimeCaching: [
+        //   {
+        //     urlPattern: ({ request }) =>
+        //       ["document", "iframe", "worker"].includes(request.destination),
+        //     handler: "CacheFirst",
+        //     // options: {
+        //     //   plugins: [
+        //     //     {
+        //     //       handlerWillRespond: async ({ request, response }) => {
+        //     //         const headers = new Headers(response.headers);
+        //     //         headers.set("Cross-Origin-Embedder-Policy", "require-corp");
+        //     //         headers.set("Cross-Origin-Opener-Policy", "same-origin");
+        //     //         headers.set("Cross-Origin-Resource-Policy", "same-origin");
+        //     //
+        //     //         console.log(
+        //     //           `[Service Worker] Adding COEP/COOP headers to ${request.url}`,
+        //     //         );
+        //     //
+        //     //         return new Response(response.body, {
+        //     //           headers,
+        //     //           status: response.status,
+        //     //           statusText: response.statusText,
+        //     //         });
+        //     //       },
+        //     //     },
+        //     //   ],
+        //     // },
+        //   },
+        // ],
       },
     }),
   ],

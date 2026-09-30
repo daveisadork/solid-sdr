@@ -13,7 +13,6 @@ function updateDateNow() {
 function subscribe() {
   subscribers += 1;
   if (callback === null) {
-    console.log("starting callback");
     updateDateNow();
   }
 }

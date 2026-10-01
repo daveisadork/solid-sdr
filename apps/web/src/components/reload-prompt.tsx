@@ -3,16 +3,10 @@ import { createPageVisibility } from "@solid-primitives/page-visibility";
 import { createEffect, createSignal, onCleanup, onMount, Show } from "solid-js";
 import { Portal } from "solid-js/web";
 import createPresence from "solid-presence";
-import {
-  dismissAppReload,
-  needsReload,
-  reloadToNewVersion,
-  requestAppReload,
-  setReloadImpl,
-} from "~/lib/app-reload";
 import RefreshIcon from "~icons/material-symbols/refresh";
 import { Button } from "./ui/button";
 import { Callout, CalloutContent, CalloutTitle } from "./ui/callout";
+import { showToastPromise } from "./ui/toast";
 
 const UPDATE_CHECK_MS = 5 * 60 * 1000;
 
@@ -51,42 +45,34 @@ export function ReloadPrompt() {
     return isVisible;
   });
 
-  onMount(() => {
-    setReloadImpl(() => {
-      void updateServiceWorker();
-      window.setTimeout(() => {
-        window.location.reload();
-      }, 1000);
+  const reloadToNewVersion = () => {
+    showToastPromise(updateServiceWorker, {
+      loading: "Registering update...",
     });
-    const onPreloadError = () => {
-      requestAppReload();
-    };
-    window.addEventListener("vite:preloadError", onPreloadError);
+    setNeedRefresh(false);
+  };
+
+  onMount(() => {
+    window.addEventListener("vite:preloadError", reloadToNewVersion);
     onCleanup(() => {
-      window.removeEventListener("vite:preloadError", onPreloadError);
+      window.removeEventListener("vite:preloadError", reloadToNewVersion);
     });
   });
 
-  const show = () => needRefresh() || needsReload();
   const [element, setElement] = createSignal<HTMLElement | null>(null);
   const { present } = createPresence({
-    show,
+    show: needRefresh,
     element,
   });
-
-  const close = () => {
-    setNeedRefresh(false);
-    dismissAppReload();
-  };
 
   return (
     <Show when={present()}>
       <Portal>
         <Callout
           ref={setElement}
-          class="fixed z-100 fancy-bg-info! left-1/2 bottom-24 -translate-x-1/2 shadow-black/50 shadow-lg duration-2000 data-expanded:animate-in data-closed:animate-out data-closed:fade-out-0 data-expanded:fade-in-0 data-closed:slide-out-to-bottom data-expanded:slide-in-from-bottom data-closed:zoom-out-50 data-expanded:zoom-in-50"
-          data-closed={!show() ? "" : undefined}
-          data-expanded={show() ? "" : undefined}
+          class="pointer-events-auto absolute fancy-bg-info! left-1/2 bottom-24 -translate-x-1/2 shadow-black/50 shadow-lg data-expanded:animate-in data-closed:animate-out data-closed:fade-out-0 data-expanded:fade-in-0 data-closed:slide-out-to-bottom data-expanded:slide-in-from-bottom data-closed:zoom-out-50 data-expanded:zoom-in-50 z-100"
+          data-closed={!needRefresh() ? "" : undefined}
+          data-expanded={needRefresh() ? "" : undefined}
         >
           <CalloutTitle class="text-foreground">
             SolidSDR has been updated.
@@ -96,8 +82,7 @@ export function ReloadPrompt() {
               Reload the page to use the new version.
             </p>
             <div class="flex justify-end gap-2">
-              <Button onClick={close}>Dismiss</Button>
-              <Button onClick={() => reloadToNewVersion()}>
+              <Button onClick={reloadToNewVersion}>
                 <RefreshIcon />
                 Reload
               </Button>

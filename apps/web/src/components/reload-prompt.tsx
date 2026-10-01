@@ -70,7 +70,7 @@ export function ReloadPrompt() {
       <Portal>
         <Callout
           ref={setElement}
-          class="pointer-events-auto absolute fancy-bg-info! left-1/2 bottom-24 -translate-x-1/2 shadow-black/50 shadow-lg data-expanded:animate-in data-closed:animate-out data-closed:fade-out-0 data-expanded:fade-in-0 data-closed:slide-out-to-bottom data-expanded:slide-in-from-bottom data-closed:zoom-out-50 data-expanded:zoom-in-50 z-100"
+          class="pointer-events-auto w-max max-w-[90vw] absolute fancy-bg-info! left-1/2 bottom-24 -translate-x-1/2 shadow-black/50 shadow-lg data-expanded:animate-in data-closed:animate-out data-closed:fade-out-0 data-expanded:fade-in-0 data-closed:slide-out-to-bottom data-expanded:slide-in-from-bottom data-closed:zoom-out-50 data-expanded:zoom-in-50 z-100"
           data-closed={!needRefresh() ? "" : undefined}
           data-expanded={needRefresh() ? "" : undefined}
         >

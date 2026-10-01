@@ -28,6 +28,7 @@ import { FPSCounter } from "./components/fps";
 import { Panafalls } from "./components/panafall/panafalls";
 import { RadioSidebar } from "./components/radio-sidebar";
 import { ReleaseNotification } from "./components/release-notification";
+import { ReloadPrompt } from "./components/reload-prompt";
 import { ToolsSidebar } from "./components/tools-sidebar";
 import { Button } from "./components/ui/button";
 import { Callout, CalloutContent, CalloutTitle } from "./components/ui/callout";
@@ -178,6 +179,7 @@ function AppRoot(props: RouteSectionProps) {
             </DebugModeProvider>
           </Show>
           <ReleaseNotification />
+          <ReloadPrompt />
         </PreferencesProvider>
         <Toaster />
       </ColorModeProvider>

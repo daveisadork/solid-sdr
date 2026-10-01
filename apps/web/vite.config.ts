@@ -5,9 +5,19 @@ import tailwindcss from "@tailwindcss/vite";
 import { visualizer } from "rollup-plugin-visualizer";
 import Icons from "unplugin-icons/vite";
 import { defineConfig } from "vite";
+import { VitePWA } from "vite-plugin-pwa";
 import solidPlugin from "vite-plugin-solid";
 
+const coiHeaders = {
+  "Cross-Origin-Opener-Policy": "same-origin",
+  "Cross-Origin-Embedder-Policy": "require-corp",
+  "Cross-Origin-Resource-Policy": "same-origin",
+};
+
 function getVersion(): string {
+  if (process.env.APP_VERSION) {
+    return process.env.APP_VERSION;
+  }
   try {
     return execSync("git describe --tags", { encoding: "utf8" }).trim();
   } catch {
@@ -27,6 +37,33 @@ export default defineConfig({
     tailwindcss(),
     Icons({ compiler: "solid" }),
     visualizer(),
+    VitePWA({
+      registerType: "prompt",
+      injectRegister: false,
+      devOptions: {
+        enabled: true,
+        // generateSW globs dist, which does not exist in `vite`. Give workbox a dummy file.
+        suppressWarnings: true,
+      },
+      manifest: {
+        name: "SolidSDR",
+        short_name: "SolidSDR",
+        description: "Web client for FlexRadio SmartSDR radios.",
+        start_url: "/",
+        scope: "/",
+        display: "standalone",
+        background_color: "#011d2d",
+        theme_color: "#000000",
+      },
+      pwaAssets: {
+        config: true,
+      },
+      workbox: {
+        globPatterns: ["**/*.{js,html,css,wasm,svg,png,ico,tff,woff2}"],
+        navigateFallback: "",
+        cleanupOutdatedCaches: true,
+      },
+    }),
   ],
   resolve: {
     alias: {
@@ -48,12 +85,10 @@ export default defineConfig({
       },
       "/defaults.json": { target: "http://localhost:8080" },
     },
-    headers: {
-      // cross-origin isolation for SAB in dev
-      "Cross-Origin-Opener-Policy": "same-origin",
-      "Cross-Origin-Embedder-Policy": "require-corp",
-      "Cross-Origin-Resource-Policy": "same-origin",
-    },
+    headers: coiHeaders,
+  },
+  preview: {
+    headers: coiHeaders,
   },
   build: {
     target: "esnext",

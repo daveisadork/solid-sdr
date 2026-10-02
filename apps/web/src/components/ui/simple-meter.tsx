@@ -125,9 +125,9 @@ export function SimpleMeter(props: MeterProps) {
   const calculatePeakOffset = createMemo(() => {
     const minValue = props.minValue ?? props.meter.low;
     const maxValue = props.maxValue ?? props.meter.high;
+    const range = maxValue - minValue;
 
-    return (value: number) =>
-      `${((value - minValue) / (maxValue - minValue)) * 100}cqw`;
+    return (value: number) => Math.min(((value - minValue) / range) * 100, 100);
   });
 
   return (
@@ -193,29 +193,30 @@ export function SimpleMeter(props: MeterProps) {
               />
             );
           })()}
-          <Show when={props.peakValue !== undefined}>
-            {(() => {
-              let peakEl!: HTMLDivElement;
+          <Show when={Number.isFinite(props.peakValue)}>
+            {(_) => {
+              const [peakOffset, setPeakOffset] = createSignal(0);
               createEffect(() => {
                 const peak = props.peakValue;
-                if (peak === undefined) return;
-                peakEl?.style.setProperty(
-                  "--peak-position",
-                  calculatePeakOffset()(peak),
-                );
+                if (peak === undefined) return setPeakOffset(0);
+                setPeakOffset(calculatePeakOffset()(peak));
               });
               return (
                 <div class="absolute inset-0 rounded-xl overflow-hidden">
                   <div
-                    ref={peakEl}
-                    class="absolute inset-y-px w-px bg-foreground translate-x-(--peak-position) will-change-transform"
+                    class="absolute inset-y-px right-full rounded-full aspect-square translate-x-(--peak-position) will-change-transform"
+                    classList={{
+                      "bg-foreground": peakOffset() <= 99.9,
+                      "bg-red-500": peakOffset() > 99.9,
+                    }}
                     style={{
+                      "--peak-position": `${peakOffset()}cqw`,
                       transition: `transform ${1 / (props.meter?.fps || 4)}s linear`,
                     }}
                   />
                 </div>
               );
-            })()}
+            }}
           </Show>
           <Show when={props.showTicks}>
             <div class="absolute inset-px flex justify-between">

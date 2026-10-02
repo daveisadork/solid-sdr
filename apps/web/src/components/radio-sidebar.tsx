@@ -527,22 +527,21 @@ function MicSection() {
           return (
             <SimpleMeter
               meter={meter}
-              // this meter sucks. the description is "Signal strength of signals just before CLIPPER (Compression)"
-              // and indeed the value generally tracks just a bit higher than the mic input level, but SmartSDR
-              // renders it inverted (a -25-0 meter that fills from right to left) as if it represents gain reduction
-              // in dB or something, even though it doesn't. we're just trying to match SmartSDR behavior here, even
-              // though it seems inaccurate.
-              value={compPeakValue()}
+              // the meter description is "Signal strength of signals just before CLIPPER (Compression)"
+              // the assumption is that the signal level coming OUT of the clipper is at most 0dB, so any
+              // value over 0 on this meter means the clipper will compress by that much. The meter shows
+              // gain reduction in -dB, so we just negate the value and let the meter component clamp to
+              // the min/max values naturally.
+              value={-compPeakValue()}
               minValue={-25}
               maxValue={0}
-              getValueLabel={({ value, min }) =>
-                `${roundToDecimals(min - value, 1).toFixed(1)} dB`
+              getValueLabel={({ value }) =>
+                `${roundToDecimals(value, 1).toFixed(1)} dB`
               }
               label="Compression"
               class="bg-linear-to-l/decreasing"
               style={{
-                "clip-path":
-                  "inset(0 0 0 calc(100% - var(--kb-meter-fill-width)))",
+                "clip-path": "inset(0 0 0 var(--kb-meter-fill-width))",
               }}
               showTicks
               showTickLabels

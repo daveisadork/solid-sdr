@@ -29,7 +29,7 @@ const SegmentedControl = <
   return (
     <SegmentedControlPrimitive.Root
       class={cn(
-        "group/segmented-control relative flex w-full select-none flex-col justify-between space-y-2",
+        "group/segmented-control relative flex w-full select-none flex-col justify-between space-y-2 data-disabled:opacity-50 data-disabled:cursor-not-allowed",
         local.class,
       )}
       {...(others as SegmentedControlPrimitive.SegmentedControlRootProps)}
@@ -97,10 +97,7 @@ const SegmentedControlLabel = <T extends ValidComponent = "span">(
   ]);
   return (
     <SegmentedControlPrimitive.Label
-      class={cn(
-        "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
-        local.class,
-      )}
+      class={cn("text-sm font-medium leading-none", local.class)}
       {...others}
     />
   );
@@ -120,7 +117,7 @@ const SegmentedControlItemLabel = <T extends ValidComponent = "label">(
   return (
     <SegmentedControlPrimitive.ItemLabel
       class={cn(
-        "w-full text-center text-sm font-medium px-3 py-1.5 leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
+        "w-full text-center text-sm font-medium px-3 py-1.5 leading-none",
         local.class,
       )}
       {...others}
@@ -144,7 +141,7 @@ const SegmentedControlItem = <T extends ValidComponent = "div">(
   return (
     <SegmentedControlPrimitive.Item
       class={cn(
-        "w-full relative inline-flex items-center justify-center whitespace-nowrap rounded-sm text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-checked:text-primary-foreground data-checked:shadow-sm",
+        "w-full relative inline-flex items-center justify-center whitespace-nowrap rounded-sm text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none data-checked:text-primary-foreground data-checked:shadow-sm",
         local.class,
       )}
       {...others}

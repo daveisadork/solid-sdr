@@ -69,7 +69,7 @@ import { SliderToggle } from "./ui/slider-toggle";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 
 const PROCESSOR_LEVELS = ["Norm", "DX", "DX+"];
-const VOICE_MODES = new Set(["USB", "LSB", "AM", "SAM", "FM", "NFM"]);
+const NON_VOICE_MODES = new Set(["DIGU", "DIGL", "RTTY", "CW"]);
 
 /** Coalesces a slider drag into one command without feeling laggy. */
 const COMMAND_DEBOUNCE_MS = 200;
@@ -470,7 +470,7 @@ function MicSection() {
 
   createEffect(() => {
     if (
-      !VOICE_MODES.has(state.status.radio.txMode) ||
+      NON_VOICE_MODES.has(state.status.radio.txMode) ||
       (!state.status.radio.meterInRx && !state.status.radio.mox) ||
       !state.status.radio.speechProcessorEnabled
     )
@@ -677,6 +677,7 @@ function MicSection() {
       <div class="flex flex-col gap-1 pb-2">
         <SimpleSwitch
           label="Speech Processor"
+          disabled={NON_VOICE_MODES.has(state.status.radio.txMode)}
           checked={state.status.radio.speechProcessorEnabled}
           onChange={(isChecked) => {
             radio()?.setSpeechProcessorEnabled(isChecked);
@@ -684,7 +685,10 @@ function MicSection() {
           // tooltip="Enable processing for TX output in phone modes"
         />
         <SegmentedControl
-          disabled={!state.status.radio.speechProcessorEnabled}
+          disabled={
+            !state.status.radio.speechProcessorEnabled ||
+            NON_VOICE_MODES.has(state.status.radio.txMode)
+          }
           value={PROCESSOR_LEVELS[state.status.radio.speechProcessorLevel]}
           onChange={(value) => {
             if (!value) return;
@@ -924,6 +928,10 @@ function PhoneSection() {
       ? radio()?.setTxFilterHighHz(rawFilterHigh())
       : null;
 
+  const disableCompander = () =>
+    state.status.radio.micSelection === "PC" ||
+    NON_VOICE_MODES.has(state.status.radio.txMode);
+
   return (
     <AccordionItem value="phone">
       <AccordionTrigger>Phone</AccordionTrigger>
@@ -974,6 +982,10 @@ function PhoneSection() {
             }}
             minValue={0}
             maxValue={100}
+            disabled={
+              !state.status.radio.companderEnabled || disableCompander()
+            }
+            switchDisabled={disableCompander()}
             value={[state.status.radio.companderLevel]}
             onChange={([value]) => {
               if (value === state.status.radio.companderLevel) return;

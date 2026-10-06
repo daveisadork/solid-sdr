@@ -2,28 +2,21 @@ import * as NumberFieldPrimitive from "@kobalte/core/number-field";
 import * as SelectPrimitive from "@kobalte/core/select";
 import * as TextFieldPrimitive from "@kobalte/core/text-field";
 import type { Radio } from "@repo/flexlib";
-import type {
-  ColumnFiltersState,
-  SortingState,
-  VisibilityState,
-} from "@tanstack/solid-table";
 import {
   type ColumnDef,
-  createSolidTable,
-  flexRender,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
+  columnFilteringFeature,
+  columnVisibilityFeature,
+  createFilteredRowModel,
+  createPaginatedRowModel,
+  createSortedRowModel,
+  createTable,
+  FlexRender,
+  rowPaginationFeature,
+  rowSelectionFeature,
+  rowSortingFeature,
+  tableFeatures,
 } from "@tanstack/solid-table";
-import {
-  createMemo,
-  createSignal,
-  For,
-  type JSX,
-  Show,
-  splitProps,
-} from "solid-js";
+import { createMemo, For, type JSX, Show, splitProps } from "solid-js";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
 import {
@@ -53,6 +46,17 @@ import {
   DialogTitle,
 } from "../ui/dialog";
 import { SelectContent, SelectItem } from "../ui/select";
+
+const features = tableFeatures({
+  columnFilteringFeature,
+  columnVisibilityFeature,
+  rowPaginationFeature,
+  rowSelectionFeature,
+  rowSortingFeature,
+  filteredRowModel: createFilteredRowModel(),
+  paginatedRowModel: createPaginatedRowModel(),
+  sortedRowModel: createSortedRowModel(),
+});
 
 const TextFieldCell = (
   props: TextFieldPrimitive.TextFieldRootProps & {
@@ -86,14 +90,6 @@ const NumberFieldCell = (
 };
 
 function MemorySettingsInner(componentProps: { radio: Radio }) {
-  const [sorting, setSorting] = createSignal<SortingState>([]);
-  const [columnFilters, setColumnFilters] = createSignal<ColumnFiltersState>(
-    [],
-  );
-  const [columnVisibility, setColumnVisibility] = createSignal<VisibilityState>(
-    {},
-  );
-  const [rowSelection, setRowSelection] = createSignal({});
   const { state } = useFlexRadio();
   const connectedRadio = () => componentProps.radio;
 
@@ -115,13 +111,16 @@ function MemorySettingsInner(componentProps: { radio: Radio }) {
     );
   });
 
-  const columns: ColumnDef<MemoryState>[] = [
+  const columns: ColumnDef<typeof features, MemoryState>[] = [
     {
       id: "select",
       header: (props) => (
         <Checkbox
           checked={props.table.getIsAllPageRowsSelected()}
-          indeterminate={props.table.getIsSomePageRowsSelected()}
+          indeterminate={
+            props.table.getIsSomePageRowsSelected() &&
+            !props.table.getIsAllPageRowsSelected()
+          }
           onChange={(value) => props.table.toggleAllPageRowsSelected(!!value)}
           aria-label="Select all"
         />
@@ -452,34 +451,15 @@ function MemorySettingsInner(componentProps: { radio: Radio }) {
     },
   ];
 
-  const table = createMemo(() =>
-    createSolidTable({
-      data: Object.values(state.status.memory),
-      columns,
-      getCoreRowModel: getCoreRowModel(),
-      getPaginationRowModel: getPaginationRowModel(),
-      getSortedRowModel: getSortedRowModel(),
-      getFilteredRowModel: getFilteredRowModel(),
-      onSortingChange: setSorting,
-      onColumnFiltersChange: setColumnFilters,
-      onColumnVisibilityChange: setColumnVisibility,
-      onRowSelectionChange: setRowSelection,
-      state: {
-        get sorting() {
-          return sorting();
-        },
-        get columnFilters() {
-          return columnFilters();
-        },
-        get columnVisibility() {
-          return columnVisibility();
-        },
-        get rowSelection() {
-          return rowSelection();
-        },
-      },
-    }),
-  );
+  const data = createMemo(() => Object.values(state.status.memory));
+
+  const table = createTable({
+    features,
+    columns,
+    get data() {
+      return data();
+    },
+  });
 
   return (
     <>
@@ -498,7 +478,7 @@ function MemorySettingsInner(componentProps: { radio: Radio }) {
             </DropdownMenuTrigger>
             <DropdownMenuContent>
               <For
-                each={table()
+                each={table
                   .getAllColumns()
                   .filter((column) => column.getCanHide())}
               >
@@ -520,19 +500,16 @@ function MemorySettingsInner(componentProps: { radio: Radio }) {
         <div class="relative rounded-md border shrink overflow-hidden flex flex-col">
           <Table class="shrink">
             <TableHeader>
-              <For each={table().getHeaderGroups()}>
+              <For each={table.getHeaderGroups()}>
                 {(headerGroup) => (
                   <TableRow>
                     <For each={headerGroup.headers}>
                       {(header) => {
                         return (
                           <TableHead>
-                            {header.isPlaceholder
-                              ? null
-                              : flexRender(
-                                  header.column.columnDef.header,
-                                  header.getContext(),
-                                )}
+                            {header.isPlaceholder ? null : (
+                              <FlexRender header={header} />
+                            )}
                           </TableHead>
                         );
                       }}
@@ -542,23 +519,18 @@ function MemorySettingsInner(componentProps: { radio: Radio }) {
               </For>
             </TableHeader>
             <TableBody>
-              {table().getRowModel().rows?.length ? (
-                table()
-                  .getRowModel()
-                  .rows.map((row) => (
-                    <TableRow data-state={row.getIsSelected() && "selected"}>
-                      <For each={row.getVisibleCells()}>
-                        {(cell) => (
-                          <TableCell>
-                            {flexRender(
-                              cell.column.columnDef.cell,
-                              cell.getContext(),
-                            )}
-                          </TableCell>
-                        )}
-                      </For>
-                    </TableRow>
-                  ))
+              {table.getRowModel().rows?.length ? (
+                table.getRowModel().rows.map((row) => (
+                  <TableRow data-state={row.getIsSelected() && "selected"}>
+                    <For each={row.getVisibleCells()}>
+                      {(cell) => (
+                        <TableCell>
+                          <FlexRender cell={cell} />
+                        </TableCell>
+                      )}
+                    </For>
+                  </TableRow>
+                ))
               ) : (
                 <TableRow>
                   <TableCell colSpan={columns.length} class="h-24 text-center">
@@ -571,23 +543,23 @@ function MemorySettingsInner(componentProps: { radio: Radio }) {
         </div>
         <div class="flex items-center justify-end space-x-2">
           <div class="flex-1 text-sm text-muted-foreground">
-            {table().getFilteredSelectedRowModel().rows.length} of{" "}
-            {table().getFilteredRowModel().rows.length} row(s) selected.
+            {table.getFilteredSelectedRowModel().rows.length} of{" "}
+            {table.getFilteredRowModel().rows.length} row(s) selected.
           </div>
           <div class="space-x-2">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => table().previousPage()}
-              disabled={!table().getCanPreviousPage()}
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
             >
               Previous
             </Button>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => table().nextPage()}
-              disabled={!table().getCanNextPage()}
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
             >
               Next
             </Button>
@@ -597,15 +569,15 @@ function MemorySettingsInner(componentProps: { radio: Radio }) {
       <DialogFooter>
         <ConfirmButton
           variant="destructive"
-          disabled={table().getSelectedRowModel().rows.length === 0}
+          disabled={table.getSelectedRowModel().rows.length === 0}
           onConfirm={() => {
             Promise.all(
-              table()
+              table
                 .getSelectedRowModel()
                 .flatRows.map((mem) =>
                   connectedRadio().memory(mem.original.id)?.remove(),
                 ),
-            ).then(() => table().setRowSelection({}));
+            ).then(() => table.setRowSelection({}));
           }}
         >
           Delete Selected

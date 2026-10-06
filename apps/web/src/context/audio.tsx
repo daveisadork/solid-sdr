@@ -228,7 +228,9 @@ export const AudioProvider: ParentComponent = (props) => {
   });
 
   createEffect(() => {
-    remoteTxGain()?.setMicLevel(state.status.radio.micLevel);
+    const micLevel = state.status.radio.micLevel;
+    if (!Number.isFinite(micLevel)) return;
+    remoteTxGain()?.setMicLevel(micLevel);
   });
 
   // Create/destroy DAX RX radio streams for each channel

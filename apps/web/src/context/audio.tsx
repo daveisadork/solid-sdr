@@ -24,6 +24,7 @@ import { DaxAudioSink } from "~/lib/dax-audio-sink";
 import { DaxAudioTx } from "~/lib/dax-audio-tx";
 import { DaxIqAudioSink } from "~/lib/dax-iq-audio-sink";
 import { createPermission } from "~/lib/permission";
+import { RemoteTxGain } from "~/lib/remote-tx-gain";
 import useFlexRadio from "./flexradio";
 import { usePreferences } from "./preferences";
 import { useRtc } from "./rtc";
@@ -187,26 +188,47 @@ export const AudioProvider: ParentComponent = (props) => {
     return constraints;
   });
 
-  // Capture microphone for remote audio TX and set it as the WebRTC track
+  const [remoteTxGain, setRemoteTxGain] = createSignal<RemoteTxGain>();
+
   createEffect(() => {
     if (!remoteAudioTxStreamId()) return;
+    const graph = new RemoteTxGain(untrack(() => state.status.radio.micLevel));
+    setRemoteTxGain(graph);
+    setRemoteAudioTxStream(graph.stream);
+    setRemoteAudioTxTrack(graph.stream.getAudioTracks()[0] ?? null);
+    onCleanup(() => {
+      setRemoteTxGain(undefined);
+      setRemoteAudioTxStream(undefined);
+      setRemoteAudioTxTrack(null);
+      void graph.close();
+    });
+  });
+
+  createEffect(() => {
+    const graph = remoteTxGain();
+    if (!graph) return;
+    let active = true;
     const promise = navigator.mediaDevices.getUserMedia({
       audio: preferredInputDevice() ?? true,
     });
     promise
-      .then((stream) => {
-        setRemoteAudioTxStream(stream);
-        setRemoteAudioTxTrack(stream.getAudioTracks()[0] ?? null);
+      .then((input) => {
+        if (!active) {
+          for (const track of input.getTracks()) track.stop();
+          return;
+        }
+        return graph.setInput(input);
       })
       .catch((err) =>
         console.error("[audio] failed to get remote tx stream", err),
       );
-    onCleanup(() =>
-      promise.then((stream) => {
-        setRemoteAudioTxStream(undefined);
-        for (const t of stream.getTracks()) t.stop();
-      }),
-    );
+    onCleanup(() => {
+      active = false;
+    });
+  });
+
+  createEffect(() => {
+    remoteTxGain()?.setMicLevel(state.status.radio.micLevel);
   });
 
   // Create/destroy DAX RX radio streams for each channel

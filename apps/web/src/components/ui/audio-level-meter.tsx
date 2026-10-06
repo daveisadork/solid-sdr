@@ -33,6 +33,7 @@ export function AudioLevelMeter(props: {
     >
       <SimpleMeter
         label={props.label ?? "Level"}
+        getValueLabel={() => `${peak().toFixed(1)} dB`}
         value={Math.max(level(), METER.low)}
         peakValue={Math.max(peak(), METER.low)}
         meter={METER}

@@ -520,19 +520,17 @@ function MemorySettingsInner(componentProps: { radio: Radio }) {
             </TableHeader>
             <TableBody>
               {table.getRowModel().rows?.length ? (
-                table
-                  .getRowModel()
-                  .rows.map((row) => (
-                    <TableRow data-state={row.getIsSelected() && "selected"}>
-                      <For each={row.getVisibleCells()}>
-                        {(cell) => (
-                          <TableCell>
-                            <FlexRender cell={cell} />
-                          </TableCell>
-                        )}
-                      </For>
-                    </TableRow>
-                  ))
+                table.getRowModel().rows.map((row) => (
+                  <TableRow data-state={row.getIsSelected() && "selected"}>
+                    <For each={row.getVisibleCells()}>
+                      {(cell) => (
+                        <TableCell>
+                          <FlexRender cell={cell} />
+                        </TableCell>
+                      )}
+                    </For>
+                  </TableRow>
+                ))
               ) : (
                 <TableRow>
                   <TableCell colSpan={columns.length} class="h-24 text-center">

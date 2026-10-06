@@ -69,7 +69,7 @@ import { SliderToggle } from "./ui/slider-toggle";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 
 const PROCESSOR_LEVELS = ["Norm", "DX", "DX+"];
-const VOICE_MODES = new Set(["USB", "LSB", "AM", "SAM", "FM", "NFM"]);
+const NON_VOICE_MODES = new Set(["DIGU", "DIGL", "RTTY", "CW"]);
 
 /** Coalesces a slider drag into one command without feeling laggy. */
 const COMMAND_DEBOUNCE_MS = 200;
@@ -470,7 +470,7 @@ function MicSection() {
 
   createEffect(() => {
     if (
-      !VOICE_MODES.has(state.status.radio.txMode) ||
+      NON_VOICE_MODES.has(state.status.radio.txMode) ||
       (!state.status.radio.meterInRx && !state.status.radio.mox) ||
       !state.status.radio.speechProcessorEnabled
     )
@@ -527,22 +527,21 @@ function MicSection() {
           return (
             <SimpleMeter
               meter={meter}
-              // this meter sucks. the description is "Signal strength of signals just before CLIPPER (Compression)"
-              // and indeed the value generally tracks just a bit higher than the mic input level, but SmartSDR
-              // renders it inverted (a -25-0 meter that fills from right to left) as if it represents gain reduction
-              // in dB or something, even though it doesn't. we're just trying to match SmartSDR behavior here, even
-              // though it seems inaccurate.
-              value={compPeakValue()}
+              // the meter description is "Signal strength of signals just before CLIPPER (Compression)"
+              // the assumption is that the signal level coming OUT of the clipper is at most 0dB, so any
+              // value over 0 on this meter means the clipper will compress by that much. The meter shows
+              // gain reduction in -dB, so we just negate the value and let the meter component clamp to
+              // the min/max values naturally.
+              value={-compPeakValue()}
               minValue={-25}
               maxValue={0}
-              getValueLabel={({ value, min }) =>
-                `${roundToDecimals(min - value, 1).toFixed(1)} dB`
+              getValueLabel={({ value }) =>
+                `${roundToDecimals(value, 1).toFixed(1)} dB`
               }
               label="Compression"
               class="bg-linear-to-l/decreasing"
               style={{
-                "clip-path":
-                  "inset(0 0 0 calc(100% - var(--kb-meter-fill-width)))",
+                "clip-path": "inset(0 0 0 var(--kb-meter-fill-width))",
               }}
               showTicks
               showTickLabels
@@ -678,6 +677,7 @@ function MicSection() {
       <div class="flex flex-col gap-1 pb-2">
         <SimpleSwitch
           label="Speech Processor"
+          disabled={NON_VOICE_MODES.has(state.status.radio.txMode)}
           checked={state.status.radio.speechProcessorEnabled}
           onChange={(isChecked) => {
             radio()?.setSpeechProcessorEnabled(isChecked);
@@ -685,7 +685,10 @@ function MicSection() {
           // tooltip="Enable processing for TX output in phone modes"
         />
         <SegmentedControl
-          disabled={!state.status.radio.speechProcessorEnabled}
+          disabled={
+            !state.status.radio.speechProcessorEnabled ||
+            NON_VOICE_MODES.has(state.status.radio.txMode)
+          }
           value={PROCESSOR_LEVELS[state.status.radio.speechProcessorLevel]}
           onChange={(value) => {
             if (!value) return;
@@ -925,6 +928,10 @@ function PhoneSection() {
       ? radio()?.setTxFilterHighHz(rawFilterHigh())
       : null;
 
+  const disableCompander = () =>
+    state.status.radio.micSelection === "PC" ||
+    NON_VOICE_MODES.has(state.status.radio.txMode);
+
   return (
     <AccordionItem value="phone">
       <AccordionTrigger>Phone</AccordionTrigger>
@@ -975,6 +982,10 @@ function PhoneSection() {
             }}
             minValue={0}
             maxValue={100}
+            disabled={
+              !state.status.radio.companderEnabled || disableCompander()
+            }
+            switchDisabled={disableCompander()}
             value={[state.status.radio.companderLevel]}
             onChange={([value]) => {
               if (value === state.status.radio.companderLevel) return;

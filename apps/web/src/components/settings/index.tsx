@@ -1,7 +1,8 @@
 import { useMatch, useNavigate } from "@solidjs/router";
-import { createEffect, lazy } from "solid-js";
+import { createEffect, ErrorBoundary, lazy, onMount, Show } from "solid-js";
 import { Dynamic } from "solid-js/web";
 import useFlexRadio from "~/context/flexradio";
+import { APP_VERSION } from "~/lib/version";
 import AreaChartIcon from "~icons/material-symbols/area-chart";
 import BookmarksIcon from "~icons/material-symbols/bookmarks";
 import CableIcon from "~icons/material-symbols/cable";
@@ -17,7 +18,15 @@ import FloppyDiscMultipleIcon from "~icons/mdi/floppy-disc-multiple";
 import LocationMultipleIcon from "~icons/mdi/location-multiple";
 import MonitorMultipleIcon from "~icons/mdi/monitor-multiple";
 import MdiSettings from "~icons/mdi/settings";
-import { Dialog } from "../ui/dialog";
+import { Button } from "../ui/button";
+import { Callout, CalloutContent, CalloutTitle } from "../ui/callout";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -76,6 +85,142 @@ const tabs = {
   ),
 };
 
+const SETTINGS_ISSUE_URL =
+  "https://github.com/daveisadork/solid-sdr/issues/new";
+const MAX_SETTINGS_ISSUE_URL_LENGTH = 7500;
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// Stack frames include the page address. Publish a fixed host instead of the real one.
+const PUBLIC_PAGE_ORIGIN = "https://solidsdr.local";
+
+function redactPageUrl(text: string): string {
+  const host = window.location.host;
+  if (host.length === 0) return text;
+  const hostPattern = escapeRegExp(host);
+  return text
+    .replace(
+      new RegExp(`https?:\\/\\/${hostPattern}`, "gi"),
+      PUBLIC_PAGE_ORIGIN,
+    )
+    .replace(new RegExp(`\\/\\/${hostPattern}`, "gi"), PUBLIC_PAGE_ORIGIN);
+}
+
+function settingsErrorDetails(error: unknown): string {
+  const text =
+    error instanceof Error ? (error.stack ?? error.message) : String(error);
+  return redactPageUrl(text);
+}
+
+function settingsIssueBody(input: {
+  tab: string;
+  errorText: string;
+  radioModel: string | undefined;
+}): string {
+  const message = input.errorText.split("\n")[0] ?? input.errorText;
+  const fence = input.errorText.includes("```") ? "````" : "```";
+  const lines = [
+    "## Actual behavior",
+    "",
+    `${message} when trying to open ${input.tab}`,
+    "",
+    "## Environment",
+    "",
+    `- SolidSDR version: ${APP_VERSION}`,
+    `- Browser: ${navigator.userAgent}`,
+  ];
+  if (input.radioModel) lines.push(`- Radio model: ${input.radioModel}`);
+  lines.push("", "## Error", "", fence, input.errorText, fence);
+  return lines.join("\n");
+}
+
+function settingsIssueHref(input: {
+  tab: string;
+  errorText: string;
+  radioModel: string | undefined;
+}): string {
+  const note = "\n\nThe error text is cut because the link is too long.";
+  let errorText = input.errorText;
+
+  const build = (text: string) => {
+    const params = new URLSearchParams({
+      title: `Error in ${input.tab} settings`,
+      labels: "bug",
+      body: settingsIssueBody({
+        tab: input.tab,
+        errorText: text,
+        radioModel: input.radioModel,
+      }),
+    });
+    return `${SETTINGS_ISSUE_URL}?${params.toString()}`;
+  };
+
+  let href = build(errorText);
+  while (href.length > MAX_SETTINGS_ISSUE_URL_LENGTH && errorText.length > 0) {
+    errorText = `${errorText.slice(0, Math.max(0, errorText.length - 400))}${note}`;
+    href = build(errorText);
+  }
+  return href;
+}
+
+function SettingsError(props: {
+  error: unknown;
+  reset: () => void;
+  tab: keyof typeof tabs;
+}) {
+  const { state } = useFlexRadio();
+  const details = () => settingsErrorDetails(props.error);
+  const radioModel = () => {
+    const model = state.status.radio?.model;
+    return typeof model === "string" && model.length > 0 ? model : undefined;
+  };
+  const issueHref = () =>
+    settingsIssueHref({
+      tab: props.tab,
+      errorText: details(),
+      radioModel: radioModel(),
+    });
+
+  onMount(() => {
+    console.error("Settings window failed", props.error);
+  });
+
+  return (
+    <DialogContent class="flex max-h-10/12 flex-col gap-4 overflow-hidden text-sm">
+      <DialogHeader>
+        <DialogTitle>Error</DialogTitle>
+      </DialogHeader>
+
+      <Callout variant="error">
+        <CalloutTitle>
+          Settings could not load because of an error.
+        </CalloutTitle>
+        <CalloutContent class="flex flex-col gap-3">
+          <p>
+            Please report this error! Note, your SolidSDR URL has been replaced
+            in the error detalis to protect your privacy.
+          </p>
+          <pre class="max-h-80 min-h-0 overflow-auto whitespace-pre-wrap wrap-break-word rounded-md border p-3 font-mono text-xs">
+            {details()}
+          </pre>
+        </CalloutContent>
+      </Callout>
+      <DialogFooter>
+        <Button
+          as="a"
+          href={issueHref()}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Report
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  );
+}
+
 export function Settings() {
   const navigate = useNavigate();
   const match = useMatch(() => "/settings/:tab");
@@ -89,17 +234,26 @@ export function Settings() {
   createEffect(() => {
     if (match() && activeTab() === null) navigate("/", { replace: true });
   });
-  const activeTabComponent = () => {
-    const tab = activeTab();
-    return tab != null ? tabs[tab] : undefined;
-  };
   return (
     <>
       <Dialog
         open={activeTab() !== null}
         onOpenChange={(open) => !open && navigate("/")}
       >
-        <Dynamic component={activeTabComponent()} />
+        {/* Each tab is the dialog body. The fallback must render
+            DialogContent too, or a throw before that body leaves the
+            open dialog blank. */}
+        <Show when={activeTab()} keyed>
+          {(tab) => (
+            <ErrorBoundary
+              fallback={(error, reset) => (
+                <SettingsError error={error} reset={reset} tab={tab} />
+              )}
+            >
+              <Dynamic component={tabs[tab]} />
+            </ErrorBoundary>
+          )}
+        </Show>
       </Dialog>
       <DropdownMenu>
         <Tooltip>

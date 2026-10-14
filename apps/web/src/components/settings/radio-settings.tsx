@@ -463,7 +463,8 @@ function RadioSettingsInner(props: { radio: Radio }) {
 
   createEffect(() => {
     setFilterPresets(
-      state.status.filterPreset[filterModeGroup()].map((p) => ({ ...p })),
+      state.status.filterPreset[filterModeGroup()]?.map((p) => ({ ...p })) ??
+        [],
     );
   });
 
@@ -554,11 +555,27 @@ function RadioSettingsInner(props: { radio: Radio }) {
           <CardTitle>License Information</CardTitle>
         </CardHeader>
         <CardContent class="flex flex-col gap-4">
-          <For each={Object.values(state.status.featureLicense.subscriptions)}>
+          <For
+            each={Object.values(state.status.featureLicense.subscriptions)}
+            fallback={
+              <>
+                <InfoItem label="Subscription" value="SmartSDR Basic" />
+                <InfoItem label="Expiration" value="Never" />
+              </>
+            }
+          >
             {({ name, expiration }) => {
               return (
                 <>
-                  <InfoItem label="Subscription" value={name} />
+                  <InfoItem
+                    label="Subscription"
+                    value={
+                      {
+                        "smartsdr+": "SmartSDR+",
+                        "smartsdr+_early_access": "SmartSDR+ Early Access",
+                      }[name] ?? name
+                    }
+                  />
                   <InfoItem
                     label="Expiration"
                     value={expiration.toLocaleDateString()}

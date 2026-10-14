@@ -29,7 +29,7 @@ export interface FeatureLicenseSubscription {
 export interface FeatureLicenseSnapshot {
   readonly radioId: string;
   readonly issueDate: Date;
-  readonly lastRefreshDate: Date;
+  readonly lastRefreshDate?: Date;
   readonly highestMajorVersion: number;
   readonly region?: string;
   readonly features: Readonly<Record<string, FeatureLicenseFeature>>;
@@ -57,7 +57,12 @@ export function createFeatureLicenseSnapshot(
   const rawDiff = freezeAttributes(attributes);
   const partial: Mutable<Partial<FeatureLicenseSnapshot>> = previous
     ? {}
-    : { smartSdrPlusActive: false, smartSdrPlusEarlyAccessActive: false };
+    : {
+        features: {},
+        smartSdrPlusActive: false,
+        smartSdrPlusEarlyAccessActive: false,
+        subscriptions: {},
+      };
 
   switch (context.identifier) {
     case "feature":
@@ -196,7 +201,6 @@ function applyLicenseMetadata(
       case "last_refreshed_date": {
         const parsed = parseExpiration(value);
         if (parsed) partial.lastRefreshDate = parsed;
-        else logParseError("license", key, value);
         break;
       }
       case "highest_major_version": {

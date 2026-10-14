@@ -57,7 +57,12 @@ export function createFeatureLicenseSnapshot(
   const rawDiff = freezeAttributes(attributes);
   const partial: Mutable<Partial<FeatureLicenseSnapshot>> = previous
     ? {}
-    : { smartSdrPlusActive: false, smartSdrPlusEarlyAccessActive: false };
+    : {
+        features: {},
+        smartSdrPlusActive: false,
+        smartSdrPlusEarlyAccessActive: false,
+        subscriptions: {},
+      };
 
   switch (context.identifier) {
     case "feature":

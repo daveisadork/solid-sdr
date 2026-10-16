@@ -7,6 +7,12 @@ export interface WaveformSnapshot {
   readonly version: string;
   readonly isContainer: boolean;
   readonly displayName: string;
+  /**
+   * Environment variables the radio holds for a container waveform. Empty for
+   * a legacy waveform, or when the radio sent no environment or one this
+   * library cannot decode. Wire: `env`, base64 of a JSON object.
+   */
+  readonly env: Readonly<Record<string, string>>;
   readonly raw: Readonly<Record<string, string>>;
 }
 
@@ -42,7 +48,9 @@ export function createWaveformSnapshot(
   previous?: WaveformSnapshot,
 ): SnapshotUpdate<WaveformSnapshot> {
   const rawDiff = freezeAttributes(attributes);
-  const partial: Mutable<Partial<WaveformSnapshot>> = previous ? {} : { id };
+  const partial: Mutable<Partial<WaveformSnapshot>> = previous
+    ? {}
+    : { id, env: EMPTY_ENV };
 
   for (const [key, value] of Object.entries(attributes)) {
     switch (key) {
@@ -54,6 +62,9 @@ export function createWaveformSnapshot(
         break;
       case "is_container":
         partial.isContainer = isTruthy(value);
+        break;
+      case "env":
+        partial.env = decodeWaveformEnv(value);
         break;
     }
   }
@@ -77,6 +88,41 @@ export function createWaveformSnapshot(
     diff: Object.freeze(partial),
     rawDiff,
   };
+}
+
+const EMPTY_ENV: Readonly<Record<string, string>> = Object.freeze({});
+
+/**
+ * Decodes a waveform `env` value: base64 of UTF-8 JSON holding an object of
+ * string values. Any failure, or a payload that is not an object, gives an
+ * empty dictionary.
+ */
+export function decodeWaveformEnv(
+  value: string | undefined,
+): Readonly<Record<string, string>> {
+  if (!value) return EMPTY_ENV;
+  try {
+    const binary = atob(value);
+    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+    const parsed: unknown = JSON.parse(new TextDecoder().decode(bytes));
+    if (
+      parsed === null ||
+      typeof parsed !== "object" ||
+      Array.isArray(parsed)
+    ) {
+      return EMPTY_ENV;
+    }
+    const env: Record<string, string> = {};
+    for (const [key, entry] of Object.entries(parsed)) {
+      if (typeof entry === "string") env[key] = entry;
+      else if (typeof entry === "number" || typeof entry === "boolean") {
+        env[key] = String(entry);
+      }
+    }
+    return Object.freeze(env);
+  } catch {
+    return EMPTY_ENV;
+  }
 }
 
 export function parseLegacyWaveformList(

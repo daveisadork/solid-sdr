@@ -55,6 +55,10 @@ export class WaveformControllerImpl implements WaveformController {
     return this.current().displayName;
   }
 
+  get env(): Readonly<Record<string, string>> {
+    return this.current().env;
+  }
+
   async uninstall({
     timeoutMs = 30_000,
   }: Pick<RadioCommandOptions, "timeoutMs"> = {}): Promise<void> {

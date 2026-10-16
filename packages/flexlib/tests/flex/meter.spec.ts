@@ -54,6 +54,57 @@ describe("Meter controller", () => {
     expect(() => controller.snapshot()).toThrow(FlexStateUnavailableError);
   });
 
+  it("keeps only the newest amplifier meter when a name is registered twice", async () => {
+    const { radio, connection } = await createConnectedRadio();
+    connection.emitStatus(
+      "S1|meter 5.src=AMP#5.num=0x80001234#5.nam=FWDPWR#5.unit=Watts#",
+    );
+    expect(radio.meter("5")).toBeDefined();
+
+    // a re-registered meter with a higher number supersedes the first
+    connection.emitStatus(
+      "S2|meter 9.src=AMP#9.num=0x80001234#9.nam=FWDPWR#9.unit=Watts#",
+    );
+    expect(radio.meter("5")).toBeUndefined();
+    expect(radio.meter("9")?.sourceIndex).toBe(0x80001234);
+
+    // a late arrival with a lower number is dropped on arrival
+    connection.emitStatus(
+      "S3|meter 7.src=AMP#7.num=0x80001234#7.nam=FWDPWR#7.unit=Watts#",
+    );
+    expect(radio.meter("7")).toBeUndefined();
+    expect(radio.meters().map((m) => m.snapshot().id)).toEqual(["9"]);
+
+    // a different amplifier handle or a different name is untouched
+    connection.emitStatus(
+      "S4|meter 10.src=AMP#10.num=0x80005678#10.nam=FWDPWR#",
+    );
+    connection.emitStatus(
+      "S5|meter 11.src=AMP#11.num=0x80001234#11.nam=REFPWR#",
+    );
+    expect(radio.meters()).toHaveLength(3);
+  });
+
+  it("keeps slice meters that share a name", async () => {
+    const { radio, connection } = await createConnectedRadio();
+    connection.emitStatus("S1|meter 1.src=SLC#1.num=0#1.nam=LEVEL#");
+    connection.emitStatus("S2|meter 2.src=SLC#2.num=1#2.nam=LEVEL#");
+    expect(radio.meters()).toHaveLength(2);
+    expect(radio.meter("1")?.sourceIndex).toBe(0);
+  });
+
+  it("treats a missing num as unset and ignores a later num once set", async () => {
+    const { radio, connection } = await createConnectedRadio();
+    connection.emitStatus("S1|meter 3.src=SLC#3.nam=LEVEL#");
+    expect(radio.meter("3")?.sourceIndex).toBeUndefined();
+
+    connection.emitStatus("S2|meter 3.num=0#");
+    expect(radio.meter("3")?.sourceIndex).toBe(0);
+
+    connection.emitStatus("S3|meter 3.num=4#");
+    expect(radio.meter("3")?.sourceIndex).toBe(0);
+  });
+
   it("scales raw meter samples using meter units", () => {
     // given/when various raw values with different unit types
     // then they are scaled correctly

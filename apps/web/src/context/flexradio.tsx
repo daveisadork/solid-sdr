@@ -2,7 +2,9 @@ import * as ToastPrimitive from "@kobalte/core/toast";
 import type {
   ApdSnapshot,
   AudioStreamSnapshot,
+  AutoDxSnapshot,
   ConnectionProgressDetail,
+  CwDecoderSnapshot,
   CwxSnapshot,
   DisconnectedReason,
   DisplayMarkerSnapshot,
@@ -15,7 +17,9 @@ import type {
   GuiClientSnapshot,
   MemorySnapshot,
   MeterSnapshot,
+  NtpSourceSnapshot,
   PanadapterSnapshot,
+  PresetSnapshot,
   RadioSnapshot,
   RadioStateChange,
   SliceSnapshot,
@@ -131,6 +135,10 @@ export type DisplayMarkerState = Omit<
   "raw"
 >;
 export type FilterPresetState = Omit<MutableProps<FilterPresetSnapshot>, "raw">;
+export type CwDecoderState = Omit<MutableProps<CwDecoderSnapshot>, "raw">;
+export type AutoDxState = Omit<MutableProps<AutoDxSnapshot>, "raw">;
+export type PresetState = Omit<MutableProps<PresetSnapshot>, "raw">;
+export type NtpSourceState = Omit<MutableProps<NtpSourceSnapshot>, "raw">;
 
 export interface ConnectModalState {
   status: ConnectionState;
@@ -159,6 +167,10 @@ export interface StatusState {
   dvk: DvkState;
   displayMarker: Record<string, Record<string, DisplayMarkerState>>;
   filterPreset: FilterPresetState;
+  cwDecoder: CwDecoderState;
+  autoDx: AutoDxState;
+  preset: Record<string, PresetState>;
+  ntpSource: Record<string, NtpSourceState>;
 }
 
 export interface AppState {
@@ -200,6 +212,10 @@ export const initialState = () =>
       displayMarker: {},
       filterPreset: {},
       waveform: {},
+      autoDx: {},
+      cwDecoder: {},
+      ntpSource: {},
+      preset: {},
     },
   }) as AppState;
 
@@ -386,38 +402,44 @@ export const FlexRadioProvider: ParentComponent = (props) => {
   };
 
   const handleStateChange = (change: RadioStateChange) => {
-    switch (change.entity) {
-      case "spot":
-        handleSpotChange(change);
-        break;
-      case "displayMarker":
-        handleDisplayMarkerChange(change);
-        break;
-      case "apd":
-      case "cwx":
-      case "dvk":
-      case "radio":
-      case "featureLicense":
-      case "filterPreset":
-        // singleton entities are never removed
-        if (!change.removed) setState("status", change.entity, change.diff);
-        break;
-      case "unknown":
-        console.warn("Unknown state change", change);
-        break;
-      default:
-        if (change.removed) {
-          setState(
-            "status",
-            change.entity,
-            produce((items) => {
-              delete items[change.id];
-            }),
-          );
-        } else {
-          setState("status", change.entity, change.id, change.diff);
-        }
-        break;
+    try {
+      switch (change.entity) {
+        case "spot":
+          handleSpotChange(change);
+          break;
+        case "displayMarker":
+          handleDisplayMarkerChange(change);
+          break;
+        case "apd":
+        case "autoDx":
+        case "cwDecoder":
+        case "cwx":
+        case "dvk":
+        case "featureLicense":
+        case "filterPreset":
+        case "radio":
+          // singleton entities are never removed
+          if (!change.removed) setState("status", change.entity, change.diff);
+          break;
+        case "unknown":
+          console.warn("Unknown state change", change);
+          break;
+        default:
+          if (change.removed) {
+            setState(
+              "status",
+              change.entity,
+              produce((items) => {
+                delete items[change.id];
+              }),
+            );
+          } else {
+            setState("status", change.entity, change.id, change.diff);
+          }
+          break;
+      }
+    } catch (err) {
+      console.error("Failed to update state", change, err);
     }
   };
 

@@ -1,10 +1,14 @@
 import { type Subscription, TypedEventEmitter } from "../util/events.js";
 import {
+  daxAudioClassForRate,
+  daxAudioSampleRateFromClass,
+  daxReducedBwClassForRate,
   VitaDaxAudioPacket,
   VitaDaxReducedBwPacket,
 } from "../vita/dax-audio-packet.js";
 import { VitaOpusPacket } from "../vita/opus-packet.js";
 import type { VitaPacket } from "../vita/parser.js";
+import { parseClientHandle } from "./client-handle.js";
 import { clampInteger } from "./controller-helpers.js";
 import { FlexStateUnavailableError } from "./errors.js";
 import type { RadioSession } from "./radio-core.js";
@@ -79,8 +83,9 @@ export interface DaxRxAudioStreamController extends AudioStreamController {
   /**
    * Set the RX gain (0..100) for this DAX RX channel.
    *
-   * Requires the stream to be bound to a slice. Throws
-   * {@link FlexStateUnavailableError} if no slice is currently bound.
+   * Only a stream this client owns sends the gain; for any other stream the
+   * call does nothing. While the stream has no bound slice, the gain is held
+   * and sent once a slice is bound. Only the most recent held gain is kept.
    */
   setRxGain(gain: number): Promise<void>;
 }
@@ -100,6 +105,7 @@ export class AudioStreamControllerImpl implements AudioStreamController {
   private readonly events =
     new TypedEventEmitter<AudioStreamControllerEvents>();
   private streamHandle?: string;
+  private micRateHz = 0;
   private dataListeners = 0;
   private dataSubscription?: Subscription;
 
@@ -182,8 +188,24 @@ export class AudioStreamControllerImpl implements AudioStreamController {
     return snapshot;
   }
 
+  get sampleRateHz(): number {
+    switch (this.current().type) {
+      case "dax_rx":
+      case "dax_tx":
+        return this.followedSliceRateHz();
+      case "dax_mic":
+        return this.micRateHz;
+      default:
+        return 0;
+    }
+  }
+
   snapshot(): AudioStreamSnapshot {
-    return this.current();
+    const current = this.current();
+    const sampleRateHz = this.sampleRateHz;
+    return sampleRateHz === current.sampleRateHz
+      ? current
+      : { ...current, sampleRateHz };
   }
 
   on<TKey extends keyof AudioStreamControllerEvents>(
@@ -225,6 +247,28 @@ export class AudioStreamControllerImpl implements AudioStreamController {
     }
   }
 
+  /**
+   * Sample rate in Hz of the slice this stream follows, or 0 when it is not
+   * known. A stream bound to a slice follows that slice. A stream with no
+   * bound slice follows the transmit slice that its client (or its GUI client)
+   * owns.
+   */
+  protected followedSliceRateHz(): number {
+    const snapshot = this.current();
+    const slices = this.radio.getStore().getSlices();
+    let slice = snapshot.slice
+      ? slices.find((s) => s.indexLetter === snapshot.slice)
+      : undefined;
+    if (!slice) {
+      const owners = [snapshot.clientGuiHandle, snapshot.clientHandle];
+      slice =
+        slices.find(
+          (s) => s.isTransmitEnabled && owners.includes(s.clientHandle),
+        ) ?? slices.find((s) => s.isTransmitEnabled);
+    }
+    return slice && slice.sampleRateHz > 0 ? slice.sampleRateHz : 0;
+  }
+
   protected requireNumericStreamId(): number {
     const handle = this.streamHandle ?? this.current().streamId;
     const numericId = parseStreamIdentifier(handle);
@@ -243,6 +287,12 @@ export class AudioStreamControllerImpl implements AudioStreamController {
     this.dataSubscription = this.radio.registerStreamHandler(
       streamNumericId,
       (packet) => {
+        if (packet.kind === "daxAudio" || packet.kind === "daxReducedBw") {
+          const rate = daxAudioSampleRateFromClass(
+            packet.classId.packetClassCode,
+          );
+          if (rate !== undefined) this.micRateHz = rate;
+        }
         this.events.emit("data", packet);
       },
     );
@@ -273,6 +323,8 @@ export class AudioStreamTxControllerImpl
 
   sendAudio(left: Float32Array, right: Float32Array): void {
     const numericId = this.requireNumericStreamId();
+    const classCode = daxAudioClassForRate(this.followedSliceRateHz());
+    if (classCode === undefined) return;
     if (!this.txAudioPkt) {
       this.txAudioPkt = new VitaDaxAudioPacket();
       this.txAudioPkt.streamId = numericId;
@@ -281,6 +333,7 @@ export class AudioStreamTxControllerImpl
     }
     const pkt = this.txAudioPkt;
     pkt.streamId = numericId;
+    pkt.classId.packetClassCode = classCode;
     pkt.header.packetCount = this.txPacketCount;
     const frames = Math.min(left.length, right.length, DAX_PACKET_SAMPLES);
     pkt.left.set(left.subarray(0, frames));
@@ -291,6 +344,8 @@ export class AudioStreamTxControllerImpl
 
   sendReducedBwAudio(samples: Int16Array): void {
     const numericId = this.requireNumericStreamId();
+    const classCode = daxReducedBwClassForRate(this.followedSliceRateHz());
+    if (classCode === undefined) return;
     if (!this.txReducedBwPkt) {
       this.txReducedBwPkt = new VitaDaxReducedBwPacket();
       this.txReducedBwPkt.streamId = numericId;
@@ -298,6 +353,7 @@ export class AudioStreamTxControllerImpl
     }
     const pkt = this.txReducedBwPkt;
     pkt.streamId = numericId;
+    pkt.classId.packetClassCode = classCode;
     pkt.header.packetCount = this.txPacketCount;
     const count = Math.min(samples.length, DAX_PACKET_SAMPLES);
     pkt.samples.set(samples.subarray(0, count));
@@ -321,13 +377,38 @@ export class DaxRxAudioStreamControllerImpl
   extends AudioStreamControllerImpl
   implements DaxRxAudioStreamController
 {
+  private pendingGain?: number;
+
   async setRxGain(gain: number): Promise<void> {
-    const sliceLetter = this.slice;
-    if (sliceLetter === undefined) {
-      throw new FlexStateUnavailableError(
-        `DAX RX stream ${this.id} has no slice bound; cannot set gain`,
-      );
+    const clamped = clampInteger(gain, 0, 100, "DAX RX gain");
+    if (!this.ownedByThisClient()) return;
+    if (this.slice === undefined) {
+      this.pendingGain = clamped;
+      return;
     }
+    this.pendingGain = undefined;
+    await this.sendGain(clamped);
+  }
+
+  override onStateChange(change: AudioStreamStateChange): void {
+    super.onStateChange(change);
+    if (change.removed || this.pendingGain === undefined) return;
+    if (this.slice === undefined || !this.ownedByThisClient()) return;
+    const gain = this.pendingGain;
+    this.pendingGain = undefined;
+    this.sendGain(gain).catch(() => {
+      // The caller already returned; a refused or unsendable gain is dropped.
+    });
+  }
+
+  private ownedByThisClient(): boolean {
+    const own = this.radio.clientHandle;
+    const ownHandle = own ? parseClientHandle(own) : undefined;
+    return ownHandle !== undefined && this.clientHandle === ownHandle;
+  }
+
+  private async sendGain(gain: number): Promise<void> {
+    const sliceLetter = this.slice;
     const slice = this.radio
       .getStore()
       .getSlices()
@@ -337,9 +418,8 @@ export class DaxRxAudioStreamControllerImpl
         `DAX RX stream ${this.id} bound to slice ${sliceLetter} but slice is not in store`,
       );
     }
-    const clamped = clampInteger(gain, 0, 100, "DAX RX gain");
     await this.radio.command(
-      `audio stream ${this.id} slice ${slice.id} gain ${clamped}`,
+      `audio stream ${this.id} slice ${slice.id} gain ${gain}`,
     );
   }
 }

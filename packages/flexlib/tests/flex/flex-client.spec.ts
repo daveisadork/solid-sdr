@@ -1,4 +1,9 @@
 import { describe, expect, it } from "vitest";
+import {
+  clientHandlesMatch,
+  formatClientHandle,
+  parseClientHandle,
+} from "../../src/flex/client-handle.js";
 import { FlexCommandRejectedError } from "../../src/flex/errors.js";
 import { FlexClient } from "../../src/flex/flex-client.js";
 import { MockFlexTransport } from "../helpers.js";
@@ -17,6 +22,32 @@ describe("FlexClient", () => {
     expect(transport.connections[0]?.commands).toEqual([
       "client disconnect 0x29DD2CDC",
     ]);
+  });
+
+  it("pads short handles to eight hex digits", async () => {
+    const transport = new MockFlexTransport();
+    const client = new FlexClient({ transport });
+
+    await client.disconnectClient({ host: "192.168.1.100", port: 4992 }, 0x1);
+    await client.disconnectClient({ host: "192.168.1.100", port: 4992 }, "2a");
+
+    expect(transport.connections[0]?.commands).toEqual([
+      "client disconnect 0x00000001",
+    ]);
+    expect(transport.connections[1]?.commands).toEqual([
+      "client disconnect 0x0000002A",
+    ]);
+  });
+
+  it("formats, parses, and compares handles by value", () => {
+    expect(formatClientHandle(0xabc)).toBe("0x00000ABC");
+    expect(parseClientHandle("10")).toBe(0x10);
+    expect(parseClientHandle("0X0000ff")).toBe(0xff);
+    expect(parseClientHandle("zz")).toBeUndefined();
+    expect(clientHandlesMatch("0x1", "0x00000001")).toBe(true);
+    expect(clientHandlesMatch("1", "0x00000001")).toBe(true);
+    expect(clientHandlesMatch("0x1", "0x2")).toBe(false);
+    expect(clientHandlesMatch("abc-not", "ABC-NOT")).toBe(true);
   });
 
   it("surfaces disconnect command rejections", async () => {

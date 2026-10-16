@@ -113,7 +113,7 @@ describe("createRadioStateStore", () => {
     expect(slice?.rnnEnabled).toBe(true);
     expect(slice?.anftEnabled).toBe(true);
     expect(slice?.nrfEnabled).toBe(true);
-    expect(slice?.nrfLevel).toBe(55);
+    expect(slice?.raw.nrf_level).toBe("55");
     expect(slice?.escEnabled).toBe(true);
     expect(slice?.escGain).toBeCloseTo(0.75);
     expect(slice?.escPhaseShift).toBeCloseTo(15.5);
@@ -166,6 +166,89 @@ describe("createRadioStateStore", () => {
     const store = createRadioStateStore();
     store.apply(makeStatus("S1|interlock source=DVK"));
     expect(store.getRadio()?.interlockPttSource).toBe("DVK");
+  });
+
+  it("parses cw profile list, selection, and unsaved changes", () => {
+    const store = createRadioStateStore();
+    store.apply(makeStatus("S1|profile cw list=Default^Contest^"));
+    store.apply(makeStatus("S2|profile cw current=Contest"));
+    store.apply(makeStatus("S3|profile cw unsaved_changes_cw=1"));
+    const radio = store.getRadio();
+    expect(radio?.profileCwList).toEqual(["Default", "Contest"]);
+    expect(radio?.profileCwSelection).toBe("Contest");
+    expect(radio?.profileUnsavedChangesCw).toBe(true);
+  });
+
+  it("accepts a cw profile selection before the list arrives", () => {
+    const store = createRadioStateStore();
+    store.apply(makeStatus("S1|profile cw current=Solo"));
+    expect(store.getRadio()?.profileCwSelection).toBe("Solo");
+    expect(store.getRadio()?.profileCwList).toBeUndefined();
+  });
+
+  it("parses gps fix and keeps an unknown fix off the typed field", () => {
+    const store = createRadioStateStore();
+    store.apply(makeStatus("S1|gps fix=3D#tracked=5"));
+    expect(store.getRadio()?.gpsFix).toBe("3D");
+    store.apply(makeStatus("S2|gps fix=NO_FIX"));
+    expect(store.getRadio()?.gpsFix).toBe("NO_FIX");
+    store.apply(makeStatus("S3|gps fix=SURVEY#tracked=7"));
+    expect(store.getRadio()?.gpsFix).toBe("NO_FIX");
+    expect(store.getRadio()?.gpsSatellitesTracked).toBe(7);
+    expect(store.getRadio()?.raw.fix).toBe("SURVEY");
+  });
+
+  it("parses ptt_mic_override from transmit status", () => {
+    const store = createRadioStateStore();
+    store.apply(makeStatus("S1|transmit ptt_mic_override=1 vox_enable=0"));
+    expect(store.getRadio()?.pttMicOverride).toBe(true);
+    store.apply(makeStatus("S2|transmit ptt_mic_override=0"));
+    expect(store.getRadio()?.pttMicOverride).toBe(false);
+  });
+
+  it("parses the amplifier software version from ha_api system status", () => {
+    const store = createRadioStateStore();
+    store.apply(makeStatus("S1|ha_api system version=1.2.3"));
+    expect(store.getRadio()?.amplifierSoftwareVersion).toBe("1.2.3");
+    store.apply(makeStatus("S2|ha_api system version="));
+    expect(store.getRadio()?.amplifierSoftwareVersion).toBe("1.2.3");
+  });
+
+  it("marks features permanent by reason, never alpha", () => {
+    const store = createRadioStateStore();
+    for (const line of [
+      "S1|license feature name=a enabled=1 reason=license_file",
+      "S2|license feature name=b enabled=1 reason=plus",
+      "S3|license feature name=c enabled=1 reason=ea",
+      "S4|license feature name=d enabled=1 reason=built_in",
+      "S5|license feature name=e enabled=0 reason=license_file",
+      "S6|license feature name=alpha enabled=1 reason=license_file",
+    ]) {
+      store.apply(makeStatus(line));
+    }
+    const f = store.getFeatureLicense()?.features;
+    expect(f?.a?.permanent).toBe(true);
+    expect(f?.b?.permanent).toBe(true);
+    expect(f?.c?.permanent).toBe(true);
+    expect(f?.d?.permanent).toBe(false);
+    expect(f?.e?.permanent).toBe(false);
+    expect(f?.alpha?.permanent).toBe(false);
+  });
+
+  it("parses VOX and comma-joined ptt sources", () => {
+    const store = createRadioStateStore();
+    store.apply(makeStatus("S1|interlock source=VOX"));
+    expect(store.getRadio()?.interlockPttSource).toBe("VOX");
+
+    store.apply(makeStatus("S2|interlock source=MIC,VOX"));
+    expect(store.getRadio()?.interlockPttSource).toBe("MIC");
+
+    store.apply(makeStatus("S3|interlock source=FOO,vox"));
+    expect(store.getRadio()?.interlockPttSource).toBe("VOX");
+
+    store.apply(makeStatus("S4|interlock source=FOO,BAR timeout=7"));
+    expect(store.getRadio()?.interlockPttSource).toBe("VOX");
+    expect(store.getRadio()?.interlockTimeoutMs).toBe(7);
   });
 
   it("parses transmit status fields", () => {
@@ -407,6 +490,23 @@ describe("createRadioStateStore", () => {
     store.apply(makeStatus(installStatus));
     radio = store.getRadio();
     expect(radio?.gpsInstalled).toBe(true);
+  });
+
+  it("types cw_decode_available and stays quiet for known-ignored keys", () => {
+    const warn = vi.spyOn(console, "debug").mockImplementation(() => {});
+    const store = createRadioStateStore();
+    store.apply(
+      makeStatus(
+        "S1|radio cw_decode_available=1 debug_fake_pa_overtemp=0 debug_fake_pa_swr_fault=0",
+      ),
+    );
+    store.apply(makeStatus("S1|interlock tune_tx_suppress=0"));
+    store.apply(
+      makeStatus("S1|apd deployed=1 quality_db=-71.18 backend=polynomial"),
+    );
+    expect(store.getRadio()?.cwDecodeAvailable).toBe(true);
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
   });
 
   it("parses filter sharpness, static network, and oscillator statuses", () => {

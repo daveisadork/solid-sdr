@@ -33,6 +33,13 @@ export interface AudioStreamSnapshot {
   readonly clientGuiHandle?: number;
   readonly payloadEndian?: string;
   readonly slice?: string;
+  /**
+   * Sample rate of the audio on this stream in Hz, or 0 while unknown. The
+   * store keeps 0; the stream controller fills in the live value: the followed
+   * slice's rate for DAX RX and DAX TX, and the rate from the last received
+   * packet class for DAX mic.
+   */
+  readonly sampleRateHz: number;
   readonly tx: boolean;
   readonly raw: Readonly<Record<string, string>>;
 }
@@ -54,7 +61,7 @@ export function createAudioStreamSnapshot(
   const rawDiff = freezeAttributes(attributes);
   const partial: Mutable<Partial<AudioStreamSnapshot>> = previous
     ? {}
-    : { id, radioAck: false, tx: false };
+    : { id, radioAck: false, tx: false, sampleRateHz: 0 };
 
   for (const [key, value] of Object.entries(attributes)) {
     switch (key) {

@@ -25,10 +25,30 @@ export type ApdSamplerPort =
   | "XVTB"
   | (string & {});
 
+/** APD lifecycle state. A value outside this set is left off the snapshot and stays on `raw`. */
+export type ApdLifecycleState =
+  | "OFF"
+  | "IDLE"
+  | "TRAINING"
+  | "ACTIVE"
+  | "HOLD"
+  | "FAULT";
+
+const APD_LIFECYCLE_STATES: ReadonlySet<string> = new Set([
+  "OFF",
+  "IDLE",
+  "TRAINING",
+  "ACTIVE",
+  "HOLD",
+  "FAULT",
+]);
+
 export interface ApdSnapshot {
   readonly enabled: boolean;
   readonly configurable: boolean;
   readonly equalizerActive: boolean;
+  /** Lifecycle state the radio reports. Unset until the radio sends one. Wire: `state`. */
+  readonly state?: ApdLifecycleState;
   readonly antenna?: string;
   readonly frequencyMHz?: number;
   readonly rfPower?: number;
@@ -86,6 +106,13 @@ export function createApdSnapshot(
       case "equalizer_active":
         partial.equalizerActive = isTruthy(value);
         break;
+      case "state": {
+        const upper = value.toUpperCase();
+        if (APD_LIFECYCLE_STATES.has(upper)) {
+          partial.state = upper as ApdLifecycleState;
+        }
+        break;
+      }
       case "equalizer_reset":
         partial.equalizerActive = false;
         break;
@@ -143,6 +170,11 @@ export function createApdSnapshot(
       case "tx_ant":
       case "selected_sampler":
       case "valid_samplers":
+        break;
+      case "deployed":
+      case "quality_db":
+      case "backend":
+        // radio sends these, but no client behavior depends on them
         break;
       default:
         logUnknownAttribute("apd", key, value);

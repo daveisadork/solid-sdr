@@ -5,6 +5,7 @@ import {
   logUnknownAttribute,
   parseFloatSafe,
   parseInteger,
+  parseIntegerHex,
 } from "./common.js";
 
 export type KnownMeterUnits =
@@ -41,7 +42,13 @@ export const KNOWN_METER_UNITS: readonly KnownMeterUnits[] = Object.freeze([
 export interface MeterSnapshot {
   readonly id: string;
   readonly source: string;
-  readonly sourceIndex: number;
+  /**
+   * What the meter measures, read according to `source`: a slice index for a
+   * slice meter, or the 32-bit client handle for an amplifier or tuner meter.
+   * Unset until the radio reports it, because 0 is a valid slice index. The
+   * first value wins; a later `num` is ignored.
+   */
+  readonly sourceIndex?: number;
   readonly name: string;
   readonly description: string;
   readonly units: MeterUnits;
@@ -76,7 +83,10 @@ export function createMeterSnapshot(
         partial.source = value;
         break;
       case "num": {
-        const parsed = parseInteger(value);
+        if (previous?.sourceIndex !== undefined) break;
+        const parsed = /^0x/i.test(value)
+          ? parseIntegerHex(value)
+          : parseInteger(value);
         if (parsed !== undefined) partial.sourceIndex = parsed;
         else logParseError("meter", key, value);
         break;

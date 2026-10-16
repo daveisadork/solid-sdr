@@ -167,6 +167,42 @@ describe("CWX controller", () => {
     expect(connection.lastCommand()).toBe('cwx send "single"');
   });
 
+  it("substitutes double quotes in send, macro save, and inbound macros", async () => {
+    const { radio, connection } = await createConnectedRadio();
+    connection.emitStatus("S1|cwx wpm=20");
+
+    await radio.cwx().send('say "hi"');
+    expect(connection.lastCommand()).toBe('cwx send "say\x7f\x1ehi\x1e"');
+
+    await radio.cwx().setMacro(0, 'a "b"');
+    expect(connection.lastCommand()).toBe('cwx macro save 1 "a \x1eb\x1e"');
+
+    connection.emitStatus("S2|cwx macro2=x\x1ey\x1e\x7fz");
+    expect(radio.cwx().macros[1]).toBe('x"y" z');
+  });
+
+  it("inserts text at a buffer index through the same codec", async () => {
+    const { radio, connection } = await createConnectedRadio();
+    connection.emitStatus("S1|cwx wpm=20");
+    connection.prepareResponse("cwx insert", { message: "12,3" });
+
+    const queued = await radio.cwx().insert(10, 'a "b"', 3);
+
+    expect(connection.lastCommand()).toBe('cwx insert 10 "a\x7f\x1eb\x1e" 3');
+    expect(queued).toEqual({ block: 3, radioIndex: 12 });
+  });
+
+  it("rejects insert when the radio refuses it", async () => {
+    const { radio, connection } = await createConnectedRadio();
+    connection.emitStatus("S1|cwx wpm=20");
+    connection.prepareResponse("cwx insert", {
+      code: 0x50000001,
+      message: "bad index",
+    });
+
+    await expect(radio.cwx().insert(99, "x", 1)).rejects.toThrow();
+  });
+
   it("tracks sends by block id and reports the queued buffer position", async () => {
     // given a connected radio that answers a tracked send
     const { radio, connection } = await createConnectedRadio();

@@ -86,8 +86,10 @@ describe("Radio", () => {
     await slice?.setNrfEnabled(true);
     expect(connection.lastCommand()).toBe("slice set 0 nrf=1");
 
-    await slice?.setNrfLevel(40);
-    expect(connection.lastCommand()).toBe("slice set 0 nrf_level=40");
+    await slice?.setNrsLevel(80);
+    expect(connection.lastCommand()).toBe("slice set 0 speex_nr_level=50");
+    await slice?.setNrsLevel(-5);
+    expect(connection.lastCommand()).toBe("slice set 0 speex_nr_level=0");
 
     await slice?.setEscEnabled(true);
     expect(connection.lastCommand()).toBe("slice set 0 esc=on");
@@ -234,7 +236,7 @@ describe("Radio", () => {
       const creationPromise = radio.createDaxRxAudioStream({ daxChannel: 3 });
       // stream status reports slice binding as the letter
       connection.emitStatus(
-        "S1|stream 0x02000002 type=dax_rx dax_channel=3 slice=B client_handle=0x9ABC",
+        "S1|stream 0x02000002 type=dax_rx dax_channel=3 slice=B client_handle=0x12345678",
       );
       const stream = await creationPromise;
 
@@ -247,16 +249,40 @@ describe("Radio", () => {
     },
   );
 
-  it("throws when setting dax rx gain on a stream with no slice bound", async () => {
+  it("holds a dax rx gain until a slice is bound, then sends it", async () => {
     const { radio, connection } = await createConnectedRadio();
+    connection.emitStatus("S1|slice 1 index_letter=B");
     connection.prepareResponse("stream create", { message: "2000002" });
     const creationPromise = radio.createDaxRxAudioStream({ daxChannel: 3 });
     connection.emitStatus(
-      "S1|stream 0x02000002 type=dax_rx dax_channel=3 client_handle=0x9ABC",
+      "S1|stream 0x02000002 type=dax_rx dax_channel=3 client_handle=0x12345678",
     );
     const stream = await creationPromise;
 
-    await expect(stream.setRxGain(50)).rejects.toThrow(/no slice bound/);
+    await stream.setRxGain(40);
+    await stream.setRxGain(60);
+    expect(connection.lastCommand()).not.toMatch(/gain/);
+
+    connection.emitStatus("S1|stream 0x02000002 slice=B");
+    await Promise.resolve();
+    expect(connection.lastCommand()).toBe(
+      "audio stream 0x02000002 slice 1 gain 60",
+    );
+  });
+
+  it("does not send dax rx gain for a stream another client owns", async () => {
+    const { radio, connection } = await createConnectedRadio();
+    connection.emitStatus("S1|slice 1 index_letter=B");
+    connection.prepareResponse("stream create", { message: "2000002" });
+    const creationPromise = radio.createDaxRxAudioStream({ daxChannel: 3 });
+    connection.emitStatus(
+      "S1|stream 0x02000002 type=dax_rx dax_channel=3 slice=B client_handle=0x9ABC",
+    );
+    const stream = await creationPromise;
+    const before = connection.lastCommand();
+
+    await expect(stream.setRxGain(50)).resolves.toBeUndefined();
+    expect(connection.lastCommand()).toBe(before);
   });
 
   it("creates dax tx audio stream controllers and requests tx ownership", async () => {
@@ -466,6 +492,22 @@ describe("Radio", () => {
     await radio.setNickname("New Nick!");
     expect(connection.lastCommand()).toBe("radio name New Nick");
 
+    await radio.setNickname("  !!  ");
+    expect(connection.lastCommand()).toBe("radio clear_name");
+    expect(radio.snapshot()?.nickname).toBe("");
+
+    await radio.loadCwProfile("Contest");
+    expect(connection.lastCommand()).toBe('profile cw load "Contest"');
+    await radio.createCwProfile("New CW");
+    expect(connection.lastCommand()).toBe('profile cw create "New CW"');
+    await radio.resetCwProfile("New CW");
+    expect(connection.lastCommand()).toBe('profile cw reset "New CW"');
+    await radio.deleteCwProfile("New CW");
+    expect(connection.lastCommand()).toBe('profile cw delete "New CW"');
+
+    await radio.setPttMicOverride(true);
+    expect(connection.lastCommand()).toBe("transmit set ptt_mic_override=1");
+
     await radio.setCallsign("kf0smy");
     expect(connection.lastCommand()).toBe("radio callsign KF0SMY");
 
@@ -544,5 +586,25 @@ describe("Radio", () => {
     connection.emitClose();
 
     expect(reasons).toEqual(["duplicate_client_id"]);
+  });
+
+  it("sends the cw profile and ha_api system subscriptions in the handshake", async () => {
+    const { connection } = await createConnectedRadio();
+    expect(connection.commands).toContain("profile cw info");
+    expect(connection.commands).toContain("sub ha_api system");
+  });
+
+  it("rejects cw profile, mic override, and clear-name commands the radio refuses", async () => {
+    const { radio, connection } = await createConnectedRadio();
+    for (const prefix of [
+      "profile cw create",
+      "transmit set ptt_mic_override",
+      "radio clear_name",
+    ]) {
+      connection.prepareResponse(prefix, { code: 0x50000001, message: "no" });
+    }
+    await expect(radio.createCwProfile("X")).rejects.toThrow();
+    await expect(radio.setPttMicOverride(true)).rejects.toThrow();
+    await expect(radio.setNickname("")).rejects.toThrow();
   });
 });

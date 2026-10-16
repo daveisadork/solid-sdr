@@ -38,6 +38,8 @@ export interface PanadapterSnapshot {
   readonly wnbUpdating: boolean;
   readonly noiseFloorPosition: number;
   readonly noiseFloorPositionEnabled: boolean;
+  /** Noise-floor range in dB. Wire: `noise_floor_range`. Unset until the radio reports it. */
+  readonly noiseFloorRange?: number;
   readonly width: number;
   readonly height: number;
   readonly fps: number;
@@ -209,6 +211,12 @@ export function createPanadapterSnapshot(
       case "noise_floor_position": {
         const parsed = parseInteger(value);
         if (parsed !== undefined) partial.noiseFloorPosition = parsed;
+        else logParseError("panadapter", key, value);
+        break;
+      }
+      case "noise_floor_range": {
+        const parsed = parseFloatSafe(value);
+        if (parsed !== undefined) partial.noiseFloorRange = parsed;
         else logParseError("panadapter", key, value);
         break;
       }

@@ -13,6 +13,10 @@ import {
   parseMegahertz,
 } from "./common.js";
 
+export type SliceDspAdaptMode = "auto" | "fast" | "slow";
+export type SliceDspIsdftMode = "one" | "half" | "zero";
+export type SliceAgcThresholdMode = "auto" | "manual";
+
 export type SliceAgcMode = "off" | "slow" | "med" | "fast" | (string & {});
 export type SliceToneMode = "OFF" | "CTCSS_TX" | (string & {});
 export type SliceRepeaterOffsetDirection =
@@ -69,12 +73,54 @@ export interface SliceSnapshot {
   readonly rnnEnabled: boolean;
   readonly anftEnabled: boolean;
   readonly nrfEnabled: boolean;
-  readonly nrfLevel: number;
+  /** Wire: `nr_delay`. Unset until the radio reports it. */
+  readonly nrDelay?: number;
+  /** Wire: `nr_wlen`. */
+  readonly nrWlen?: number;
+  /** Wire: `nr_adapt_mode`. A value outside the known set stays on `raw`. */
+  readonly nrAdaptMode?: SliceDspAdaptMode;
+  /** Wire: `nr_isdft_mode`. A value outside the known set stays on `raw`. */
+  readonly nrIsdftMode?: SliceDspIsdftMode;
+  /** Wire: `nrl_filter_size`. */
+  readonly nrlFilterSize?: number;
+  /** Wire: `nrl_delay`. */
+  readonly nrlDelay?: number;
+  /** Wire: `nrl_leakage_level`. */
+  readonly nrlLeakageLevel?: number;
+  /** Wire: `nrf_wlen`. */
+  readonly nrfWlen?: number;
+  /** Wire: `anf_wlen`. */
+  readonly anfWlen?: number;
+  /** Wire: `anf_delay`. */
+  readonly anfDelay?: number;
+  /** Wire: `anf_adapt_mode`. A value outside the known set stays on `raw`. */
+  readonly anfAdaptMode?: SliceDspAdaptMode;
+  /** Wire: `anf_isdft_mode`. A value outside the known set stays on `raw`. */
+  readonly anfIsdftMode?: SliceDspIsdftMode;
+  /** Wire: `anfl_filter_size`. */
+  readonly anflFilterSize?: number;
+  /** Wire: `anfl_delay`. */
+  readonly anflDelay?: number;
+  /** Wire: `anfl_leakage_level`. */
+  readonly anflLeakageLevel?: number;
+  /** Wire: `anft_min_db`. */
+  readonly anftMinDb?: number;
+  /** Wire: `anft_tone_db_diff`. */
+  readonly anftToneDbDiff?: number;
   readonly escEnabled: boolean;
   readonly escGain: number;
   readonly escPhaseShift: number;
   readonly agcMode: SliceAgcMode;
   readonly agcThreshold: number;
+  /** Wire: `agc_threshold_mode`. A value other than `auto` or `manual` stays on `raw`. */
+  readonly agcThresholdMode?: SliceAgcThresholdMode;
+  /**
+   * Chain the radio runs for this slice, such as `CW`. A waveform slice
+   * reports the waveform name as `mode` and the underlying chain here.
+   * Unset when the firmware never sent the key; an unset chain does not mean
+   * the slice is not CW. Wire: `chain_mode`. Read only.
+   */
+  readonly chainMode?: string;
   readonly agcOffLevel: number;
   readonly loopAEnabled: boolean;
   readonly loopBEnabled: boolean;
@@ -359,12 +405,6 @@ export function createSliceSnapshot(
       case "nrf":
         partial.nrfEnabled = isTruthy(value);
         break;
-      case "nrf_level": {
-        const parsed = parseInteger(value);
-        if (parsed !== undefined) partial.nrfLevel = parsed;
-        else logParseError("slice", key, value);
-        break;
-      }
       case "esc":
         partial.escEnabled = isTruthy(value);
         break;
@@ -380,23 +420,73 @@ export function createSliceSnapshot(
         else logParseError("slice", key, value);
         break;
       }
-      case "nr_wlen":
-      case "nr_delay":
-      case "nr_adapt_mode":
-      case "nr_isdft_mode":
-      case "nrl_filter_size":
-      case "nrl_delay":
-      case "nrl_leakage_level":
       case "nrf_winc":
+        // Not typed; tracked via the raw map only.
+        break;
+      case "nr_delay":
+        setDspInt(partial, "nrDelay", value, key);
+        break;
+      case "nr_wlen":
+        setDspInt(partial, "nrWlen", value, key);
+        break;
+      case "nr_adapt_mode":
+        if (isAdaptMode(value)) partial.nrAdaptMode = value;
+        break;
+      case "nr_isdft_mode":
+        if (isIsdftMode(value)) partial.nrIsdftMode = value;
+        break;
+      case "nrl_filter_size":
+      case "lms_nr_taps":
+        setDspInt(partial, "nrlFilterSize", value, key);
+        break;
+      case "nrl_delay":
+      case "lms_nr_delay":
+        setDspInt(partial, "nrlDelay", value, key);
+        break;
+      case "nrl_leakage_level":
+      case "lms_nr_leakage_level":
+        setDspInt(partial, "nrlLeakageLevel", value, key);
+        break;
       case "nrf_wlen":
+        setDspInt(partial, "nrfWlen", value, key);
+        break;
       case "anf_wlen":
+        setDspInt(partial, "anfWlen", value, key);
+        break;
       case "anf_delay":
+        setDspInt(partial, "anfDelay", value, key);
+        break;
       case "anf_adapt_mode":
+        if (isAdaptMode(value)) partial.anfAdaptMode = value;
+        break;
       case "anf_isdft_mode":
+        if (isIsdftMode(value)) partial.anfIsdftMode = value;
+        break;
       case "anfl_filter_size":
+      case "lms_anf_taps":
+        setDspInt(partial, "anflFilterSize", value, key);
+        break;
       case "anfl_delay":
+      case "lms_anf_delay":
+        setDspInt(partial, "anflDelay", value, key);
+        break;
       case "anfl_leakage_level":
-        // Advanced DSP parameters exposed on 4.x radios; tracked via raw map only.
+      case "lms_anf_leakage_level":
+        setDspInt(partial, "anflLeakageLevel", value, key);
+        break;
+      case "anft_min_db":
+        setDspInt(partial, "anftMinDb", value, key);
+        break;
+      case "anft_tone_db_diff":
+        setDspInt(partial, "anftToneDbDiff", value, key);
+        break;
+      case "agc_threshold_mode":
+        if (value === "auto" || value === "manual") {
+          partial.agcThresholdMode = value;
+        }
+        break;
+      case "chain_mode":
+        if (value) partial.chainMode = value;
         break;
       case "agc_mode":
         partial.agcMode = value;
@@ -649,4 +739,38 @@ export function createSliceSnapshot(
     diff: Object.freeze(partial),
     rawDiff,
   };
+}
+
+type SliceDspIntField =
+  | "nrDelay"
+  | "nrWlen"
+  | "nrlFilterSize"
+  | "nrlDelay"
+  | "nrlLeakageLevel"
+  | "nrfWlen"
+  | "anfWlen"
+  | "anfDelay"
+  | "anflFilterSize"
+  | "anflDelay"
+  | "anflLeakageLevel"
+  | "anftMinDb"
+  | "anftToneDbDiff";
+
+function setDspInt(
+  partial: Mutable<Partial<SliceSnapshot>>,
+  field: SliceDspIntField,
+  value: string,
+  key: string,
+): void {
+  const parsed = parseInteger(value);
+  if (parsed !== undefined) partial[field] = parsed;
+  else logParseError("slice", key, value);
+}
+
+function isAdaptMode(value: string): value is SliceDspAdaptMode {
+  return value === "auto" || value === "fast" || value === "slow";
+}
+
+function isIsdftMode(value: string): value is SliceDspIsdftMode {
+  return value === "one" || value === "half" || value === "zero";
 }

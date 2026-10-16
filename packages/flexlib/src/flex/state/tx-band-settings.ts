@@ -69,6 +69,9 @@ export function createTxBandSettingSnapshot(
       case "tx3_enabled":
         partial.rcaTx3Enabled = isTruthy(value);
         break;
+      case "tune_tx_suppress":
+        // radio sends this, but no client behavior depends on it
+        break;
       default:
         logUnknownAttribute("tx_band", key, value);
         break;

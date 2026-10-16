@@ -1,5 +1,7 @@
 import { type Subscription, TypedEventEmitter } from "../util/events.js";
+import type { AutoDxController } from "./autodx.js";
 import {
+  clampInteger,
   formatBooleanFlag,
   formatInteger,
   formatMegahertz,
@@ -7,15 +9,54 @@ import {
 import { FlexError, FlexStateUnavailableError } from "./errors.js";
 import type { RadioSession } from "./radio-core.js";
 import type {
+  CwDecoderSnapshot,
+  CwDecoderStateChange,
   SliceAgcMode,
+  SliceAgcThresholdMode,
+  SliceDspAdaptMode,
+  SliceDspIsdftMode,
   SliceRepeaterOffsetDirection,
   SliceSnapshot,
   SliceStateChange,
   SliceToneMode,
 } from "./state/index.js";
 
+const ADAPT_MODES: ReadonlySet<string> = new Set(["auto", "fast", "slow"]);
+const ISDFT_MODES: ReadonlySet<string> = new Set(["one", "half", "zero"]);
+const DSP_RESET_ALGORITHMS: ReadonlySet<string> = new Set([
+  "all",
+  "nr",
+  "anf",
+  "lms_nr",
+  "lms_anf",
+  "nrf",
+  "speex_nr",
+  "anft",
+]);
+
+/** DSP algorithm names accepted by {@link SliceController.resetDspParameters}. */
+export type SliceDspResetAlgorithm =
+  | "all"
+  | "nr"
+  | "anf"
+  | "lms_nr"
+  | "lms_anf"
+  | "nrf"
+  | "speex_nr"
+  | "anft";
+
+function clampDsp(value: number, min: number, max: number): string {
+  return clampInteger(value, min, max, "DSP parameter").toString(10);
+}
+
+function isPowerOfTwo(value: number): boolean {
+  return Number.isInteger(value) && value > 0 && (value & (value - 1)) === 0;
+}
+
 export interface SliceControllerEvents {
   readonly change: SliceStateChange;
+  /** The CW decoder state on this slice changed. */
+  readonly cwDecoder: CwDecoderStateChange;
 }
 
 export interface SliceUpdateRequest {
@@ -52,7 +93,6 @@ export interface SliceUpdateRequest {
   rnnEnabled?: boolean;
   anftEnabled?: boolean;
   nrfEnabled?: boolean;
-  nrfLevel?: number;
   escEnabled?: boolean;
   escGain?: number;
   escPhaseShift?: number;
@@ -88,6 +128,13 @@ export interface SliceUpdateRequest {
 
 export interface SliceController extends Readonly<Omit<SliceSnapshot, "raw">> {
   snapshot(): SliceSnapshot;
+  /**
+   * State of the CW decoder on this slice, or `undefined` until the radio
+   * reports one. Decoded text is not a DSP setting of the slice.
+   */
+  readonly cwDecoder: CwDecoderSnapshot | undefined;
+  /** AutoDX controller for this slice. It is available before the radio reports any AutoDX state. */
+  readonly autoDx: AutoDxController;
   on<TKey extends keyof SliceControllerEvents>(
     event: TKey,
     listener: (payload: SliceControllerEvents[TKey]) => void,
@@ -207,7 +254,7 @@ export interface SliceController extends Readonly<Omit<SliceSnapshot, "raw">> {
    */
   setNrsEnabled(enabled: boolean): Promise<void>;
   /**
-   * Sets the spectral subtraction noise reduction (NRS) level from 0 to 100.
+   * Sets the spectral subtraction noise reduction (NRS) level from 0 to 50. Values outside that range are clamped.
    */
   setNrsLevel(level: number): Promise<void>;
   /**
@@ -222,10 +269,56 @@ export interface SliceController extends Readonly<Omit<SliceSnapshot, "raw">> {
    * Enables or disables noise reduction with filter (NRF) for the slice.
    */
   setNrfEnabled(enabled: boolean): Promise<void>;
+  /** Sets the NR delay, clamped to 1 to 512. */
+  setNrDelay(delay: number): Promise<void>;
   /**
-   * Sets the noise reduction with filter (NRF) level from 0 to 100.
+   * Sets the NR window length, clamped to 32 to 512. A value that is not a
+   * power of two is not sent.
    */
-  setNrfLevel(level: number): Promise<void>;
+  setNrWlen(length: number): Promise<void>;
+  /** Sets the NR adapt mode. A value outside the allowed set is not sent. */
+  setNrAdaptMode(mode: SliceDspAdaptMode): Promise<void>;
+  /** Sets which time index NR uses in its inverse SDFT. A value outside the allowed set is not sent. */
+  setNrIsdftMode(mode: SliceDspIsdftMode): Promise<void>;
+  /** Sets the LMS NR (NRL) filter size, clamped to 1 to 512. */
+  setNrlFilterSize(size: number): Promise<void>;
+  /** Sets the LMS NR (NRL) delay, clamped to 1 to 512. */
+  setNrlDelay(delay: number): Promise<void>;
+  /** Sets the LMS NR (NRL) leakage level, clamped to 0 to 100. */
+  setNrlLeakageLevel(level: number): Promise<void>;
+  /**
+   * Sets the NRF window length, clamped to 512 to 8192. A value that is not a
+   * power of two is not sent.
+   */
+  setNrfWlen(length: number): Promise<void>;
+  /**
+   * Sets the ANF window length, clamped to 32 to 512. A value that is not a
+   * power of two is not sent.
+   */
+  setAnfWlen(length: number): Promise<void>;
+  /** Sets the ANF delay, clamped to 1 to 512. */
+  setAnfDelay(delay: number): Promise<void>;
+  /** Sets the ANF adapt mode. A value outside the allowed set is not sent. */
+  setAnfAdaptMode(mode: SliceDspAdaptMode): Promise<void>;
+  /** Sets which time index ANF uses in its inverse SDFT. A value outside the allowed set is not sent. */
+  setAnfIsdftMode(mode: SliceDspIsdftMode): Promise<void>;
+  /** Sets the LMS ANF (ANFL) filter size, clamped to 1 to 512. */
+  setAnflFilterSize(size: number): Promise<void>;
+  /** Sets the LMS ANF (ANFL) delay, clamped to 1 to 512. */
+  setAnflDelay(delay: number): Promise<void>;
+  /** Sets the LMS ANF (ANFL) leakage level, clamped to 0 to 100. */
+  setAnflLeakageLevel(level: number): Promise<void>;
+  /** Sets the minimum level in dB for the FFT auto-notch (ANFT). */
+  setAnftMinDb(db: number): Promise<void>;
+  /** Sets the tone-to-noise difference in dB for the FFT auto-notch (ANFT). */
+  setAnftToneDbDiff(db: number): Promise<void>;
+  /** Sets whether the AGC threshold follows the radio (`auto`) or the caller (`manual`). */
+  setAgcThresholdMode(mode: SliceAgcThresholdMode): Promise<void>;
+  /**
+   * Resets the tuning parameters of one DSP algorithm, or of all of them, to
+   * the radio's defaults.
+   */
+  resetDspParameters(algorithm: SliceDspResetAlgorithm): Promise<void>;
   /**
    * Enables or disables ESC (Enhanced Signal Clarity) processing for the slice.
    */
@@ -591,12 +684,84 @@ export class SliceControllerImpl implements SliceController {
     return this.current().anftEnabled;
   }
 
-  get nrfEnabled(): boolean {
-    return this.current().nrfEnabled;
+  get nrDelay(): number | undefined {
+    return this.current().nrDelay;
   }
 
-  get nrfLevel(): number {
-    return this.current().nrfLevel;
+  get nrWlen(): number | undefined {
+    return this.current().nrWlen;
+  }
+
+  get nrlFilterSize(): number | undefined {
+    return this.current().nrlFilterSize;
+  }
+
+  get nrlDelay(): number | undefined {
+    return this.current().nrlDelay;
+  }
+
+  get nrlLeakageLevel(): number | undefined {
+    return this.current().nrlLeakageLevel;
+  }
+
+  get nrfWlen(): number | undefined {
+    return this.current().nrfWlen;
+  }
+
+  get anfWlen(): number | undefined {
+    return this.current().anfWlen;
+  }
+
+  get anfDelay(): number | undefined {
+    return this.current().anfDelay;
+  }
+
+  get anflFilterSize(): number | undefined {
+    return this.current().anflFilterSize;
+  }
+
+  get anflDelay(): number | undefined {
+    return this.current().anflDelay;
+  }
+
+  get anflLeakageLevel(): number | undefined {
+    return this.current().anflLeakageLevel;
+  }
+
+  get anftMinDb(): number | undefined {
+    return this.current().anftMinDb;
+  }
+
+  get anftToneDbDiff(): number | undefined {
+    return this.current().anftToneDbDiff;
+  }
+
+  get nrAdaptMode(): SliceDspAdaptMode | undefined {
+    return this.current().nrAdaptMode;
+  }
+
+  get nrIsdftMode(): SliceDspIsdftMode | undefined {
+    return this.current().nrIsdftMode;
+  }
+
+  get anfAdaptMode(): SliceDspAdaptMode | undefined {
+    return this.current().anfAdaptMode;
+  }
+
+  get anfIsdftMode(): SliceDspIsdftMode | undefined {
+    return this.current().anfIsdftMode;
+  }
+
+  get agcThresholdMode(): SliceAgcThresholdMode | undefined {
+    return this.current().agcThresholdMode;
+  }
+
+  get chainMode(): string | undefined {
+    return this.current().chainMode;
+  }
+
+  get nrfEnabled(): boolean {
+    return this.current().nrfEnabled;
   }
 
   get escEnabled(): boolean {
@@ -893,7 +1058,9 @@ export class SliceControllerImpl implements SliceController {
   }
 
   async setNrsLevel(level: number): Promise<void> {
-    await this.sendSet({ speex_nr_level: formatInteger(level) });
+    await this.sendSet({
+      speex_nr_level: formatInteger(clampInteger(level, 0, 50, "NRS level")),
+    });
   }
 
   async setRnnEnabled(enabled: boolean): Promise<void> {
@@ -904,12 +1071,93 @@ export class SliceControllerImpl implements SliceController {
     await this.sendSet({ anft: formatBooleanFlag(enabled) });
   }
 
-  async setNrfEnabled(enabled: boolean): Promise<void> {
-    await this.sendSet({ nrf: formatBooleanFlag(enabled) });
+  async setNrDelay(delay: number): Promise<void> {
+    await this.sendSet({ nr_delay: clampDsp(delay, 1, 512) });
   }
 
-  async setNrfLevel(level: number): Promise<void> {
-    await this.sendSet({ nrf_level: formatInteger(level) });
+  async setNrWlen(length: number): Promise<void> {
+    if (!isPowerOfTwo(length)) return;
+    await this.sendSet({ nr_wlen: clampDsp(length, 32, 512) });
+  }
+
+  async setNrAdaptMode(mode: SliceDspAdaptMode): Promise<void> {
+    if (!ADAPT_MODES.has(mode)) return;
+    await this.sendSet({ nr_adapt_mode: mode });
+  }
+
+  async setNrIsdftMode(mode: SliceDspIsdftMode): Promise<void> {
+    if (!ISDFT_MODES.has(mode)) return;
+    await this.sendSet({ nr_isdft_mode: mode });
+  }
+
+  async setNrlFilterSize(size: number): Promise<void> {
+    await this.sendSet({ lms_nr_taps: clampDsp(size, 1, 512) });
+  }
+
+  async setNrlDelay(delay: number): Promise<void> {
+    await this.sendSet({ lms_nr_delay: clampDsp(delay, 1, 512) });
+  }
+
+  async setNrlLeakageLevel(level: number): Promise<void> {
+    await this.sendSet({ lms_nr_leakage_level: clampDsp(level, 0, 100) });
+  }
+
+  async setNrfWlen(length: number): Promise<void> {
+    if (!isPowerOfTwo(length)) return;
+    await this.sendSet({ nrf_wlen: clampDsp(length, 512, 8192) });
+  }
+
+  async setAnfWlen(length: number): Promise<void> {
+    if (!isPowerOfTwo(length)) return;
+    await this.sendSet({ anf_wlen: clampDsp(length, 32, 512) });
+  }
+
+  async setAnfDelay(delay: number): Promise<void> {
+    await this.sendSet({ anf_delay: clampDsp(delay, 1, 512) });
+  }
+
+  async setAnfAdaptMode(mode: SliceDspAdaptMode): Promise<void> {
+    if (!ADAPT_MODES.has(mode)) return;
+    await this.sendSet({ anf_adapt_mode: mode });
+  }
+
+  async setAnfIsdftMode(mode: SliceDspIsdftMode): Promise<void> {
+    if (!ISDFT_MODES.has(mode)) return;
+    await this.sendSet({ anf_isdft_mode: mode });
+  }
+
+  async setAnflFilterSize(size: number): Promise<void> {
+    await this.sendSet({ lms_anf_taps: clampDsp(size, 1, 512) });
+  }
+
+  async setAnflDelay(delay: number): Promise<void> {
+    await this.sendSet({ lms_anf_delay: clampDsp(delay, 1, 512) });
+  }
+
+  async setAnflLeakageLevel(level: number): Promise<void> {
+    await this.sendSet({ lms_anf_leakage_level: clampDsp(level, 0, 100) });
+  }
+
+  async setAnftMinDb(db: number): Promise<void> {
+    await this.sendSet({ anft_min_db: formatInteger(db) });
+  }
+
+  async setAnftToneDbDiff(db: number): Promise<void> {
+    await this.sendSet({ anft_tone_db_diff: formatInteger(db) });
+  }
+
+  async setAgcThresholdMode(mode: SliceAgcThresholdMode): Promise<void> {
+    if (mode !== "auto" && mode !== "manual") return;
+    await this.sendSet({ agc_threshold_mode: mode });
+  }
+
+  async resetDspParameters(algorithm: SliceDspResetAlgorithm): Promise<void> {
+    if (!DSP_RESET_ALGORITHMS.has(algorithm)) return;
+    await this.radio.command(`slice reset ${this.id} dsp_param=${algorithm}`);
+  }
+
+  async setNrfEnabled(enabled: boolean): Promise<void> {
+    await this.sendSet({ nrf: formatBooleanFlag(enabled) });
   }
 
   async setEscEnabled(enabled: boolean): Promise<void> {
@@ -1097,6 +1345,26 @@ export class SliceControllerImpl implements SliceController {
     this.events.emit("change", change);
   }
 
+  onCwDecoderChange(change: CwDecoderStateChange): void {
+    this.events.emit("cwDecoder", change);
+  }
+
+  get cwDecoder(): CwDecoderSnapshot | undefined {
+    this.current();
+    return this.radio.getStore().getCwDecoder(this.id);
+  }
+
+  get autoDx(): AutoDxController {
+    this.current();
+    const controller = this.radio.autoDx(this.id);
+    if (!controller) {
+      throw new FlexStateUnavailableError(
+        `Slice ${this.id} is no longer available`,
+      );
+    }
+    return controller;
+  }
+
   private async sendSet(entries: Record<string, string>): Promise<void> {
     const parts = Object.entries(entries).map(
       ([key, value]) => `${key}=${value}`,
@@ -1188,15 +1456,15 @@ export class SliceControllerImpl implements SliceController {
     if (request.nrsEnabled !== undefined)
       entries.speex_nr = formatBooleanFlag(request.nrsEnabled);
     if (request.nrsLevel !== undefined)
-      entries.speex_nr_level = formatInteger(request.nrsLevel);
+      entries.speex_nr_level = formatInteger(
+        clampInteger(request.nrsLevel, 0, 50, "NRS level"),
+      );
     if (request.rnnEnabled !== undefined)
       entries.rnnoise = formatBooleanFlag(request.rnnEnabled);
     if (request.anftEnabled !== undefined)
       entries.anft = formatBooleanFlag(request.anftEnabled);
     if (request.nrfEnabled !== undefined)
       entries.nrf = formatBooleanFlag(request.nrfEnabled);
-    if (request.nrfLevel !== undefined)
-      entries.nrf_level = formatInteger(request.nrfLevel);
     if (request.escEnabled !== undefined)
       entries.esc = request.escEnabled ? "on" : "off";
     if (request.escGain !== undefined)

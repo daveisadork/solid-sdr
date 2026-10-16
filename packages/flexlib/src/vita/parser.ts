@@ -1,7 +1,11 @@
 import { createPacketContext } from "./common";
 import {
-  VITA_FLEX_DAX_AUDIO_CLASS,
-  VITA_FLEX_DAX_REDUCED_BW_CLASS,
+  VITA_FLEX_DAX_AUDIO_24_CLASS,
+  VITA_FLEX_DAX_AUDIO_48_CLASS,
+  VITA_FLEX_DAX_AUDIO_96_CLASS,
+  VITA_FLEX_DAX_REDUCED_BW_24_CLASS,
+  VITA_FLEX_DAX_REDUCED_BW_48_CLASS,
+  VITA_FLEX_DAX_REDUCED_BW_96_CLASS,
   VitaDaxAudioPacket,
   VitaDaxReducedBwPacket,
 } from "./dax-audio-packet";
@@ -83,7 +87,9 @@ export function parseVitaPacket(
       packet.parseWithContext(ctx);
       return packet;
     }
-    case VITA_FLEX_DAX_REDUCED_BW_CLASS: {
+    case VITA_FLEX_DAX_REDUCED_BW_24_CLASS:
+    case VITA_FLEX_DAX_REDUCED_BW_48_CLASS:
+    case VITA_FLEX_DAX_REDUCED_BW_96_CLASS: {
       const packet = new VitaDaxReducedBwPacket();
       packet.parseWithContext(ctx, options.daxReducedBw);
       return packet;
@@ -96,7 +102,9 @@ export function parseVitaPacket(
       packet.parseWithContext(ctx, options.daxIq);
       return packet;
     }
-    case VITA_FLEX_DAX_AUDIO_CLASS: {
+    case VITA_FLEX_DAX_AUDIO_24_CLASS:
+    case VITA_FLEX_DAX_AUDIO_48_CLASS:
+    case VITA_FLEX_DAX_AUDIO_96_CLASS: {
       const packet = new VitaDaxAudioPacket();
       packet.parseWithContext(ctx, options.daxAudio);
       return packet;

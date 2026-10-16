@@ -88,6 +88,7 @@ import {
   type RemoteAudioTxStreamController,
   RemoteAudioTxStreamControllerImpl,
 } from "./audio-stream.js";
+import { type AutoDxController, AutoDxControllerImpl } from "./autodx.js";
 import { type CwxController, CwxControllerImpl } from "./cwx.js";
 import {
   type DisplayMarkerController,
@@ -123,9 +124,17 @@ import {
   RadioNetworkDiagnosticsTracker,
 } from "./network-diagnostics.js";
 import {
+  buildNtpSourceCreateCommand,
+  NTP_MAX_SOURCES,
+  type NtpSourceController,
+  NtpSourceControllerImpl,
+  type NtpSourceCreateOptions,
+} from "./ntp-source.js";
+import {
   type PanadapterController,
   PanadapterControllerImpl,
 } from "./panadapter.js";
+import { type PresetController, PresetControllerImpl } from "./preset.js";
 import { type SliceController, SliceControllerImpl } from "./slice.js";
 import {
   type SpotController,
@@ -134,6 +143,8 @@ import {
 } from "./spot.js";
 import type {
   ApdStateChange,
+  AutoDxStateChange,
+  CwDecoderStateChange,
   CwxStateChange,
   DisplayMarkerStateChange,
   DvkStateChange,
@@ -141,6 +152,8 @@ import type {
   EqualizerStateChange,
   FilterPresetStateChange,
   MemoryStateChange,
+  NtpSourceStateChange,
+  PresetStateChange,
   SpotStateChange,
   TnfStateChange,
   TxBandSettingStateChange,
@@ -250,6 +263,16 @@ export interface RadioClientInfo {
 // Event map
 // ---------------------------------------------------------------------------
 
+/** Payload of the {@link RadioEvents.waveformRestarted} event. */
+export interface WaveformRestartedEvent {
+  /** Name of the container waveform that finished restarting or recreating. */
+  readonly name: string;
+  /** False when the radio reported `result=error`. */
+  readonly success: boolean;
+  /** Result token the radio sent, if any. */
+  readonly result?: string;
+}
+
 /** Event map for the {@link Radio} class. */
 export interface RadioEvents {
   readonly connectionStateChange: RadioConnectionState;
@@ -261,6 +284,7 @@ export interface RadioEvents {
   readonly notice: FlexNoticeMessage;
   readonly message: FlexWireMessage;
   readonly spotTriggered: SpotTriggeredEvent;
+  readonly waveformRestarted: WaveformRestartedEvent;
   readonly ready: undefined;
   readonly disconnected: DisconnectedReason | undefined;
   readonly error: unknown;
@@ -314,8 +338,14 @@ export interface RadioSession {
    */
   readonly modelInfo: RadioModelInfo;
 
+  /** Handle the radio assigned to this client, or `null` before the handshake. */
+  readonly clientHandle: string | null;
+
   /** Look up (or lazily create) a slice controller by ID. */
   slice(id: string): SliceController | undefined;
+
+  /** The AutoDX controller for a slice, or `undefined` when the slice does not exist. */
+  autoDx(sliceId: string): AutoDxController | undefined;
 
   /**
    * Propagate a state change from an optimistic update.
@@ -408,6 +438,11 @@ const DEFAULT_HANDSHAKE_COMMANDS: readonly string[] = [
   "sub filt_preset all",
   "sub waveform all",
   "keepalive enable",
+  "profile cw info",
+  "sub ha_api system",
+  "sub cw all",
+  "sub preset all",
+  "sub ntp_sources all",
 ];
 
 // ---------------------------------------------------------------------------
@@ -465,7 +500,7 @@ function encodeCwIambicMode(mode: RadioCwIambicMode): number {
 const FILTER_SHARPNESS_MIN_LEVEL = 0;
 const FILTER_SHARPNESS_MAX_LEVEL = 3;
 
-type ProfileLoadDomain = "global" | "tx" | "mic" | "display";
+type ProfileLoadDomain = "global" | "tx" | "mic" | "cw" | "display";
 
 type PreparedProfileName = {
   readonly normalized: string;
@@ -585,6 +620,12 @@ class RadioImpl {
     TxBandSettingControllerImpl
   >();
   private readonly xvtrControllers = new Map<string, XvtrControllerImpl>();
+  private readonly autoDxControllers = new Map<string, AutoDxControllerImpl>();
+  private readonly presetControllers = new Map<string, PresetControllerImpl>();
+  private readonly ntpSourceControllers = new Map<
+    string,
+    NtpSourceControllerImpl
+  >();
   private readonly displayMarkerControllers = new Map<
     string,
     Map<string, DisplayMarkerControllerImpl>
@@ -892,6 +933,80 @@ class RadioImpl {
     return controller;
   }
 
+  /**
+   * The AutoDX controller for a slice. It exists as soon as the slice does, so
+   * its configuration can be set before the radio reports any state. The
+   * controller is dropped when the slice is removed.
+   */
+  autoDx(sliceId: string): AutoDxController | undefined {
+    return this.getOrCreateController(
+      "autoDx",
+      sliceId,
+      this.autoDxControllers,
+      () => {
+        if (!this.store.getSlice(sliceId)) return undefined;
+        return new AutoDxControllerImpl(this, sliceId);
+      },
+    );
+  }
+
+  /** All known presets. */
+  presets(): PresetController[] {
+    return Array.from(this.presetControllers.values());
+  }
+
+  preset(id: string): PresetController | undefined {
+    return this.getOrCreateController(
+      "preset",
+      id,
+      this.presetControllers,
+      () => {
+        if (!this.store.getPreset(id)) return undefined;
+        return new PresetControllerImpl(this, id);
+      },
+    );
+  }
+
+  /** Id of the last preset the radio confirmed applying since this client connected. */
+  get activePresetId(): string | undefined {
+    return this.store.getActivePresetId();
+  }
+
+  /** All known NTP time sources. */
+  ntpSources(): NtpSourceController[] {
+    return Array.from(this.ntpSourceControllers.values());
+  }
+
+  ntpSource(id: string): NtpSourceController | undefined {
+    return this.getOrCreateController(
+      "ntpSource",
+      id,
+      this.ntpSourceControllers,
+      () => {
+        if (!this.store.getNtpSource(id)) return undefined;
+        return new NtpSourceControllerImpl(this, id);
+      },
+    );
+  }
+
+  /**
+   * Asks the radio to create an NTP source. The source appears in
+   * {@link ntpSources} when the radio reports it. The radio has no edit
+   * command; to change a source, remove it and create it again.
+   *
+   * Throws {@link RangeError} without sending when a field is not one the
+   * radio accepts, or when the radio already holds the most sources it allows.
+   */
+  async createNtpSource(options: NtpSourceCreateOptions): Promise<void> {
+    const command = buildNtpSourceCreateCommand(options);
+    if (this.store.getNtpSources().length >= NTP_MAX_SOURCES) {
+      throw new RangeError(
+        `The radio holds at most ${NTP_MAX_SOURCES} NTP sources`,
+      );
+    }
+    await this.command(command);
+  }
+
   tnfs(): TnfController[] {
     return Array.from(this.tnfControllers.values());
   }
@@ -946,6 +1061,42 @@ class RadioImpl {
   /** Removes all spots from the radio. */
   async clearSpots(): Promise<void> {
     await this.command("spot clear");
+  }
+
+  /**
+   * Stages one environment variable for the next container waveform deploy or
+   * recreate. The value may contain spaces. Throws {@link RangeError} without
+   * sending when the key is empty or holds whitespace or `=`, or when the
+   * value holds a line break.
+   */
+  async stageWaveformEnv(key: string, value: string): Promise<void> {
+    if (!key || /[\s=]/.test(key)) {
+      throw new RangeError(`Invalid waveform environment key: ${key}`);
+    }
+    if (/[\r\n]/.test(value)) {
+      throw new RangeError(
+        "Waveform environment value cannot hold a line break",
+      );
+    }
+    await this.command(`waveform env ${key}=${value}`);
+  }
+
+  /** Clears every environment variable staged on the radio. */
+  async clearWaveformEnv(): Promise<void> {
+    await this.command("waveform env clear");
+  }
+
+  /**
+   * Recreates a container waveform from its installed image with the staged
+   * environment, without uploading the image again. The radio reports the
+   * outcome with the {@link RadioEvents.waveformRestarted} event. Throws
+   * {@link RangeError} without sending when `name` is empty or holds whitespace.
+   */
+  async recreateWaveform(name: string): Promise<void> {
+    if (!name || /\s/.test(name)) {
+      throw new RangeError(`Invalid waveform name: ${name}`);
+    }
+    await this.command(`waveform recreate ${name}`);
   }
 
   waveforms(): WaveformController[] {
@@ -1503,6 +1654,12 @@ class RadioImpl {
             return new SliceControllerImpl(this, change.id);
           },
         );
+        if (change.removed) {
+          this.autoDxControllers.delete(change.id);
+          for (const childChange of this.store.removeSliceChildren(change.id)) {
+            this.handleStateChange(childChange);
+          }
+        }
         break;
       case "panadapter":
         this.updateController(change as Identified, this.panControllers, () => {
@@ -1576,6 +1733,44 @@ class RadioImpl {
           () => {
             if (!this.store.getXvtr(change.id)) return undefined;
             return new XvtrControllerImpl(this, change.id);
+          },
+        );
+        break;
+      case "autoDx":
+        this.updateController(
+          change as Extract<RadioStateChange, { id: string }> &
+            AutoDxStateChange,
+          this.autoDxControllers,
+          () => {
+            if (!this.store.getSlice(change.id)) return undefined;
+            return new AutoDxControllerImpl(this, change.id);
+          },
+        );
+        break;
+      case "cwDecoder":
+        this.sliceControllers
+          .get(change.id)
+          ?.onCwDecoderChange(change as CwDecoderStateChange);
+        break;
+      case "preset":
+        this.updateController(
+          change as Extract<RadioStateChange, { id: string }> &
+            PresetStateChange,
+          this.presetControllers,
+          () => {
+            if (!this.store.getPreset(change.id)) return undefined;
+            return new PresetControllerImpl(this, change.id);
+          },
+        );
+        break;
+      case "ntpSource":
+        this.updateController(
+          change as Extract<RadioStateChange, { id: string }> &
+            NtpSourceStateChange,
+          this.ntpSourceControllers,
+          () => {
+            if (!this.store.getNtpSource(change.id)) return undefined;
+            return new NtpSourceControllerImpl(this, change.id);
           },
         );
         break;
@@ -1901,6 +2096,7 @@ class RadioImpl {
       this.command("profile tx info"),
       this.command("profile mic info"),
       this.command("profile display info"),
+      this.command("profile cw info"),
     ]);
   }
 
@@ -1959,9 +2155,10 @@ class RadioImpl {
 
   async setNickname(nickname: string): Promise<void> {
     const sanitized = sanitizeNickname(nickname);
-    await this.commandAndPatch(`radio name ${sanitized}`, {
-      nickname: sanitized,
-    });
+    await this.commandAndPatch(
+      sanitized ? `radio name ${sanitized}` : "radio clear_name",
+      { nickname: sanitized },
+    );
   }
 
   async setCallsign(callsign: string): Promise<void> {
@@ -2331,6 +2528,10 @@ class RadioImpl {
     await this.setTransmitInteger("vox_level", level, 0, 100, "VOX level");
   }
 
+  async setPttMicOverride(enabled: boolean): Promise<void> {
+    await this.setTransmitBoolean("ptt_mic_override", enabled);
+  }
+
   async setVoxDelay(delay: number): Promise<void> {
     await this.setTransmitInteger("vox_delay", delay, 0, 100, "VOX delay");
   }
@@ -2634,6 +2835,22 @@ class RadioImpl {
     await this.loadProfileSelection("tx", name);
   }
 
+  async loadCwProfile(name: string): Promise<void> {
+    await this.loadProfileSelection("cw", name);
+  }
+
+  async createCwProfile(name: string): Promise<void> {
+    await this.sendProfileCommand("profile cw create", name);
+  }
+
+  async resetCwProfile(name: string): Promise<void> {
+    await this.sendProfileCommand("profile cw reset", name);
+  }
+
+  async deleteCwProfile(name: string): Promise<void> {
+    await this.sendProfileCommand("profile cw delete", name);
+  }
+
   async loadDisplayProfile(name: string): Promise<void> {
     await this.loadProfileSelection("display", name);
   }
@@ -2733,6 +2950,8 @@ class RadioImpl {
           }
         }
         this.handleSpotTriggered(parsed);
+        this.handlePresetCreated(parsed);
+        this.handleWaveformRestarted(parsed);
         this.handleFileUpdate(parsed);
         break;
       case "reply":
@@ -2743,6 +2962,29 @@ class RadioImpl {
         this.events.emit("notice", parsed);
         break;
     }
+  }
+
+  private handleWaveformRestarted(message: FlexStatusMessage): void {
+    if (message.source !== "waveform" || message.identifier !== "restarted") {
+      return;
+    }
+    const { name, result } = message.attributes;
+    if (!name) return;
+    this.events.emit("waveformRestarted", {
+      name,
+      success: result?.toLowerCase() !== "error",
+      result,
+    });
+  }
+
+  /** A bare `created` status carries no fields, so subscribe again to get them. */
+  private handlePresetCreated(message: FlexStatusMessage): void {
+    if (message.source !== "preset" || !("created" in message.attributes)) {
+      return;
+    }
+    this.command("sub preset all").catch(() => {
+      // The next connect subscribes again; a refused subscribe leaves the list as it was.
+    });
   }
 
   private handleSpotTriggered(message: FlexStatusMessage): void {
@@ -3079,6 +3321,9 @@ class RadioImpl {
     this.equalizerControllers.clear();
     this.txBandControllers.clear();
     this.xvtrControllers.clear();
+    this.autoDxControllers.clear();
+    this.presetControllers.clear();
+    this.ntpSourceControllers.clear();
     this.tnfControllers.clear();
     this.memoryControllers.clear();
     this.spotControllers.clear();

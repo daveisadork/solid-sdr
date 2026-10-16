@@ -17,6 +17,7 @@ import {
   useControls,
 } from "~/context/controls";
 import useFlexRadio from "~/context/flexradio";
+import { formatMemoryChannelLabel } from "~/lib/memory-channel";
 import {
   createMIDIPorts,
   type MidiMapping,
@@ -117,6 +118,7 @@ const INPUT_LABELS: Record<InputType, string> = {
  */
 const CATEGORY_LABELS: Record<string, string> = {
   cwx: "CWX",
+  memory: "Memory Channel",
 };
 
 const BEHAVIOR_LABELS: Record<Behavior, string> = {
@@ -305,7 +307,7 @@ interface TargetCategory {
   options: TargetOption[];
 }
 
-function describeBehavior(mapping: MidiMapping) {
+function describeBehavior(mapping: MidiMapping, itemLabel?: string) {
   switch (mapping.behavior) {
     case "set-value":
       return mapping.invert ? "Set value (reversed)" : "Set value";
@@ -318,22 +320,31 @@ function describeBehavior(mapping: MidiMapping) {
     case "press":
       return "Run once when pressed";
     case "set-item":
-      return `Pick item: ${mapping.value}`;
-    case "change-item":
-      return mapping.input === "button"
-        ? mapping.direction === "next"
-          ? "Next item"
-          : "Previous item"
-        : "Move through list";
-    case "change-value":
-      return mapping.input === "button"
-        ? `${mapping.direction === "increase" ? "Increase" : "Decrease"} by ${mapping.amount}`
-        : `Change by ${mapping.amount}`;
-    case "scale-value":
-      return mapping.input === "button"
-        ? `${mapping.direction === "increase" ? "Multiply" : "Divide"} by ${mapping.factor + 1}`
-        : `Multiply/divide by ${mapping.factor + 1}`;
+      return `Pick item: ${itemLabel ?? mapping.value}`;
+    case "change-item": {
+      if (mapping.input !== "button") return "Move through list";
+      if (mapping.direction === "next") return "Next item";
+      return "Previous item";
+    }
+    case "change-value": {
+      if (mapping.input !== "button") return `Change by ${mapping.amount}`;
+      const verb = mapping.direction === "increase" ? "Increase" : "Decrease";
+      return `${verb} by ${mapping.amount}`;
+    }
+    case "scale-value": {
+      if (mapping.input !== "button") {
+        return `Multiply/divide by ${mapping.factor + 1}`;
+      }
+      const verb = mapping.direction === "increase" ? "Multiply" : "Divide";
+      return `${verb} by ${mapping.factor + 1}`;
+    }
   }
+}
+
+function sliceTargetNoun(target: string | undefined) {
+  if (target?.startsWith("panadapter")) return "slice's panadapter";
+  if (target?.startsWith("waterfall")) return "slice's waterfall";
+  return "slice";
 }
 
 function AddMappingDialog(props: {
@@ -343,7 +354,7 @@ function AddMappingDialog(props: {
   const { setPreferences } = usePreferences();
   const { inputs } = createMIDIPorts();
   const { getChoices } = useControls();
-  const { bands } = useFlexRadio();
+  const { bands, state } = useFlexRadio();
 
   const [open, setOpen] = createSignal(false);
   const [capturedSource, setCapturedSource] = createSignal<MidiSource | null>(
@@ -379,6 +390,19 @@ function AddMappingDialog(props: {
     return value === "active" ? undefined : value;
   });
 
+  const choiceLabel = (targetValue: ControlTarget, value: string | number) => {
+    if (targetValue === "panadapter.band") {
+      return bands.get(String(value)) ?? String(value);
+    }
+    if (targetValue === "memory.channel") {
+      return (
+        formatMemoryChannelLabel(state.status.memory[String(value)]) ??
+        String(value)
+      );
+    }
+    return String(value);
+  };
+
   const choiceOptions = createMemo<ChoiceOption[]>(() => {
     const targetValue = target()?.value;
     if (
@@ -390,10 +414,7 @@ function AddMappingDialog(props: {
 
     return getChoices(targetValue, selectedSlice()).map((value) => ({
       key: String(value),
-      label:
-        targetValue === "panadapter.band"
-          ? (bands.get(String(value)) ?? String(value))
-          : String(value),
+      label: choiceLabel(targetValue, value),
       value,
     }));
   });
@@ -582,9 +603,13 @@ function AddMappingDialog(props: {
 
   const draftMappingDescription = () => {
     const mapping = draftMapping();
-    return mapping
-      ? `${describeControl(mapping)}: ${describeBehavior(mapping)}`
-      : "";
+    if (!mapping) return "";
+    const itemLabel =
+      mapping.behavior === "set-item"
+        ? choiceOptions().find((option) => option.value === mapping.value)
+            ?.label
+        : undefined;
+    return `${describeControl(mapping)}: ${describeBehavior(mapping, itemLabel)}`;
   };
 
   const activeItem = createMemo(() => {
@@ -866,13 +891,7 @@ function AddMappingDialog(props: {
                         )}
                       >
                         <SelectLabel>
-                          Which{" "}
-                          {target()?.value.startsWith("panadapter")
-                            ? "slice's panadapter"
-                            : target()?.value.startsWith("waterfall")
-                              ? "slice's waterfall"
-                              : "slice"}
-                          ?
+                          Which {sliceTargetNoun(target()?.value)}?
                         </SelectLabel>
                         <SelectTrigger>
                           <SelectValue<SliceOption>>
@@ -1190,6 +1209,7 @@ function AddMappingDialog(props: {
 
 function MidiSettingsInner() {
   const { preferences, setPreferences } = usePreferences();
+  const { state } = useFlexRadio();
   const { inputs, error: midiError } = createMIDIPorts();
   const [importFile, setImportFile] = createSignal<File>();
 
@@ -1247,7 +1267,17 @@ function MidiSettingsInner() {
                   </TableCell>
                   <TableCell>{sourceToString(mapping.midi)}</TableCell>
                   <TableCell>{describeControl(mapping)}</TableCell>
-                  <TableCell>{describeBehavior(mapping)}</TableCell>
+                  <TableCell>
+                    {describeBehavior(
+                      mapping,
+                      mapping.behavior === "set-item" &&
+                        mapping.control.target === "memory.channel"
+                        ? formatMemoryChannelLabel(
+                            state.status.memory[String(mapping.value)],
+                          )
+                        : undefined,
+                    )}
+                  </TableCell>
                   <TableCell>
                     <Button
                       variant="ghost"

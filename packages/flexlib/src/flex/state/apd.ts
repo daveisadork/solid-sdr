@@ -56,6 +56,9 @@ export interface ApdSnapshot {
   readonly rxErrorMilliHz?: number;
   readonly sliceId?: string;
   readonly mmx?: number;
+  readonly deployed?: boolean;
+  readonly qualityDb?: number;
+  readonly backend?: string;
   readonly clientHandle?: number;
   readonly sampleIndex?: number;
   readonly availableSamplerPortsAnt1: readonly string[];
@@ -172,9 +175,16 @@ export function createApdSnapshot(
       case "valid_samplers":
         break;
       case "deployed":
-      case "quality_db":
+        partial.deployed = isTruthy(value);
+        break;
+      case "quality_db": {
+        const parsed = parseFloatSafe(value);
+        if (parsed !== undefined) partial.qualityDb = parsed;
+        else if (value) logParseError("apd", key, value);
+        break;
+      }
       case "backend":
-        // radio sends these, but no client behavior depends on them
+        partial.backend = value || undefined;
         break;
       default:
         logUnknownAttribute("apd", key, value);

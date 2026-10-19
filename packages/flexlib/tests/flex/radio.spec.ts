@@ -270,6 +270,25 @@ describe("Radio", () => {
     );
   });
 
+  it("tracks the gain the radio reports without sending anything back", async () => {
+    const { radio, connection } = await createConnectedRadio();
+    connection.emitStatus("S1|slice 1 index_letter=B");
+    connection.prepareResponse("stream create", { message: "2000002" });
+    const creationPromise = radio.createDaxRxAudioStream({ daxChannel: 3 });
+    connection.emitStatus(
+      "S1|stream 0x02000002 type=dax_rx dax_channel=3 slice=B client_handle=0x12345678 gain=50",
+    );
+    const stream = await creationPromise;
+    await stream.setRxGain(70);
+    const sent = connection.commands.length;
+
+    connection.emitStatus("S1|stream 0x02000002 gain=30");
+    await Promise.resolve();
+
+    expect(stream.snapshot()?.rxGain).toBe(30);
+    expect(connection.commands.length).toBe(sent);
+  });
+
   it("does not send dax rx gain for a stream another client owns", async () => {
     const { radio, connection } = await createConnectedRadio();
     connection.emitStatus("S1|slice 1 index_letter=B");
@@ -511,6 +530,15 @@ describe("Radio", () => {
     await radio.setCallsign("kf0smy");
     expect(connection.lastCommand()).toBe("radio callsign KF0SMY");
 
+    await radio.setDebugFakePaOvertemp(true);
+    expect(connection.lastCommand()).toBe("radio set debug_fake_pa_overtemp=1");
+    expect(radio.getStore().getRadio()?.debugFakePaOvertemp).toBe(true);
+    await radio.setDebugFakePaSwrFault(true);
+    expect(connection.lastCommand()).toBe(
+      "radio set debug_fake_pa_swr_fault=1",
+    );
+    expect(radio.getStore().getRadio()?.debugFakePaSwrFault).toBe(true);
+
     await radio.setFullDuplexEnabled(false);
     expect(connection.lastCommand()).toBe("radio set full_duplex_enabled=0");
 
@@ -600,11 +628,13 @@ describe("Radio", () => {
       "profile cw create",
       "transmit set ptt_mic_override",
       "radio clear_name",
+      "radio set debug_fake_pa_overtemp",
     ]) {
       connection.prepareResponse(prefix, { code: 0x50000001, message: "no" });
     }
     await expect(radio.createCwProfile("X")).rejects.toThrow();
     await expect(radio.setPttMicOverride(true)).rejects.toThrow();
     await expect(radio.setNickname("")).rejects.toThrow();
+    await expect(radio.setDebugFakePaOvertemp(true)).rejects.toThrow();
   });
 });

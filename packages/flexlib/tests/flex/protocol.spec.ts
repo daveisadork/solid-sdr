@@ -2,6 +2,19 @@ import { describe, expect, it } from "vitest";
 import { parseFlexMessage } from "../../src/flex/protocol.js";
 
 describe("parseFlexMessage", () => {
+  it("keeps attributes that follow a stray bare token", () => {
+    const parsed = parseFlexMessage(
+      "SB65DF43|memory 9 owner=KF0SMY mode=FDVU NOT step=500 repeater=SIMPLEX",
+      0,
+    );
+    expect(parsed?.kind).toBe("status");
+    if (parsed?.kind !== "status") return;
+    expect(parsed.attributes.mode).toBe("FDVU");
+    expect(parsed.attributes.NOT).toBe("");
+    expect(parsed.attributes.step).toBe("500");
+    expect(parsed.attributes.repeater).toBe("SIMPLEX");
+  });
+
   it("parses slice status with attributes", () => {
     const now = Date.now();
     const message = parseFlexMessage(

@@ -33,6 +33,8 @@ export interface AudioStreamSnapshot {
   readonly clientGuiHandle?: number;
   readonly payloadEndian?: string;
   readonly slice?: string;
+  /** RX gain (0-100) the radio reports for this stream. */
+  readonly rxGain?: number;
   /**
    * Sample rate of the audio on this stream in Hz, or 0 while unknown. The
    * store keeps 0; the stream controller fills in the live value: the followed
@@ -129,6 +131,12 @@ export function createAudioStreamSnapshot(
       case "payload_endian":
         partial.payloadEndian = value;
         break;
+      case "gain": {
+        const parsed = parseInteger(value);
+        if (parsed !== undefined) partial.rxGain = parsed;
+        else logParseError("audio_stream", key, value);
+        break;
+      }
       default:
         logUnknownAttribute("audio_stream", key, value);
         break;

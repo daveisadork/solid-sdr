@@ -20,6 +20,7 @@ export interface TxBandSettingSnapshot {
   readonly rcaTx1Enabled?: boolean;
   readonly rcaTx2Enabled?: boolean;
   readonly rcaTx3Enabled?: boolean;
+  readonly tuneTxSuppress?: boolean;
   readonly raw: Readonly<Record<string, string>>;
 }
 
@@ -70,7 +71,7 @@ export function createTxBandSettingSnapshot(
         partial.rcaTx3Enabled = isTruthy(value);
         break;
       case "tune_tx_suppress":
-        // radio sends this, but no client behavior depends on it
+        partial.tuneTxSuppress = isTruthy(value);
         break;
       default:
         logUnknownAttribute("tx_band", key, value);

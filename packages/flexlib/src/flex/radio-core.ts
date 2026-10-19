@@ -2599,6 +2599,20 @@ class RadioImpl {
     });
   }
 
+  async setDebugFakePaOvertemp(enabled: boolean): Promise<void> {
+    const encoded = formatBooleanFlag(enabled);
+    await this.commandAndPatch(`radio set debug_fake_pa_overtemp=${encoded}`, {
+      debug_fake_pa_overtemp: encoded,
+    });
+  }
+
+  async setDebugFakePaSwrFault(enabled: boolean): Promise<void> {
+    const encoded = formatBooleanFlag(enabled);
+    await this.commandAndPatch(`radio set debug_fake_pa_swr_fault=${encoded}`, {
+      debug_fake_pa_swr_fault: encoded,
+    });
+  }
+
   async setMuteLocalAudioWhenRemote(enabled: boolean): Promise<void> {
     const encoded = formatBooleanFlag(enabled);
     await this.commandAndPatch(

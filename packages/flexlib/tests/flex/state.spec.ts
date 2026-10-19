@@ -492,21 +492,25 @@ describe("createRadioStateStore", () => {
     expect(radio?.gpsInstalled).toBe(true);
   });
 
-  it("types cw_decode_available and stays quiet for known-ignored keys", () => {
-    const warn = vi.spyOn(console, "debug").mockImplementation(() => {});
+  it("types cw_decode_available without logging it as unhandled", () => {
+    const debug = vi.spyOn(console, "debug").mockImplementation(() => {});
     const store = createRadioStateStore();
-    store.apply(
-      makeStatus(
-        "S1|radio cw_decode_available=1 debug_fake_pa_overtemp=0 debug_fake_pa_swr_fault=0",
-      ),
-    );
-    store.apply(makeStatus("S1|interlock tune_tx_suppress=0"));
+    store.apply(makeStatus("S1|radio cw_decode_available=1"));
+    expect(store.getRadio()?.cwDecodeAvailable).toBe(true);
+    expect(debug).not.toHaveBeenCalled();
+    debug.mockRestore();
+  });
+
+  it("parses tune_tx_suppress and apd deployed as booleans", () => {
+    const store = createRadioStateStore();
+    store.apply(makeStatus("S1|interlock tune_tx_suppress=1"));
     store.apply(
       makeStatus("S1|apd deployed=1 quality_db=-71.18 backend=polynomial"),
     );
-    expect(store.getRadio()?.cwDecodeAvailable).toBe(true);
-    expect(warn).not.toHaveBeenCalled();
-    warn.mockRestore();
+    expect(store.getRadio()?.interlockTuneTxSuppress).toBe(true);
+    expect(store.getApd()?.deployed).toBe(true);
+    expect(store.getApd()?.qualityDb).toBeCloseTo(-71.18);
+    expect(store.getApd()?.backend).toBe("polynomial");
   });
 
   it("parses filter sharpness, static network, and oscillator statuses", () => {

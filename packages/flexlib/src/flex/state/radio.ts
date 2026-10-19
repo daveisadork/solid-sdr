@@ -165,6 +165,8 @@ export interface RadioSnapshot {
   readonly frequencyErrorPpb: number;
   readonly daxIqCapacity: number;
   readonly cwDecodeAvailable: boolean;
+  readonly debugFakePaOvertemp: boolean;
+  readonly debugFakePaSwrFault: boolean;
   readonly gpsInstalled: boolean;
   readonly gpsLatitude?: number;
   readonly gpsLongitude?: number;
@@ -214,6 +216,7 @@ export interface RadioSnapshot {
   readonly interlockTx1DelayMs: number;
   readonly interlockTx2DelayMs: number;
   readonly interlockTx3DelayMs: number;
+  readonly interlockTuneTxSuppress: boolean;
   readonly interlockAccTxDelayMs: number;
   readonly interlockTxDelayMs: number;
   readonly interlockAmplifierHandles: readonly string[];
@@ -422,10 +425,6 @@ function applyRadioSourceAttributes(
           logParseError("radio", key, value);
         }
         break;
-      case "debug_fake_pa_overtemp":
-      case "debug_fake_pa_swr_fault":
-        // radio sends these debug flags; no client behavior depends on them
-        break;
       case "atu_present":
         partial.atuPresent = isTruthy(value);
         break;
@@ -568,6 +567,12 @@ function applyRadioSourceAttributes(
         break;
       case "tnf_enabled":
         partial.tnfEnabled = isTruthy(value);
+        break;
+      case "debug_fake_pa_overtemp":
+        partial.debugFakePaOvertemp = isTruthy(value);
+        break;
+      case "debug_fake_pa_swr_fault":
+        partial.debugFakePaSwrFault = isTruthy(value);
         break;
       case "binaural_rx":
         partial.binauralRx = isTruthy(value);
@@ -758,7 +763,7 @@ function applyInterlockAttributes(
         partial.mox = isTruthy(value);
         break;
       case "tune_tx_suppress":
-        // radio sends this, but no client behavior depends on it
+        partial.interlockTuneTxSuppress = isTruthy(value);
         break;
       default:
         logUnknownAttribute("interlock", key, value);

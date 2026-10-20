@@ -167,8 +167,8 @@ export interface StatusState {
   dvk: DvkState;
   displayMarker: Record<string, Record<string, DisplayMarkerState>>;
   filterPreset: FilterPresetState;
-  cwDecoder: CwDecoderState;
-  autoDx: AutoDxState;
+  cwDecoder: Record<string, CwDecoderState>;
+  autoDx: Record<string, AutoDxState>;
   preset: Record<string, PresetState>;
   ntpSource: Record<string, NtpSourceState>;
 }
@@ -411,8 +411,6 @@ export const FlexRadioProvider: ParentComponent = (props) => {
           handleDisplayMarkerChange(change);
           break;
         case "apd":
-        case "autoDx":
-        case "cwDecoder":
         case "cwx":
         case "dvk":
         case "featureLicense":

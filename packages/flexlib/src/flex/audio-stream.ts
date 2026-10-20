@@ -104,7 +104,7 @@ export interface DaxIqAudioStreamController extends AudioStreamController {
 export class AudioStreamControllerImpl implements AudioStreamController {
   private readonly events =
     new TypedEventEmitter<AudioStreamControllerEvents>();
-  private streamHandle?: string;
+  protected numericStreamId = 0;
   private micRateHz = 0;
   private dataListeners = 0;
   private dataSubscription?: Subscription;
@@ -112,7 +112,16 @@ export class AudioStreamControllerImpl implements AudioStreamController {
   constructor(
     protected readonly radio: RadioSession,
     readonly id: string,
-  ) {}
+  ) {
+    const numericId = parseStreamIdentifier(id);
+    if (numericId === undefined) {
+      throw new FlexStateUnavailableError(
+        `Audio stream ${id} has no valid stream ID`,
+      );
+    }
+
+    this.numericStreamId = numericId;
+  }
 
   get slice() {
     return this.current().slice;
@@ -235,7 +244,6 @@ export class AudioStreamControllerImpl implements AudioStreamController {
 
   onStateChange(change: AudioStreamStateChange): void {
     if (change.diff?.streamId) {
-      this.streamHandle = change.diff.streamId;
       if (this.dataListeners > 0) {
         this.teardownDataPipeline();
         this.ensureDataPipeline();
@@ -269,23 +277,10 @@ export class AudioStreamControllerImpl implements AudioStreamController {
     return slice && slice.sampleRateHz > 0 ? slice.sampleRateHz : 0;
   }
 
-  protected requireNumericStreamId(): number {
-    const handle = this.streamHandle ?? this.current().streamId;
-    const numericId = parseStreamIdentifier(handle);
-    if (numericId === undefined) {
-      throw new FlexStateUnavailableError(
-        `Audio stream ${this.id} has no valid stream ID`,
-      );
-    }
-    return numericId;
-  }
-
   private ensureDataPipeline(): void {
     if (this.dataSubscription) return;
-    const streamNumericId = parseStreamIdentifier(this.id);
-    if (streamNumericId === undefined) return;
     this.dataSubscription = this.radio.registerStreamHandler(
-      streamNumericId,
+      this.numericStreamId,
       (packet) => {
         if (packet.kind === "daxAudio" || packet.kind === "daxReducedBw") {
           const rate = daxAudioSampleRateFromClass(
@@ -322,17 +317,15 @@ export class AudioStreamTxControllerImpl
   private txPacketCount = 0;
 
   sendAudio(left: Float32Array, right: Float32Array): void {
-    const numericId = this.requireNumericStreamId();
     const classCode = daxAudioClassForRate(this.followedSliceRateHz());
     if (classCode === undefined) return;
     if (!this.txAudioPkt) {
       this.txAudioPkt = new VitaDaxAudioPacket();
-      this.txAudioPkt.streamId = numericId;
+      this.txAudioPkt.streamId = this.numericStreamId;
       this.txAudioPkt.left = new Float32Array(DAX_PACKET_SAMPLES);
       this.txAudioPkt.right = new Float32Array(DAX_PACKET_SAMPLES);
     }
     const pkt = this.txAudioPkt;
-    pkt.streamId = numericId;
     pkt.classId.packetClassCode = classCode;
     pkt.header.packetCount = this.txPacketCount;
     const frames = Math.min(left.length, right.length, DAX_PACKET_SAMPLES);
@@ -343,16 +336,14 @@ export class AudioStreamTxControllerImpl
   }
 
   sendReducedBwAudio(samples: Int16Array): void {
-    const numericId = this.requireNumericStreamId();
     const classCode = daxReducedBwClassForRate(this.followedSliceRateHz());
     if (classCode === undefined) return;
     if (!this.txReducedBwPkt) {
       this.txReducedBwPkt = new VitaDaxReducedBwPacket();
-      this.txReducedBwPkt.streamId = numericId;
+      this.txReducedBwPkt.streamId = this.numericStreamId;
       this.txReducedBwPkt.samples = new Int16Array(DAX_PACKET_SAMPLES);
     }
     const pkt = this.txReducedBwPkt;
-    pkt.streamId = numericId;
     pkt.classId.packetClassCode = classCode;
     pkt.header.packetCount = this.txPacketCount;
     const count = Math.min(samples.length, DAX_PACKET_SAMPLES);
@@ -448,13 +439,11 @@ export class RemoteAudioTxStreamControllerImpl
   private opusPkt?: VitaOpusPacket;
 
   sendOpus(frame: Uint8Array): void {
-    const numericId = this.requireNumericStreamId();
     if (!this.opusPkt) {
       this.opusPkt = new VitaOpusPacket();
-      this.opusPkt.streamId = numericId;
+      this.opusPkt.streamId = this.numericStreamId;
     }
     const pkt = this.opusPkt;
-    pkt.streamId = numericId;
     pkt.payload = frame;
     this.radio.sendUdp(pkt.toBytes());
   }

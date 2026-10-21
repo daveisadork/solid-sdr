@@ -105,6 +105,7 @@ export class AudioStreamControllerImpl implements AudioStreamController {
   private readonly events =
     new TypedEventEmitter<AudioStreamControllerEvents>();
   protected numericStreamId = 0;
+  protected ownedByThisClient = false;
   private lastRxClassCode?: number;
   private dataListeners = 0;
   private dataSubscription?: Subscription;
@@ -121,6 +122,11 @@ export class AudioStreamControllerImpl implements AudioStreamController {
     }
 
     this.numericStreamId = numericId;
+
+    const own = radio.clientHandle;
+    const ownHandle = own ? parseClientHandle(own) : undefined;
+    this.ownedByThisClient =
+      ownHandle !== undefined && this.clientHandle === ownHandle;
   }
 
   get slice() {
@@ -344,7 +350,10 @@ export class DaxTxAudioStreamControllerImpl
   extends AudioStreamTxControllerImpl
   implements DaxTxAudioStreamController
 {
-  constructor(radio: RadioSession, id: string) {
+  constructor(
+    protected readonly radio: RadioSession,
+    readonly id: string,
+  ) {
     super(radio, id);
     this.updateClassCodes(
       radio.getStore().getAudioStream(id)?.sampleRateHz ?? 0,
@@ -368,48 +377,62 @@ export class DaxRxAudioStreamControllerImpl
   implements DaxRxAudioStreamController
 {
   private pendingGain?: number;
+  private sliceId?: string;
+
+  constructor(radio: RadioSession, id: string) {
+    super(radio, id);
+    this.updateSliceId();
+  }
 
   async setRxGain(gain: number): Promise<void> {
     const clamped = clampInteger(gain, 0, 100, "DAX RX gain");
-    if (!this.ownedByThisClient()) return;
-    if (this.slice === undefined) {
-      this.pendingGain = clamped;
-      return;
+    const change = this.radio
+      .getStore()
+      .patchAudioStream(this.id, { gain: clamped.toString() });
+    if (change) {
+      this.radio.applyStateChange(change);
+      await this.sendGain(clamped);
     }
-    this.pendingGain = undefined;
-    await this.sendGain(clamped);
+  }
+
+  private updateSliceId() {
+    const indexLetter = this.slice;
+    const store = this.radio.getStore();
+    const boundClientId = store.getBoundClientId();
+    const clientHandle =
+      store.getGuiClients().find((client) => client.clientId === boundClientId)
+        ?.clientHandleInt ?? this.clientHandle;
+    const slice = store
+      .getSlices()
+      .find(
+        (s) => s.indexLetter === indexLetter && s.clientHandle === clientHandle,
+      );
+    this.sliceId = slice?.id;
   }
 
   override onStateChange(change: AudioStreamStateChange): void {
     super.onStateChange(change);
+    if (change.diff?.slice !== undefined) this.updateSliceId();
     if (change.removed || this.pendingGain === undefined) return;
-    if (this.slice === undefined || !this.ownedByThisClient()) return;
-    const gain = this.pendingGain;
-    this.pendingGain = undefined;
-    this.sendGain(gain).catch(() => {
+    this.sendGain(this.pendingGain).catch(() => {
       // The caller already returned; a refused or unsendable gain is dropped.
     });
   }
 
-  private ownedByThisClient(): boolean {
-    const own = this.radio.clientHandle;
-    const ownHandle = own ? parseClientHandle(own) : undefined;
-    return ownHandle !== undefined && this.clientHandle === ownHandle;
-  }
-
   private async sendGain(gain: number): Promise<void> {
-    const sliceLetter = this.slice;
-    const slice = this.radio
-      .getStore()
-      .getSlices()
-      .find((s) => s.indexLetter === sliceLetter);
-    if (!slice) {
+    if (!this.slice || !this.ownedByThisClient) {
+      this.pendingGain = gain;
+      return;
+    }
+    const sliceId = this.sliceId;
+    if (!sliceId) {
       throw new FlexStateUnavailableError(
-        `DAX RX stream ${this.id} bound to slice ${sliceLetter} but slice is not in store`,
+        `DAX RX stream ${this.id} bound to slice ${this.slice} but slice is not in store`,
       );
     }
+    this.pendingGain = undefined;
     await this.radio.command(
-      `audio stream ${this.id} slice ${slice.id} gain ${gain}`,
+      `audio stream ${this.id} slice ${sliceId} gain ${gain}`,
     );
   }
 }

@@ -21,7 +21,7 @@ export interface AudioStreamSnapshot {
   readonly streamId: string;
   readonly type: AudioStreamKind;
   readonly compression?: string;
-  readonly clientHandle?: number;
+  readonly clientHandle: number;
   readonly radioAck: boolean;
   readonly ip?: string;
   readonly daxChannel?: number;

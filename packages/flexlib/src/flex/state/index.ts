@@ -433,6 +433,7 @@ export interface RadioStateStore {
   setLocalClientHandle(
     handle: string | number | undefined,
   ): readonly RadioStateChange[];
+  getBoundClientId(): string | undefined;
 }
 
 export interface RadioStateStoreOptions {
@@ -828,6 +829,9 @@ export function createRadioStateStore(
     },
     setAudioStreamSampleRate(id, sampleRateHz) {
       return setAudioStreamSampleRate(id, sampleRateHz);
+    },
+    getBoundClientId() {
+      return boundClientId;
     },
     setBoundClientId(clientId) {
       if (clientId === boundClientId) return [];

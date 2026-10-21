@@ -8,7 +8,7 @@ import {
   createAudioStreamSnapshot,
 } from "./audio-stream.js";
 import { type AutoDxSnapshot, createAutoDxSnapshot } from "./autodx.js";
-import type { SnapshotDiff } from "./common.js";
+import type { SnapshotDiff, SnapshotUpdate } from "./common.js";
 import {
   parseInteger,
   parseIntegerHex,
@@ -373,6 +373,15 @@ export interface RadioStateStore {
     attributes: Record<string, string>,
   ): AudioStreamStateChange | undefined;
   removeAudioStream(id: string): AudioStreamStateChange | undefined;
+  setAudioStreamSampleRate(
+    id: string,
+    sampleRateHz: number,
+  ): AudioStreamStateChange | undefined;
+  /**
+   * Record the GUI client this connection is bound to. DAX RX and DAX TX
+   * streams then follow that client's slices instead of their own client's.
+   */
+  setBoundClientId(clientId: string | undefined): readonly RadioStateChange[];
   patchEqualizer(
     id: EqualizerId,
     attributes: Record<string, string>,
@@ -464,6 +473,7 @@ export function createRadioStateStore(
   let cwx: CwxSnapshot | undefined;
   let dvk: DvkSnapshot | undefined;
   let localClientHandle: number | undefined;
+  let boundClientId: string | undefined;
 
   function getDisplayMarkerGroup(
     group: string,
@@ -511,6 +521,7 @@ export function createRadioStateStore(
     cwx = undefined;
     dvk = undefined;
     localClientHandle = undefined;
+    boundClientId = undefined;
   }
 
   return {
@@ -815,6 +826,14 @@ export function createRadioStateStore(
     removeAudioStream(id) {
       return removeAudioStream(id);
     },
+    setAudioStreamSampleRate(id, sampleRateHz) {
+      return setAudioStreamSampleRate(id, sampleRateHz);
+    },
+    setBoundClientId(clientId) {
+      if (clientId === boundClientId) return [];
+      boundClientId = clientId;
+      return recomputeDaxStreamRates();
+    },
     patchEqualizer(id, attributes) {
       return patchEqualizer(id, attributes);
     },
@@ -897,6 +916,7 @@ export function createRadioStateStore(
       ];
       changes.push(
         ...recomputeGuiClientTransmitSlices([previous?.clientHandle]),
+        ...recomputeDaxStreamRates(),
       );
       return changes;
     }
@@ -927,6 +947,13 @@ export function createRadioStateStore(
         previous?.clientHandle,
       ]),
     );
+    if (
+      !previous ||
+      diff.isTransmitEnabled !== undefined ||
+      diff.sampleRateHz !== undefined
+    ) {
+      changes.push(...recomputeDaxStreamRates());
+    }
     return changes;
   }
 
@@ -942,7 +969,10 @@ export function createRadioStateStore(
         removed: true,
       },
     ];
-    changes.push(...recomputeGuiClientTransmitSlices([previous.clientHandle]));
+    changes.push(
+      ...recomputeGuiClientTransmitSlices([previous.clientHandle]),
+      ...recomputeDaxStreamRates(),
+    );
     return changes;
   }
 
@@ -1106,10 +1136,8 @@ export function createRadioStateStore(
     if (attributePatch.stream_id === undefined && id) {
       attributePatch.stream_id = id;
     }
-    const { snapshot, diff } = createAudioStreamSnapshot(
-      id,
-      attributePatch,
-      previous,
+    const { snapshot, diff } = withDaxSampleRate(
+      createAudioStreamSnapshot(id, attributePatch, previous),
     );
     audioStreams.set(id, snapshot);
     return {
@@ -1206,6 +1234,7 @@ export function createRadioStateStore(
           id,
           removed: true,
         },
+        ...recomputeDaxStreamRates(),
       ];
     }
 
@@ -1245,6 +1274,7 @@ export function createRadioStateStore(
         snapshot.clientHandleInt,
       );
       if (transmitChange) changes.push(transmitChange);
+      changes.push(...recomputeDaxStreamRates());
       return changes;
     }
 
@@ -1659,10 +1689,8 @@ export function createRadioStateStore(
     if (attributePatch.stream_id === undefined) {
       attributePatch.stream_id = previous?.streamId ?? id;
     }
-    const { snapshot, diff } = createAudioStreamSnapshot(
-      id,
-      attributePatch,
-      previous,
+    const { snapshot, diff } = withDaxSampleRate(
+      createAudioStreamSnapshot(id, attributePatch, previous),
     );
     audioStreams.set(id, snapshot);
     return {
@@ -1671,6 +1699,74 @@ export function createRadioStateStore(
       diff,
       removed: false,
     };
+  }
+
+  function setAudioStreamSampleRate(
+    id: string,
+    sampleRateHz: number,
+  ): AudioStreamStateChange | undefined {
+    const stream = audioStreams.get(id);
+    if (!stream || stream.sampleRateHz === sampleRateHz) return undefined;
+    audioStreams.set(id, Object.freeze({ ...stream, sampleRateHz }));
+    return {
+      entity: "audioStream",
+      id,
+      removed: false,
+      diff: Object.freeze({ sampleRateHz }),
+    };
+  }
+
+  function followsSliceRate(stream: AudioStreamSnapshot): boolean {
+    return stream.type === "dax_rx" || stream.type === "dax_tx";
+  }
+
+  function daxSliceOwner(stream: AudioStreamSnapshot): number | undefined {
+    if (boundClientId !== undefined) {
+      for (const client of guiClients.values()) {
+        if (client.clientId === boundClientId) return client.clientHandleInt;
+      }
+    }
+    return stream.clientHandle;
+  }
+
+  // DAX RX follows the slice it names; DAX TX follows its owner's transmit
+  // slice. Slice letters are per client, so both match on the owner too.
+  function daxSampleRate(stream: AudioStreamSnapshot): number {
+    const owner = daxSliceOwner(stream);
+    if (owner === undefined) return 0;
+    for (const slice of slices.values()) {
+      if (slice.clientHandle !== owner) continue;
+      const followed =
+        stream.type === "dax_tx"
+          ? slice.isTransmitEnabled
+          : slice.indexLetter === stream.slice;
+      if (followed) return slice.sampleRateHz;
+    }
+    return 0;
+  }
+
+  function withDaxSampleRate(
+    update: SnapshotUpdate<AudioStreamSnapshot>,
+  ): Pick<SnapshotUpdate<AudioStreamSnapshot>, "snapshot" | "diff"> {
+    const { snapshot, diff } = update;
+    if (!followsSliceRate(snapshot)) return { snapshot, diff };
+    const sampleRateHz = daxSampleRate(snapshot);
+    if (sampleRateHz === snapshot.sampleRateHz) return { snapshot, diff };
+    return {
+      snapshot: Object.freeze({ ...snapshot, sampleRateHz }),
+      diff: Object.freeze({ ...diff, sampleRateHz }),
+    };
+  }
+
+  function recomputeDaxStreamRates(): RadioStateChange[] {
+    const changes: RadioStateChange[] = [];
+    for (const id of audioStreams.keys()) {
+      const stream = audioStreams.get(id);
+      if (!stream || !followsSliceRate(stream)) continue;
+      const change = setAudioStreamSampleRate(id, daxSampleRate(stream));
+      if (change) changes.push(change);
+    }
+    return changes;
   }
 
   function removeAudioStream(id: string): AudioStreamStateChange | undefined {

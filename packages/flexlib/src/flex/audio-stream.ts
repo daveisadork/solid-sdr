@@ -105,7 +105,7 @@ export class AudioStreamControllerImpl implements AudioStreamController {
   private readonly events =
     new TypedEventEmitter<AudioStreamControllerEvents>();
   protected numericStreamId = 0;
-  private micRateHz = 0;
+  private lastRxClassCode?: number;
   private dataListeners = 0;
   private dataSubscription?: Subscription;
 
@@ -197,24 +197,12 @@ export class AudioStreamControllerImpl implements AudioStreamController {
     return snapshot;
   }
 
-  get sampleRateHz(): number {
-    switch (this.current().type) {
-      case "dax_rx":
-      case "dax_tx":
-        return this.followedSliceRateHz();
-      case "dax_mic":
-        return this.micRateHz;
-      default:
-        return 0;
-    }
+  get sampleRateHz() {
+    return this.current().sampleRateHz;
   }
 
   snapshot(): AudioStreamSnapshot {
-    const current = this.current();
-    const sampleRateHz = this.sampleRateHz;
-    return sampleRateHz === current.sampleRateHz
-      ? current
-      : { ...current, sampleRateHz };
+    return this.current();
   }
 
   on<TKey extends keyof AudioStreamControllerEvents>(
@@ -255,42 +243,32 @@ export class AudioStreamControllerImpl implements AudioStreamController {
     }
   }
 
-  /**
-   * Sample rate in Hz of the slice this stream follows, or 0 when it is not
-   * known. A stream bound to a slice follows that slice. A stream with no
-   * bound slice follows the transmit slice that its client (or its GUI client)
-   * owns.
-   */
-  protected followedSliceRateHz(): number {
-    const snapshot = this.current();
-    const slices = this.radio.getStore().getSlices();
-    let slice = snapshot.slice
-      ? slices.find((s) => s.indexLetter === snapshot.slice)
-      : undefined;
-    if (!slice) {
-      const owners = [snapshot.clientGuiHandle, snapshot.clientHandle];
-      slice =
-        slices.find(
-          (s) => s.isTransmitEnabled && owners.includes(s.clientHandle),
-        ) ?? slices.find((s) => s.isTransmitEnabled);
-    }
-    return slice && slice.sampleRateHz > 0 ? slice.sampleRateHz : 0;
-  }
-
   private ensureDataPipeline(): void {
     if (this.dataSubscription) return;
     this.dataSubscription = this.radio.registerStreamHandler(
       this.numericStreamId,
       (packet) => {
-        if (packet.kind === "daxAudio" || packet.kind === "daxReducedBw") {
-          const rate = daxAudioSampleRateFromClass(
-            packet.classId.packetClassCode,
-          );
-          if (rate !== undefined) this.micRateHz = rate;
+        if (
+          (packet.kind === "daxAudio" || packet.kind === "daxReducedBw") &&
+          packet.classId.packetClassCode !== this.lastRxClassCode
+        ) {
+          this.lastRxClassCode = packet.classId.packetClassCode;
+          this.onRxClassChange(this.lastRxClassCode);
         }
         this.events.emit("data", packet);
       },
     );
+  }
+
+  // DAX mic has no slice to follow, so its rate comes from the packets.
+  private onRxClassChange(classCode: number): void {
+    if (this.current().type !== "dax_mic") return;
+    const rate = daxAudioSampleRateFromClass(classCode);
+    if (rate === undefined) return;
+    const change = this.radio
+      .getStore()
+      .setAudioStreamSampleRate(this.id, rate);
+    if (change) this.radio.applyStateChange(change);
   }
 
   private handleDataUnsubscribe(): void {
@@ -315,9 +293,17 @@ export class AudioStreamTxControllerImpl
   private txAudioPkt?: VitaDaxAudioPacket;
   private txReducedBwPkt?: VitaDaxReducedBwPacket;
   private txPacketCount = 0;
+  private audioClassCode?: number;
+  private reducedBwClassCode?: number;
+
+  /** Packets are dropped while the rate has no class code. */
+  protected updateClassCodes(rateHz: number): void {
+    this.audioClassCode = daxAudioClassForRate(rateHz);
+    this.reducedBwClassCode = daxReducedBwClassForRate(rateHz);
+  }
 
   sendAudio(left: Float32Array, right: Float32Array): void {
-    const classCode = daxAudioClassForRate(this.followedSliceRateHz());
+    const classCode = this.audioClassCode;
     if (classCode === undefined) return;
     if (!this.txAudioPkt) {
       this.txAudioPkt = new VitaDaxAudioPacket();
@@ -336,7 +322,7 @@ export class AudioStreamTxControllerImpl
   }
 
   sendReducedBwAudio(samples: Int16Array): void {
-    const classCode = daxReducedBwClassForRate(this.followedSliceRateHz());
+    const classCode = this.reducedBwClassCode;
     if (classCode === undefined) return;
     if (!this.txReducedBwPkt) {
       this.txReducedBwPkt = new VitaDaxReducedBwPacket();
@@ -358,6 +344,19 @@ export class DaxTxAudioStreamControllerImpl
   extends AudioStreamTxControllerImpl
   implements DaxTxAudioStreamController
 {
+  constructor(radio: RadioSession, id: string) {
+    super(radio, id);
+    this.updateClassCodes(
+      radio.getStore().getAudioStream(id)?.sampleRateHz ?? 0,
+    );
+  }
+
+  override onStateChange(change: AudioStreamStateChange): void {
+    super.onStateChange(change);
+    const rate = change.diff?.sampleRateHz;
+    if (rate !== undefined) this.updateClassCodes(rate);
+  }
+
   async requestTx(tx: boolean): Promise<void> {
     await this.radio.command(`stream set ${this.id} tx=${tx ? 1 : 0}`);
   }
@@ -437,6 +436,13 @@ export class RemoteAudioTxStreamControllerImpl
   implements RemoteAudioTxStreamController
 {
   private opusPkt?: VitaOpusPacket;
+
+  constructor(radio: RadioSession, id: string) {
+    super(radio, id);
+    // Remote audio does not follow a slice. Uncompressed remote RX arrives
+    // as 24 kHz float stereo, and there is no command to change its rate.
+    this.updateClassCodes(24000);
+  }
 
   sendOpus(frame: Uint8Array): void {
     if (!this.opusPkt) {

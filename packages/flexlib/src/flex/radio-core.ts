@@ -2112,6 +2112,9 @@ class RadioImpl {
       throw new FlexError("GUI client id cannot be empty");
     }
     await this.command(`client bind client_id=${trimmed}`);
+    for (const change of this.store.setBoundClientId(trimmed)) {
+      this.handleStateChange(change);
+    }
   }
 
   async requestSlice(

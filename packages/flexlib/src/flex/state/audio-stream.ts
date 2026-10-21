@@ -36,10 +36,10 @@ export interface AudioStreamSnapshot {
   /** RX gain (0-100) the radio reports for this stream. */
   readonly rxGain?: number;
   /**
-   * Sample rate of the audio on this stream in Hz, or 0 while unknown. The
-   * store keeps 0; the stream controller fills in the live value: the followed
-   * slice's rate for DAX RX and DAX TX, and the rate from the last received
-   * packet class for DAX mic.
+   * Sample rate of the audio on this stream in Hz, or 0 while unknown. DAX RX
+   * takes the rate of the slice it names and DAX TX the rate of its owner's
+   * transmit slice. DAX mic takes the rate from the class of the packets it
+   * receives, so it stays 0 until a packet arrives while something listens.
    */
   readonly sampleRateHz: number;
   readonly tx: boolean;

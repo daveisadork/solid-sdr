@@ -115,12 +115,11 @@ export interface SliceSnapshot {
   /** Wire: `agc_threshold_mode`. A value other than `auto` or `manual` stays on `raw`. */
   readonly agcThresholdMode?: SliceAgcThresholdMode;
   /**
-   * Chain the radio runs for this slice, such as `CW`. A waveform slice
-   * reports the waveform name as `mode` and the underlying chain here.
-   * Unset when the firmware never sent the key; an unset chain does not mean
-   * the slice is not CW. Wire: `chain_mode`. Read only.
+   * Base mode the radio runs for this slice. Same as `mode`, except for a
+   * waveform mode, where it is the underlying mode (`FDVU` runs `DIGU`).
+   * Wire: `chain_mode`. Read only.
    */
-  readonly chainMode?: string;
+  readonly chainMode: string;
   readonly agcOffLevel: number;
   readonly loopAEnabled: boolean;
   readonly loopBEnabled: boolean;
@@ -486,7 +485,7 @@ export function createSliceSnapshot(
         }
         break;
       case "chain_mode":
-        if (value) partial.chainMode = value;
+        partial.chainMode = value;
         break;
       case "agc_mode":
         partial.agcMode = value;

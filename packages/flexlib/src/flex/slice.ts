@@ -756,7 +756,7 @@ export class SliceControllerImpl implements SliceController {
     return this.current().agcThresholdMode;
   }
 
-  get chainMode(): string | undefined {
+  get chainMode(): string {
     return this.current().chainMode;
   }
 

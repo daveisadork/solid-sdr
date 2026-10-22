@@ -7,12 +7,17 @@ import {
   AUDIO_STREAM_TYPES,
   createAudioStreamSnapshot,
 } from "./audio-stream.js";
-import type { SnapshotDiff } from "./common.js";
+import { type AutoDxSnapshot, createAutoDxSnapshot } from "./autodx.js";
+import type { SnapshotDiff, SnapshotUpdate } from "./common.js";
 import {
   parseInteger,
   parseIntegerHex,
   setRadioStateLogger,
 } from "./common.js";
+import {
+  type CwDecoderSnapshot,
+  createCwDecoderSnapshot,
+} from "./cw-decoder.js";
 import {
   type CwxProgressEvent,
   type CwxSnapshot,
@@ -47,9 +52,14 @@ import {
 import { createMemorySnapshot, type MemorySnapshot } from "./memory.js";
 import { createMeterSnapshot, type MeterSnapshot } from "./meter.js";
 import {
+  createNtpSourceSnapshot,
+  type NtpSourceSnapshot,
+} from "./ntp-source.js";
+import {
   createPanadapterSnapshot,
   type PanadapterSnapshot,
 } from "./panadapter.js";
+import { createPresetSnapshot, type PresetSnapshot } from "./preset.js";
 import {
   createRadioSnapshot,
   type RadioSnapshot,
@@ -74,9 +84,20 @@ import {
 } from "./waveform.js";
 import { createXvtrSnapshot, type XvtrSnapshot } from "./xvtr.js";
 
-export type { ApdSamplerPort, ApdSnapshot, ApdTxAntenna } from "./apd.js";
+export type {
+  ApdLifecycleState,
+  ApdSamplerPort,
+  ApdSnapshot,
+  ApdTxAntenna,
+} from "./apd.js";
 export type { AudioStreamKind, AudioStreamSnapshot } from "./audio-stream.js";
+export type {
+  AutoDxSnapshot,
+  AutoDxState,
+  AutoDxTrigger,
+} from "./autodx.js";
 export type { SnapshotDiff } from "./common.js";
+export type { CwDecoderSnapshot } from "./cw-decoder.js";
 export type { CwxProgressEvent, CwxSnapshot } from "./cwx.js";
 export type { DisplayMarkerSnapshot } from "./display-marker.js";
 export type { DvkRecording, DvkSnapshot, DvkStatus } from "./dvk.js";
@@ -95,7 +116,13 @@ export type { GuiClientSnapshot } from "./gui-client.js";
 export type { MemorySnapshot } from "./memory.js";
 export type { KnownMeterUnits, MeterSnapshot, MeterUnits } from "./meter.js";
 export { KNOWN_METER_UNITS } from "./meter.js";
+export type {
+  NtpDirective,
+  NtpSourceSnapshot,
+  NtpSourceState,
+} from "./ntp-source.js";
 export type { PanadapterSnapshot } from "./panadapter.js";
+export type { PresetSnapshot } from "./preset.js";
 export type {
   RadioAtuTuneStatus,
   RadioCwIambicMode,
@@ -111,6 +138,9 @@ export type {
 } from "./radio.js";
 export type {
   SliceAgcMode,
+  SliceAgcThresholdMode,
+  SliceDspAdaptMode,
+  SliceDspIsdftMode,
   SliceRepeaterOffsetDirection,
   SliceSnapshot,
   SliceToneMode,
@@ -151,6 +181,10 @@ export type RadioStateChange =
     } & ChangeMetadata<TxBandSettingSnapshot>)
   | ({ entity: "guiClient"; id: string } & ChangeMetadata<GuiClientSnapshot>)
   | ({ entity: "xvtr"; id: string } & ChangeMetadata<XvtrSnapshot>)
+  | ({ entity: "cwDecoder"; id: string } & ChangeMetadata<CwDecoderSnapshot>)
+  | ({ entity: "autoDx"; id: string } & ChangeMetadata<AutoDxSnapshot>)
+  | ({ entity: "preset"; id: string } & ChangeMetadata<PresetSnapshot>)
+  | ({ entity: "ntpSource"; id: string } & ChangeMetadata<NtpSourceSnapshot>)
   | ({ entity: "spot"; id: string } & ChangeMetadata<SpotSnapshot>)
   | DisplayMarkerStateChange
   | ({ entity: "tnf"; id: string } & ChangeMetadata<TnfSnapshot>)
@@ -205,6 +239,16 @@ export type TxBandSettingStateChange = Extract<
   { entity: "txBandSetting" }
 >;
 export type XvtrStateChange = Extract<RadioStateChange, { entity: "xvtr" }>;
+export type CwDecoderStateChange = Extract<
+  RadioStateChange,
+  { entity: "cwDecoder" }
+>;
+export type AutoDxStateChange = Extract<RadioStateChange, { entity: "autoDx" }>;
+export type PresetStateChange = Extract<RadioStateChange, { entity: "preset" }>;
+export type NtpSourceStateChange = Extract<
+  RadioStateChange,
+  { entity: "ntpSource" }
+>;
 export type SpotStateChange = Extract<RadioStateChange, { entity: "spot" }>;
 export type CwxStateChange = Extract<RadioStateChange, { entity: "cwx" }>;
 export type DvkStateChange = Extract<RadioStateChange, { entity: "dvk" }>;
@@ -225,6 +269,10 @@ export interface RadioStateSnapshot {
   readonly equalizers: readonly EqualizerSnapshot[];
   readonly txBandSettings: readonly TxBandSettingSnapshot[];
   readonly xvtrs: readonly XvtrSnapshot[];
+  readonly cwDecoders: readonly CwDecoderSnapshot[];
+  readonly autoDxes: readonly AutoDxSnapshot[];
+  readonly presets: readonly PresetSnapshot[];
+  readonly ntpSources: readonly NtpSourceSnapshot[];
   readonly spots: readonly SpotSnapshot[];
   readonly displayMarkers: readonly DisplayMarkerSnapshot[];
   readonly tnfs: readonly TnfSnapshot[];
@@ -255,6 +303,30 @@ export interface RadioStateStore {
   getEqualizers(): readonly EqualizerSnapshot[];
   getTxBandSetting(id: string): TxBandSettingSnapshot | undefined;
   getTxBandSettings(): readonly TxBandSettingSnapshot[];
+  /** CW decoder state for a slice, keyed by slice id. */
+  getCwDecoder(sliceId: string): CwDecoderSnapshot | undefined;
+  /** AutoDX state for a slice, keyed by slice id. Absent until the radio reports it or a setter runs. */
+  getAutoDx(sliceId: string): AutoDxSnapshot | undefined;
+  /**
+   * Writes AutoDX fields for a live slice, creating the default state first
+   * when none exists. Returns nothing when the slice is gone.
+   */
+  patchAutoDx(
+    sliceId: string,
+    attributes: Record<string, string>,
+  ): AutoDxStateChange | undefined;
+  /** Drops the CW decoder and AutoDX state of a removed slice. */
+  removeSliceChildren(sliceId: string): readonly RadioStateChange[];
+  getPreset(id: string): PresetSnapshot | undefined;
+  getPresets(): readonly PresetSnapshot[];
+  /** Id of the last preset the radio confirmed applying since connect, if any. */
+  getActivePresetId(): string | undefined;
+  getNtpSource(id: string): NtpSourceSnapshot | undefined;
+  getNtpSources(): readonly NtpSourceSnapshot[];
+  patchNtpSource(
+    id: string,
+    attributes: Record<string, string>,
+  ): NtpSourceStateChange | undefined;
   getXvtr(id: string): XvtrSnapshot | undefined;
   getXvtrs(): readonly XvtrSnapshot[];
   getSpot(id: string): SpotSnapshot | undefined;
@@ -305,6 +377,15 @@ export interface RadioStateStore {
     attributes: Record<string, string>,
   ): AudioStreamStateChange | undefined;
   removeAudioStream(id: string): AudioStreamStateChange | undefined;
+  setAudioStreamSampleRate(
+    id: string,
+    sampleRateHz: number,
+  ): AudioStreamStateChange | undefined;
+  /**
+   * Record the GUI client this connection is bound to. DAX RX and DAX TX
+   * streams then follow that client's slices instead of their own client's.
+   */
+  setBoundClientId(clientId: string | undefined): readonly RadioStateChange[];
   patchEqualizer(
     id: EqualizerId,
     attributes: Record<string, string>,
@@ -356,11 +437,15 @@ export interface RadioStateStore {
   setLocalClientHandle(
     handle: string | number | undefined,
   ): readonly RadioStateChange[];
+  getBoundClientId(): string | undefined;
 }
 
 export interface RadioStateStoreOptions {
   readonly logger?: Pick<Logger, "debug" | "warn">;
 }
+
+/** Meter source code shared by amplifiers and tuners. */
+const AMPLIFIER_METER_SOURCE = "AMP";
 
 export function createRadioStateStore(
   options: RadioStateStoreOptions = {},
@@ -376,6 +461,11 @@ export function createRadioStateStore(
   const equalizers = new Map<EqualizerId, EqualizerSnapshot>();
   const txBandSettings = new Map<string, TxBandSettingSnapshot>();
   const xvtrs = new Map<string, XvtrSnapshot>();
+  const presets = new Map<string, PresetSnapshot>();
+  const cwDecoders = new Map<string, CwDecoderSnapshot>();
+  const autoDxes = new Map<string, AutoDxSnapshot>();
+  const ntpSources = new Map<string, NtpSourceSnapshot>();
+  let activePresetId: string | undefined;
   const spots = new Map<string, SpotSnapshot>();
   const displayMarkers = new Map<string, Map<string, DisplayMarkerSnapshot>>();
   const tnfs = new Map<string, TnfSnapshot>();
@@ -388,6 +478,7 @@ export function createRadioStateStore(
   let cwx: CwxSnapshot | undefined;
   let dvk: DvkSnapshot | undefined;
   let localClientHandle: number | undefined;
+  let boundClientId: string | undefined;
 
   function getDisplayMarkerGroup(
     group: string,
@@ -418,6 +509,11 @@ export function createRadioStateStore(
     equalizers.clear();
     txBandSettings.clear();
     xvtrs.clear();
+    presets.clear();
+    cwDecoders.clear();
+    autoDxes.clear();
+    ntpSources.clear();
+    activePresetId = undefined;
     spots.clear();
     displayMarkers.clear();
     tnfs.clear();
@@ -430,6 +526,7 @@ export function createRadioStateStore(
     cwx = undefined;
     dvk = undefined;
     localClientHandle = undefined;
+    boundClientId = undefined;
   }
 
   return {
@@ -443,10 +540,12 @@ export function createRadioStateStore(
         case "stream":
           return [handleStream(message)];
         case "meter":
-          return [handleMeter(message)];
+          return handleMeter(message);
         case "radio":
         case "gps":
           return [handleRadio(message)];
+        case "ha_api":
+          return message.identifier === "system" ? [handleRadio(message)] : [];
         case "interlock":
         case "transmit": {
           if (message.identifier === "band") {
@@ -465,6 +564,14 @@ export function createRadioStateStore(
         }
         case "xvtr":
           return [handleXvtr(message)];
+        case "cw":
+          return handleCwDecoder(message);
+        case "autodx":
+          return handleAutoDx(message);
+        case "preset":
+          return handlePreset(message);
+        case "ntp_sources":
+          return [handleNtpSource(message)];
         case "tnf":
           return [handleTnf(message)];
         case "memory":
@@ -547,6 +654,10 @@ export function createRadioStateStore(
         equalizers: Array.from(equalizers.values()),
         txBandSettings: Array.from(txBandSettings.values()),
         xvtrs: Array.from(xvtrs.values()),
+        cwDecoders: Array.from(cwDecoders.values()),
+        autoDxes: Array.from(autoDxes.values()),
+        presets: Array.from(presets.values()),
+        ntpSources: Array.from(ntpSources.values()),
         spots: Array.from(spots.values()),
         displayMarkers: flattenDisplayMarkers(),
         tnfs: Array.from(tnfs.values()),
@@ -595,6 +706,43 @@ export function createRadioStateStore(
     },
     getTxBandSettings() {
       return Array.from(txBandSettings.values());
+    },
+    getCwDecoder(sliceId) {
+      return cwDecoders.get(sliceId);
+    },
+    getAutoDx(sliceId) {
+      return autoDxes.get(sliceId);
+    },
+    patchAutoDx(sliceId, attributes) {
+      return patchAutoDx(sliceId, attributes);
+    },
+    removeSliceChildren(sliceId) {
+      const changes: RadioStateChange[] = [];
+      if (cwDecoders.delete(sliceId)) {
+        changes.push({ entity: "cwDecoder", id: sliceId, removed: true });
+      }
+      if (autoDxes.delete(sliceId)) {
+        changes.push({ entity: "autoDx", id: sliceId, removed: true });
+      }
+      return changes;
+    },
+    getPreset(id) {
+      return presets.get(id);
+    },
+    getPresets() {
+      return Array.from(presets.values());
+    },
+    getActivePresetId() {
+      return activePresetId;
+    },
+    getNtpSource(id) {
+      return ntpSources.get(id);
+    },
+    getNtpSources() {
+      return Array.from(ntpSources.values());
+    },
+    patchNtpSource(id, attributes) {
+      return patchNtpSource(id, attributes);
     },
     getXvtr(id) {
       return xvtrs.get(id);
@@ -683,6 +831,17 @@ export function createRadioStateStore(
     removeAudioStream(id) {
       return removeAudioStream(id);
     },
+    setAudioStreamSampleRate(id, sampleRateHz) {
+      return setAudioStreamSampleRate(id, sampleRateHz);
+    },
+    getBoundClientId() {
+      return boundClientId;
+    },
+    setBoundClientId(clientId) {
+      if (clientId === boundClientId) return [];
+      boundClientId = clientId;
+      return recomputeDaxStreamRates();
+    },
     patchEqualizer(id, attributes) {
       return patchEqualizer(id, attributes);
     },
@@ -765,6 +924,7 @@ export function createRadioStateStore(
       ];
       changes.push(
         ...recomputeGuiClientTransmitSlices([previous?.clientHandle]),
+        ...recomputeDaxStreamRates(),
       );
       return changes;
     }
@@ -795,6 +955,13 @@ export function createRadioStateStore(
         previous?.clientHandle,
       ]),
     );
+    if (
+      !previous ||
+      diff.isTransmitEnabled !== undefined ||
+      diff.sampleRateHz !== undefined
+    ) {
+      changes.push(...recomputeDaxStreamRates());
+    }
     return changes;
   }
 
@@ -810,7 +977,10 @@ export function createRadioStateStore(
         removed: true,
       },
     ];
-    changes.push(...recomputeGuiClientTransmitSlices([previous.clientHandle]));
+    changes.push(
+      ...recomputeGuiClientTransmitSlices([previous.clientHandle]),
+      ...recomputeDaxStreamRates(),
+    );
     return changes;
   }
 
@@ -974,10 +1144,8 @@ export function createRadioStateStore(
     if (attributePatch.stream_id === undefined && id) {
       attributePatch.stream_id = id;
     }
-    const { snapshot, diff } = createAudioStreamSnapshot(
-      id,
-      attributePatch,
-      previous,
+    const { snapshot, diff } = withDaxSampleRate(
+      createAudioStreamSnapshot(id, attributePatch, previous),
     );
     audioStreams.set(id, snapshot);
     return {
@@ -1074,6 +1242,7 @@ export function createRadioStateStore(
           id,
           removed: true,
         },
+        ...recomputeDaxStreamRates(),
       ];
     }
 
@@ -1113,6 +1282,7 @@ export function createRadioStateStore(
         snapshot.clientHandleInt,
       );
       if (transmitChange) changes.push(transmitChange);
+      changes.push(...recomputeDaxStreamRates());
       return changes;
     }
 
@@ -1180,27 +1350,25 @@ export function createRadioStateStore(
     };
   }
 
-  function handleMeter(message: FlexStatusMessage): RadioStateChange {
+  function handleMeter(message: FlexStatusMessage): RadioStateChange[] {
     const id = resolveIdentifier(
       message,
       message.identifier,
       message.attributes.num,
     );
     if (!id) {
-      return {
-        entity: "unknown",
-        source: message.source,
-        attributes: message.attributes,
-      };
+      return [
+        {
+          entity: "unknown",
+          source: message.source,
+          attributes: message.attributes,
+        },
+      ];
     }
 
     if (isMarkedDeleted(message)) {
       meters.delete(id);
-      return {
-        entity: "meter",
-        id,
-        removed: true,
-      };
+      return [{ entity: "meter", id, removed: true }];
     }
 
     const previous = meters.get(id);
@@ -1210,12 +1378,48 @@ export function createRadioStateStore(
       previous,
     );
     meters.set(id, snapshot);
-    return {
-      entity: "meter",
-      id,
-      diff,
-      removed: false,
-    };
+
+    const changes: RadioStateChange[] = [];
+    const superseded = findSupersededMeters(id, snapshot);
+    for (const supersededId of superseded) {
+      meters.delete(supersededId);
+      changes.push({ entity: "meter", id: supersededId, removed: true });
+    }
+    if (!superseded.includes(id)) {
+      changes.unshift({ entity: "meter", id, diff, removed: false });
+    }
+    return changes;
+  }
+
+  /**
+   * An amplifier or tuner that registers a second meter under a name it
+   * already used gets a higher meter number, and the radio streams only the
+   * newest. Returns the ids of the older duplicates, which may include `id`
+   * itself when a newer one already exists. Slice meters are exempt: every
+   * slice has a meter with the same name.
+   */
+  function findSupersededMeters(id: string, meter: MeterSnapshot): string[] {
+    if (
+      meter.source.toUpperCase() !== AMPLIFIER_METER_SOURCE ||
+      meter.sourceIndex === undefined ||
+      !meter.name
+    ) {
+      return [];
+    }
+    const superseded: string[] = [];
+    for (const [otherId, other] of meters) {
+      if (
+        otherId === id ||
+        other.source.toUpperCase() !== AMPLIFIER_METER_SOURCE ||
+        other.sourceIndex !== meter.sourceIndex ||
+        other.name !== meter.name
+      ) {
+        continue;
+      }
+      if (Number(otherId) > Number(id)) return [id];
+      superseded.push(otherId);
+    }
+    return superseded;
   }
 
   function handleLicense(
@@ -1493,10 +1697,8 @@ export function createRadioStateStore(
     if (attributePatch.stream_id === undefined) {
       attributePatch.stream_id = previous?.streamId ?? id;
     }
-    const { snapshot, diff } = createAudioStreamSnapshot(
-      id,
-      attributePatch,
-      previous,
+    const { snapshot, diff } = withDaxSampleRate(
+      createAudioStreamSnapshot(id, attributePatch, previous),
     );
     audioStreams.set(id, snapshot);
     return {
@@ -1505,6 +1707,74 @@ export function createRadioStateStore(
       diff,
       removed: false,
     };
+  }
+
+  function setAudioStreamSampleRate(
+    id: string,
+    sampleRateHz: number,
+  ): AudioStreamStateChange | undefined {
+    const stream = audioStreams.get(id);
+    if (!stream || stream.sampleRateHz === sampleRateHz) return undefined;
+    audioStreams.set(id, Object.freeze({ ...stream, sampleRateHz }));
+    return {
+      entity: "audioStream",
+      id,
+      removed: false,
+      diff: Object.freeze({ sampleRateHz }),
+    };
+  }
+
+  function followsSliceRate(stream: AudioStreamSnapshot): boolean {
+    return stream.type === "dax_rx" || stream.type === "dax_tx";
+  }
+
+  function daxSliceOwner(stream: AudioStreamSnapshot): number | undefined {
+    if (boundClientId !== undefined) {
+      for (const client of guiClients.values()) {
+        if (client.clientId === boundClientId) return client.clientHandleInt;
+      }
+    }
+    return stream.clientHandle;
+  }
+
+  // DAX RX follows the slice it names; DAX TX follows its owner's transmit
+  // slice. Slice letters are per client, so both match on the owner too.
+  function daxSampleRate(stream: AudioStreamSnapshot): number {
+    const owner = daxSliceOwner(stream);
+    if (owner === undefined) return 0;
+    for (const slice of slices.values()) {
+      if (slice.clientHandle !== owner) continue;
+      const followed =
+        stream.type === "dax_tx"
+          ? slice.isTransmitEnabled
+          : slice.indexLetter === stream.slice;
+      if (followed) return slice.sampleRateHz;
+    }
+    return 0;
+  }
+
+  function withDaxSampleRate(
+    update: SnapshotUpdate<AudioStreamSnapshot>,
+  ): Pick<SnapshotUpdate<AudioStreamSnapshot>, "snapshot" | "diff"> {
+    const { snapshot, diff } = update;
+    if (!followsSliceRate(snapshot)) return { snapshot, diff };
+    const sampleRateHz = daxSampleRate(snapshot);
+    if (sampleRateHz === snapshot.sampleRateHz) return { snapshot, diff };
+    return {
+      snapshot: Object.freeze({ ...snapshot, sampleRateHz }),
+      diff: Object.freeze({ ...diff, sampleRateHz }),
+    };
+  }
+
+  function recomputeDaxStreamRates(): RadioStateChange[] {
+    const changes: RadioStateChange[] = [];
+    for (const id of audioStreams.keys()) {
+      const stream = audioStreams.get(id);
+      if (!stream || !followsSliceRate(stream)) continue;
+      const change = setAudioStreamSampleRate(id, daxSampleRate(stream));
+      if (change) changes.push(change);
+    }
+    return changes;
   }
 
   function removeAudioStream(id: string): AudioStreamStateChange | undefined {
@@ -1624,6 +1894,145 @@ export function createRadioStateStore(
       id,
       removed: true,
     };
+  }
+
+  /** Status for a slice that is gone is ignored, so no state outlives its slice. */
+  function liveSliceId(message: FlexStatusMessage): string | undefined {
+    const sliceId = message.attributes.slice;
+    return sliceId && slices.has(sliceId) ? sliceId : undefined;
+  }
+
+  function handleCwDecoder(message: FlexStatusMessage): RadioStateChange[] {
+    const sliceId = liveSliceId(message);
+    if (!sliceId) return [];
+    const previous = cwDecoders.get(sliceId);
+    const { snapshot, diff } = createCwDecoderSnapshot(
+      sliceId,
+      message.attributes,
+      previous,
+    );
+    cwDecoders.set(sliceId, snapshot);
+    return [{ entity: "cwDecoder", id: sliceId, diff, removed: false }];
+  }
+
+  function handleAutoDx(message: FlexStatusMessage): RadioStateChange[] {
+    const sliceId = liveSliceId(message);
+    if (!sliceId) return [];
+    const previous = autoDxes.get(sliceId);
+    const { snapshot, diff } = createAutoDxSnapshot(
+      sliceId,
+      message.attributes,
+      previous,
+    );
+    autoDxes.set(sliceId, snapshot);
+    return [{ entity: "autoDx", id: sliceId, diff, removed: false }];
+  }
+
+  function patchAutoDx(
+    sliceId: string,
+    attributes: Record<string, string>,
+  ): AutoDxStateChange | undefined {
+    if (!slices.has(sliceId)) return undefined;
+    const previous = autoDxes.get(sliceId);
+    const { snapshot, diff } = createAutoDxSnapshot(
+      sliceId,
+      attributes,
+      previous,
+    );
+    autoDxes.set(sliceId, snapshot);
+    if (Object.keys(diff as Record<string, unknown>).length === 0) {
+      return undefined;
+    }
+    return { entity: "autoDx", id: sliceId, diff, removed: false };
+  }
+
+  function handlePreset(message: FlexStatusMessage): RadioStateChange[] {
+    const id = message.attributes.id;
+    if (!id) {
+      return [
+        {
+          entity: "unknown",
+          source: message.source,
+          attributes: message.attributes,
+        },
+      ];
+    }
+
+    if ("removed" in message.attributes) {
+      if (!presets.delete(id)) return [];
+      return [{ entity: "preset", id, removed: true }];
+    }
+
+    if ("applied" in message.attributes) {
+      activePresetId = id;
+      const changes: RadioStateChange[] = [];
+      for (const [presetId, preset] of presets) {
+        const active = presetId === id;
+        if (preset.active === active) continue;
+        const { snapshot, diff } = createPresetSnapshot(
+          presetId,
+          { active: active ? "1" : "0" },
+          preset,
+        );
+        presets.set(presetId, snapshot);
+        changes.push({ entity: "preset", id: presetId, diff, removed: false });
+      }
+      return changes;
+    }
+
+    // A bare "created" carries no fields; the Radio re-subscribes to get them.
+    if ("created" in message.attributes) return [];
+
+    const previous = presets.get(id);
+    const attributes = previous
+      ? message.attributes
+      : { ...message.attributes, active: id === activePresetId ? "1" : "0" };
+    const { snapshot, diff } = createPresetSnapshot(id, attributes, previous);
+    presets.set(id, snapshot);
+    return [{ entity: "preset", id, diff, removed: false }];
+  }
+
+  function handleNtpSource(message: FlexStatusMessage): RadioStateChange {
+    const id = message.attributes.id;
+    if (!id) {
+      return {
+        entity: "unknown",
+        source: message.source,
+        attributes: message.attributes,
+      };
+    }
+
+    if ("removed" in message.attributes) {
+      ntpSources.delete(id);
+      return { entity: "ntpSource", id, removed: true };
+    }
+
+    const previous = ntpSources.get(id);
+    const { snapshot, diff } = createNtpSourceSnapshot(
+      id,
+      message.attributes,
+      previous,
+    );
+    ntpSources.set(id, snapshot);
+    return { entity: "ntpSource", id, diff, removed: false };
+  }
+
+  function patchNtpSource(
+    id: string,
+    attributes: Record<string, string>,
+  ): NtpSourceStateChange | undefined {
+    const previous = ntpSources.get(id);
+    if (!previous || Object.keys(attributes).length === 0) return undefined;
+    const { snapshot, diff } = createNtpSourceSnapshot(
+      id,
+      attributes,
+      previous,
+    );
+    ntpSources.set(id, snapshot);
+    if (Object.keys(diff as Record<string, unknown>).length === 0) {
+      return undefined;
+    }
+    return { entity: "ntpSource", id, diff, removed: false };
   }
 
   function handleSpot(
@@ -1877,6 +2286,9 @@ export function createRadioStateStore(
       return handleContainerWaveform(message);
     }
 
+    // Transient event; the Radio reports it directly.
+    if (message.identifier === "restarted") return [];
+
     if ("installed_list" in message.attributes) {
       return replaceLegacyWaveforms(message.raw);
     }
@@ -1920,11 +2332,11 @@ export function createRadioStateStore(
       const previous = waveforms.get(id);
       const { snapshot, diff } = createWaveformSnapshot(
         id,
+        true,
         {
           ...message.attributes,
           name,
           version,
-          is_container: "1",
         },
         previous,
       );
@@ -1960,10 +2372,10 @@ export function createRadioStateStore(
       const previous = waveforms.get(entry.id);
       const { snapshot, diff } = createWaveformSnapshot(
         entry.id,
+        false,
         {
           name: entry.name,
           version: entry.version,
-          is_container: "0",
         },
         previous,
       );

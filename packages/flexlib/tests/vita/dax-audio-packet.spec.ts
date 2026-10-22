@@ -7,11 +7,15 @@ import {
   VitaTimeStampIntegerType,
 } from "../../src/vita/common";
 import {
-  VITA_FLEX_DAX_AUDIO_CLASS,
-  VITA_FLEX_DAX_REDUCED_BW_CLASS,
+  daxAudioClassForRate,
+  daxAudioSampleRateFromClass,
+  daxReducedBwClassForRate,
+  VITA_FLEX_DAX_AUDIO_24_CLASS,
+  VITA_FLEX_DAX_REDUCED_BW_24_CLASS,
   VitaDaxAudioPacket,
   VitaDaxReducedBwPacket,
 } from "../../src/vita/dax-audio-packet";
+import { parseVitaPacket } from "../../src/vita/parser";
 
 // ---------------------------------------------------------------------------
 // VitaDaxAudioPacket
@@ -29,7 +33,7 @@ describe("VitaDaxAudioPacket: default header", () => {
     );
     expect(p.classId.oui).toBe(VITA_FLEX_OUI);
     expect(p.classId.informationClassCode).toBe(VITA_FLEX_INFO_CLASS);
-    expect(p.classId.packetClassCode).toBe(VITA_FLEX_DAX_AUDIO_CLASS);
+    expect(p.classId.packetClassCode).toBe(VITA_FLEX_DAX_AUDIO_24_CLASS);
   });
 });
 
@@ -62,7 +66,7 @@ describe("VitaDaxAudioPacket: round-trip (128 frames)", () => {
     expect(p2.streamId).toBe(0xdeadbeef);
     expect(p2.classId.oui).toBe(VITA_FLEX_OUI);
     expect(p2.classId.informationClassCode).toBe(VITA_FLEX_INFO_CLASS);
-    expect(p2.classId.packetClassCode).toBe(VITA_FLEX_DAX_AUDIO_CLASS);
+    expect(p2.classId.packetClassCode).toBe(VITA_FLEX_DAX_AUDIO_24_CLASS);
     expect(p2.numFrames).toBe(FRAMES);
 
     // float32 round-trip is exact
@@ -151,7 +155,7 @@ describe("VitaDaxReducedBwPacket: default header", () => {
     );
     expect(p.classId.oui).toBe(VITA_FLEX_OUI);
     expect(p.classId.informationClassCode).toBe(VITA_FLEX_INFO_CLASS);
-    expect(p.classId.packetClassCode).toBe(VITA_FLEX_DAX_REDUCED_BW_CLASS);
+    expect(p.classId.packetClassCode).toBe(VITA_FLEX_DAX_REDUCED_BW_24_CLASS);
   });
 });
 
@@ -173,7 +177,7 @@ describe("VitaDaxReducedBwPacket: round-trip (128 frames)", () => {
     expect(p2.header.hasTrailer).toBe(false);
     expect(p2.header.packetCount).toBe(3);
     expect(p2.streamId).toBe(0x12345678);
-    expect(p2.classId.packetClassCode).toBe(VITA_FLEX_DAX_REDUCED_BW_CLASS);
+    expect(p2.classId.packetClassCode).toBe(VITA_FLEX_DAX_REDUCED_BW_24_CLASS);
     expect(p2.numFrames).toBe(FRAMES);
     expect(Array.from(p2.samples)).toEqual(Array.from(p1.samples));
   });
@@ -247,7 +251,9 @@ describe("VitaDaxReducedBwPacket: empty payload", () => {
 
 describe("class codes", () => {
   it("audio and reduced-bw class codes differ", () => {
-    expect(VITA_FLEX_DAX_AUDIO_CLASS).not.toBe(VITA_FLEX_DAX_REDUCED_BW_CLASS);
+    expect(VITA_FLEX_DAX_AUDIO_24_CLASS).not.toBe(
+      VITA_FLEX_DAX_REDUCED_BW_24_CLASS,
+    );
   });
 
   it("parsing audio bytes with VitaDaxReducedBwPacket yields different frame count", () => {
@@ -261,5 +267,40 @@ describe("class codes", () => {
     const reducedBw = new VitaDaxReducedBwPacket(bytes);
     // 1024 payload bytes / 2 = 512 int16 frames
     expect(reducedBw.numFrames).toBe(512);
+  });
+});
+
+describe("DAX audio class codes follow the sample rate", () => {
+  it.each([
+    [24000, 0x03e3, 0x0123],
+    [48000, 0x03e4, 0x0124],
+    [96000, 0x03e5, 0x0125],
+  ])(
+    "%i Hz parses through the float and int16 parsers",
+    (rate, floatClass, intClass) => {
+      expect(daxAudioClassForRate(rate)).toBe(floatClass);
+      expect(daxReducedBwClassForRate(rate)).toBe(intClass);
+      expect(daxAudioSampleRateFromClass(floatClass)).toBe(rate);
+      expect(daxAudioSampleRateFromClass(intClass)).toBe(rate);
+
+      const stereo = new VitaDaxAudioPacket();
+      stereo.classId.packetClassCode = floatClass;
+      stereo.left = Float32Array.of(0.5);
+      stereo.right = Float32Array.of(-0.5);
+      const parsedStereo = parseVitaPacket(stereo.toBytes());
+      expect(parsedStereo?.kind).toBe("daxAudio");
+
+      const mono = new VitaDaxReducedBwPacket();
+      mono.classId.packetClassCode = intClass;
+      mono.samples = Int16Array.of(1, 2);
+      const parsedMono = parseVitaPacket(mono.toBytes());
+      expect(parsedMono?.kind).toBe("daxReducedBw");
+    },
+  );
+
+  it("has no class for an unsupported rate", () => {
+    expect(daxAudioClassForRate(0)).toBeUndefined();
+    expect(daxAudioClassForRate(192000)).toBeUndefined();
+    expect(daxReducedBwClassForRate(44100)).toBeUndefined();
   });
 });

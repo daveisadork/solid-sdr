@@ -1,10 +1,14 @@
 import { type Subscription, TypedEventEmitter } from "../util/events.js";
 import {
+  daxAudioClassForRate,
+  daxAudioSampleRateFromClass,
+  daxReducedBwClassForRate,
   VitaDaxAudioPacket,
   VitaDaxReducedBwPacket,
 } from "../vita/dax-audio-packet.js";
 import { VitaOpusPacket } from "../vita/opus-packet.js";
 import type { VitaPacket } from "../vita/parser.js";
+import { parseClientHandle } from "./client-handle.js";
 import { clampInteger } from "./controller-helpers.js";
 import { FlexStateUnavailableError } from "./errors.js";
 import type { RadioSession } from "./radio-core.js";
@@ -79,8 +83,9 @@ export interface DaxRxAudioStreamController extends AudioStreamController {
   /**
    * Set the RX gain (0..100) for this DAX RX channel.
    *
-   * Requires the stream to be bound to a slice. Throws
-   * {@link FlexStateUnavailableError} if no slice is currently bound.
+   * Only a stream this client owns sends the gain; for any other stream the
+   * call does nothing. While the stream has no bound slice, the gain is held
+   * and sent once a slice is bound. Only the most recent held gain is kept.
    */
   setRxGain(gain: number): Promise<void>;
 }
@@ -99,14 +104,30 @@ export interface DaxIqAudioStreamController extends AudioStreamController {
 export class AudioStreamControllerImpl implements AudioStreamController {
   private readonly events =
     new TypedEventEmitter<AudioStreamControllerEvents>();
-  private streamHandle?: string;
+  protected numericStreamId = 0;
+  protected ownedByThisClient = false;
+  private lastRxClassCode?: number;
   private dataListeners = 0;
   private dataSubscription?: Subscription;
 
   constructor(
     protected readonly radio: RadioSession,
     readonly id: string,
-  ) {}
+  ) {
+    const numericId = parseStreamIdentifier(id);
+    if (numericId === undefined) {
+      throw new FlexStateUnavailableError(
+        `Audio stream ${id} has no valid stream ID`,
+      );
+    }
+
+    this.numericStreamId = numericId;
+
+    const own = radio.clientHandle;
+    const ownHandle = own ? parseClientHandle(own) : undefined;
+    this.ownedByThisClient =
+      ownHandle !== undefined && this.clientHandle === ownHandle;
+  }
 
   get slice() {
     return this.current().slice;
@@ -182,6 +203,10 @@ export class AudioStreamControllerImpl implements AudioStreamController {
     return snapshot;
   }
 
+  get sampleRateHz() {
+    return this.current().sampleRateHz;
+  }
+
   snapshot(): AudioStreamSnapshot {
     return this.current();
   }
@@ -213,7 +238,6 @@ export class AudioStreamControllerImpl implements AudioStreamController {
 
   onStateChange(change: AudioStreamStateChange): void {
     if (change.diff?.streamId) {
-      this.streamHandle = change.diff.streamId;
       if (this.dataListeners > 0) {
         this.teardownDataPipeline();
         this.ensureDataPipeline();
@@ -225,27 +249,32 @@ export class AudioStreamControllerImpl implements AudioStreamController {
     }
   }
 
-  protected requireNumericStreamId(): number {
-    const handle = this.streamHandle ?? this.current().streamId;
-    const numericId = parseStreamIdentifier(handle);
-    if (numericId === undefined) {
-      throw new FlexStateUnavailableError(
-        `Audio stream ${this.id} has no valid stream ID`,
-      );
-    }
-    return numericId;
-  }
-
   private ensureDataPipeline(): void {
     if (this.dataSubscription) return;
-    const streamNumericId = parseStreamIdentifier(this.id);
-    if (streamNumericId === undefined) return;
     this.dataSubscription = this.radio.registerStreamHandler(
-      streamNumericId,
+      this.numericStreamId,
       (packet) => {
+        if (
+          (packet.kind === "daxAudio" || packet.kind === "daxReducedBw") &&
+          packet.classId.packetClassCode !== this.lastRxClassCode
+        ) {
+          this.lastRxClassCode = packet.classId.packetClassCode;
+          this.onRxClassChange(this.lastRxClassCode);
+        }
         this.events.emit("data", packet);
       },
     );
+  }
+
+  // DAX mic has no slice to follow, so its rate comes from the packets.
+  private onRxClassChange(classCode: number): void {
+    if (this.current().type !== "dax_mic") return;
+    const rate = daxAudioSampleRateFromClass(classCode);
+    if (rate === undefined) return;
+    const change = this.radio
+      .getStore()
+      .setAudioStreamSampleRate(this.id, rate);
+    if (change) this.radio.applyStateChange(change);
   }
 
   private handleDataUnsubscribe(): void {
@@ -270,17 +299,26 @@ export class AudioStreamTxControllerImpl
   private txAudioPkt?: VitaDaxAudioPacket;
   private txReducedBwPkt?: VitaDaxReducedBwPacket;
   private txPacketCount = 0;
+  private audioClassCode?: number;
+  private reducedBwClassCode?: number;
+
+  /** Packets are dropped while the rate has no class code. */
+  protected updateClassCodes(rateHz: number): void {
+    this.audioClassCode = daxAudioClassForRate(rateHz);
+    this.reducedBwClassCode = daxReducedBwClassForRate(rateHz);
+  }
 
   sendAudio(left: Float32Array, right: Float32Array): void {
-    const numericId = this.requireNumericStreamId();
+    const classCode = this.audioClassCode;
+    if (classCode === undefined) return;
     if (!this.txAudioPkt) {
       this.txAudioPkt = new VitaDaxAudioPacket();
-      this.txAudioPkt.streamId = numericId;
+      this.txAudioPkt.streamId = this.numericStreamId;
       this.txAudioPkt.left = new Float32Array(DAX_PACKET_SAMPLES);
       this.txAudioPkt.right = new Float32Array(DAX_PACKET_SAMPLES);
     }
     const pkt = this.txAudioPkt;
-    pkt.streamId = numericId;
+    pkt.classId.packetClassCode = classCode;
     pkt.header.packetCount = this.txPacketCount;
     const frames = Math.min(left.length, right.length, DAX_PACKET_SAMPLES);
     pkt.left.set(left.subarray(0, frames));
@@ -290,14 +328,15 @@ export class AudioStreamTxControllerImpl
   }
 
   sendReducedBwAudio(samples: Int16Array): void {
-    const numericId = this.requireNumericStreamId();
+    const classCode = this.reducedBwClassCode;
+    if (classCode === undefined) return;
     if (!this.txReducedBwPkt) {
       this.txReducedBwPkt = new VitaDaxReducedBwPacket();
-      this.txReducedBwPkt.streamId = numericId;
+      this.txReducedBwPkt.streamId = this.numericStreamId;
       this.txReducedBwPkt.samples = new Int16Array(DAX_PACKET_SAMPLES);
     }
     const pkt = this.txReducedBwPkt;
-    pkt.streamId = numericId;
+    pkt.classId.packetClassCode = classCode;
     pkt.header.packetCount = this.txPacketCount;
     const count = Math.min(samples.length, DAX_PACKET_SAMPLES);
     pkt.samples.set(samples.subarray(0, count));
@@ -311,6 +350,22 @@ export class DaxTxAudioStreamControllerImpl
   extends AudioStreamTxControllerImpl
   implements DaxTxAudioStreamController
 {
+  constructor(
+    protected readonly radio: RadioSession,
+    readonly id: string,
+  ) {
+    super(radio, id);
+    this.updateClassCodes(
+      radio.getStore().getAudioStream(id)?.sampleRateHz ?? 0,
+    );
+  }
+
+  override onStateChange(change: AudioStreamStateChange): void {
+    super.onStateChange(change);
+    const rate = change.diff?.sampleRateHz;
+    if (rate !== undefined) this.updateClassCodes(rate);
+  }
+
   async requestTx(tx: boolean): Promise<void> {
     await this.radio.command(`stream set ${this.id} tx=${tx ? 1 : 0}`);
   }
@@ -321,25 +376,63 @@ export class DaxRxAudioStreamControllerImpl
   extends AudioStreamControllerImpl
   implements DaxRxAudioStreamController
 {
+  private pendingGain?: number;
+  private sliceId?: string;
+
+  constructor(radio: RadioSession, id: string) {
+    super(radio, id);
+    this.updateSliceId();
+  }
+
   async setRxGain(gain: number): Promise<void> {
-    const sliceLetter = this.slice;
-    if (sliceLetter === undefined) {
-      throw new FlexStateUnavailableError(
-        `DAX RX stream ${this.id} has no slice bound; cannot set gain`,
-      );
-    }
-    const slice = this.radio
-      .getStore()
-      .getSlices()
-      .find((s) => s.indexLetter === sliceLetter);
-    if (!slice) {
-      throw new FlexStateUnavailableError(
-        `DAX RX stream ${this.id} bound to slice ${sliceLetter} but slice is not in store`,
-      );
-    }
     const clamped = clampInteger(gain, 0, 100, "DAX RX gain");
+    const change = this.radio
+      .getStore()
+      .patchAudioStream(this.id, { gain: clamped.toString() });
+    if (change) {
+      this.radio.applyStateChange(change);
+      await this.sendGain(clamped);
+    }
+  }
+
+  private updateSliceId() {
+    const indexLetter = this.slice;
+    const store = this.radio.getStore();
+    const boundClientId = store.getBoundClientId();
+    const clientHandle =
+      store.getGuiClients().find((client) => client.clientId === boundClientId)
+        ?.clientHandleInt ?? this.clientHandle;
+    const slice = store
+      .getSlices()
+      .find(
+        (s) => s.indexLetter === indexLetter && s.clientHandle === clientHandle,
+      );
+    this.sliceId = slice?.id;
+  }
+
+  override onStateChange(change: AudioStreamStateChange): void {
+    super.onStateChange(change);
+    if (change.diff?.slice !== undefined) this.updateSliceId();
+    if (change.removed || this.pendingGain === undefined) return;
+    this.sendGain(this.pendingGain).catch(() => {
+      // The caller already returned; a refused or unsendable gain is dropped.
+    });
+  }
+
+  private async sendGain(gain: number): Promise<void> {
+    if (!this.slice || !this.ownedByThisClient) {
+      this.pendingGain = gain;
+      return;
+    }
+    const sliceId = this.sliceId;
+    if (!sliceId) {
+      throw new FlexStateUnavailableError(
+        `DAX RX stream ${this.id} bound to slice ${this.slice} but slice is not in store`,
+      );
+    }
+    this.pendingGain = undefined;
     await this.radio.command(
-      `audio stream ${this.id} slice ${slice.id} gain ${clamped}`,
+      `audio stream ${this.id} slice ${sliceId} gain ${gain}`,
     );
   }
 }
@@ -367,14 +460,19 @@ export class RemoteAudioTxStreamControllerImpl
 {
   private opusPkt?: VitaOpusPacket;
 
+  constructor(radio: RadioSession, id: string) {
+    super(radio, id);
+    // Remote audio does not follow a slice. Uncompressed remote RX arrives
+    // as 24 kHz float stereo, and there is no command to change its rate.
+    this.updateClassCodes(24000);
+  }
+
   sendOpus(frame: Uint8Array): void {
-    const numericId = this.requireNumericStreamId();
     if (!this.opusPkt) {
       this.opusPkt = new VitaOpusPacket();
-      this.opusPkt.streamId = numericId;
+      this.opusPkt.streamId = this.numericStreamId;
     }
     const pkt = this.opusPkt;
-    pkt.streamId = numericId;
     pkt.payload = frame;
     this.radio.sendUdp(pkt.toBytes());
   }

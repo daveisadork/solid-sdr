@@ -86,8 +86,10 @@ describe("Radio", () => {
     await slice?.setNrfEnabled(true);
     expect(connection.lastCommand()).toBe("slice set 0 nrf=1");
 
-    await slice?.setNrfLevel(40);
-    expect(connection.lastCommand()).toBe("slice set 0 nrf_level=40");
+    await slice?.setNrsLevel(80);
+    expect(connection.lastCommand()).toBe("slice set 0 speex_nr_level=50");
+    await slice?.setNrsLevel(-5);
+    expect(connection.lastCommand()).toBe("slice set 0 speex_nr_level=0");
 
     await slice?.setEscEnabled(true);
     expect(connection.lastCommand()).toBe("slice set 0 esc=on");
@@ -220,6 +222,22 @@ describe("Radio", () => {
     expect(stream.radioAck).toBe(true);
   });
 
+  it("keeps the dax rx controller the status created when the create response follows", async () => {
+    const { radio, connection } = await createConnectedRadio();
+    connection.prepareResponse("stream create", { message: "2000002" });
+    const creationPromise = radio.createDaxRxAudioStream({ daxChannel: 3 });
+    connection.emitStatus(
+      "S1|stream 0x02000002 type=dax_rx dax_channel=3 client_handle=0x12345678",
+    );
+    const early = radio.audioStream("0x02000002");
+
+    const stream = await creationPromise;
+
+    expect(early).toBe(stream);
+    expect(radio.audioStream("0x02000002")).toBe(stream);
+    expect(stream).toHaveProperty("setRxGain");
+  });
+
   it.each([
     { input: 50, expected: 50 },
     { input: 150, expected: 100 },
@@ -229,12 +247,14 @@ describe("Radio", () => {
     async ({ input, expected }) => {
       const { radio, connection } = await createConnectedRadio();
       // slice 1 has display letter B
-      connection.emitStatus("S1|slice 1 index_letter=B");
+      connection.emitStatus(
+        "S1|slice 1 index_letter=B client_handle=0x12345678",
+      );
       connection.prepareResponse("stream create", { message: "2000002" });
       const creationPromise = radio.createDaxRxAudioStream({ daxChannel: 3 });
       // stream status reports slice binding as the letter
       connection.emitStatus(
-        "S1|stream 0x02000002 type=dax_rx dax_channel=3 slice=B client_handle=0x9ABC",
+        "S1|stream 0x02000002 type=dax_rx dax_channel=3 slice=B client_handle=0x12345678",
       );
       const stream = await creationPromise;
 
@@ -247,16 +267,79 @@ describe("Radio", () => {
     },
   );
 
-  it("throws when setting dax rx gain on a stream with no slice bound", async () => {
+  it("sends dax rx gain for its own client's slice, not another client's slice with the same letter", async () => {
     const { radio, connection } = await createConnectedRadio();
+    connection.emitStatus("S9ABC|slice 0 index_letter=B client_handle=0x9ABC");
+    connection.emitStatus(
+      "S12345678|slice 1 index_letter=B client_handle=0x12345678",
+    );
     connection.prepareResponse("stream create", { message: "2000002" });
     const creationPromise = radio.createDaxRxAudioStream({ daxChannel: 3 });
     connection.emitStatus(
-      "S1|stream 0x02000002 type=dax_rx dax_channel=3 client_handle=0x9ABC",
+      "S12345678|stream 0x02000002 type=dax_rx dax_channel=3 slice=B client_handle=0x12345678",
     );
     const stream = await creationPromise;
 
-    await expect(stream.setRxGain(50)).rejects.toThrow(/no slice bound/);
+    await stream.setRxGain(30);
+
+    expect(connection.lastCommand()).toBe(
+      "audio stream 0x02000002 slice 1 gain 30",
+    );
+  });
+
+  it("holds a dax rx gain until a slice is bound, then sends it", async () => {
+    const { radio, connection } = await createConnectedRadio();
+    connection.emitStatus("S1|slice 1 index_letter=B client_handle=0x12345678");
+    connection.prepareResponse("stream create", { message: "2000002" });
+    const creationPromise = radio.createDaxRxAudioStream({ daxChannel: 3 });
+    connection.emitStatus(
+      "S1|stream 0x02000002 type=dax_rx dax_channel=3 client_handle=0x12345678",
+    );
+    const stream = await creationPromise;
+
+    await stream.setRxGain(40);
+    await stream.setRxGain(60);
+    expect(connection.lastCommand()).not.toMatch(/gain/);
+
+    connection.emitStatus("S1|stream 0x02000002 slice=B");
+    await Promise.resolve();
+    expect(connection.lastCommand()).toBe(
+      "audio stream 0x02000002 slice 1 gain 60",
+    );
+  });
+
+  it("tracks the gain the radio reports without sending anything back", async () => {
+    const { radio, connection } = await createConnectedRadio();
+    connection.emitStatus("S1|slice 1 index_letter=B client_handle=0x12345678");
+    connection.prepareResponse("stream create", { message: "2000002" });
+    const creationPromise = radio.createDaxRxAudioStream({ daxChannel: 3 });
+    connection.emitStatus(
+      "S1|stream 0x02000002 type=dax_rx dax_channel=3 slice=B client_handle=0x12345678 gain=50",
+    );
+    const stream = await creationPromise;
+    await stream.setRxGain(70);
+    const sent = connection.commands.length;
+
+    connection.emitStatus("S1|stream 0x02000002 gain=30");
+    await Promise.resolve();
+
+    expect(stream.snapshot()?.rxGain).toBe(30);
+    expect(connection.commands.length).toBe(sent);
+  });
+
+  it("does not send dax rx gain for a stream another client owns", async () => {
+    const { radio, connection } = await createConnectedRadio();
+    connection.emitStatus("S1|slice 1 index_letter=B");
+    connection.prepareResponse("stream create", { message: "2000002" });
+    const creationPromise = radio.createDaxRxAudioStream({ daxChannel: 3 });
+    connection.emitStatus(
+      "S1|stream 0x02000002 type=dax_rx dax_channel=3 slice=B client_handle=0x9ABC",
+    );
+    const stream = await creationPromise;
+    const before = connection.lastCommand();
+
+    await expect(stream.setRxGain(50)).resolves.toBeUndefined();
+    expect(connection.lastCommand()).toBe(before);
   });
 
   it("creates dax tx audio stream controllers and requests tx ownership", async () => {
@@ -466,8 +549,33 @@ describe("Radio", () => {
     await radio.setNickname("New Nick!");
     expect(connection.lastCommand()).toBe("radio name New Nick");
 
+    await radio.setNickname("  !!  ");
+    expect(connection.lastCommand()).toBe("radio clear_name");
+    expect(radio.snapshot()?.nickname).toBe("");
+
+    await radio.loadCwProfile("Contest");
+    expect(connection.lastCommand()).toBe('profile cw load "Contest"');
+    await radio.createCwProfile("New CW");
+    expect(connection.lastCommand()).toBe('profile cw create "New CW"');
+    await radio.resetCwProfile("New CW");
+    expect(connection.lastCommand()).toBe('profile cw reset "New CW"');
+    await radio.deleteCwProfile("New CW");
+    expect(connection.lastCommand()).toBe('profile cw delete "New CW"');
+
+    await radio.setPttMicOverride(true);
+    expect(connection.lastCommand()).toBe("transmit set ptt_mic_override=1");
+
     await radio.setCallsign("kf0smy");
     expect(connection.lastCommand()).toBe("radio callsign KF0SMY");
+
+    await radio.setDebugFakePaOvertemp(true);
+    expect(connection.lastCommand()).toBe("radio set debug_fake_pa_overtemp=1");
+    expect(radio.getStore().getRadio()?.debugFakePaOvertemp).toBe(true);
+    await radio.setDebugFakePaSwrFault(true);
+    expect(connection.lastCommand()).toBe(
+      "radio set debug_fake_pa_swr_fault=1",
+    );
+    expect(radio.getStore().getRadio()?.debugFakePaSwrFault).toBe(true);
 
     await radio.setFullDuplexEnabled(false);
     expect(connection.lastCommand()).toBe("radio set full_duplex_enabled=0");
@@ -544,5 +652,11 @@ describe("Radio", () => {
     connection.emitClose();
 
     expect(reasons).toEqual(["duplicate_client_id"]);
+  });
+
+  it("sends the cw profile and ha_api system subscriptions in the handshake", async () => {
+    const { connection } = await createConnectedRadio();
+    expect(connection.commands).toContain("profile cw info");
+    expect(connection.commands).toContain("sub ha_api system");
   });
 });

@@ -1222,7 +1222,7 @@ export const CONTROL_DEFINITIONS = [
       const value =
         action.op === "adjust"
           ? slice.nrsLevel + action.delta
-          : fromNormalized(action.value, 100);
+          : fromNormalized(action.value, 50);
 
       slice.setNrsLevel(value);
     },
@@ -1251,25 +1251,6 @@ export const CONTROL_DEFINITIONS = [
       const slice = ctx.getSlice(action.slice);
       if (!slice) return;
       slice.setNrfEnabled(resolveBooleanAction(action, slice.nrfEnabled));
-    },
-  }),
-
-  defineControl<NormalizedControlAction<"slice.nrf.level", SliceTargeted>>({
-    target: "slice.nrf.level",
-    label: "Slice NRF Level",
-    scope: "slice",
-    ops: ["adjust", "set"],
-    editor: { kind: "normalized" },
-    execute(ctx, action) {
-      const slice = ctx.getSlice(action.slice);
-      if (!slice) return;
-
-      const value =
-        action.op === "adjust"
-          ? slice.nrfLevel + action.delta
-          : fromNormalized(action.value, 100);
-
-      slice.setNrfLevel(value);
     },
   }),
 
@@ -2109,7 +2090,7 @@ export const ControlsProvider: ParentComponent = (props) => {
 
   const getChoices = (target: ControlTarget, slice?: SliceSelector) => {
     const definition = CONTROL_REGISTRY[target];
-    if (definition.editor.kind !== "choice") return [];
+    if (definition?.editor.kind !== "choice") return [];
 
     const editor = definition.editor as {
       kind: "choice";

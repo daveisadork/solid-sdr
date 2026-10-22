@@ -2,6 +2,7 @@ import { type Subscription, TypedEventEmitter } from "../util/events.js";
 import { clampInteger, formatBooleanFlag } from "./controller-helpers.js";
 import { FlexStateUnavailableError } from "./errors.js";
 import type { RadioSession } from "./radio-core.js";
+import { encodeCwxText } from "./state/cwx.js";
 import type { CwxSnapshot, CwxStateChange } from "./state/index.js";
 
 /** Result of a tracked CWX send, correlating buffer position with a block id. */
@@ -99,6 +100,17 @@ export interface CwxController extends Readonly<Omit<CwxSnapshot, "raw">> {
    */
   send(text: string, block?: number): Promise<CwxQueuedMessage>;
 
+  /**
+   * Inserts CW text into the radio's CWX buffer at `radioIndex`, tracked under
+   * the caller-chosen `block` id. The reply has the same meaning as for
+   * {@link send}.
+   */
+  insert(
+    radioIndex: number,
+    text: string,
+    block: number,
+  ): Promise<CwxQueuedMessage>;
+
   /** Erases the specified number of characters from the CW buffer. */
   erase(count: number): Promise<void>;
 
@@ -186,7 +198,9 @@ export class CwxControllerImpl implements CwxController {
   async setMacro(index: number, text: string): Promise<void> {
     const slot = clampInteger(index, 0, 11, "CWX macro index");
     const wireIndex = slot + 1; // wire protocol is 1-indexed
-    await this.radio.command(`cwx macro save ${wireIndex} "${text}"`);
+    await this.radio.command(
+      `cwx macro save ${wireIndex} "${encodeCwxText(text, false)}"`,
+    );
     const change = this.radio
       .getStore()
       .patchCwx({ [`macro${wireIndex}`]: text });
@@ -203,10 +217,23 @@ export class CwxControllerImpl implements CwxController {
   }
 
   async send(text: string, block?: number): Promise<CwxQueuedMessage> {
-    const escaped = text.replaceAll(" ", "\x7f");
     const suffix = block === undefined ? "" : ` ${block}`;
-    const response = await this.radio.command(`cwx send "${escaped}"${suffix}`);
+    const response = await this.radio.command(
+      `cwx send "${encodeCwxText(text)}"${suffix}`,
+    );
     return parseQueueReply(response.message, block ?? -1);
+  }
+
+  async insert(
+    radioIndex: number,
+    text: string,
+    block: number,
+  ): Promise<CwxQueuedMessage> {
+    const index = clampInteger(radioIndex, 0, 0xffff, "CWX insert index");
+    const response = await this.radio.command(
+      `cwx insert ${index} "${encodeCwxText(text)}" ${block}`,
+    );
+    return parseQueueReply(response.message, block);
   }
 
   async erase(count: number): Promise<void> {

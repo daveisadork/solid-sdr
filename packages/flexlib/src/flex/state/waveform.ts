@@ -1,5 +1,9 @@
 import type { Mutable, SnapshotUpdate } from "./common.js";
-import { freezeAttributes, isTruthy } from "./common.js";
+import {
+  freezeAttributes,
+  logParseError,
+  logUnknownAttribute,
+} from "./common.js";
 
 export interface WaveformSnapshot {
   readonly id: string;
@@ -7,6 +11,12 @@ export interface WaveformSnapshot {
   readonly version: string;
   readonly isContainer: boolean;
   readonly displayName: string;
+  /**
+   * Environment variables the radio holds for a container waveform. Empty for
+   * a legacy waveform, or when the radio sent no environment or one this
+   * library cannot decode. Wire: `env`, base64 of a JSON object.
+   */
+  readonly env: Readonly<Record<string, string>>;
   readonly raw: Readonly<Record<string, string>>;
 }
 
@@ -38,11 +48,14 @@ export function createWaveformId(
 
 export function createWaveformSnapshot(
   id: string,
+  isContainer: boolean,
   attributes: Record<string, string>,
   previous?: WaveformSnapshot,
 ): SnapshotUpdate<WaveformSnapshot> {
   const rawDiff = freezeAttributes(attributes);
-  const partial: Mutable<Partial<WaveformSnapshot>> = previous ? {} : { id };
+  const partial: Mutable<Partial<WaveformSnapshot>> = previous
+    ? {}
+    : { id, isContainer, env: EMPTY_ENV };
 
   for (const [key, value] of Object.entries(attributes)) {
     switch (key) {
@@ -52,8 +65,11 @@ export function createWaveformSnapshot(
       case "version":
         partial.version = normalizeWaveformToken(value);
         break;
-      case "is_container":
-        partial.isContainer = isTruthy(value);
+      case "env":
+        partial.env = decodeWaveformEnv(value);
+        break;
+      default:
+        logUnknownAttribute("waveform", key, value);
         break;
     }
   }
@@ -77,6 +93,28 @@ export function createWaveformSnapshot(
     diff: Object.freeze(partial),
     rawDiff,
   };
+}
+
+const EMPTY_ENV: Readonly<Record<string, string>> = Object.freeze({});
+
+/**
+ * Decodes a waveform `env` value: base64 of UTF-8 JSON holding an object of
+ * string values. Any failure, or a payload that is not an object, gives an
+ * empty dictionary.
+ */
+export function decodeWaveformEnv(
+  value: string | undefined,
+): Readonly<Record<string, string>> {
+  if (!value) return EMPTY_ENV;
+  try {
+    const binary = atob(value);
+    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+    const env = JSON.parse(new TextDecoder().decode(bytes));
+    return env ? Object.freeze(env) : EMPTY_ENV;
+  } catch {
+    logParseError("waveform", "env", value);
+    return EMPTY_ENV;
+  }
 }
 
 export function parseLegacyWaveformList(

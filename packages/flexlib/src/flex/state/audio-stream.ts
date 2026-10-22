@@ -21,7 +21,7 @@ export interface AudioStreamSnapshot {
   readonly streamId: string;
   readonly type: AudioStreamKind;
   readonly compression?: string;
-  readonly clientHandle?: number;
+  readonly clientHandle: number;
   readonly radioAck: boolean;
   readonly ip?: string;
   readonly daxChannel?: number;
@@ -33,6 +33,15 @@ export interface AudioStreamSnapshot {
   readonly clientGuiHandle?: number;
   readonly payloadEndian?: string;
   readonly slice?: string;
+  /** RX gain (0-100) the radio reports for this stream. */
+  readonly rxGain?: number;
+  /**
+   * Sample rate of the audio on this stream in Hz, or 0 while unknown. DAX RX
+   * takes the rate of the slice it names and DAX TX the rate of its owner's
+   * transmit slice. DAX mic takes the rate from the class of the packets it
+   * receives, so it stays 0 until a packet arrives while something listens.
+   */
+  readonly sampleRateHz: number;
   readonly tx: boolean;
   readonly raw: Readonly<Record<string, string>>;
 }
@@ -54,7 +63,7 @@ export function createAudioStreamSnapshot(
   const rawDiff = freezeAttributes(attributes);
   const partial: Mutable<Partial<AudioStreamSnapshot>> = previous
     ? {}
-    : { id, radioAck: false, tx: false };
+    : { id, radioAck: false, tx: false, sampleRateHz: 0 };
 
   for (const [key, value] of Object.entries(attributes)) {
     switch (key) {
@@ -122,6 +131,12 @@ export function createAudioStreamSnapshot(
       case "payload_endian":
         partial.payloadEndian = value;
         break;
+      case "gain": {
+        const parsed = parseInteger(value);
+        if (parsed !== undefined) partial.rxGain = parsed;
+        else logParseError("audio_stream", key, value);
+        break;
+      }
       default:
         logUnknownAttribute("audio_stream", key, value);
         break;

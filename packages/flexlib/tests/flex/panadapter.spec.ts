@@ -224,4 +224,27 @@ describe("Panadapter controller", () => {
     // then the creation promise rejects with a closed error
     await expect(creation).rejects.toBeInstanceOf(FlexClientClosedError);
   });
+
+  it("parses and sets the noise floor range with one decimal place", async () => {
+    const { radio, connection } = await createConnectedRadio();
+    connection.emitStatus(
+      "S1|display pan 0x40000000 client_handle=0x12345678 noise_floor_range=40.0",
+    );
+    const controller = radio.panadapter("0x40000000");
+    expect(controller?.noiseFloorRange).toBe(40);
+
+    await controller?.setNoiseFloorRange(55.26);
+    expect(connection.lastCommand()).toBe(
+      "display pan set 0x40000000 noise_floor_range=55.3",
+    );
+    expect(controller?.noiseFloorRange).toBeCloseTo(55.3);
+
+    const sent = connection.lastCommand();
+    await controller?.setNoiseFloorRange(55.31);
+    expect(connection.lastCommand()).toBe(sent);
+
+    await expect(controller?.setNoiseFloorRange(Number.NaN)).rejects.toThrow(
+      RangeError,
+    );
+  });
 });

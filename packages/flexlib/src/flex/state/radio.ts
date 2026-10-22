@@ -59,7 +59,11 @@ export type RadioPttSource =
   | "RCA"
   | "TUNE"
   | "SWCW"
-  | "DVK";
+  | "DVK"
+  | "VOX";
+
+/** GPS fix quality. A value outside this set is left off the typed field and stays on `raw`. */
+export type RadioGpsFix = "3D" | "2D" | "TIME_ONLY" | "NO_FIX";
 
 export type RadioCwIambicMode = "a" | "b" | "strict_b" | "bug";
 
@@ -114,17 +118,20 @@ export interface RadioSnapshot {
   readonly micInputList: readonly string[];
   readonly profileMicList: readonly string[];
   readonly profileTxList: readonly string[];
+  readonly profileCwList: readonly string[];
   /** Display profiles are absent on 4.x firmware — never observed on the wire. */
   readonly profileDisplayList?: readonly string[];
   readonly profileGlobalList: readonly string[];
   readonly profileMicSelection?: string;
   readonly profileTxSelection?: string;
+  readonly profileCwSelection?: string;
   readonly profileDisplaySelection?: string;
   readonly profileGlobalSelection?: string;
   readonly profileImportInProgress: boolean;
   readonly profileExportInProgress: boolean;
   readonly profileUnsavedChangesTx: boolean;
   readonly profileUnsavedChangesMic: boolean;
+  readonly profileUnsavedChangesCw: boolean;
   readonly versionsRaw: string;
   readonly trxPsocVersion: string;
   readonly paPsocVersion: string;
@@ -157,6 +164,9 @@ export interface RadioSnapshot {
   readonly calibrationFrequencyMhz: number;
   readonly frequencyErrorPpb: number;
   readonly daxIqCapacity: number;
+  readonly cwDecodeAvailable: boolean;
+  readonly debugFakePaOvertemp: boolean;
+  readonly debugFakePaSwrFault: boolean;
   readonly gpsInstalled: boolean;
   readonly gpsLatitude?: number;
   readonly gpsLongitude?: number;
@@ -167,6 +177,10 @@ export interface RadioSnapshot {
   readonly gpsSpeed?: string;
   readonly gpsFreqError?: string;
   readonly gpsStatus?: string;
+  /** GPS fix quality. Wire: `fix`. Unset when the radio sends a value this library does not know. */
+  readonly gpsFix?: RadioGpsFix;
+  /** Software version the amplifier subsystem reports. Wire: `ha_api system`, key `version`. */
+  readonly amplifierSoftwareVersion?: string;
   readonly gpsUtcTime?: string;
   readonly gpsTrack?: number;
   readonly gpsGnssPoweredAntenna?: boolean;
@@ -202,6 +216,7 @@ export interface RadioSnapshot {
   readonly interlockTx1DelayMs: number;
   readonly interlockTx2DelayMs: number;
   readonly interlockTx3DelayMs: number;
+  readonly interlockTuneTxSuppress: boolean;
   readonly interlockAccTxDelayMs: number;
   readonly interlockTxDelayMs: number;
   readonly interlockAmplifierHandles: readonly string[];
@@ -230,6 +245,8 @@ export interface RadioSnapshot {
   readonly voxEnabled: boolean;
   readonly voxLevel: number;
   readonly voxDelay: number;
+  /** Whether the mic PTT overrides other PTT sources. Wire: `ptt_mic_override`. */
+  readonly pttMicOverride: boolean;
   readonly txMonitorAvailable: boolean;
   readonly txMonitorEnabled: boolean;
   readonly txCwMonitorGain: number;
@@ -298,6 +315,9 @@ export function createRadioSnapshot(
       } else {
         logParseError("profile", "context", "");
       }
+      break;
+    case "ha_api":
+      applyHaApiSystemAttributes(attributes, partial);
       break;
     case "log":
       applyLogAttributes(attributes, partial, previous);
@@ -397,6 +417,13 @@ function applyRadioSourceAttributes(
         break;
       case "diversity_allowed":
         partial.diversityAllowed = isTruthy(value);
+        break;
+      case "cw_decode_available":
+        if (value === "0" || value === "1") {
+          partial.cwDecodeAvailable = value === "1";
+        } else {
+          logParseError("radio", key, value);
+        }
         break;
       case "atu_present":
         partial.atuPresent = isTruthy(value);
@@ -540,6 +567,12 @@ function applyRadioSourceAttributes(
         break;
       case "tnf_enabled":
         partial.tnfEnabled = isTruthy(value);
+        break;
+      case "debug_fake_pa_overtemp":
+        partial.debugFakePaOvertemp = isTruthy(value);
+        break;
+      case "debug_fake_pa_swr_fault":
+        partial.debugFakePaSwrFault = isTruthy(value);
         break;
       case "binaural_rx":
         partial.binauralRx = isTruthy(value);
@@ -729,6 +762,9 @@ function applyInterlockAttributes(
       case "mox":
         partial.mox = isTruthy(value);
         break;
+      case "tune_tx_suppress":
+        partial.interlockTuneTxSuppress = isTruthy(value);
+        break;
       default:
         logUnknownAttribute("interlock", key, value);
         break;
@@ -909,6 +945,9 @@ function applyTransmitAttributes(
           key,
         );
         break;
+      case "ptt_mic_override":
+        partial.pttMicOverride = isTruthy(value);
+        break;
       case "vox_enable":
         partial.voxEnabled = isTruthy(value);
         break;
@@ -1032,7 +1071,11 @@ function parseInterlockReason(
 
 function parsePttSource(value: string | undefined): RadioPttSource | undefined {
   if (!value) return undefined;
-  return PTT_SOURCE_BY_TOKEN[value.toUpperCase()];
+  for (const token of value.split(",")) {
+    const source = PTT_SOURCE_BY_TOKEN[token.trim().toUpperCase()];
+    if (source) return source;
+  }
+  return undefined;
 }
 
 function parseInterlockDelay(
@@ -1155,6 +1198,7 @@ const PTT_SOURCE_BY_TOKEN: Record<string, RadioPttSource> = {
   TUNE: "TUNE",
   SWCW: "SWCW",
   DVK: "DVK",
+  VOX: "VOX",
 };
 
 const INTERLOCK_MOX_STATES = new Set<RadioInterlockState>([
@@ -1186,6 +1230,13 @@ const ATU_TUNE_STATUS_BY_TOKEN: Record<string, RadioAtuTuneStatus> = {
   TGXL_IN_PROGRESS: "TGXL_IN_PROGRESS",
   TGXL_OK: "TGXL_OK",
   TGXL_ABORTED: "TGXL_ABORTED",
+};
+
+const GPS_FIX_BY_TOKEN: Record<string, RadioGpsFix> = {
+  "3D": "3D",
+  "2D": "2D",
+  TIME_ONLY: "TIME_ONLY",
+  NO_FIX: "NO_FIX",
 };
 
 const GPS_LOCKED_STATUSES = new Set(["locked", "fine lock", "coarse lock"]);
@@ -1298,6 +1349,19 @@ function applyOscillatorAttributes(
   }
 }
 
+function applyHaApiSystemAttributes(
+  attributes: Record<string, string>,
+  partial: Mutable<Partial<RadioSnapshot>>,
+): void {
+  for (const [key, value] of Object.entries(attributes)) {
+    if (key === "version") {
+      if (value) partial.amplifierSoftwareVersion = value;
+    } else {
+      logUnknownAttribute("ha_api", key, value);
+    }
+  }
+}
+
 function applyGpsStatusAttributes(
   attributes: Record<string, string>,
   partial: Mutable<Partial<RadioSnapshot>>,
@@ -1343,6 +1407,11 @@ function applyGpsStatusAttributes(
       case "status":
         partial.gpsStatus = value;
         break;
+      case "fix": {
+        const fix = GPS_FIX_BY_TOKEN[value.toUpperCase()];
+        if (fix) partial.gpsFix = fix;
+        break;
+      }
       case "time":
         partial.gpsUtcTime = value;
         break;
@@ -1387,6 +1456,7 @@ type RadioContextKind =
   | "log"
   | "atu"
   | "waveform"
+  | "ha_api"
   | "file";
 
 function resolveRadioContext(context?: RadioStatusContext): RadioContextKind {
@@ -1399,6 +1469,7 @@ function resolveRadioContext(context?: RadioStatusContext): RadioContextKind {
   if (source === "atu") return "atu";
   if (source === "waveform") return "waveform";
   if (source === "file") return "file";
+  if (source === "ha_api") return "ha_api";
 
   const identifier = context?.identifier?.toLowerCase();
   if (identifier === "gps") return "gps";
@@ -1409,7 +1480,7 @@ function resolveRadioContext(context?: RadioStatusContext): RadioContextKind {
   return "radio";
 }
 
-type ProfileDomain = "global" | "tx" | "mic" | "display";
+type ProfileDomain = "global" | "tx" | "mic" | "cw" | "display";
 
 function applyProfileAttributes(
   attributes: Record<string, string>,
@@ -1451,6 +1522,9 @@ function applyProfileAttributes(
       case "unsaved_changes_mic":
         partial.profileUnsavedChangesMic = isTruthy(value);
         break;
+      case "unsaved_changes_cw":
+        partial.profileUnsavedChangesCw = isTruthy(value);
+        break;
       default:
         logUnknownAttribute("profile", key, value);
         break;
@@ -1467,6 +1541,7 @@ function parseProfileDomain(identifier?: string): ProfileDomain | undefined {
     normalized === "global" ||
     normalized === "tx" ||
     normalized === "mic" ||
+    normalized === "cw" ||
     normalized === "display"
   ) {
     return normalized;
@@ -1496,6 +1571,9 @@ function assignProfileList(
     case "tx":
       partial.profileTxList = list;
       break;
+    case "cw":
+      partial.profileCwList = list;
+      break;
     case "display":
       partial.profileDisplayList = list;
       break;
@@ -1516,6 +1594,9 @@ function assignProfileSelection(
       break;
     case "tx":
       partial.profileTxSelection = selection;
+      break;
+    case "cw":
+      partial.profileCwSelection = selection;
       break;
     case "display":
       partial.profileDisplaySelection = selection;

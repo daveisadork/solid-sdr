@@ -113,6 +113,24 @@ export function parseCwxProgressEvents(
   return events.length > 0 ? Object.freeze(events) : NO_PROGRESS;
 }
 
+const CWX_SPACE = "\x7f";
+const CWX_QUOTE = "\x1e";
+
+/**
+ * Encodes CW text for a quoted command argument. A double quote becomes a
+ * substitute byte so it cannot end the argument. Spaces also become a
+ * substitute byte unless `spaces` is false (macro text keeps its spaces).
+ */
+export function encodeCwxText(text: string, spaces = true): string {
+  const quoted = text.replaceAll('"', CWX_QUOTE);
+  return spaces ? quoted.replaceAll(" ", CWX_SPACE) : quoted;
+}
+
+/** Reverses {@link encodeCwxText} for text the radio sends back. */
+export function decodeCwxText(text: string): string {
+  return text.replaceAll(CWX_QUOTE, '"').replaceAll(CWX_SPACE, " ");
+}
+
 /**
  * Parses wire attributes into an immutable {@link CwxSnapshot}.
  *
@@ -138,7 +156,7 @@ export function createCwxSnapshot(
         if (!macros) {
           macros = [...(previous?.macros ?? EMPTY_MACROS)];
         }
-        macros[index] = value;
+        macros[index] = decodeCwxText(value);
         macrosChanged = true;
       }
       continue;

@@ -15,11 +15,79 @@ import {
   writeBigUint64BE as writeU64,
 } from "./common";
 
-/** Packet class code for DAX stereo audio (float32 interleaved L/R). */
-export const VITA_FLEX_DAX_AUDIO_CLASS = 0x03e3;
+/** Packet class code for DAX stereo audio (float32 interleaved L/R) at 24 kHz. */
+export const VITA_FLEX_DAX_AUDIO_24_CLASS = 0x03e3;
+/** Packet class code for DAX stereo audio at 48 kHz. */
+export const VITA_FLEX_DAX_AUDIO_48_CLASS = 0x03e4;
+/** Packet class code for DAX stereo audio at 96 kHz. */
+export const VITA_FLEX_DAX_AUDIO_96_CLASS = 0x03e5;
 
-/** Packet class code for DAX reduced-bandwidth audio (int16 mono). */
-export const VITA_FLEX_DAX_REDUCED_BW_CLASS = 0x0123;
+/** Packet class code for DAX reduced-bandwidth audio (int16 mono) at 24 kHz. */
+export const VITA_FLEX_DAX_REDUCED_BW_24_CLASS = 0x0123;
+/** Packet class code for DAX reduced-bandwidth audio at 48 kHz. */
+export const VITA_FLEX_DAX_REDUCED_BW_48_CLASS = 0x0124;
+/** Packet class code for DAX reduced-bandwidth audio at 96 kHz. */
+export const VITA_FLEX_DAX_REDUCED_BW_96_CLASS = 0x0125;
+
+/** Sample rates the radio carries on DAX audio streams. */
+export type DaxAudioSampleRate = 24000 | 48000 | 96000;
+
+const DAX_AUDIO_RATE_BY_CLASS: ReadonlyMap<number, DaxAudioSampleRate> =
+  new Map([
+    [VITA_FLEX_DAX_AUDIO_24_CLASS, 24000],
+    [VITA_FLEX_DAX_AUDIO_48_CLASS, 48000],
+    [VITA_FLEX_DAX_AUDIO_96_CLASS, 96000],
+    [VITA_FLEX_DAX_REDUCED_BW_24_CLASS, 24000],
+    [VITA_FLEX_DAX_REDUCED_BW_48_CLASS, 48000],
+    [VITA_FLEX_DAX_REDUCED_BW_96_CLASS, 96000],
+  ]);
+
+const DAX_AUDIO_CLASS_BY_RATE = {
+  24000: VITA_FLEX_DAX_AUDIO_24_CLASS,
+  48000: VITA_FLEX_DAX_AUDIO_48_CLASS,
+  96000: VITA_FLEX_DAX_AUDIO_96_CLASS,
+} as const;
+
+const DAX_REDUCED_BW_CLASS_BY_RATE = {
+  24000: VITA_FLEX_DAX_REDUCED_BW_24_CLASS,
+  48000: VITA_FLEX_DAX_REDUCED_BW_48_CLASS,
+  96000: VITA_FLEX_DAX_REDUCED_BW_96_CLASS,
+} as const;
+
+/** True when `code` is any DAX stereo float32 audio class. */
+export function isDaxAudioClass(code: number): boolean {
+  return (
+    code === VITA_FLEX_DAX_AUDIO_24_CLASS ||
+    code === VITA_FLEX_DAX_AUDIO_48_CLASS ||
+    code === VITA_FLEX_DAX_AUDIO_96_CLASS
+  );
+}
+
+/** True when `code` is any DAX reduced-bandwidth int16 audio class. */
+export function isDaxReducedBwClass(code: number): boolean {
+  return (
+    code === VITA_FLEX_DAX_REDUCED_BW_24_CLASS ||
+    code === VITA_FLEX_DAX_REDUCED_BW_48_CLASS ||
+    code === VITA_FLEX_DAX_REDUCED_BW_96_CLASS
+  );
+}
+
+/** Sample rate in Hz for a DAX audio packet class code, or `undefined` if the code is not DAX audio. */
+export function daxAudioSampleRateFromClass(
+  code: number,
+): DaxAudioSampleRate | undefined {
+  return DAX_AUDIO_RATE_BY_CLASS.get(code);
+}
+
+/** Stereo float32 packet class code for `rateHz`, or `undefined` if the rate is not 24, 48, or 96 kHz. */
+export function daxAudioClassForRate(rateHz: number): number | undefined {
+  return (DAX_AUDIO_CLASS_BY_RATE as Record<number, number>)[rateHz];
+}
+
+/** Reduced-bandwidth int16 packet class code for `rateHz`, or `undefined` if the rate is not 24, 48, or 96 kHz. */
+export function daxReducedBwClassForRate(rateHz: number): number | undefined {
+  return (DAX_REDUCED_BW_CLASS_BY_RATE as Record<number, number>)[rateHz];
+}
 
 // Preamble layout (bytes):
 //   header(4) + streamId(4) + classId(8) + timestampInt(4) + timestampFrac(8) = 28
@@ -62,7 +130,7 @@ function writePreamble(
 }
 
 /**
- * VITA-49 DAX stereo audio packet (FlexRadio class 0x03e3).
+ * VITA-49 DAX stereo audio packet (FlexRadio classes 0x03e3, 0x03e4, 0x03e5 for 24, 48, 96 kHz).
  *
  * Payload is stereo 32-bit float samples written as big-endian interleaved L/R pairs:
  * `[L0, R0, L1, R1, …]`. The frame count is `min(left.length, right.length)`.
@@ -92,7 +160,7 @@ export class VitaDaxAudioPacket {
     this.classId = {
       oui: VITA_FLEX_OUI,
       informationClassCode: VITA_FLEX_INFO_CLASS,
-      packetClassCode: VITA_FLEX_DAX_AUDIO_CLASS,
+      packetClassCode: VITA_FLEX_DAX_AUDIO_24_CLASS,
     };
     if (data) this.parse(data);
   }
@@ -185,11 +253,11 @@ export class VitaDaxAudioPacket {
 }
 
 /**
- * VITA-49 DAX reduced-bandwidth audio packet (FlexRadio class 0x0123).
+ * VITA-49 DAX reduced-bandwidth audio packet (FlexRadio classes 0x0123, 0x0124, 0x0125 for 24, 48, 96 kHz).
  *
  * Payload is mono 16-bit signed integer samples (range [−32768, 32767]).
  *
- * Same 24 kHz sample rate and 128-frame cadence as the stereo float32 variant —
+ * Same sample rates and frame cadence as the stereo float32 variant —
  * the "reduced bandwidth" comes from the encoding (mono int16 = 2 bytes/frame vs
  * stereo float32 = 8 bytes/frame), giving 4× lower wire bandwidth.
  */
@@ -214,7 +282,7 @@ export class VitaDaxReducedBwPacket {
     this.classId = {
       oui: VITA_FLEX_OUI,
       informationClassCode: VITA_FLEX_INFO_CLASS,
-      packetClassCode: VITA_FLEX_DAX_REDUCED_BW_CLASS,
+      packetClassCode: VITA_FLEX_DAX_REDUCED_BW_24_CLASS,
     };
     if (data) this.parse(data);
   }

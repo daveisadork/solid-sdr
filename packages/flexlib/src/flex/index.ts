@@ -15,6 +15,8 @@ export * from "./transport.js";
 export type { FlexRadioDescriptor, Logger } from "./adapters.js";
 export * from "./apd.js";
 export * from "./audio-stream.js";
+export * from "./autodx.js";
+export * from "./client-handle.js";
 export * from "./cw-break-in-delay.js";
 export * from "./cwx.js";
 // Discovery parsing
@@ -30,8 +32,9 @@ export * from "./file-transfer.js";
 export * from "./filter-preset.js";
 export * from "./gui-client.js";
 export * from "./meter.js";
-export * from "./meter.js";
+export * from "./ntp-source.js";
 export * from "./panadapter.js";
+export * from "./preset.js";
 export * from "./protocol.js";
 export * from "./response-codes.js";
 // Controllers

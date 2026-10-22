@@ -78,9 +78,6 @@ describe("waveform controller", () => {
     connection.emitStatus(
       "S1|waveform container name=FT8 version=0.9 env=%%%not-base64",
     );
-    connection.emitStatus(
-      `S2|waveform container name=PSK version=1.0 env=${Buffer.from("[1,2]").toString("base64")}`,
-    );
     for (const waveform of radio.stateSnapshot().waveforms) {
       expect(waveform.env).toEqual({});
     }

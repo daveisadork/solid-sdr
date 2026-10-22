@@ -1,5 +1,9 @@
 import type { Mutable, SnapshotUpdate } from "./common.js";
-import { freezeAttributes, isTruthy } from "./common.js";
+import {
+  freezeAttributes,
+  logParseError,
+  logUnknownAttribute,
+} from "./common.js";
 
 export interface WaveformSnapshot {
   readonly id: string;
@@ -44,13 +48,14 @@ export function createWaveformId(
 
 export function createWaveformSnapshot(
   id: string,
+  isContainer: boolean,
   attributes: Record<string, string>,
   previous?: WaveformSnapshot,
 ): SnapshotUpdate<WaveformSnapshot> {
   const rawDiff = freezeAttributes(attributes);
   const partial: Mutable<Partial<WaveformSnapshot>> = previous
     ? {}
-    : { id, env: EMPTY_ENV };
+    : { id, isContainer, env: EMPTY_ENV };
 
   for (const [key, value] of Object.entries(attributes)) {
     switch (key) {
@@ -60,11 +65,11 @@ export function createWaveformSnapshot(
       case "version":
         partial.version = normalizeWaveformToken(value);
         break;
-      case "is_container":
-        partial.isContainer = isTruthy(value);
-        break;
       case "env":
         partial.env = decodeWaveformEnv(value);
+        break;
+      default:
+        logUnknownAttribute("waveform", key, value);
         break;
     }
   }
@@ -104,23 +109,10 @@ export function decodeWaveformEnv(
   try {
     const binary = atob(value);
     const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
-    const parsed: unknown = JSON.parse(new TextDecoder().decode(bytes));
-    if (
-      parsed === null ||
-      typeof parsed !== "object" ||
-      Array.isArray(parsed)
-    ) {
-      return EMPTY_ENV;
-    }
-    const env: Record<string, string> = {};
-    for (const [key, entry] of Object.entries(parsed)) {
-      if (typeof entry === "string") env[key] = entry;
-      else if (typeof entry === "number" || typeof entry === "boolean") {
-        env[key] = String(entry);
-      }
-    }
-    return Object.freeze(env);
+    const env = JSON.parse(new TextDecoder().decode(bytes));
+    return env ? Object.freeze(env) : EMPTY_ENV;
   } catch {
+    logParseError("waveform", "env", value);
     return EMPTY_ENV;
   }
 }

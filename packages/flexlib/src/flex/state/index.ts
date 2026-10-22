@@ -2328,11 +2328,11 @@ export function createRadioStateStore(
       const previous = waveforms.get(id);
       const { snapshot, diff } = createWaveformSnapshot(
         id,
+        true,
         {
           ...message.attributes,
           name,
           version,
-          is_container: "1",
         },
         previous,
       );
@@ -2368,10 +2368,10 @@ export function createRadioStateStore(
       const previous = waveforms.get(entry.id);
       const { snapshot, diff } = createWaveformSnapshot(
         entry.id,
+        false,
         {
           name: entry.name,
           version: entry.version,
-          is_container: "0",
         },
         previous,
       );

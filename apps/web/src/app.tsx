@@ -1,10 +1,8 @@
 import { StatusBar } from "./components/statusbar";
 import { SidebarProvider, SidebarTrigger } from "./components/ui/sidebar";
 import { Toaster } from "./components/ui/toast";
-import useFlexRadio, {
-  ConnectionState,
-  FlexRadioProvider,
-} from "./context/flexradio";
+import useFlexRadio, { ConnectionState } from "./context/flexradio";
+import { FlexRadioProvider } from "./context/flexradio-provider";
 import "./app.css";
 import {
   ColorModeProvider,
@@ -32,14 +30,15 @@ import { ReloadPrompt } from "./components/reload-prompt";
 import { ToolsSidebar } from "./components/tools-sidebar";
 import { Button } from "./components/ui/button";
 import { Callout, CalloutContent, CalloutTitle } from "./components/ui/callout";
-import { AudioProvider } from "./context/audio";
-import { ChromeInsetsProvider } from "./context/chrome-insets";
-import { ControlsProvider } from "./context/controls";
-import { DebugModeProvider } from "./context/debug-mode";
-import { PanafallLayoutProvider } from "./context/panafall-layout";
-import { PreferencesProvider, usePreferences } from "./context/preferences";
-import { RtcProvider } from "./context/rtc";
-import { RuntimeProvider } from "./context/runtime";
+import { AudioProvider } from "./context/audio-provider";
+import { ChromeInsetsProvider } from "./context/chrome-insets-provider";
+import { ControlsProvider } from "./context/controls-provider";
+import { DebugModeProvider } from "./context/debug-mode-provider";
+import { PanafallLayoutProvider } from "./context/panafall-layout-provider";
+import { usePreferences } from "./context/preferences";
+import { PreferencesProvider } from "./context/preferences-provider";
+import { RtcProvider } from "./context/rtc-provider";
+import { RuntimeProvider } from "./context/runtime-provider";
 
 function AppInner() {
   const { preferences, setPreferences } = usePreferences();

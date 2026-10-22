@@ -38,8 +38,8 @@ import { ControlsProvider } from "./context/controls";
 import { DebugModeProvider } from "./context/debug-mode-provider";
 import { PanafallLayoutProvider } from "./context/panafall-layout-provider";
 import { PreferencesProvider, usePreferences } from "./context/preferences";
-import { RtcProvider } from "./context/rtc";
-import { RuntimeProvider } from "./context/runtime";
+import { RtcProvider } from "./context/rtc-provider";
+import { RuntimeProvider } from "./context/runtime-provider";
 
 function AppInner() {
   const { preferences, setPreferences } = usePreferences();

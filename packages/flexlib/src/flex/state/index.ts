@@ -1410,7 +1410,7 @@ export function createRadioStateStore(
     for (const [otherId, other] of meters) {
       if (
         otherId === id ||
-        other.source?.toUpperCase() !== AMPLIFIER_METER_SOURCE ||
+        other.source.toUpperCase() !== AMPLIFIER_METER_SOURCE ||
         other.sourceIndex !== meter.sourceIndex ||
         other.name !== meter.name
       ) {

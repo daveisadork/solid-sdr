@@ -116,7 +116,11 @@ export type { GuiClientSnapshot } from "./gui-client.js";
 export type { MemorySnapshot } from "./memory.js";
 export type { KnownMeterUnits, MeterSnapshot, MeterUnits } from "./meter.js";
 export { KNOWN_METER_UNITS } from "./meter.js";
-export type { NtpDirective, NtpSourceSnapshot } from "./ntp-source.js";
+export type {
+  NtpDirective,
+  NtpSourceSnapshot,
+  NtpSourceState,
+} from "./ntp-source.js";
 export type { PanadapterSnapshot } from "./panadapter.js";
 export type { PresetSnapshot } from "./preset.js";
 export type {

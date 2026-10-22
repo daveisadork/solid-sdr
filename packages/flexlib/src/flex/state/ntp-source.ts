@@ -1,8 +1,37 @@
 import type { Mutable, SnapshotUpdate } from "./common.js";
-import { freezeAttributes, logParseError, parseInteger } from "./common.js";
+import {
+  freezeAttributes,
+  logParseError,
+  logUnknownAttribute,
+  parseInteger,
+} from "./common.js";
 
 /** NTP source directive. */
 export type NtpDirective = "server" | "pool" | "peer";
+
+/** Source state from the radio's time service (chrony). */
+export type NtpSourceState =
+  | "selected"
+  | "candidate"
+  | "outlier"
+  | "falseticker"
+  | "jittery"
+  | "non-selectable"
+  | "unknown";
+
+const NTP_SOURCE_STATES: ReadonlySet<string> = new Set<NtpSourceState>([
+  "selected",
+  "candidate",
+  "outlier",
+  "falseticker",
+  "jittery",
+  "non-selectable",
+  "unknown",
+]);
+
+function isNtpSourceState(value: string): value is NtpSourceState {
+  return NTP_SOURCE_STATES.has(value);
+}
 
 /**
  * Immutable snapshot of one NTP time source the radio synchronizes to.
@@ -22,12 +51,8 @@ export interface NtpSourceSnapshot {
   readonly selected: boolean;
   /** Whether the source is enabled. Wire: `enabled`. */
   readonly enabled: boolean;
-  /**
-   * Source state from the radio's time service, such as `selected`,
-   * `candidate`, `outlier`, `falseticker`, `jittery`, or `non-selectable`.
-   * Empty when the radio has no data for the source. Wire: `state`.
-   */
-  readonly state: string;
+  /** Source state from the radio's time service. Wire: `state`. */
+  readonly state: NtpSourceState;
   /** Stratum, or -1 when unknown. Wire: `stratum`. */
   readonly stratum: number;
   /** 8-bit reachability register (0 to 255), or -1 when unknown. Wire: `reach`. */
@@ -45,27 +70,17 @@ export function createNtpSourceSnapshot(
     ? {}
     : {
         id,
-        address: "",
-        directive: "",
         description: "",
-        prefer: false,
-        selected: false,
-        enabled: false,
-        state: "",
         stratum: -1,
-        reachability: -1,
       };
 
   for (const [key, value] of Object.entries(attributes)) {
     switch (key) {
+      case "id":
       case "address":
-        partial.address = value;
-        break;
       case "directive":
-        partial.directive = value;
-        break;
       case "description":
-        partial.description = value;
+        partial[key] = value;
         break;
       case "enabled":
       case "selected":
@@ -78,10 +93,14 @@ export function createNtpSourceSnapshot(
         break;
       }
       case "state":
+        if (!isNtpSourceState(value)) {
+          logParseError("ntp_sources", key, value);
+          break;
+        }
         partial.state = value;
         if (value === "unknown") {
-          partial.stratum = -1;
-          partial.reachability = -1;
+          partial.stratum = partial.stratum ?? -1;
+          partial.reachability = partial.reachability ?? -1;
         }
         break;
       case "stratum": {
@@ -96,6 +115,9 @@ export function createNtpSourceSnapshot(
         else logParseError("ntp_sources", key, value);
         break;
       }
+      default:
+        logUnknownAttribute("ntp_sources", key, value);
+        break;
     }
   }
 

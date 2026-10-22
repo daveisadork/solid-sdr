@@ -4,6 +4,7 @@ import type { RadioSession } from "./radio-core.js";
 import type {
   NtpDirective,
   NtpSourceSnapshot,
+  NtpSourceState,
   NtpSourceStateChange,
 } from "./state/index.js";
 
@@ -146,7 +147,7 @@ export class NtpSourceControllerImpl implements NtpSourceController {
     return this.current().enabled;
   }
 
-  get state(): string {
+  get state(): NtpSourceState {
     return this.current().state;
   }
 

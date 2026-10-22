@@ -231,7 +231,9 @@ describe("Radio", () => {
     async ({ input, expected }) => {
       const { radio, connection } = await createConnectedRadio();
       // slice 1 has display letter B
-      connection.emitStatus("S1|slice 1 index_letter=B");
+      connection.emitStatus(
+        "S1|slice 1 index_letter=B client_handle=0x12345678",
+      );
       connection.prepareResponse("stream create", { message: "2000002" });
       const creationPromise = radio.createDaxRxAudioStream({ daxChannel: 3 });
       // stream status reports slice binding as the letter
@@ -249,9 +251,29 @@ describe("Radio", () => {
     },
   );
 
+  it("sends dax rx gain for its own client's slice, not another client's slice with the same letter", async () => {
+    const { radio, connection } = await createConnectedRadio();
+    connection.emitStatus("S9ABC|slice 0 index_letter=B client_handle=0x9ABC");
+    connection.emitStatus(
+      "S12345678|slice 1 index_letter=B client_handle=0x12345678",
+    );
+    connection.prepareResponse("stream create", { message: "2000002" });
+    const creationPromise = radio.createDaxRxAudioStream({ daxChannel: 3 });
+    connection.emitStatus(
+      "S12345678|stream 0x02000002 type=dax_rx dax_channel=3 slice=B client_handle=0x12345678",
+    );
+    const stream = await creationPromise;
+
+    await stream.setRxGain(30);
+
+    expect(connection.lastCommand()).toBe(
+      "audio stream 0x02000002 slice 1 gain 30",
+    );
+  });
+
   it("holds a dax rx gain until a slice is bound, then sends it", async () => {
     const { radio, connection } = await createConnectedRadio();
-    connection.emitStatus("S1|slice 1 index_letter=B");
+    connection.emitStatus("S1|slice 1 index_letter=B client_handle=0x12345678");
     connection.prepareResponse("stream create", { message: "2000002" });
     const creationPromise = radio.createDaxRxAudioStream({ daxChannel: 3 });
     connection.emitStatus(
@@ -272,7 +294,7 @@ describe("Radio", () => {
 
   it("tracks the gain the radio reports without sending anything back", async () => {
     const { radio, connection } = await createConnectedRadio();
-    connection.emitStatus("S1|slice 1 index_letter=B");
+    connection.emitStatus("S1|slice 1 index_letter=B client_handle=0x12345678");
     connection.prepareResponse("stream create", { message: "2000002" });
     const creationPromise = radio.createDaxRxAudioStream({ daxChannel: 3 });
     connection.emitStatus(

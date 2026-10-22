@@ -653,18 +653,6 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         },
         networkMtu: preferences.networkMtu,
       });
-      setState({
-        clientHandle: radio.clientHandle,
-        clientHandleInt: radio.clientHandle
-          ? parseInt(radio.clientHandle, 16)
-          : null,
-      });
-      // Tearing down a connection clears radio.clientId. Persisting that null
-      // would make the next connect send a bare "client gui", and the radio
-      // answers that by minting a new id with an all-default settings record.
-      if (radio.clientId) {
-        setPreferences("guiClientId", radio.clientId);
-      }
     } catch (error) {
       console.error("Failed to connect to radio", error);
       showToast({
@@ -684,6 +672,19 @@ export const FlexRadioProvider: ParentComponent = (props) => {
       } catch (closeError) {
         console.error("Error while closing failed session", closeError);
       }
+      return;
+    }
+    setState({
+      clientHandle: radio.clientHandle,
+      clientHandleInt: radio.clientHandle
+        ? parseInt(radio.clientHandle, 16)
+        : null,
+    });
+    // Tearing down a connection clears radio.clientId. Persisting that null
+    // would make the next connect send a bare "client gui", and the radio
+    // answers that by minting a new id with an all-default settings record.
+    if (radio.clientId) {
+      setPreferences("guiClientId", radio.clientId);
     }
   };
 

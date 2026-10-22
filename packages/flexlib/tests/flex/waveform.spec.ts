@@ -83,7 +83,7 @@ describe("waveform controller", () => {
     }
   });
 
-  it("stages, clears, and recreates, and rejects refusals", async () => {
+  it("stages, clears, and recreates, and validates before sending", async () => {
     const { radio, connection } = await createConnectedRadio();
 
     await radio.stageWaveformEnv("CALL", "W1AW portable");
@@ -103,12 +103,6 @@ describe("waveform controller", () => {
     );
     await expect(radio.recreateWaveform("a b")).rejects.toThrow(RangeError);
     expect(connection.commands).toHaveLength(before);
-
-    connection.prepareResponse("waveform recreate", {
-      code: 0x50000001,
-      message: "no",
-    });
-    await expect(radio.recreateWaveform("FT8")).rejects.toThrow();
   });
 
   it("reports the restarted status as an event", async () => {

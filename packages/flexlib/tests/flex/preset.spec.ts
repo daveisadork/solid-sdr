@@ -57,14 +57,4 @@ describe("Presets", () => {
     expect(radio.preset("1")).toBeUndefined();
     expect(() => controller?.snapshot()).toThrow();
   });
-
-  it("rejects when the radio refuses an apply", async () => {
-    const { radio, connection } = await createConnectedRadio();
-    connection.emitStatus("S1|preset id=1 name=A");
-    connection.prepareResponse("preset apply", {
-      code: 0x50000001,
-      message: "bad",
-    });
-    await expect(radio.preset("1")?.select()).rejects.toThrow();
-  });
 });

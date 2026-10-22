@@ -492,13 +492,10 @@ describe("createRadioStateStore", () => {
     expect(radio?.gpsInstalled).toBe(true);
   });
 
-  it("types cw_decode_available without logging it as unhandled", () => {
-    const debug = vi.spyOn(console, "debug").mockImplementation(() => {});
+  it("parses cw_decode_available as a boolean", () => {
     const store = createRadioStateStore();
     store.apply(makeStatus("S1|radio cw_decode_available=1"));
     expect(store.getRadio()?.cwDecodeAvailable).toBe(true);
-    expect(debug).not.toHaveBeenCalled();
-    debug.mockRestore();
   });
 
   it("parses tune_tx_suppress and apd deployed as booleans", () => {

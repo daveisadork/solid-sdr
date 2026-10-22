@@ -1,5 +1,9 @@
 import type { Mutable, SnapshotUpdate } from "./common.js";
-import { freezeAttributes, parseInteger } from "./common.js";
+import {
+  freezeAttributes,
+  logUnknownAttribute,
+  parseInteger,
+} from "./common.js";
 import { decodeCwxText } from "./cwx.js";
 
 /** Lifecycle state of the AutoDX controller. */
@@ -154,6 +158,14 @@ export function createAutoDxSnapshot(
         break;
       case "sent_text":
         partial.lastSentText = value;
+        break;
+      case "slice":
+        break;
+      case "sent_seq":
+        // Handled after the loop, once `sent_text` from the same status is known.
+        break;
+      default:
+        logUnknownAttribute("autodx", key, value);
         break;
     }
   }

@@ -160,14 +160,13 @@ export class NtpSourceControllerImpl implements NtpSourceController {
   }
 
   async setEnabled(enabled: boolean): Promise<void> {
-    const previous = this.current().enabled;
     this.patch({ enabled: enabled ? "1" : "0" });
     try {
       await this.radio.command(
         `ntp_sources ${enabled ? "enable" : "disable"} id=${this.id}`,
       );
     } catch (error) {
-      this.patch({ enabled: previous ? "1" : "0" });
+      await this.radio.command(`sub ntp_sources ${this.id}`);
       throw error;
     }
   }

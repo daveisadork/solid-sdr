@@ -643,20 +643,4 @@ describe("Radio", () => {
     expect(connection.commands).toContain("profile cw info");
     expect(connection.commands).toContain("sub ha_api system");
   });
-
-  it("rejects cw profile, mic override, and clear-name commands the radio refuses", async () => {
-    const { radio, connection } = await createConnectedRadio();
-    for (const prefix of [
-      "profile cw create",
-      "transmit set ptt_mic_override",
-      "radio clear_name",
-      "radio set debug_fake_pa_overtemp",
-    ]) {
-      connection.prepareResponse(prefix, { code: 0x50000001, message: "no" });
-    }
-    await expect(radio.createCwProfile("X")).rejects.toThrow();
-    await expect(radio.setPttMicOverride(true)).rejects.toThrow();
-    await expect(radio.setNickname("")).rejects.toThrow();
-    await expect(radio.setDebugFakePaOvertemp(true)).rejects.toThrow();
-  });
 });

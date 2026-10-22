@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  clientHandlesMatch,
   formatClientHandle,
   parseClientHandle,
 } from "../../src/flex/client-handle.js";
@@ -39,15 +38,11 @@ describe("FlexClient", () => {
     ]);
   });
 
-  it("formats, parses, and compares handles by value", () => {
+  it("formats and parses handles", () => {
     expect(formatClientHandle(0xabc)).toBe("0x00000ABC");
     expect(parseClientHandle("10")).toBe(0x10);
     expect(parseClientHandle("0X0000ff")).toBe(0xff);
     expect(parseClientHandle("zz")).toBeUndefined();
-    expect(clientHandlesMatch("0x1", "0x00000001")).toBe(true);
-    expect(clientHandlesMatch("1", "0x00000001")).toBe(true);
-    expect(clientHandlesMatch("0x1", "0x2")).toBe(false);
-    expect(clientHandlesMatch("abc-not", "ABC-NOT")).toBe(true);
   });
 
   it("surfaces disconnect command rejections", async () => {

@@ -1,5 +1,5 @@
 import type { Mutable, SnapshotUpdate } from "./common.js";
-import { freezeAttributes } from "./common.js";
+import { freezeAttributes, logUnknownAttribute } from "./common.js";
 
 /**
  * Immutable snapshot of a radio preset: a named bundle that references
@@ -47,6 +47,12 @@ export function createPresetSnapshot(
         break;
       case "active":
         partial.active = value === "1";
+        break;
+      case "id":
+      case "radio_config":
+        break;
+      default:
+        logUnknownAttribute("preset", key, value);
         break;
     }
   }

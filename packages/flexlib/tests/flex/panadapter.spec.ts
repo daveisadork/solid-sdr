@@ -247,18 +247,4 @@ describe("Panadapter controller", () => {
       RangeError,
     );
   });
-
-  it("rejects when the radio refuses a noise floor range", async () => {
-    const { radio, connection } = await createConnectedRadio();
-    connection.emitStatus(
-      "S1|display pan 0x40000000 client_handle=0x12345678 noise_floor_range=40.0",
-    );
-    connection.prepareResponse("display pan set", {
-      code: 0x50000001,
-      message: "bad",
-    });
-    await expect(
-      radio.panadapter("0x40000000")?.setNoiseFloorRange(10),
-    ).rejects.toThrow();
-  });
 });

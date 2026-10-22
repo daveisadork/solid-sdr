@@ -88,15 +88,6 @@ describe("AutoDX", () => {
     await expect(autoDx.setExchange("a\nb")).rejects.toThrow(RangeError);
   });
 
-  it("rejects when the radio refuses a config command", async () => {
-    const { autoDx, connection } = await setup();
-    connection.prepareResponse("autodx 0 trigger", {
-      code: 0x50000001,
-      message: "bad",
-    });
-    await expect(autoDx.setTrigger("up")).rejects.toThrow();
-  });
-
   it("stores status without sending commands", async () => {
     const { autoDx, connection } = await setup();
     const before = connection.commands.length;

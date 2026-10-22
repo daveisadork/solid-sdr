@@ -1,5 +1,10 @@
 import type { Mutable, SnapshotUpdate } from "./common.js";
-import { freezeAttributes, parseFloatSafe, parseInteger } from "./common.js";
+import {
+  freezeAttributes,
+  logUnknownAttribute,
+  parseFloatSafe,
+  parseInteger,
+} from "./common.js";
 import { decodeCwxText } from "./cwx.js";
 
 /**
@@ -79,6 +84,11 @@ export function createCwDecoderSnapshot(
       }
       case "text":
         partial.text = decodeCwxText(value);
+        break;
+      case "slice":
+        break;
+      default:
+        logUnknownAttribute("cw", key, value);
         break;
     }
   }

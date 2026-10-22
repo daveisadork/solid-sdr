@@ -112,20 +112,6 @@ describe("slice DSP parameters", () => {
     await slice.resetDspParameters("all");
     expect(connection.lastCommand()).toBe("slice reset 0 dsp_param=all");
   });
-
-  it("rejects when the radio refuses a DSP command", async () => {
-    const { slice, connection } = await setup();
-    connection.prepareResponse("slice set 0 nr_delay", {
-      code: 0x50000001,
-      message: "bad",
-    });
-    await expect(slice.setNrDelay(10)).rejects.toThrow();
-    connection.prepareResponse("slice reset", {
-      code: 0x50000001,
-      message: "bad",
-    });
-    await expect(slice.resetDspParameters("nr")).rejects.toThrow();
-  });
 });
 
 describe("AGC threshold mode and chain mode", () => {

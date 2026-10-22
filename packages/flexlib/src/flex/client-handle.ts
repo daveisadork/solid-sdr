@@ -20,15 +20,3 @@ export function parseClientHandle(value: string): number | undefined {
   if (!/^[0-9a-f]{1,8}$/i.test(digits)) return undefined;
   return Number.parseInt(digits, 16);
 }
-
-/**
- * Compare two client handles by value, so width and `0x` prefix do not
- * matter. Falls back to a case-insensitive string compare when either side is
- * not a handle.
- */
-export function clientHandlesMatch(a: string, b: string): boolean {
-  const left = parseClientHandle(a);
-  const right = parseClientHandle(b);
-  if (left !== undefined && right !== undefined) return left === right;
-  return a.toLowerCase() === b.toLowerCase();
-}

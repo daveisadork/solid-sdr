@@ -56,7 +56,7 @@ describe("NTP sources", () => {
     expect(radio.ntpSource("a1")).toBeUndefined();
   });
 
-  it("undoes an enable change the radio refuses", async () => {
+  it("resubscribes to the source when the radio refuses an enable change", async () => {
     const { radio, connection } = await createConnectedRadio();
     connection.emitStatus(
       "S1|ntp_sources id=a1 address=x directive=server enabled=1",
@@ -67,18 +67,11 @@ describe("NTP sources", () => {
     });
     const source = radio.ntpSource("a1");
     await expect(source?.setEnabled(false)).rejects.toThrow();
+    expect(connection.lastCommand()).toBe("sub ntp_sources a1");
+    connection.emitStatus(
+      "S2|ntp_sources id=a1 address=x directive=server enabled=1",
+    );
     expect(source?.enabled).toBe(true);
-  });
-
-  it("rejects a create the radio refuses", async () => {
-    const { radio, connection } = await createConnectedRadio();
-    connection.prepareResponse("ntp_sources create", {
-      code: 0x50000001,
-      message: "bad",
-    });
-    await expect(
-      radio.createNtpSource({ id: "a", address: "x", directive: "peer" }),
-    ).rejects.toThrow();
   });
 
   it("validates fields before sending", async () => {

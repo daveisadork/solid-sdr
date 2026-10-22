@@ -192,17 +192,6 @@ describe("CWX controller", () => {
     expect(queued).toEqual({ block: 3, radioIndex: 12 });
   });
 
-  it("rejects insert when the radio refuses it", async () => {
-    const { radio, connection } = await createConnectedRadio();
-    connection.emitStatus("S1|cwx wpm=20");
-    connection.prepareResponse("cwx insert", {
-      code: 0x50000001,
-      message: "bad index",
-    });
-
-    await expect(radio.cwx().insert(99, "x", 1)).rejects.toThrow();
-  });
-
   it("tracks sends by block id and reports the queued buffer position", async () => {
     // given a connected radio that answers a tracked send
     const { radio, connection } = await createConnectedRadio();

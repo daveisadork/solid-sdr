@@ -23,6 +23,7 @@ import {
   FlexClientClosedError,
   FlexCommandRejectedError,
   FlexError,
+  FlexStateUnavailableError,
 } from "./errors.js";
 import type {
   FlexNoticeMessage,
@@ -834,21 +835,25 @@ class RadioImpl {
       "audioStream",
       id,
       this.audioControllers,
-      () => {
-        const stream = this.store.getAudioStream(id);
-        if (!stream) return undefined;
-        switch (stream.type) {
-          case "dax_tx":
-            return new DaxTxAudioStreamControllerImpl(this, id);
-          case "dax_iq":
-            return new DaxIqAudioStreamControllerImpl(this, id);
-          case "remote_audio_tx":
-            return new RemoteAudioTxStreamControllerImpl(this, id);
-          default:
-            return new AudioStreamControllerImpl(this, id);
-        }
-      },
+      () => this.newAudioStreamController(id),
     );
+  }
+
+  private newAudioStreamController(id: string) {
+    const stream = this.store.getAudioStream(id);
+    if (!stream) return undefined;
+    switch (stream.type) {
+      case "dax_rx":
+        return new DaxRxAudioStreamControllerImpl(this, id);
+      case "dax_tx":
+        return new DaxTxAudioStreamControllerImpl(this, id);
+      case "dax_iq":
+        return new DaxIqAudioStreamControllerImpl(this, id);
+      case "remote_audio_tx":
+        return new RemoteAudioTxStreamControllerImpl(this, id);
+      default:
+        return new AudioStreamControllerImpl(this, id);
+    }
   }
 
   equalizer(id: EqualizerId): EqualizerController {
@@ -1339,8 +1344,12 @@ class RadioImpl {
     const streamId = normalizeEntityId(
       response.message?.split(",")[0]?.trim() ?? "",
     );
-    const controller = new Ctor(this, streamId);
-    this.audioControllers.set(streamId, controller);
+    const controller = this.audioStream(streamId);
+    if (!(controller instanceof Ctor)) {
+      throw new FlexStateUnavailableError(
+        `Audio stream ${streamId} has no ${Ctor.name} state`,
+      );
+    }
     return controller;
   }
 
@@ -1690,23 +1699,8 @@ class RadioImpl {
         );
         break;
       case "audioStream":
-        this.updateController(
-          change as Identified,
-          this.audioControllers,
-          () => {
-            const stream = this.store.getAudioStream(change.id);
-            if (!stream) return undefined;
-            switch (stream.type) {
-              case "dax_tx":
-                return new DaxTxAudioStreamControllerImpl(this, change.id);
-              case "dax_iq":
-                return new DaxIqAudioStreamControllerImpl(this, change.id);
-              case "remote_audio_tx":
-                return new RemoteAudioTxStreamControllerImpl(this, change.id);
-              default:
-                return new AudioStreamControllerImpl(this, change.id);
-            }
-          },
+        this.updateController(change as Identified, this.audioControllers, () =>
+          this.newAudioStreamController(change.id),
         );
         break;
       case "txBandSetting":

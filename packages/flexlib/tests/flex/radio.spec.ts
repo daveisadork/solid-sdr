@@ -222,6 +222,22 @@ describe("Radio", () => {
     expect(stream.radioAck).toBe(true);
   });
 
+  it("keeps the dax rx controller the status created when the create response follows", async () => {
+    const { radio, connection } = await createConnectedRadio();
+    connection.prepareResponse("stream create", { message: "2000002" });
+    const creationPromise = radio.createDaxRxAudioStream({ daxChannel: 3 });
+    connection.emitStatus(
+      "S1|stream 0x02000002 type=dax_rx dax_channel=3 client_handle=0x12345678",
+    );
+    const early = radio.audioStream("0x02000002");
+
+    const stream = await creationPromise;
+
+    expect(early).toBe(stream);
+    expect(radio.audioStream("0x02000002")).toBe(stream);
+    expect(stream).toHaveProperty("setRxGain");
+  });
+
   it.each([
     { input: 50, expected: 50 },
     { input: 150, expected: 100 },

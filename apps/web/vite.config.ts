@@ -92,5 +92,32 @@ export default defineConfig({
   },
   build: {
     target: "esnext",
+    rolldownOptions: {
+      output: {
+        // The radio client and these two libraries share the first paint.
+        // Keep each of them in its own chunk so none of them crosses Vite's
+        // 500 kB warning. `$initial` leaves settings-only modules in the
+        // lazy chunks. Dependencies stay put so this split does not pull
+        // those lazy modules onto the first load.
+        codeSplitting: {
+          groups: [
+            {
+              name: "kobalte",
+              test: /node_modules[\\/]@kobalte[\\/]/,
+              tags: ["$initial"],
+              priority: 20,
+              includeDependenciesRecursively: false,
+            },
+            {
+              name: "flexlib",
+              test: /packages[\\/]flexlib[\\/]/,
+              tags: ["$initial"],
+              priority: 20,
+              includeDependenciesRecursively: false,
+            },
+          ],
+        },
+      },
+    },
   },
 });

@@ -402,10 +402,6 @@ const COMMAND_TERMINATOR = "\n";
 
 /** Subscription commands sent during the default handshake. */
 const DEFAULT_HANDSHAKE_COMMANDS: readonly string[] = [
-  "profile global info",
-  "profile tx info",
-  "profile mic info",
-  "profile display info",
   "sub client all",
   "sub tx all",
   "sub atu all",
@@ -416,8 +412,10 @@ const DEFAULT_HANDSHAKE_COMMANDS: readonly string[] = [
   "sub gps all",
   "sub audio_stream all",
   "sub cwx all",
+  "sub cw all",
   "sub xvtr all",
   "sub memories all",
+  "sub ntp_sources all",
   "sub daxiq all",
   "sub dax all",
   "sub license all",
@@ -428,6 +426,7 @@ const DEFAULT_HANDSHAKE_COMMANDS: readonly string[] = [
   "sub filt_preset all",
   "sub rapidm all",
   "sub ale all",
+  "sub preset all",
   "sub log_manager",
   "sub radio all",
   "sub codec all",
@@ -435,15 +434,11 @@ const DEFAULT_HANDSHAKE_COMMANDS: readonly string[] = [
   "sub dvk all",
   "sub ha_api amplifier",
   "sub ha_api fault",
+  "sub ha_api system",
   "sub navtex all",
   "sub filt_preset all",
   "sub waveform all",
   "keepalive enable",
-  "profile cw info",
-  "sub ha_api system",
-  "sub cw all",
-  "sub preset all",
-  "sub ntp_sources all",
 ];
 
 // ---------------------------------------------------------------------------
@@ -2089,8 +2084,8 @@ class RadioImpl {
       this.command("profile global info"),
       this.command("profile tx info"),
       this.command("profile mic info"),
-      this.command("profile display info"),
       this.command("profile cw info"),
+      this.command("profile display info"),
     ]);
   }
 
@@ -3225,6 +3220,7 @@ class RadioImpl {
       this.refreshVersions(),
       this.refreshRxAntennaList(),
       this.refreshMicList(),
+      this.refreshProfileLists(),
     ]);
 
     // Subscribe to status updates

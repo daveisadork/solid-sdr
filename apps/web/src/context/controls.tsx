@@ -1,5 +1,9 @@
 import { type Accessor, batch, createContext, useContext } from "solid-js";
 import { produce } from "solid-js/store";
+import {
+  memoryChannelsByFrequency,
+  stepMemoryChannel,
+} from "~/lib/memory-channel";
 import type useFlexRadio from "./flexradio";
 import type { usePreferences } from "./preferences";
 import type { useRuntime } from "./runtime";
@@ -184,7 +188,19 @@ function fromSignedNormalized(value: SignedNormalized, maxAbsValue: number) {
   return Math.round(value * maxAbsValue);
 }
 
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
 const SPEECH_PROCESSOR_LEVELS = ["Norm", "DX", "DX+"] as const;
+const AGC_THRESHOLD_MODES = ["auto", "manual"] as const;
+const DSP_ADAPT_MODES = ["auto", "fast", "slow"] as const;
+// The radio also accepts "zero", which FlexLib documents as not recommended
+// and SmartSDR leaves out of its selector.
+const DSP_ISDFT_MODES = ["one", "half"] as const;
+const DSP_SHORT_WINDOW_LENGTHS = [32, 64, 128, 256, 512] as const;
+const DSP_LONG_WINDOW_LENGTHS = [512, 1024, 2048, 4096, 8192] as const;
+const AUTO_DX_TRIGGERS = ["either", "call_up", "up"] as const;
 
 function isCwTransmitMode(mode?: string) {
   return mode === "CW";
@@ -248,6 +264,122 @@ function defineDvkPlaybackControl<TNumber extends number>(position: TNumber) {
         .catch((error) => console.error("DVK playback start failed", error));
     },
   });
+}
+
+/**
+ * A slice setting with a fixed integer range. `set` spans the whole range and
+ * snaps to `step`. `adjust` moves by the mapped amount and does not snap,
+ * because snapping would swallow an amount smaller than the step.
+ */
+function defineSliceNumberControl<T extends string>(spec: {
+  target: T;
+  label: string;
+  min: number;
+  max: number;
+  step?: number;
+  read: (slice: SliceController) => number | undefined;
+  write: (slice: SliceController, value: number) => Promise<void>;
+}) {
+  const step = spec.step ?? 1;
+  return defineControl<NormalizedControlAction<T, SliceTargeted>>({
+    target: spec.target,
+    label: spec.label,
+    scope: "slice",
+    ops: ["adjust", "set"],
+    editor: { kind: "normalized" },
+    execute(ctx, action) {
+      const slice = ctx.getSlice(action.slice);
+      if (!slice) return;
+
+      const value =
+        action.op === "adjust"
+          ? Math.round((spec.read(slice) ?? spec.min) + action.delta)
+          : Math.round(
+              (spec.min + action.value * (spec.max - spec.min)) / step,
+            ) * step;
+
+      spec
+        .write(slice, clamp(value, spec.min, spec.max))
+        .catch((error) => console.error(`${spec.label} set failed`, error));
+    },
+  });
+}
+
+function defineSliceChoiceControl<
+  T extends string,
+  V extends ChoiceValue,
+>(spec: {
+  target: T;
+  label: string;
+  choices: readonly V[];
+  read: (slice: SliceController) => V | undefined;
+  write: (slice: SliceController, value: V) => Promise<void>;
+}) {
+  return defineControl<ChoiceControlAction<T, V, SliceTargeted>>({
+    target: spec.target,
+    label: spec.label,
+    scope: "slice",
+    ops: ["cycle", "set"],
+    editor: {
+      kind: "choice",
+      getChoices() {
+        return spec.choices;
+      },
+    },
+    execute(ctx, action) {
+      const slice = ctx.getSlice(action.slice);
+      if (!slice) return;
+
+      const value =
+        action.op === "cycle"
+          ? cycleListValue(
+              spec.choices,
+              spec.read(slice) ?? spec.choices[0],
+              action.delta,
+            )
+          : action.value;
+
+      if (value === undefined || !spec.choices.includes(value)) return;
+      spec
+        .write(slice, value)
+        .catch((error) => console.error(`${spec.label} set failed`, error));
+    },
+  });
+}
+
+/** One command per algorithm, matching the per-algorithm Reset buttons. */
+function defineSliceDspResetControl<T extends string>(
+  target: T,
+  label: string,
+  algorithm: Parameters<SliceController["resetDspParameters"]>[0],
+) {
+  return defineControl<CommandAction<T, SliceTargeted>>({
+    target,
+    label,
+    scope: "slice",
+    ops: [],
+    editor: { kind: "command" },
+    execute(ctx, action) {
+      ctx
+        .getSlice(action.slice)
+        ?.resetDspParameters(algorithm)
+        .catch((error) => console.error(`${label} failed`, error));
+    },
+  });
+}
+
+/**
+ * AutoDX timings report 0 when the radio picks the value. Adjusting from that
+ * state starts at the bottom of the range instead of at 0.
+ */
+function autoDxTiming(value: number) {
+  return value > 0 ? value : undefined;
+}
+
+function sortedPresets(ctx: ControlRuntime) {
+  return Object.values(ctx.state.status.preset).sort(
+    (a, b) => Number(a.id) - Number(b.id),
+  );
 }
 
 /**
@@ -843,6 +975,32 @@ export const CONTROL_DEFINITIONS = [
     },
   }),
 
+  defineControl<
+    NormalizedControlAction<"panadapter.noiseFloorRange", SliceTargeted>
+  >({
+    target: "panadapter.noiseFloorRange",
+    label: "Panadapter Noise Floor Range",
+    scope: "panadapter",
+    ops: ["adjust", "set"],
+    editor: { kind: "normalized" },
+    execute(ctx, action) {
+      const pan = ctx.getPan(action.slice);
+      if (!pan) return;
+
+      // 0 to 10 dB in 0.5 dB steps, as on the SmartSDR slider.
+      const value =
+        action.op === "adjust"
+          ? (pan.noiseFloorRange ?? 0) + action.delta
+          : Math.round(action.value * 20) / 2;
+
+      pan
+        .setNoiseFloorRange(clamp(value, 0, 10))
+        .catch((error) =>
+          console.error("Panadapter noise floor range set failed", error),
+        );
+    },
+  }),
+
   defineControl<NormalizedControlAction<"panadapter.average", SliceTargeted>>({
     target: "panadapter.average",
     label: "Panadapter Average",
@@ -1006,6 +1164,14 @@ export const CONTROL_DEFINITIONS = [
 
       slice.setAgcSettings({ threshold: value });
     },
+  }),
+
+  defineSliceChoiceControl({
+    target: "slice.agc.thresholdMode",
+    label: "Slice AGC Threshold Mode",
+    choices: AGC_THRESHOLD_MODES,
+    read: (slice) => slice.agcThresholdMode,
+    write: (slice, mode) => slice.setAgcThresholdMode(mode),
   }),
 
   defineControl<BooleanControlAction<"slice.wnb.enabled", SliceTargeted>>({
@@ -1303,6 +1469,264 @@ export const CONTROL_DEFINITIONS = [
     },
   }),
 
+  defineSliceNumberControl({
+    target: "slice.nr.delay",
+    label: "Slice NR Delay",
+    min: 1,
+    max: 512,
+    read: (slice) => slice.nrDelay,
+    write: (slice, value) => slice.setNrDelay(value),
+  }),
+
+  defineSliceChoiceControl({
+    target: "slice.nr.window",
+    label: "Slice NR Window",
+    choices: DSP_SHORT_WINDOW_LENGTHS,
+    read: (slice) =>
+      slice.nrWlen as (typeof DSP_SHORT_WINDOW_LENGTHS)[number] | undefined,
+    write: (slice, value) => slice.setNrWlen(value),
+  }),
+
+  defineSliceChoiceControl({
+    target: "slice.nr.adaptMode",
+    label: "Slice NR Adapt Mode",
+    choices: DSP_ADAPT_MODES,
+    read: (slice) => slice.nrAdaptMode,
+    write: (slice, mode) => slice.setNrAdaptMode(mode),
+  }),
+
+  defineSliceChoiceControl({
+    target: "slice.nr.inverse",
+    label: "Slice NR Inverse",
+    choices: DSP_ISDFT_MODES,
+    read: (slice) =>
+      slice.nrIsdftMode as (typeof DSP_ISDFT_MODES)[number] | undefined,
+    write: (slice, mode) => slice.setNrIsdftMode(mode),
+  }),
+
+  defineSliceDspResetControl("slice.nr.reset", "Slice NR Reset", "nr"),
+
+  defineSliceNumberControl({
+    target: "slice.nrl.delay",
+    label: "Slice NRL Delay",
+    min: 1,
+    max: 512,
+    read: (slice) => slice.nrlDelay,
+    write: (slice, value) => slice.setNrlDelay(value),
+  }),
+
+  defineSliceNumberControl({
+    target: "slice.nrl.taps",
+    label: "Slice NRL Taps",
+    min: 1,
+    max: 512,
+    read: (slice) => slice.nrlFilterSize,
+    write: (slice, value) => slice.setNrlFilterSize(value),
+  }),
+
+  defineSliceNumberControl({
+    target: "slice.nrl.leakage",
+    label: "Slice NRL Leakage",
+    min: 0,
+    max: 100,
+    read: (slice) => slice.nrlLeakageLevel,
+    write: (slice, value) => slice.setNrlLeakageLevel(value),
+  }),
+
+  defineSliceDspResetControl("slice.nrl.reset", "Slice NRL Reset", "lms_nr"),
+
+  defineSliceChoiceControl({
+    target: "slice.nrf.window",
+    label: "Slice NRF Window",
+    choices: DSP_LONG_WINDOW_LENGTHS,
+    read: (slice) =>
+      slice.nrfWlen as (typeof DSP_LONG_WINDOW_LENGTHS)[number] | undefined,
+    write: (slice, value) => slice.setNrfWlen(value),
+  }),
+
+  defineSliceDspResetControl("slice.nrf.reset", "Slice NRF Reset", "nrf"),
+
+  defineSliceDspResetControl("slice.nrs.reset", "Slice NRS Reset", "speex_nr"),
+
+  defineSliceNumberControl({
+    target: "slice.anf.delay",
+    label: "Slice ANF Delay",
+    min: 1,
+    max: 512,
+    read: (slice) => slice.anfDelay,
+    write: (slice, value) => slice.setAnfDelay(value),
+  }),
+
+  defineSliceChoiceControl({
+    target: "slice.anf.window",
+    label: "Slice ANF Window",
+    choices: DSP_SHORT_WINDOW_LENGTHS,
+    read: (slice) =>
+      slice.anfWlen as (typeof DSP_SHORT_WINDOW_LENGTHS)[number] | undefined,
+    write: (slice, value) => slice.setAnfWlen(value),
+  }),
+
+  defineSliceChoiceControl({
+    target: "slice.anf.adaptMode",
+    label: "Slice ANF Adapt Mode",
+    choices: DSP_ADAPT_MODES,
+    read: (slice) => slice.anfAdaptMode,
+    write: (slice, mode) => slice.setAnfAdaptMode(mode),
+  }),
+
+  defineSliceChoiceControl({
+    target: "slice.anf.inverse",
+    label: "Slice ANF Inverse",
+    choices: DSP_ISDFT_MODES,
+    read: (slice) =>
+      slice.anfIsdftMode as (typeof DSP_ISDFT_MODES)[number] | undefined,
+    write: (slice, mode) => slice.setAnfIsdftMode(mode),
+  }),
+
+  defineSliceDspResetControl("slice.anf.reset", "Slice ANF Reset", "anf"),
+
+  defineSliceNumberControl({
+    target: "slice.anfl.delay",
+    label: "Slice ANFL Delay",
+    min: 1,
+    max: 512,
+    read: (slice) => slice.anflDelay,
+    write: (slice, value) => slice.setAnflDelay(value),
+  }),
+
+  defineSliceNumberControl({
+    target: "slice.anfl.taps",
+    label: "Slice ANFL Taps",
+    min: 1,
+    max: 512,
+    read: (slice) => slice.anflFilterSize,
+    write: (slice, value) => slice.setAnflFilterSize(value),
+  }),
+
+  defineSliceNumberControl({
+    target: "slice.anfl.leakage",
+    label: "Slice ANFL Leakage",
+    min: 0,
+    max: 100,
+    read: (slice) => slice.anflLeakageLevel,
+    write: (slice, value) => slice.setAnflLeakageLevel(value),
+  }),
+
+  defineSliceDspResetControl("slice.anfl.reset", "Slice ANFL Reset", "lms_anf"),
+
+  // FlexLib does not clamp these. The ranges are the SmartSDR slider bounds.
+  defineSliceNumberControl({
+    target: "slice.anft.toneMin",
+    label: "Slice ANFT Tone Min",
+    min: -150,
+    max: -50,
+    read: (slice) => slice.anftMinDb,
+    write: (slice, value) => slice.setAnftMinDb(value),
+  }),
+
+  defineSliceNumberControl({
+    target: "slice.anft.toneDiff",
+    label: "Slice ANFT Tone Diff",
+    min: 1,
+    max: 60,
+    read: (slice) => slice.anftToneDbDiff,
+    write: (slice, value) => slice.setAnftToneDbDiff(value),
+  }),
+
+  defineSliceDspResetControl("slice.anft.reset", "Slice ANFT Reset", "anft"),
+
+  defineSliceDspResetControl("slice.dsp.reset", "Slice DSP Reset All", "all"),
+
+  defineControl<BooleanControlAction<"slice.autoDx.enabled", SliceTargeted>>({
+    target: "slice.autoDx.enabled",
+    label: "Slice AutoDX Enabled",
+    scope: "slice",
+    ops: ["toggle", "set"],
+    editor: { kind: "boolean" },
+    execute(ctx, action) {
+      const autoDx = ctx.getSlice(action.slice)?.autoDx;
+      if (!autoDx) return;
+
+      const enable = resolveBooleanAction(action, autoDx.enabled);
+      // Armed AutoDX keys the transmitter on its own. Refuse to arm when TX is
+      // not allowed, so that a stray press cannot queue a transmission.
+      // Disarming is always allowed.
+      if (enable && ctx.state.status.radio.txAllowed !== true) return;
+
+      autoDx
+        .setEnabled(enable)
+        .catch((error) => console.error("AutoDX enable failed", error));
+    },
+  }),
+
+  defineSliceChoiceControl({
+    target: "slice.autoDx.trigger",
+    label: "Slice AutoDX Trigger",
+    choices: AUTO_DX_TRIGGERS,
+    read: (slice) =>
+      slice.autoDx.trigger === "unknown" ? undefined : slice.autoDx.trigger,
+    write: (slice, trigger) => slice.autoDx.setTrigger(trigger),
+  }),
+
+  // Timing ranges and steps follow the SmartSDR AutoDX setup sliders.
+  defineSliceNumberControl({
+    target: "slice.autoDx.txDelay",
+    label: "Slice AutoDX TX Delay",
+    min: 100,
+    max: 2000,
+    step: 100,
+    read: (slice) => autoDxTiming(slice.autoDx.txDelayMs),
+    write: (slice, ms) => slice.autoDx.setTxDelayMs(ms),
+  }),
+
+  defineSliceNumberControl({
+    target: "slice.autoDx.awaitReply",
+    label: "Slice AutoDX Await Reply",
+    min: 2000,
+    max: 60000,
+    step: 1000,
+    read: (slice) => autoDxTiming(slice.autoDx.awaitReplyMs),
+    write: (slice, ms) => slice.autoDx.setAwaitReplyMs(ms),
+  }),
+
+  defineSliceNumberControl({
+    target: "slice.autoDx.timeout",
+    label: "Slice AutoDX Timeout",
+    min: 60000,
+    max: 600000,
+    step: 60000,
+    read: (slice) => autoDxTiming(slice.autoDx.timeoutMs),
+    write: (slice, ms) => slice.autoDx.setTimeoutMs(ms),
+  }),
+
+  defineControl<
+    BooleanControlAction<"slice.autoDx.timeoutRestart", SliceTargeted>
+  >({
+    target: "slice.autoDx.timeoutRestart",
+    label: "Slice AutoDX Timeout Restart",
+    scope: "slice",
+    ops: ["toggle", "set"],
+    editor: { kind: "boolean" },
+    execute(ctx, action) {
+      const autoDx = ctx.getSlice(action.slice)?.autoDx;
+      if (!autoDx) return;
+      autoDx
+        .setTimeoutRestart(resolveBooleanAction(action, autoDx.timeoutRestart))
+        .catch((error) =>
+          console.error("AutoDX timeout restart set failed", error),
+        );
+    },
+  }),
+
+  defineSliceNumberControl({
+    target: "slice.autoDx.callRetries",
+    label: "Slice AutoDX Call Retries",
+    min: 1,
+    max: 10,
+    read: (slice) => slice.autoDx.callRetries,
+    write: (slice, retries) => slice.autoDx.setCallRetries(retries),
+  }),
+
   defineControl<ChoiceControlAction<"radio.profile.tx", string>>({
     target: "radio.profile.tx",
     label: "Radio TX Profile",
@@ -1428,6 +1852,81 @@ export const CONTROL_DEFINITIONS = [
 
       if (!value) return;
       radioController.loadGlobalProfile(value);
+    },
+  }),
+
+  defineControl<ChoiceControlAction<"radio.profile.cw", string>>({
+    target: "radio.profile.cw",
+    label: "Radio CW Profile",
+    scope: "radio",
+    ops: ["cycle", "set"],
+    editor: {
+      kind: "choice",
+      getChoices(ctx) {
+        return ctx.state.status.radio.profileCwList;
+      },
+    },
+    execute(ctx, action) {
+      const radioController = ctx.radio();
+      if (!radioController) return;
+
+      const profiles = ctx.state.status.radio.profileCwList;
+      if (profiles.length === 0) return;
+
+      const value =
+        action.op === "cycle"
+          ? cycleListValue(
+              profiles,
+              ctx.state.status.radio.profileCwSelection ?? profiles[0],
+              action.delta,
+            )
+          : action.value;
+
+      if (!value) return;
+      radioController
+        .loadCwProfile(value)
+        .catch((error) => console.error("CW profile load failed", error));
+    },
+  }),
+
+  /**
+   * Presets are chosen by name, because a name is what an operator binds to.
+   * When two presets share a name, the lowest id wins.
+   */
+  defineControl<ChoiceControlAction<"radio.preset", string>>({
+    target: "radio.preset",
+    label: "Radio Preset",
+    scope: "radio",
+    ops: ["cycle", "set"],
+    editor: {
+      kind: "choice",
+      getChoices(ctx) {
+        return sortedPresets(ctx).map((preset) => preset.name);
+      },
+    },
+    execute(ctx, action) {
+      const radioController = ctx.radio();
+      if (!radioController) return;
+
+      const presets = sortedPresets(ctx);
+      if (presets.length === 0) return;
+      const names = presets.map((preset) => preset.name);
+
+      const value =
+        action.op === "cycle"
+          ? cycleListValue(
+              names,
+              presets.find((preset) => preset.active)?.name ?? names[0],
+              action.delta,
+            )
+          : action.value;
+
+      const preset = presets.find((candidate) => candidate.name === value);
+      if (!preset) return;
+      radioController
+        .preset(preset.id)
+        ?.select()
+        .catch((error) => console.error("Preset apply failed", error));
     },
   }),
 
@@ -1794,6 +2293,23 @@ export const CONTROL_DEFINITIONS = [
     },
   }),
 
+  defineControl<BooleanControlAction<"radio.pttMicOverride">>({
+    target: "radio.pttMicOverride",
+    label: "Radio PTT Mic Override",
+    scope: "radio",
+    ops: ["toggle", "set"],
+    editor: { kind: "boolean" },
+    execute(ctx, action) {
+      const radioController = ctx.radio();
+      if (!radioController) return;
+      radioController
+        .setPttMicOverride(
+          resolveBooleanAction(action, radioController.pttMicOverride),
+        )
+        .catch((error) => console.error("PTT mic override set failed", error));
+    },
+  }),
+
   defineControl<BooleanControlAction<"radio.compander.enabled">>({
     target: "radio.compander.enabled",
     label: "Radio Compander Enabled",
@@ -1845,6 +2361,44 @@ export const CONTROL_DEFINITIONS = [
           : fromNormalized(action.value, 100, 5);
 
       radioController.setCwSpeedWpm(value);
+    },
+  }),
+
+  defineControl<ChoiceControlAction<"memory.channel", string>>({
+    target: "memory.channel",
+    label: "Memory Channel",
+    scope: "radio",
+    ops: ["cycle", "set"],
+    editor: {
+      kind: "choice",
+      getChoices(ctx) {
+        return memoryChannelsByFrequency(
+          Object.values(ctx.state.status.memory),
+        ).map((memory) => memory.id);
+      },
+    },
+    execute(ctx, action) {
+      const radioController = ctx.radio();
+      if (!radioController) return;
+
+      // The radio has no active memory. Next is the lowest frequency above
+      // the active slice. Previous is the highest frequency below it.
+      // Past either end, the step wraps. `memory apply` tunes that same
+      // active slice.
+      const id =
+        action.op === "set"
+          ? String(action.value)
+          : stepMemoryChannel(
+              Object.values(ctx.state.status.memory),
+              ctx.activeSlice()?.frequencyMHz ?? Number.NaN,
+              action.delta,
+            )?.id;
+      if (!id) return;
+
+      radioController
+        .memory(id)
+        ?.apply()
+        .catch((error) => console.error("Memory channel apply failed", error));
     },
   }),
 

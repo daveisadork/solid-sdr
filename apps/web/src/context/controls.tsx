@@ -1,5 +1,9 @@
 import { type Accessor, batch, createContext, useContext } from "solid-js";
 import { produce } from "solid-js/store";
+import {
+  memoryChannelsByFrequency,
+  stepMemoryChannel,
+} from "~/lib/memory-channel";
 import type useFlexRadio from "./flexradio";
 import type { usePreferences } from "./preferences";
 import type { useRuntime } from "./runtime";
@@ -2357,6 +2361,44 @@ export const CONTROL_DEFINITIONS = [
           : fromNormalized(action.value, 100, 5);
 
       radioController.setCwSpeedWpm(value);
+    },
+  }),
+
+  defineControl<ChoiceControlAction<"memory.channel", string>>({
+    target: "memory.channel",
+    label: "Memory Channel",
+    scope: "radio",
+    ops: ["cycle", "set"],
+    editor: {
+      kind: "choice",
+      getChoices(ctx) {
+        return memoryChannelsByFrequency(
+          Object.values(ctx.state.status.memory),
+        ).map((memory) => memory.id);
+      },
+    },
+    execute(ctx, action) {
+      const radioController = ctx.radio();
+      if (!radioController) return;
+
+      // The radio has no active memory. Next is the lowest frequency above
+      // the active slice. Previous is the highest frequency below it.
+      // Past either end, the step wraps. `memory apply` tunes that same
+      // active slice.
+      const id =
+        action.op === "set"
+          ? String(action.value)
+          : stepMemoryChannel(
+              Object.values(ctx.state.status.memory),
+              ctx.activeSlice()?.frequencyMHz ?? Number.NaN,
+              action.delta,
+            )?.id;
+      if (!id) return;
+
+      radioController
+        .memory(id)
+        ?.apply()
+        .catch((error) => console.error("Memory channel apply failed", error));
     },
   }),
 

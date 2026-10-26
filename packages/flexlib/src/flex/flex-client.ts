@@ -11,6 +11,7 @@
 import { type Subscription, TypedEventEmitter } from "../util/events.js";
 import { parseVitaPacket } from "../vita/parser.js";
 import type { FlexRadioDescriptor, Logger } from "./adapters.js";
+import { formatClientHandle, parseClientHandle } from "./client-handle.js";
 import { decodeDiscoveryPayload } from "./discovery.js";
 import { FlexCommandRejectedError } from "./errors.js";
 import { type FlexReplyMessage, parseFlexMessage } from "./protocol.js";
@@ -427,20 +428,12 @@ function decodeTcpChunk(data: string | Uint8Array): string {
 }
 
 function normalizeClientHandle(clientHandle: number | string): string {
-  if (typeof clientHandle === "number") {
-    if (!Number.isInteger(clientHandle) || clientHandle < 0) {
-      throw new Error(`Invalid client handle: ${clientHandle}`);
-    }
-    return `0x${clientHandle.toString(16).toUpperCase()}`;
-  }
+  if (typeof clientHandle === "number") return formatClientHandle(clientHandle);
 
-  const trimmed = clientHandle.trim();
-  if (!trimmed) throw new Error("Client handle must not be empty");
-  if (/^0x[0-9a-f]+$/i.test(trimmed)) {
-    return `0x${trimmed.slice(2).toUpperCase()}`;
+  if (!clientHandle.trim()) throw new Error("Client handle must not be empty");
+  const parsed = parseClientHandle(clientHandle);
+  if (parsed === undefined) {
+    throw new Error(`Invalid client handle: ${clientHandle}`);
   }
-  if (/^\d+$/.test(trimmed)) {
-    return `0x${Number.parseInt(trimmed, 10).toString(16).toUpperCase()}`;
-  }
-  throw new Error(`Invalid client handle: ${clientHandle}`);
+  return formatClientHandle(parsed);
 }

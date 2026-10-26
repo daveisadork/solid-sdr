@@ -20,6 +20,7 @@ export interface TxBandSettingSnapshot {
   readonly rcaTx1Enabled?: boolean;
   readonly rcaTx2Enabled?: boolean;
   readonly rcaTx3Enabled?: boolean;
+  readonly tuneTxSuppress?: boolean;
   readonly raw: Readonly<Record<string, string>>;
 }
 
@@ -68,6 +69,9 @@ export function createTxBandSettingSnapshot(
         break;
       case "tx3_enabled":
         partial.rcaTx3Enabled = isTruthy(value);
+        break;
+      case "tune_tx_suppress":
+        partial.tuneTxSuppress = isTruthy(value);
         break;
       default:
         logUnknownAttribute("tx_band", key, value);

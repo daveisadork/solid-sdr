@@ -1,21 +1,12 @@
-import {
-  type Accessor,
-  batch,
-  createContext,
-  createMemo,
-  type ParentComponent,
-  Show,
-  useContext,
-} from "solid-js";
+import { type Accessor, batch, createContext, useContext } from "solid-js";
 import { produce } from "solid-js/store";
-import { MidiControl } from "~/components/midi-control";
 import {
   memoryChannelsByFrequency,
   stepMemoryChannel,
 } from "~/lib/memory-channel";
-import useFlexRadio from "./flexradio";
-import { usePreferences } from "./preferences";
-import { useRuntime } from "./runtime";
+import type useFlexRadio from "./flexradio";
+import type { usePreferences } from "./preferences";
+import type { useRuntime } from "./runtime";
 
 export type SliceSelector = "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H";
 export type SliceMode = string;
@@ -122,9 +113,9 @@ type WaterfallController = NonNullable<
 
 type ControlScope = "slice" | "panadapter" | "radio";
 export type ControlOp = "toggle" | "set" | "adjust" | "cycle";
-type ChoiceValue = string | number;
+export type ChoiceValue = string | number;
 
-type ControlRuntime = {
+export type ControlRuntime = {
   radio: FlexRadioApi["radio"];
   state: FlexRadioApi["state"];
   runtime: RuntimeApi["runtime"];
@@ -1226,7 +1217,7 @@ export const CONTROL_DEFINITIONS = [
       const value =
         action.op === "adjust"
           ? slice.nrsLevel + action.delta
-          : fromNormalized(action.value, 100);
+          : fromNormalized(action.value, 50);
 
       slice.setNrsLevel(value);
     },
@@ -1255,25 +1246,6 @@ export const CONTROL_DEFINITIONS = [
       const slice = ctx.getSlice(action.slice);
       if (!slice) return;
       slice.setNrfEnabled(resolveBooleanAction(action, slice.nrfEnabled));
-    },
-  }),
-
-  defineControl<NormalizedControlAction<"slice.nrf.level", SliceTargeted>>({
-    target: "slice.nrf.level",
-    label: "Slice NRF Level",
-    scope: "slice",
-    ops: ["adjust", "set"],
-    editor: { kind: "normalized" },
-    execute(ctx, action) {
-      const slice = ctx.getSlice(action.slice);
-      if (!slice) return;
-
-      const value =
-        action.op === "adjust"
-          ? slice.nrfLevel + action.delta
-          : fromNormalized(action.value, 100);
-
-      slice.setNrfLevel(value);
     },
   }),
 
@@ -2050,7 +2022,7 @@ export const CONTROL_REGISTRY = Object.fromEntries(
   CONTROL_DEFINITIONS.map((definition) => [definition.target, definition]),
 ) as ControlRegistry;
 
-const ControlsContext = createContext<{
+export const ControlsContext = createContext<{
   dispatch: (action: ControlAction) => void;
   getChoices: (
     target: ControlTarget,
@@ -2064,128 +2036,3 @@ export function useControls() {
     throw new Error("useControls must be used within <ControlsProvider>");
   return ctx;
 }
-
-export const ControlsProvider: ParentComponent = (props) => {
-  const { radio, state, bands } = useFlexRadio();
-  const { runtime, setRuntime } = useRuntime();
-  const { preferences } = usePreferences();
-
-  const sliceIdsBySelector = createMemo(() => {
-    const map = new Map<SliceSelector, string>();
-
-    for (const slice of Object.values(state.status.slice)) {
-      if (!slice.isInUse || !slice.indexLetter) continue;
-      map.set(slice.indexLetter as SliceSelector, slice.id);
-    }
-
-    return map;
-  });
-
-  const getSelectableSlices = createMemo(() =>
-    Object.values(state.status.slice)
-      .filter(
-        (slice) =>
-          slice.clientHandle === state.clientHandleInt &&
-          slice.isInUse &&
-          slice.indexLetter,
-      )
-      .map((slice) => slice.indexLetter as SliceSelector),
-  );
-
-  const activeSlice = createMemo(() => {
-    const slice = Object.values(state.status.slice).find(
-      (entry) =>
-        entry.clientHandle === state.clientHandleInt &&
-        entry.isInUse &&
-        entry.isActive,
-    );
-
-    if (!slice) return undefined;
-    return radio()?.slice(slice.id);
-  });
-
-  const activePan = createMemo(() => {
-    const panId = activeSlice()?.panadapterStreamId;
-    if (!panId) return undefined;
-    return radio()?.panadapter(panId);
-  });
-
-  const getSlice = (selector?: SliceSelector) => {
-    if (!selector) return activeSlice();
-
-    const id = sliceIdsBySelector().get(selector);
-    if (!id) return undefined;
-    return radio()?.slice(id);
-  };
-
-  const getPan = (selector?: SliceSelector) => {
-    if (!selector) return activePan();
-
-    const panId = getSlice(selector)?.panadapterStreamId;
-    if (!panId) return undefined;
-    return radio()?.panadapter(panId);
-  };
-
-  const getWaterfall = (selector?: SliceSelector) => {
-    const pan = getPan(selector);
-    if (!pan) return undefined;
-    return radio()?.waterfall(pan.waterfallStreamId);
-  };
-
-  const getBandList = createMemo(() => bands.keys().toArray());
-
-  const controlRuntime: ControlRuntime = {
-    radio,
-    state,
-    runtime,
-    setRuntime,
-    activeSlice,
-    activePan,
-    getSlice,
-    getPan,
-    getWaterfall,
-    getBandList,
-    getSelectableSlices,
-    preferences,
-  };
-
-  const getChoices = (target: ControlTarget, slice?: SliceSelector) => {
-    const definition = CONTROL_REGISTRY[target];
-    if (definition.editor.kind !== "choice") return [];
-
-    const editor = definition.editor as {
-      kind: "choice";
-      getChoices: (
-        ctx: ControlRuntime,
-        action?: { target: ControlTarget; slice?: SliceSelector },
-      ) => readonly ChoiceValue[];
-    };
-
-    return editor.getChoices(
-      controlRuntime as never,
-      (slice ? { target, slice } : { target }) as never,
-    );
-  };
-
-  const dispatch = (action: ControlAction) => {
-    const definition = CONTROL_REGISTRY[action.target];
-
-    if (!definition) {
-      console.warn("unknown control action:", action);
-      return;
-    }
-
-    (
-      definition.execute as (ctx: ControlRuntime, action: ControlAction) => void
-    )(controlRuntime, action);
-  };
-
-  return (
-    <ControlsContext.Provider value={{ dispatch, getChoices }}>
-      {props.children}
-      <Show when={preferences.midiMappings.length}>
-        <MidiControl />
-      </Show>
-    </ControlsContext.Provider>
-  );
-};

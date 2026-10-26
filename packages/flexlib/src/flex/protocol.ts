@@ -345,7 +345,14 @@ function parseSpaceSeparatedAttributes(
       if (token) attributes[token] = "";
       break;
     }
-    const key = segment.slice(index, equals);
+    let key = segment.slice(index, equals);
+    const lastSpace = key.lastIndexOf(" ");
+    if (lastSpace !== -1) {
+      for (const bare of key.slice(0, lastSpace).split(" ")) {
+        if (bare) attributes[bare] = "";
+      }
+      key = key.slice(lastSpace + 1);
+    }
     index = equals + 1;
     let end = index;
     let quoted = false;

@@ -83,6 +83,10 @@ export class TxBandSettingControllerImpl implements TxBandSettingController {
     return this.current().rcaTx3Enabled;
   }
 
+  get tuneTxSuppress(): boolean | undefined {
+    return this.current().tuneTxSuppress;
+  }
+
   async setHwAlcEnabled(enabled: boolean): Promise<void> {
     await this.sendBandsetCommand("transmit", {
       hwalc_enabled: formatBooleanFlag(enabled),

@@ -2,7 +2,12 @@ import { type Subscription, TypedEventEmitter } from "../util/events.js";
 import { formatBooleanFlag } from "./controller-helpers.js";
 import { FlexStateUnavailableError } from "./errors.js";
 import type { RadioSession } from "./radio-core.js";
-import type { ApdSamplerPort, ApdSnapshot, ApdTxAntenna } from "./state/apd.js";
+import type {
+  ApdLifecycleState,
+  ApdSamplerPort,
+  ApdSnapshot,
+  ApdTxAntenna,
+} from "./state/apd.js";
 import type { ApdStateChange } from "./state/index.js";
 
 export interface ApdControllerEvents {
@@ -47,6 +52,10 @@ export class ApdControllerImpl implements ApdController {
 
   get configurable(): boolean {
     return this.current().configurable;
+  }
+
+  get state(): ApdLifecycleState | undefined {
+    return this.current().state;
   }
 
   get equalizerActive(): boolean {

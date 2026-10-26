@@ -1,6 +1,6 @@
 import { For, Show } from "solid-js";
-import { PanafallProvider } from "~/context/panafall";
 import { usePanafallLayout } from "~/context/panafall-layout";
+import { PanafallProvider } from "~/context/panafall-provider";
 import { type CellEdges, cellEdges, type SlotId } from "~/lib/panafall-layout";
 import { TuningPanel } from "../tuning-panel";
 import { Panafall } from "./panafall";

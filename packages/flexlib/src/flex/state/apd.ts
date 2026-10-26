@@ -25,10 +25,30 @@ export type ApdSamplerPort =
   | "XVTB"
   | (string & {});
 
+/** APD lifecycle state. A value outside this set is left off the snapshot and stays on `raw`. */
+export type ApdLifecycleState =
+  | "OFF"
+  | "IDLE"
+  | "TRAINING"
+  | "ACTIVE"
+  | "HOLD"
+  | "FAULT";
+
+const APD_LIFECYCLE_STATES: ReadonlySet<string> = new Set([
+  "OFF",
+  "IDLE",
+  "TRAINING",
+  "ACTIVE",
+  "HOLD",
+  "FAULT",
+]);
+
 export interface ApdSnapshot {
   readonly enabled: boolean;
   readonly configurable: boolean;
   readonly equalizerActive: boolean;
+  /** Lifecycle state the radio reports. Unset until the radio sends one. Wire: `state`. */
+  readonly state?: ApdLifecycleState;
   readonly antenna?: string;
   readonly frequencyMHz?: number;
   readonly rfPower?: number;
@@ -36,6 +56,9 @@ export interface ApdSnapshot {
   readonly rxErrorMilliHz?: number;
   readonly sliceId?: string;
   readonly mmx?: number;
+  readonly deployed?: boolean;
+  readonly qualityDb?: number;
+  readonly backend?: string;
   readonly clientHandle?: number;
   readonly sampleIndex?: number;
   readonly availableSamplerPortsAnt1: readonly string[];
@@ -86,6 +109,13 @@ export function createApdSnapshot(
       case "equalizer_active":
         partial.equalizerActive = isTruthy(value);
         break;
+      case "state": {
+        const upper = value.toUpperCase();
+        if (APD_LIFECYCLE_STATES.has(upper)) {
+          partial.state = upper as ApdLifecycleState;
+        }
+        break;
+      }
       case "equalizer_reset":
         partial.equalizerActive = false;
         break;
@@ -143,6 +173,18 @@ export function createApdSnapshot(
       case "tx_ant":
       case "selected_sampler":
       case "valid_samplers":
+        break;
+      case "deployed":
+        partial.deployed = isTruthy(value);
+        break;
+      case "quality_db": {
+        const parsed = parseFloatSafe(value);
+        if (parsed !== undefined) partial.qualityDb = parsed;
+        else if (value) logParseError("apd", key, value);
+        break;
+      }
+      case "backend":
+        partial.backend = value || undefined;
         break;
       default:
         logUnknownAttribute("apd", key, value);

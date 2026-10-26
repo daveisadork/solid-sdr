@@ -19,7 +19,21 @@ export interface FeatureLicenseFeature {
   readonly name: string;
   readonly enabled: boolean;
   readonly reason: FeatureLicenseReason;
+  /**
+   * True when the feature is enabled and was bought outright or earned through
+   * SmartSDR+ or Early Access, which the radio keeps after the subscription
+   * ends. The alpha-program feature is granted through the license file but
+   * can be withdrawn, so it is never permanent.
+   */
+  readonly permanent: boolean;
 }
+
+const ALPHA_FEATURE_NAME = "alpha";
+const PERMANENT_REASONS: ReadonlySet<string> = new Set([
+  "license_file",
+  "plus",
+  "ea",
+]);
 
 export interface FeatureLicenseSubscription {
   readonly name: string;
@@ -123,10 +137,16 @@ function applyFeatureAttributes(
     return;
   }
 
+  const enabled = Boolean(enabledNumber);
+  const reason = normalizeReason(reasonValue);
   const feature: FeatureLicenseFeature = Object.freeze({
     name: normalizedName,
-    enabled: Boolean(enabledNumber),
-    reason: normalizeReason(reasonValue),
+    enabled,
+    reason,
+    permanent:
+      enabled &&
+      normalizedName !== ALPHA_FEATURE_NAME &&
+      PERMANENT_REASONS.has(reason),
   });
 
   partial.features = Object.freeze({

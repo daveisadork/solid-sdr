@@ -83,6 +83,12 @@ export interface PanadapterController
   setWnbLevel(level: number): Promise<void>;
   setNoiseFloorPosition(value: number): Promise<void>;
   setNoiseFloorPositionEnabled(enabled: boolean): Promise<void>;
+  /**
+   * Sets the noise-floor range in dB. The value is sent with one decimal
+   * place. Nothing is sent when it differs from the current range by less
+   * than 0.05. Throws {@link RangeError} if `value` is not a finite number.
+   */
+  setNoiseFloorRange(value: number): Promise<void>;
   setRxAntenna(port: string): Promise<void>;
   setRfGain(value: number): Promise<void>;
   setDaxIqChannel(channel: number): Promise<void>;
@@ -196,6 +202,10 @@ export class PanadapterControllerImpl implements PanadapterController {
 
   get noiseFloorPositionEnabled(): boolean {
     return this.current().noiseFloorPositionEnabled;
+  }
+
+  get noiseFloorRange(): number | undefined {
+    return this.current().noiseFloorRange;
   }
 
   get rxAntenna(): string {
@@ -389,6 +399,16 @@ export class PanadapterControllerImpl implements PanadapterController {
     await this.sendSet({
       pan_position: formatInteger(value, "noise floor position"),
     });
+  }
+
+  async setNoiseFloorRange(value: number): Promise<void> {
+    if (!Number.isFinite(value)) {
+      throw new RangeError(`Invalid noise floor range: ${value}`);
+    }
+    const current = this.current().noiseFloorRange;
+    if (current !== undefined && Math.abs(current - value) < 0.05) return;
+    const rounded = Math.round(value * 10) / 10 + 0;
+    await this.sendSet({ noise_floor_range: rounded.toFixed(1) });
   }
 
   async setNoiseFloorPositionEnabled(enabled: boolean): Promise<void> {

@@ -1,13 +1,4 @@
-import {
-  type Accessor,
-  createContext,
-  createEffect,
-  createMemo,
-  type ParentComponent,
-  useContext,
-} from "solid-js";
-import { SIDEBAR_WIDTH_PX, useIsMobile } from "~/components/ui/sidebar";
-import { usePreferences } from "./preferences";
+import { type Accessor, createContext, useContext } from "solid-js";
 
 /**
  * Duration of the chrome squeeze/slide animations. Keep in sync with the
@@ -18,9 +9,9 @@ export const CHROME_TRANSITION_MS = 200;
 /**
  * App-chrome insets.
  *
- * Animation chain: the effect below sets --inset-left/right inline on <html>
- * and the values snap. PanafallCell remaps them to --cell-inset-* for the
- * edges each cell touches; the consuming elements carry their own
+ * Animation chain: ChromeInsetsProvider sets --inset-left/right inline on
+ * <html> and the values snap. PanafallCell remaps them to --cell-inset-* for
+ * the edges each cell touches; the consuming elements carry their own
  * transition-[left,width|right] classes, so only they animate. (The vars must
  * not transition themselves — interpolating inherited vars on :root restyles
  * the whole document per frame.) --inset-bottom is set in app.css (statusbar
@@ -30,45 +21,10 @@ export const CHROME_TRANSITION_MS = 200;
  * value immediately; the per-panafall settledInsets debounce handles the
  * animation window.
  */
-const ChromeInsetsContext = createContext<{
+export const ChromeInsetsContext = createContext<{
   left: Accessor<number>;
   right: Accessor<number>;
 }>();
-
-export const ChromeInsetsProvider: ParentComponent = (props) => {
-  const { preferences } = usePreferences();
-  const isMobile = useIsMobile();
-
-  // On mobile the sidebars are Sheet overlays and never squeeze content.
-  // Without transparency effects a sidebar squeezes the whole panafall via
-  // its gap spacer instead of floating over it, so no inset is needed.
-  const left = createMemo(() =>
-    !isMobile() &&
-    preferences.toolsPanelOpen &&
-    preferences.enableTransparencyEffects
-      ? SIDEBAR_WIDTH_PX
-      : 0,
-  );
-  const right = createMemo(() =>
-    !isMobile() &&
-    preferences.radioPanelOpen &&
-    preferences.enableTransparencyEffects
-      ? SIDEBAR_WIDTH_PX
-      : 0,
-  );
-
-  createEffect(() => {
-    const root = document.documentElement.style;
-    root.setProperty("--inset-left", `${left()}px`);
-    root.setProperty("--inset-right", `${right()}px`);
-  });
-
-  return (
-    <ChromeInsetsContext.Provider value={{ left, right }}>
-      {props.children}
-    </ChromeInsetsContext.Provider>
-  );
-};
 
 export function useChromeInsets() {
   const context = useContext(ChromeInsetsContext);

@@ -990,7 +990,7 @@ export const CONTROL_DEFINITIONS = [
       // 0 to 10 dB in 0.5 dB steps, as on the SmartSDR slider.
       const value =
         action.op === "adjust"
-          ? (pan.noiseFloorRange ?? 0) + action.delta
+          ? pan.noiseFloorRange + action.delta
           : Math.round(action.value * 20) / 2;
 
       pan

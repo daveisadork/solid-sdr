@@ -25,7 +25,7 @@ export type ApdSamplerPort =
   | "XVTB"
   | (string & {});
 
-/** APD lifecycle state. A value outside this set is left off the snapshot and stays on `raw`. */
+/** APD lifecycle state. */
 export type ApdLifecycleState =
   | "OFF"
   | "IDLE"
@@ -47,16 +47,16 @@ export interface ApdSnapshot {
   readonly enabled: boolean;
   readonly configurable: boolean;
   readonly equalizerActive: boolean;
-  /** Lifecycle state the radio reports. Unset until the radio sends one. Wire: `state`. */
-  readonly state?: ApdLifecycleState;
-  readonly antenna?: string;
-  readonly frequencyMHz?: number;
-  readonly rfPower?: number;
-  readonly txErrorMilliHz?: number;
+  /** Wire: `state`. */
+  readonly state: ApdLifecycleState;
+  readonly antenna: string;
+  readonly frequencyMHz: number;
+  readonly rfPower: number;
+  readonly txErrorMilliHz: number;
   readonly rxErrorMilliHz?: number;
   readonly sliceId?: string;
   readonly mmx?: number;
-  readonly deployed?: boolean;
+  readonly deployed: boolean;
   readonly qualityDb?: number;
   readonly backend?: string;
   readonly clientHandle?: number;
@@ -113,6 +113,8 @@ export function createApdSnapshot(
         const upper = value.toUpperCase();
         if (APD_LIFECYCLE_STATES.has(upper)) {
           partial.state = upper as ApdLifecycleState;
+        } else {
+          logParseError("apd", key, value);
         }
         break;
       }
@@ -120,7 +122,7 @@ export function createApdSnapshot(
         partial.equalizerActive = false;
         break;
       case "ant":
-        partial.antenna = value || undefined;
+        partial.antenna = value;
         break;
       case "freq": {
         const parsed = parseFloatSafe(value);

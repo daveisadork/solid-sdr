@@ -204,7 +204,7 @@ export class PanadapterControllerImpl implements PanadapterController {
     return this.current().noiseFloorPositionEnabled;
   }
 
-  get noiseFloorRange(): number | undefined {
+  get noiseFloorRange(): number {
     return this.current().noiseFloorRange;
   }
 
@@ -405,8 +405,7 @@ export class PanadapterControllerImpl implements PanadapterController {
     if (!Number.isFinite(value)) {
       throw new RangeError(`Invalid noise floor range: ${value}`);
     }
-    const current = this.current().noiseFloorRange;
-    if (current !== undefined && Math.abs(current - value) < 0.05) return;
+    if (Math.abs(this.current().noiseFloorRange - value) < 0.05) return;
     const rounded = Math.round(value * 10) / 10 + 0;
     await this.sendSet({ noise_floor_range: rounded.toFixed(1) });
   }

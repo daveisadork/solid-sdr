@@ -684,71 +684,71 @@ export class SliceControllerImpl implements SliceController {
     return this.current().anftEnabled;
   }
 
-  get nrDelay(): number | undefined {
+  get nrDelay(): number {
     return this.current().nrDelay;
   }
 
-  get nrWlen(): number | undefined {
+  get nrWlen(): number {
     return this.current().nrWlen;
   }
 
-  get nrlFilterSize(): number | undefined {
+  get nrlFilterSize(): number {
     return this.current().nrlFilterSize;
   }
 
-  get nrlDelay(): number | undefined {
+  get nrlDelay(): number {
     return this.current().nrlDelay;
   }
 
-  get nrlLeakageLevel(): number | undefined {
+  get nrlLeakageLevel(): number {
     return this.current().nrlLeakageLevel;
   }
 
-  get nrfWlen(): number | undefined {
+  get nrfWlen(): number {
     return this.current().nrfWlen;
   }
 
-  get anfWlen(): number | undefined {
+  get anfWlen(): number {
     return this.current().anfWlen;
   }
 
-  get anfDelay(): number | undefined {
+  get anfDelay(): number {
     return this.current().anfDelay;
   }
 
-  get anflFilterSize(): number | undefined {
+  get anflFilterSize(): number {
     return this.current().anflFilterSize;
   }
 
-  get anflDelay(): number | undefined {
+  get anflDelay(): number {
     return this.current().anflDelay;
   }
 
-  get anflLeakageLevel(): number | undefined {
+  get anflLeakageLevel(): number {
     return this.current().anflLeakageLevel;
   }
 
-  get anftMinDb(): number | undefined {
+  get anftMinDb(): number {
     return this.current().anftMinDb;
   }
 
-  get anftToneDbDiff(): number | undefined {
+  get anftToneDbDiff(): number {
     return this.current().anftToneDbDiff;
   }
 
-  get nrAdaptMode(): SliceDspAdaptMode | undefined {
+  get nrAdaptMode(): SliceDspAdaptMode {
     return this.current().nrAdaptMode;
   }
 
-  get nrIsdftMode(): SliceDspIsdftMode | undefined {
+  get nrIsdftMode(): SliceDspIsdftMode {
     return this.current().nrIsdftMode;
   }
 
-  get anfAdaptMode(): SliceDspAdaptMode | undefined {
+  get anfAdaptMode(): SliceDspAdaptMode {
     return this.current().anfAdaptMode;
   }
 
-  get anfIsdftMode(): SliceDspIsdftMode | undefined {
+  get anfIsdftMode(): SliceDspIsdftMode {
     return this.current().anfIsdftMode;
   }
 

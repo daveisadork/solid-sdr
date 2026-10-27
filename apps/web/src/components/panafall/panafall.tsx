@@ -28,6 +28,7 @@ import MaterialSymbolsAddCommentOutlineRounded from "~icons/material-symbols/add
 import ArrowCollapseHorizontal from "~icons/mdi/arrow-collapse-horizontal";
 import ArrowExpandHorizontal from "~icons/mdi/arrow-expand-horizontal";
 import MdiFilterPlus from "~icons/mdi/filter-plus";
+import { LicenseGate } from "../license-gate";
 import { CreateProfileDialog } from "../settings/profile-settings";
 import { Button } from "../ui/button";
 import {
@@ -52,7 +53,6 @@ import { PanafallControl } from "./controls";
 import { Panadapter } from "./panadapter";
 import { Scale } from "./scale";
 import { Waterfall } from "./waterfall";
-import { LicenseGate } from "../license-gate";
 
 type PanafallButtonProps<T extends ValidComponent = "button"> = ComponentProps<
   typeof TooltipTrigger<T>

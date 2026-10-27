@@ -21,6 +21,7 @@ import {
   type PeakStyle,
   usePreferences,
 } from "../../context/preferences";
+import { LicenseGate } from "../license-gate";
 import { Button } from "../ui/button";
 import { Callout, CalloutContent, CalloutTitle } from "../ui/callout";
 import {
@@ -67,7 +68,6 @@ import {
 } from "../ui/text-field";
 import { showToast } from "../ui/toast";
 import { InfoItem } from "./common";
-import { LicenseGate } from "../license-gate";
 
 const LicenseInfo = () => {
   const [open, setOpen] = createSignal(false);

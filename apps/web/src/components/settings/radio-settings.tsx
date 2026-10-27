@@ -16,6 +16,7 @@ import CheckIcon from "~icons/material-symbols/check";
 import CloseIcon from "~icons/material-symbols/close";
 import Spinner from "~icons/svg-spinners/180-ring";
 import { usePreferences } from "../../context/preferences";
+import { LicenseGate } from "../license-gate";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import {
@@ -79,7 +80,6 @@ import {
 } from "../ui/text-field";
 import { showToastPromise } from "../ui/toast";
 import { InfoItem } from "./common";
-import { LicenseGate } from "../license-gate";
 
 const ipv4Regex =
   /^(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)){3}$/;

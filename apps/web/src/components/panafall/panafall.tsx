@@ -28,6 +28,7 @@ import MaterialSymbolsAddCommentOutlineRounded from "~icons/material-symbols/add
 import ArrowCollapseHorizontal from "~icons/mdi/arrow-collapse-horizontal";
 import ArrowExpandHorizontal from "~icons/mdi/arrow-expand-horizontal";
 import MdiFilterPlus from "~icons/mdi/filter-plus";
+import { LicenseGate } from "../license-gate";
 import { CreateProfileDialog } from "../settings/profile-settings";
 import { Button } from "../ui/button";
 import {
@@ -111,7 +112,7 @@ export function PanafallToggleButton(props: PanafallToggleButtonProps) {
 
 export function Panafall(props: { index: number }) {
   const { preferences, setPreferences } = usePreferences();
-  const { radio, state, isLicensed } = useFlexRadio();
+  const { radio, state } = useFlexRadio();
   const [clickRef, setClickRef] = createSignal<HTMLElement>();
   const [createProfile, setCreateProfile] = createSignal(false);
 
@@ -567,7 +568,7 @@ export function Panafall(props: { index: number }) {
                         >
                           Show Spots
                         </ContextMenuCheckboxItem>
-                        <Show when={isLicensed("PANADAPTER_VISUALS")}>
+                        <LicenseGate feature="PANADAPTER_VISUALS">
                           <ContextMenuCheckboxItem
                             checked={preferences.showDisplayMarkers}
                             onChange={(checked) => {
@@ -576,7 +577,7 @@ export function Panafall(props: { index: number }) {
                           >
                             Show Band Plan
                           </ContextMenuCheckboxItem>
-                        </Show>
+                        </LicenseGate>
                         <ContextMenuCheckboxItem
                           checked={preferences.showTxFilterInPan}
                           onChange={(checked) => {

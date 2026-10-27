@@ -752,7 +752,7 @@ export class SliceControllerImpl implements SliceController {
     return this.current().anfIsdftMode;
   }
 
-  get agcThresholdMode(): SliceAgcThresholdMode | undefined {
+  get agcThresholdMode(): SliceAgcThresholdMode {
     return this.current().agcThresholdMode;
   }
 

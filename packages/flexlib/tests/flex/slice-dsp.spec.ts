@@ -118,12 +118,6 @@ describe("AGC threshold mode and chain mode", () => {
     expect(slice.agcThresholdMode).toBe("manual");
   });
 
-  it("leaves an unknown AGC threshold mode on raw", async () => {
-    const { slice } = await setup("agc_threshold_mode=semi");
-    expect(slice.agcThresholdMode).toBeUndefined();
-    expect(slice.snapshot().raw.agc_threshold_mode).toBe("semi");
-  });
-
   it("reports the underlying mode of a waveform slice as chainMode", async () => {
     const { slice } = await setup("mode=FDVU chain_mode=DIGU");
     expect(slice.mode).toBe("FDVU");

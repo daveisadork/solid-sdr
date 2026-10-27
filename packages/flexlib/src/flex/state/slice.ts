@@ -112,8 +112,8 @@ export interface SliceSnapshot {
   readonly escPhaseShift: number;
   readonly agcMode: SliceAgcMode;
   readonly agcThreshold: number;
-  /** Wire: `agc_threshold_mode`. A value other than `auto` or `manual` stays on `raw`. */
-  readonly agcThresholdMode?: SliceAgcThresholdMode;
+  /** Wire: `agc_threshold_mode`. */
+  readonly agcThresholdMode: SliceAgcThresholdMode;
   /**
    * Base mode the radio runs for this slice. Same as `mode`, except for a
    * waveform mode, where it is the underlying mode (`FDVU` runs `DIGU`).
@@ -486,6 +486,8 @@ export function createSliceSnapshot(
       case "agc_threshold_mode":
         if (value === "auto" || value === "manual") {
           partial.agcThresholdMode = value;
+        } else {
+          logParseError("slice", key, value);
         }
         break;
       case "chain_mode":

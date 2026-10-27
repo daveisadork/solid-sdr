@@ -21,6 +21,7 @@ import {
   type PeakStyle,
   usePreferences,
 } from "../../context/preferences";
+import { LicenseGate } from "../license-gate";
 import { Button } from "../ui/button";
 import { Callout, CalloutContent, CalloutTitle } from "../ui/callout";
 import {
@@ -291,13 +292,15 @@ export function AppSettings() {
               }}
               label="Tuning Guide"
             />
-            <SimpleSwitch
-              checked={preferences.showDisplayMarkers}
-              onChange={(isChecked) => {
-                setPreferences("showDisplayMarkers", isChecked);
-              }}
-              label="Display Markers (Band Plan)"
-            />
+            <LicenseGate feature="PANADAPTER_VISUALS">
+              <SimpleSwitch
+                checked={preferences.showDisplayMarkers}
+                onChange={(isChecked) => {
+                  setPreferences("showDisplayMarkers", isChecked);
+                }}
+                label="Display Markers (Band Plan)"
+              />
+            </LicenseGate>
             <SimpleSwitch
               checked={preferences.showFps}
               onChange={(isChecked) => {

@@ -62,7 +62,7 @@ export type RadioPttSource =
   | "DVK"
   | "VOX";
 
-/** GPS fix quality. A value outside this set is left off the typed field and stays on `raw`. */
+/** GPS fix quality. */
 export type RadioGpsFix = "3D" | "2D" | "TIME_ONLY" | "NO_FIX";
 
 export type RadioCwIambicMode = "a" | "b" | "strict_b" | "bug";
@@ -177,7 +177,7 @@ export interface RadioSnapshot {
   readonly gpsSpeed?: string;
   readonly gpsFreqError?: string;
   readonly gpsStatus?: string;
-  /** GPS fix quality. Wire: `fix`. Unset when the radio sends a value this library does not know. */
+  /** GPS fix quality. Wire: `fix`. */
   readonly gpsFix?: RadioGpsFix;
   /** Software version the amplifier subsystem reports. Wire: `ha_api system`, key `version`. */
   readonly amplifierSoftwareVersion?: string;
@@ -1410,6 +1410,7 @@ function applyGpsStatusAttributes(
       case "fix": {
         const fix = GPS_FIX_BY_TOKEN[value.toUpperCase()];
         if (fix) partial.gpsFix = fix;
+        else logParseError("radio", key, value);
         break;
       }
       case "time":

@@ -10,9 +10,13 @@ import type {
 import type { Mutable } from "@repo/flexlib/flex/state/common";
 import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import { createStore } from "solid-js/store";
+import { Dynamic } from "solid-js/web";
 import useFlexRadio, { type FilterPresetState } from "~/context/flexradio";
+import CheckIcon from "~icons/material-symbols/check";
+import CloseIcon from "~icons/material-symbols/close";
 import Spinner from "~icons/svg-spinners/180-ring";
 import { usePreferences } from "../../context/preferences";
+import { LicenseGate } from "../license-gate";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import {
@@ -592,6 +596,39 @@ function RadioSettingsInner(props: { radio: Radio }) {
             label="Licensed Version"
             value={`v${state.status.featureLicense.highestMajorVersion}.x`}
           />
+          <Table class="overflow-auto shrink">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Feature</TableHead>
+                <TableHead>Reason</TableHead>
+                <TableHead />
+              </TableRow>
+            </TableHeader>
+
+            <TableBody>
+              <For each={Object.values(state.status.featureLicense.features)}>
+                {(feature) => {
+                  return (
+                    <TableRow>
+                      <TableCell>{feature.name.replaceAll("_", " ")}</TableCell>
+                      <TableCell>
+                        {feature.reason.replaceAll("_", " ")}
+                      </TableCell>
+                      <TableCell class="flex justify-end">
+                        <Dynamic
+                          classList={{
+                            "text-success-foreground": feature.enabled,
+                            "text-error-foreground": !feature.enabled,
+                          }}
+                          component={feature.enabled ? CheckIcon : CloseIcon}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  );
+                }}
+              </For>
+            </TableBody>
+          </Table>
         </CardContent>
         <CardFooter class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 items-stretch">
           <Button
@@ -1271,9 +1308,7 @@ function RadioSettingsInner(props: { radio: Radio }) {
         </CardContent>
       </Card>
 
-      <Show
-        when={state.status.featureLicense.features.FILTER_PRESET_CONF?.enabled}
-      >
+      <LicenseGate feature="FILTER_PRESET_CONF">
         <Card class="bg-transparent">
           <CardHeader>
             <CardTitle>Filter Presets</CardTitle>
@@ -1305,8 +1340,8 @@ function RadioSettingsInner(props: { radio: Radio }) {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
-                    <TableHead>Low Hz</TableHead>
-                    <TableHead>High Hz</TableHead>
+                    <TableHead class="text-right">Low Hz</TableHead>
+                    <TableHead class="text-right">High Hz</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1325,7 +1360,7 @@ function RadioSettingsInner(props: { radio: Radio }) {
                               <TextFieldPrimitive.Input size={4} class="px-1" />
                             </TextFieldPrimitive.Root>
                           </TableCell>
-                          <TableCell>
+                          <TableCell class="text-right">
                             <NumberFieldPrimitive.Root
                               rawValue={preset.filterLowHz}
                               onRawValueChange={(filterLowHz) =>
@@ -1345,7 +1380,7 @@ function RadioSettingsInner(props: { radio: Radio }) {
                               />
                             </NumberFieldPrimitive.Root>
                           </TableCell>
-                          <TableCell>
+                          <TableCell class="text-right">
                             <NumberFieldPrimitive.Root
                               rawValue={preset.filterHighHz}
                               onRawValueChange={(filterHighHz) =>
@@ -1401,7 +1436,7 @@ function RadioSettingsInner(props: { radio: Radio }) {
             </Button>
           </CardFooter>
         </Card>
-      </Show>
+      </LicenseGate>
       <Card class="bg-transparent">
         <CardHeader>
           <CardTitle>XVTR</CardTitle>

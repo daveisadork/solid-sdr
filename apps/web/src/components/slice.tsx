@@ -56,6 +56,7 @@ import MdiSettings from "~icons/mdi/settings";
 import MdiStop from "~icons/mdi/stop-circle-outline";
 import { FrequencyInput } from "./frequency-input";
 import { LevelMeter } from "./level-meter";
+import { LicenseGate } from "./license-gate";
 import { Button } from "./ui/button";
 import {
   NumberField,
@@ -539,8 +540,6 @@ const AudioControls = (props: {
   slice: SliceState;
   controller: SliceController;
 }) => {
-  const { isLicensed } = useFlexRadio();
-
   return (
     <Popover>
       <PopoverTrigger
@@ -630,6 +629,17 @@ const AudioControls = (props: {
             getValueLabel={(params) => `${params.values[0]}%`}
             label="AGC Threshold"
           />
+          <LicenseGate feature="AUTO_AGC_T">
+            <SimpleSwitch
+              checked={props.slice.agcThresholdMode === "auto"}
+              onChange={(isChecked) => {
+                props.controller.setAgcThresholdMode(
+                  isChecked ? "auto" : "manual",
+                );
+              }}
+              label="Auto AGC-T"
+            />
+          </LicenseGate>
           <Show
             when={
               !["DIGU", "DIGL", "CW", "RTTY", "FDVL", "FDVU"].includes(
@@ -662,7 +672,7 @@ const AudioControls = (props: {
             label="Diversity Reception"
           />
           <Show when={props.slice.diversityParent}>
-            <Show when={isLicensed("DIV_ESC")}>
+            <LicenseGate feature="DIV_ESC">
               <SimpleSwitch
                 checked={props.slice.escEnabled}
                 disabled={props.slice.diversityChild}
@@ -671,6 +681,8 @@ const AudioControls = (props: {
                 }}
                 label="Enhanced Signal Clarity (ESC)"
               />
+            </LicenseGate>
+            <LicenseGate feature="DIV_ESC">
               <SimpleSlider
                 disabled={!props.slice.escEnabled}
                 value={[props.slice.escGain]}
@@ -684,6 +696,8 @@ const AudioControls = (props: {
                 getValueLabel={(params) => `${params.values[0]}`}
                 label="ESC Gain"
               />
+            </LicenseGate>
+            <LicenseGate feature="DIV_ESC">
               <SimpleSlider
                 disabled={!props.slice.escEnabled}
                 minValue={0}
@@ -697,7 +711,7 @@ const AudioControls = (props: {
                 getValueLabel={(params) => `${params.values[0]}°`}
                 label="ESC Phase Shift"
               />
-            </Show>
+            </LicenseGate>
           </Show>
         </div>
       </PopoverContent>
@@ -903,36 +917,46 @@ const OptDspControls = (props: {
                   props.controller.setNrEnabled(isChecked);
                 }}
               />
-              <SliderToggle
-                disabled={!props.slice.nrsEnabled}
-                minValue={0}
-                maxValue={50}
-                value={[props.slice.nrsLevel]}
-                onChange={([value]) => {
-                  props.controller.setNrsLevel(value);
-                }}
-                getValueLabel={(params) => `${params.values[0]}%`}
-                label="Spectral Subtraction (NRS)"
-                switchChecked={props.slice.nrsEnabled}
-                onSwitchChange={(isChecked) => {
-                  props.controller.setNrsEnabled(isChecked);
-                }}
-              />
-              <SimpleSwitch
-                checked={props.slice.nrfEnabled}
-                onChange={(isChecked) => {
-                  props.controller.setNrfEnabled(isChecked);
-                }}
-                label="Noise Reduction Filter (NRF)"
-              />
+              <Show when={radio?.modelInfo?.platform === "big-bend"}>
+                <LicenseGate feature="NOISE_REDUCTION">
+                  <SliderToggle
+                    disabled={!props.slice.nrsEnabled}
+                    minValue={0}
+                    maxValue={50}
+                    value={[props.slice.nrsLevel]}
+                    onChange={([value]) => {
+                      props.controller.setNrsLevel(value);
+                    }}
+                    getValueLabel={(params) => `${params.values[0]}%`}
+                    label="Spectral Subtraction (NRS)"
+                    switchChecked={props.slice.nrsEnabled}
+                    onSwitchChange={(isChecked) => {
+                      props.controller.setNrsEnabled(isChecked);
+                    }}
+                  />
+                </LicenseGate>
+                <LicenseGate feature="NOISE_REDUCTION">
+                  <SimpleSwitch
+                    checked={props.slice.nrfEnabled}
+                    onChange={(isChecked) => {
+                      props.controller.setNrfEnabled(isChecked);
+                    }}
+                    label="Noise Reduction Filter (NRF)"
+                  />
+                </LicenseGate>
+              </Show>
               <Show when={props.slice.mode !== "CW"}>
-                <SimpleSwitch
-                  checked={props.slice.rnnEnabled}
-                  onChange={(isChecked) => {
-                    props.controller.setRnnEnabled(isChecked);
-                  }}
-                  label="AI Noise Reduction (RNN)"
-                />
+                <Show when={radio?.modelInfo?.platform === "big-bend"}>
+                  <LicenseGate feature="NOISE_REDUCTION">
+                    <SimpleSwitch
+                      checked={props.slice.rnnEnabled}
+                      onChange={(isChecked) => {
+                        props.controller.setRnnEnabled(isChecked);
+                      }}
+                      label="AI Noise Reduction (RNN)"
+                    />
+                  </LicenseGate>
+                </Show>
                 <SliderToggle
                   disabled={!props.slice.anfEnabled}
                   minValue={0}
@@ -948,13 +972,15 @@ const OptDspControls = (props: {
                     props.controller.setAnfEnabled(isChecked);
                   }}
                 />
-                <SimpleSwitch
-                  checked={props.slice.anftEnabled}
-                  onChange={(isChecked) => {
-                    props.controller.setAnftEnabled(isChecked);
-                  }}
-                  label=" FFT Auto Notch Filter (ANFT)"
-                />
+                <LicenseGate feature="NOISE_REDUCTION">
+                  <SimpleSwitch
+                    checked={props.slice.anftEnabled}
+                    onChange={(isChecked) => {
+                      props.controller.setAnftEnabled(isChecked);
+                    }}
+                    label=" FFT Auto Notch Filter (ANFT)"
+                  />
+                </LicenseGate>
               </Show>
               <Show when={props.slice.mode === "CW"}>
                 <SliderToggle
@@ -973,37 +999,41 @@ const OptDspControls = (props: {
                   }}
                 />
               </Show>
-              <SliderToggle
-                disabled={!props.slice.nrlEnabled}
-                minValue={0}
-                maxValue={100}
-                value={[props.slice.nrlLevel]}
-                onChange={([value]) => {
-                  props.controller.setNrlLevel(value);
-                }}
-                getValueLabel={(params) => `${params.values[0]}%`}
-                label="Legacy Noise Reduction (NRL)"
-                switchChecked={props.slice.nrlEnabled}
-                onSwitchChange={(isChecked) => {
-                  props.controller.setNrlEnabled(isChecked);
-                }}
-              />
-              <Show when={props.slice.mode !== "CW"}>
+              <LicenseGate feature="NOISE_REDUCTION">
                 <SliderToggle
-                  disabled={!props.slice.anflEnabled}
+                  disabled={!props.slice.nrlEnabled}
                   minValue={0}
                   maxValue={100}
-                  value={[props.slice.anflLevel]}
+                  value={[props.slice.nrlLevel]}
                   onChange={([value]) => {
-                    props.controller.setAnflLevel(value);
+                    props.controller.setNrlLevel(value);
                   }}
                   getValueLabel={(params) => `${params.values[0]}%`}
-                  label="Legacy Auto Notch Filter (ANFL)"
-                  switchChecked={props.slice.anflEnabled}
+                  label="Legacy Noise Reduction (NRL)"
+                  switchChecked={props.slice.nrlEnabled}
                   onSwitchChange={(isChecked) => {
-                    props.controller.setAnflEnabled(isChecked);
+                    props.controller.setNrlEnabled(isChecked);
                   }}
                 />
+              </LicenseGate>
+              <Show when={props.slice.mode !== "CW"}>
+                <LicenseGate feature="NOISE_REDUCTION">
+                  <SliderToggle
+                    disabled={!props.slice.anflEnabled}
+                    minValue={0}
+                    maxValue={100}
+                    value={[props.slice.anflLevel]}
+                    onChange={([value]) => {
+                      props.controller.setAnflLevel(value);
+                    }}
+                    getValueLabel={(params) => `${params.values[0]}%`}
+                    label="Legacy Auto Notch Filter (ANFL)"
+                    switchChecked={props.slice.anflEnabled}
+                    onSwitchChange={(isChecked) => {
+                      props.controller.setAnflEnabled(isChecked);
+                    }}
+                  />
+                </LicenseGate>
               </Show>
             </div>
           </PopoverContent>

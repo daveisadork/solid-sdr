@@ -10,7 +10,10 @@ import type {
 import type { Mutable } from "@repo/flexlib/flex/state/common";
 import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import { createStore } from "solid-js/store";
+import { Dynamic } from "solid-js/web";
 import useFlexRadio, { type FilterPresetState } from "~/context/flexradio";
+import CheckIcon from "~icons/material-symbols/check";
+import CloseIcon from "~icons/material-symbols/close";
 import Spinner from "~icons/svg-spinners/180-ring";
 import { usePreferences } from "../../context/preferences";
 import { Badge } from "../ui/badge";
@@ -592,6 +595,39 @@ function RadioSettingsInner(props: { radio: Radio }) {
             label="Licensed Version"
             value={`v${state.status.featureLicense.highestMajorVersion}.x`}
           />
+          <Table class="overflow-auto shrink">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Feature</TableHead>
+                <TableHead>Reason</TableHead>
+                <TableHead />
+              </TableRow>
+            </TableHeader>
+
+            <TableBody>
+              <For each={Object.values(state.status.featureLicense.features)}>
+                {(feature) => {
+                  return (
+                    <TableRow>
+                      <TableCell>{feature.name.replaceAll("_", " ")}</TableCell>
+                      <TableCell>
+                        {feature.reason.replaceAll("_", " ")}
+                      </TableCell>
+                      <TableCell class="flex justify-end">
+                        <Dynamic
+                          classList={{
+                            "text-success-foreground": feature.enabled,
+                            "text-error-foreground": !feature.enabled,
+                          }}
+                          component={feature.enabled ? CheckIcon : CloseIcon}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  );
+                }}
+              </For>
+            </TableBody>
+          </Table>
         </CardContent>
         <CardFooter class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 items-stretch">
           <Button

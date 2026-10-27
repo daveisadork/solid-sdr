@@ -20,6 +20,7 @@ import useFlexRadio, {
 import { usePanafall } from "~/context/panafall";
 import { usePreferences } from "~/context/preferences";
 import BaselineDisplaySettings from "~icons/ic/baseline-display-settings";
+import { LicenseGate } from "../license-gate";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
 import {
@@ -59,7 +60,6 @@ import { SimpleSwitch } from "../ui/simple-switch";
 import { SliderToggle } from "../ui/slider-toggle";
 import { showToast } from "../ui/toast";
 import { ToggleGroup, ToggleGroupItem } from "../ui/toggle-group";
-import { LicenseGate } from "../license-gate";
 
 export const BANDS: { id: string; label: string }[] = [
   { id: "160", label: "160m" },

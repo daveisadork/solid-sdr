@@ -59,7 +59,7 @@ export class MeterControllerImpl implements MeterController {
     return this.current().source;
   }
 
-  get sourceIndex(): number | undefined {
+  get sourceIndex(): number {
     return this.current().sourceIndex;
   }
 

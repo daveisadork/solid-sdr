@@ -93,18 +93,6 @@ describe("Meter controller", () => {
     expect(radio.meter("1")?.sourceIndex).toBe(0);
   });
 
-  it("treats a missing num as unset and ignores a later num once set", async () => {
-    const { radio, connection } = await createConnectedRadio();
-    connection.emitStatus("S1|meter 3.src=SLC#3.nam=LEVEL#");
-    expect(radio.meter("3")?.sourceIndex).toBeUndefined();
-
-    connection.emitStatus("S2|meter 3.num=0#");
-    expect(radio.meter("3")?.sourceIndex).toBe(0);
-
-    connection.emitStatus("S3|meter 3.num=4#");
-    expect(radio.meter("3")?.sourceIndex).toBe(0);
-  });
-
   it("scales raw meter samples using meter units", () => {
     // given/when various raw values with different unit types
     // then they are scaled correctly

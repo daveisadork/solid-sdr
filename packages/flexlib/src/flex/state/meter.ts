@@ -45,10 +45,8 @@ export interface MeterSnapshot {
   /**
    * What the meter measures, read according to `source`: a slice index for a
    * slice meter, or the 32-bit client handle for an amplifier or tuner meter.
-   * Unset until the radio reports it, because 0 is a valid slice index. The
-   * first value wins; a later `num` is ignored.
    */
-  readonly sourceIndex?: number;
+  readonly sourceIndex: number;
   readonly name: string;
   readonly description: string;
   readonly units: MeterUnits;
@@ -83,7 +81,6 @@ export function createMeterSnapshot(
         partial.source = value;
         break;
       case "num": {
-        if (previous?.sourceIndex !== undefined) break;
         const parsed = /^0x/i.test(value)
           ? parseIntegerHex(value)
           : parseInteger(value);

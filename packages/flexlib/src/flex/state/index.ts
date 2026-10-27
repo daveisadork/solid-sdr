@@ -1399,11 +1399,7 @@ export function createRadioStateStore(
    * slice has a meter with the same name.
    */
   function findSupersededMeters(id: string, meter: MeterSnapshot): string[] {
-    if (
-      meter.source.toUpperCase() !== AMPLIFIER_METER_SOURCE ||
-      meter.sourceIndex === undefined ||
-      !meter.name
-    ) {
+    if (meter.source.toUpperCase() !== AMPLIFIER_METER_SOURCE || !meter.name) {
       return [];
     }
     const superseded: string[] = [];

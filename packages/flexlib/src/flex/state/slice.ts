@@ -73,40 +73,40 @@ export interface SliceSnapshot {
   readonly rnnEnabled: boolean;
   readonly anftEnabled: boolean;
   readonly nrfEnabled: boolean;
-  /** Wire: `nr_delay`. Unset until the radio reports it. */
-  readonly nrDelay?: number;
+  /** Wire: `nr_delay`. */
+  readonly nrDelay: number;
   /** Wire: `nr_wlen`. */
-  readonly nrWlen?: number;
-  /** Wire: `nr_adapt_mode`. A value outside the known set stays on `raw`. */
-  readonly nrAdaptMode?: SliceDspAdaptMode;
-  /** Wire: `nr_isdft_mode`. A value outside the known set stays on `raw`. */
-  readonly nrIsdftMode?: SliceDspIsdftMode;
+  readonly nrWlen: number;
+  /** Wire: `nr_adapt_mode`. */
+  readonly nrAdaptMode: SliceDspAdaptMode;
+  /** Wire: `nr_isdft_mode`. */
+  readonly nrIsdftMode: SliceDspIsdftMode;
   /** Wire: `nrl_filter_size`. */
-  readonly nrlFilterSize?: number;
+  readonly nrlFilterSize: number;
   /** Wire: `nrl_delay`. */
-  readonly nrlDelay?: number;
+  readonly nrlDelay: number;
   /** Wire: `nrl_leakage_level`. */
-  readonly nrlLeakageLevel?: number;
+  readonly nrlLeakageLevel: number;
   /** Wire: `nrf_wlen`. */
-  readonly nrfWlen?: number;
+  readonly nrfWlen: number;
   /** Wire: `anf_wlen`. */
-  readonly anfWlen?: number;
+  readonly anfWlen: number;
   /** Wire: `anf_delay`. */
-  readonly anfDelay?: number;
-  /** Wire: `anf_adapt_mode`. A value outside the known set stays on `raw`. */
-  readonly anfAdaptMode?: SliceDspAdaptMode;
-  /** Wire: `anf_isdft_mode`. A value outside the known set stays on `raw`. */
-  readonly anfIsdftMode?: SliceDspIsdftMode;
+  readonly anfDelay: number;
+  /** Wire: `anf_adapt_mode`. */
+  readonly anfAdaptMode: SliceDspAdaptMode;
+  /** Wire: `anf_isdft_mode`. */
+  readonly anfIsdftMode: SliceDspIsdftMode;
   /** Wire: `anfl_filter_size`. */
-  readonly anflFilterSize?: number;
+  readonly anflFilterSize: number;
   /** Wire: `anfl_delay`. */
-  readonly anflDelay?: number;
+  readonly anflDelay: number;
   /** Wire: `anfl_leakage_level`. */
-  readonly anflLeakageLevel?: number;
+  readonly anflLeakageLevel: number;
   /** Wire: `anft_min_db`. */
-  readonly anftMinDb?: number;
+  readonly anftMinDb: number;
   /** Wire: `anft_tone_db_diff`. */
-  readonly anftToneDbDiff?: number;
+  readonly anftToneDbDiff: number;
   readonly escEnabled: boolean;
   readonly escGain: number;
   readonly escPhaseShift: number;
@@ -430,9 +430,11 @@ export function createSliceSnapshot(
         break;
       case "nr_adapt_mode":
         if (isAdaptMode(value)) partial.nrAdaptMode = value;
+        else logParseError("slice", key, value);
         break;
       case "nr_isdft_mode":
         if (isIsdftMode(value)) partial.nrIsdftMode = value;
+        else logParseError("slice", key, value);
         break;
       case "nrl_filter_size":
       case "lms_nr_taps":
@@ -457,9 +459,11 @@ export function createSliceSnapshot(
         break;
       case "anf_adapt_mode":
         if (isAdaptMode(value)) partial.anfAdaptMode = value;
+        else logParseError("slice", key, value);
         break;
       case "anf_isdft_mode":
         if (isIsdftMode(value)) partial.anfIsdftMode = value;
+        else logParseError("slice", key, value);
         break;
       case "anfl_filter_size":
       case "lms_anf_taps":

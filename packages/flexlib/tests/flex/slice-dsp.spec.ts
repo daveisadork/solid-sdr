@@ -33,13 +33,6 @@ describe("slice DSP parameters", () => {
     expect(slice.anftToneDbDiff).toBe(6);
   });
 
-  it("keeps an unknown adapt mode off the typed field", async () => {
-    const { slice } = await setup("nr_adapt_mode=2 nr_isdft_mode=1");
-    expect(slice.nrAdaptMode).toBeUndefined();
-    expect(slice.nrIsdftMode).toBeUndefined();
-    expect(slice.snapshot().raw.nr_adapt_mode).toBe("2");
-  });
-
   it("sends the command key, which differs from the status key", async () => {
     const { slice, connection } = await setup();
     await slice.setNrlFilterSize(600);

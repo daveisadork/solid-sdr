@@ -54,7 +54,7 @@ export class ApdControllerImpl implements ApdController {
     return this.current().configurable;
   }
 
-  get state(): ApdLifecycleState | undefined {
+  get state(): ApdLifecycleState {
     return this.current().state;
   }
 
@@ -66,19 +66,19 @@ export class ApdControllerImpl implements ApdController {
     return !this.current().equalizerActive;
   }
 
-  get antenna(): string | undefined {
+  get antenna(): string {
     return this.current().antenna;
   }
 
-  get frequencyMHz(): number | undefined {
+  get frequencyMHz(): number {
     return this.current().frequencyMHz;
   }
 
-  get rfPower(): number | undefined {
+  get rfPower(): number {
     return this.current().rfPower;
   }
 
-  get txErrorMilliHz(): number | undefined {
+  get txErrorMilliHz(): number {
     return this.current().txErrorMilliHz;
   }
 
@@ -100,6 +100,10 @@ export class ApdControllerImpl implements ApdController {
 
   get sampleIndex(): number | undefined {
     return this.current().sampleIndex;
+  }
+
+  get deployed(): boolean {
+    return this.current().deployed;
   }
 
   get availableSamplerPortsAnt1(): readonly string[] {

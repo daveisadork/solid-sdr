@@ -64,7 +64,7 @@ describe("APD controller", () => {
     expect(controller.selectedSamplerPortAnt1).toBe("XVTA");
   });
 
-  it("tracks the lifecycle state and ignores unknown values", async () => {
+  it("tracks the lifecycle state", async () => {
     const { radio, connection } = await createConnectedRadio();
     connection.emitStatus("S1|apd enable=1 state=TRAINING");
     expect(radio.apd().state).toBe("TRAINING");
@@ -72,9 +72,5 @@ describe("APD controller", () => {
     connection.emitStatus("S2|apd state=hold equalizer_active=1");
     expect(radio.apd().state).toBe("HOLD");
     expect(radio.apd().equalizerActive).toBe(true);
-
-    connection.emitStatus("S3|apd state=REBOOTING");
-    expect(radio.apd().state).toBe("HOLD");
-    expect(radio.apd().snapshot()?.raw.state).toBe("REBOOTING");
   });
 });

@@ -20,6 +20,7 @@ import useFlexRadio, {
 import { usePanafall } from "~/context/panafall";
 import { usePreferences } from "~/context/preferences";
 import BaselineDisplaySettings from "~icons/ic/baseline-display-settings";
+import { LicenseGate } from "../license-gate";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
 import {
@@ -249,23 +250,39 @@ function DisplaySettings(props: {
         }}
         label="Weighted Average"
       />
-      <SliderToggle
-        label="Noise Floor"
-        switchChecked={props.panadapter.noiseFloorPositionEnabled}
-        onSwitchChange={(isChecked) => {
-          props.panadapterController.setNoiseFloorPositionEnabled(isChecked);
-        }}
-        minValue={0}
-        maxValue={100}
-        value={[100 - props.panadapter.noiseFloorPosition]}
-        onChange={([value]) => {
-          const position = 100 - value;
-          if (position === props.panadapter.noiseFloorPosition) return;
-          props.panadapterController.setNoiseFloorPosition(position);
-        }}
-        getValueLabel={(params) => `${params.values[0]}%`}
-      />
 
+      <LicenseGate feature="NOISE_FLOOR">
+        <SliderToggle
+          label="Noise Floor Position"
+          switchChecked={props.panadapter.noiseFloorPositionEnabled}
+          onSwitchChange={(isChecked) => {
+            props.panadapterController.setNoiseFloorPositionEnabled(isChecked);
+          }}
+          minValue={0}
+          maxValue={100}
+          value={[100 - props.panadapter.noiseFloorPosition]}
+          onChange={([value]) => {
+            const position = 100 - value;
+            if (position === props.panadapter.noiseFloorPosition) return;
+            props.panadapterController.setNoiseFloorPosition(position);
+          }}
+          getValueLabel={(params) => `${params.values[0]}%`}
+        />
+      </LicenseGate>
+      <LicenseGate feature="NOISE_FLOOR">
+        <SimpleSlider
+          minValue={0}
+          maxValue={10}
+          step={0.5}
+          value={[props.panadapter.noiseFloorRange]}
+          onChange={([value]) => {
+            if (value === props.panadapter.noiseFloorRange) return;
+            props.panadapterController.setNoiseFloorRange(value);
+          }}
+          getValueLabel={(params) => `${params.values[0].toFixed(1)} dB`}
+          label="Noise Floor Range"
+        />
+      </LicenseGate>
       <SimpleSlider
         minValue={0}
         maxValue={100}

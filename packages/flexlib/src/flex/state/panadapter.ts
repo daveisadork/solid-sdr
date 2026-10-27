@@ -38,8 +38,8 @@ export interface PanadapterSnapshot {
   readonly wnbUpdating: boolean;
   readonly noiseFloorPosition: number;
   readonly noiseFloorPositionEnabled: boolean;
-  /** Noise-floor range in dB. Wire: `noise_floor_range`. Unset until the radio reports it. */
-  readonly noiseFloorRange?: number;
+  /** Noise-floor range in dB. Wire: `noise_floor_range`. */
+  readonly noiseFloorRange: number;
   readonly width: number;
   readonly height: number;
   readonly fps: number;

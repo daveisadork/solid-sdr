@@ -67,6 +67,7 @@ import {
 } from "../ui/text-field";
 import { showToast } from "../ui/toast";
 import { InfoItem } from "./common";
+import { LicenseGate } from "../license-gate";
 
 const LicenseInfo = () => {
   const [open, setOpen] = createSignal(false);
@@ -291,13 +292,15 @@ export function AppSettings() {
               }}
               label="Tuning Guide"
             />
-            <SimpleSwitch
-              checked={preferences.showDisplayMarkers}
-              onChange={(isChecked) => {
-                setPreferences("showDisplayMarkers", isChecked);
-              }}
-              label="Display Markers (Band Plan)"
-            />
+            <LicenseGate feature="PANADAPTER_VISUALS">
+              <SimpleSwitch
+                checked={preferences.showDisplayMarkers}
+                onChange={(isChecked) => {
+                  setPreferences("showDisplayMarkers", isChecked);
+                }}
+                label="Display Markers (Band Plan)"
+              />
+            </LicenseGate>
             <SimpleSwitch
               checked={preferences.showFps}
               onChange={(isChecked) => {

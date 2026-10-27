@@ -52,6 +52,7 @@ import { PanafallControl } from "./controls";
 import { Panadapter } from "./panadapter";
 import { Scale } from "./scale";
 import { Waterfall } from "./waterfall";
+import { LicenseGate } from "../license-gate";
 
 type PanafallButtonProps<T extends ValidComponent = "button"> = ComponentProps<
   typeof TooltipTrigger<T>
@@ -111,7 +112,7 @@ export function PanafallToggleButton(props: PanafallToggleButtonProps) {
 
 export function Panafall(props: { index: number }) {
   const { preferences, setPreferences } = usePreferences();
-  const { radio, state, isLicensed } = useFlexRadio();
+  const { radio, state } = useFlexRadio();
   const [clickRef, setClickRef] = createSignal<HTMLElement>();
   const [createProfile, setCreateProfile] = createSignal(false);
 
@@ -567,7 +568,7 @@ export function Panafall(props: { index: number }) {
                         >
                           Show Spots
                         </ContextMenuCheckboxItem>
-                        <Show when={isLicensed("PANADAPTER_VISUALS")}>
+                        <LicenseGate feature="PANADAPTER_VISUALS">
                           <ContextMenuCheckboxItem
                             checked={preferences.showDisplayMarkers}
                             onChange={(checked) => {
@@ -576,7 +577,7 @@ export function Panafall(props: { index: number }) {
                           >
                             Show Band Plan
                           </ContextMenuCheckboxItem>
-                        </Show>
+                        </LicenseGate>
                         <ContextMenuCheckboxItem
                           checked={preferences.showTxFilterInPan}
                           onChange={(checked) => {

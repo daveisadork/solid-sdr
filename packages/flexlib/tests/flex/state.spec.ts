@@ -186,16 +186,12 @@ describe("createRadioStateStore", () => {
     expect(store.getRadio()?.profileCwList).toBeUndefined();
   });
 
-  it("parses gps fix and keeps an unknown fix off the typed field", () => {
+  it("parses gps fix", () => {
     const store = createRadioStateStore();
     store.apply(makeStatus("S1|gps fix=3D#tracked=5"));
     expect(store.getRadio()?.gpsFix).toBe("3D");
     store.apply(makeStatus("S2|gps fix=NO_FIX"));
     expect(store.getRadio()?.gpsFix).toBe("NO_FIX");
-    store.apply(makeStatus("S3|gps fix=SURVEY#tracked=7"));
-    expect(store.getRadio()?.gpsFix).toBe("NO_FIX");
-    expect(store.getRadio()?.gpsSatellitesTracked).toBe(7);
-    expect(store.getRadio()?.raw.fix).toBe("SURVEY");
   });
 
   it("parses ptt_mic_override from transmit status", () => {

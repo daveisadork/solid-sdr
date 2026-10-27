@@ -79,6 +79,7 @@ import {
 } from "../ui/text-field";
 import { showToastPromise } from "../ui/toast";
 import { InfoItem } from "./common";
+import { LicenseGate } from "../license-gate";
 
 const ipv4Regex =
   /^(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)){3}$/;
@@ -1307,9 +1308,7 @@ function RadioSettingsInner(props: { radio: Radio }) {
         </CardContent>
       </Card>
 
-      <Show
-        when={state.status.featureLicense.features.FILTER_PRESET_CONF?.enabled}
-      >
+      <LicenseGate feature="FILTER_PRESET_CONF">
         <Card class="bg-transparent">
           <CardHeader>
             <CardTitle>Filter Presets</CardTitle>
@@ -1341,8 +1340,8 @@ function RadioSettingsInner(props: { radio: Radio }) {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
-                    <TableHead>Low Hz</TableHead>
-                    <TableHead>High Hz</TableHead>
+                    <TableHead class="text-right">Low Hz</TableHead>
+                    <TableHead class="text-right">High Hz</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1361,7 +1360,7 @@ function RadioSettingsInner(props: { radio: Radio }) {
                               <TextFieldPrimitive.Input size={4} class="px-1" />
                             </TextFieldPrimitive.Root>
                           </TableCell>
-                          <TableCell>
+                          <TableCell class="text-right">
                             <NumberFieldPrimitive.Root
                               rawValue={preset.filterLowHz}
                               onRawValueChange={(filterLowHz) =>
@@ -1381,7 +1380,7 @@ function RadioSettingsInner(props: { radio: Radio }) {
                               />
                             </NumberFieldPrimitive.Root>
                           </TableCell>
-                          <TableCell>
+                          <TableCell class="text-right">
                             <NumberFieldPrimitive.Root
                               rawValue={preset.filterHighHz}
                               onRawValueChange={(filterHighHz) =>
@@ -1437,7 +1436,7 @@ function RadioSettingsInner(props: { radio: Radio }) {
             </Button>
           </CardFooter>
         </Card>
-      </Show>
+      </LicenseGate>
       <Card class="bg-transparent">
         <CardHeader>
           <CardTitle>XVTR</CardTitle>

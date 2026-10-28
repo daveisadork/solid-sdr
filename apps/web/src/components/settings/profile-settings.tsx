@@ -36,16 +36,19 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { TextField, TextFieldInput, TextFieldLabel } from "../ui/text-field";
 
-const LABELS = {
+type ProfileKind = "global" | "mic" | "tx" | "cw";
+
+const TABS: Record<ProfileKind, string> = {
   global: "Global",
   mic: "Microphone",
   tx: "Transmit",
+  cw: "CW",
 };
 
 export function CreateProfileDialog(
   props: DialogPrimitive.DialogRootProps & {
     radio: Radio;
-    kind: "global" | "mic" | "tx";
+    kind: ProfileKind;
     children?: JSX.Element;
   },
 ) {
@@ -86,6 +89,7 @@ export function CreateProfileDialog(
               global: "saveGlobalProfile",
               tx: "createTxProfile",
               mic: "createMicProfile",
+              cw: "createCwProfile",
             } as const
           )[local.kind];
 
@@ -97,7 +101,7 @@ export function CreateProfileDialog(
         }}
       >
         <DialogHeader>
-          <DialogTitle>Create {LABELS[props.kind]} Profile</DialogTitle>
+          <DialogTitle>Create {TABS[props.kind]} Profile</DialogTitle>
         </DialogHeader>
         <TextField
           value={name()}
@@ -357,11 +361,91 @@ function MicProfiles(props: { radio: Radio }) {
   );
 }
 
+function CwProfiles(props: { radio: Radio }) {
+  const { state } = useFlexRadio();
+
+  return (
+    <Table class="whitespace-nowrap">
+      <TableHeader>
+        <TableRow>
+          <TableHead />
+          <TableHead class="w-full">Name</TableHead>
+          <TableHead>Actions</TableHead>
+        </TableRow>
+      </TableHeader>
+      <RadioGroup
+        as={TableBody}
+        value={state.status.radio.profileCwSelection}
+        onChange={(value) => props.radio.loadCwProfile(value)}
+      >
+        <For each={Array.from(state.status.radio.profileCwList)}>
+          {(profile) => {
+            return (
+              <RadioGroup.Item as={TableRow} value={profile}>
+                <TableCell>
+                  <RadioGroup.ItemInput />
+                  <RadioGroup.ItemControl class="aspect-square size-4 rounded-full border border-primary text-primary ring-offset-background focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
+                    <RadioGroup.ItemIndicator class="flex h-full items-center justify-center ">
+                      <svg
+                        aria-hidden="true"
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        class="size-2.5 fill-current text-current"
+                      >
+                        <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+                      </svg>
+                    </RadioGroup.ItemIndicator>
+                  </RadioGroup.ItemControl>
+                </TableCell>
+                <TableCell>{profile}</TableCell>
+                <TableCell class="flex justify-end gap-1">
+                  <ConfirmButton
+                    size="icon"
+                    title="Reset"
+                    message={`Reset CW profile "${profile}" to default settings?`}
+                    onConfirm={() => props.radio.resetCwProfile(profile)}
+                  >
+                    <MaterialSymbolsDeviceReset />
+                  </ConfirmButton>
+                  <ConfirmButton
+                    disabled={
+                      profile === state.status.radio.profileCwSelection &&
+                      !state.status.radio.profileUnsavedChangesCw
+                    }
+                    size="icon"
+                    title="Save"
+                    message={`Update CW profile "${profile}" with the current settings?`}
+                    onConfirm={() => props.radio.createCwProfile(profile)}
+                  >
+                    <MaterialSymbolsSave />
+                  </ConfirmButton>
+                  <ConfirmButton
+                    size="icon"
+                    variant="destructive"
+                    title="Delete"
+                    message={`Delete CW profile "${profile}"?`}
+                    onConfirm={() => props.radio.deleteCwProfile(profile)}
+                  >
+                    <MaterialSymbolsDelete />
+                  </ConfirmButton>
+                </TableCell>
+              </RadioGroup.Item>
+            );
+          }}
+        </For>
+      </RadioGroup>
+    </Table>
+  );
+}
+
 function ProfileSettingsInner(props: { radio: Radio }) {
   const { state } = useFlexRadio();
-  const [activeTab, setActiveTab] = createSignal<"global" | "mic" | "tx">(
-    "global",
-  );
+  const [activeTab, setActiveTab] = createSignal<ProfileKind>("global");
 
   return (
     <>
@@ -376,10 +460,12 @@ function ProfileSettingsInner(props: { radio: Radio }) {
           onChange={setActiveTab}
           class=" flex flex-col overflow-hidden"
         >
-          <TabsList class="grid w-fit grid-cols-3 m-auto">
-            <TabsTrigger value="global">Global</TabsTrigger>
-            <TabsTrigger value="tx">Transmit</TabsTrigger>
-            <TabsTrigger value="mic">Microphone</TabsTrigger>
+          <TabsList class="grid w-fit grid-cols-4 m-auto">
+            <For each={Object.entries(TABS)}>
+              {([value, label]) => (
+                <TabsTrigger value={value}>{label}</TabsTrigger>
+              )}
+            </For>
           </TabsList>
           <div class="shrink overflow-auto">
             <TabsContent value="global">
@@ -390,6 +476,9 @@ function ProfileSettingsInner(props: { radio: Radio }) {
             </TabsContent>
             <TabsContent value="mic">
               <MicProfiles radio={props.radio} />
+            </TabsContent>
+            <TabsContent value="cw">
+              <CwProfiles radio={props.radio} />
             </TabsContent>
           </div>
         </Tabs>

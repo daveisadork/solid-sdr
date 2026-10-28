@@ -31,6 +31,27 @@ stun:
 # nat-1to1-ips:
 #   - 203.0.113.2
 
+# STUN servers sent to web clients (default: Google + Cloudflare).
+# Set an empty list to send none.
+# client-stun:
+#   - stun:stun.l.google.com:19302
+#   - stun:stun.cloudflare.com:3478
+
+# TURN servers sent to web clients, for networks that block UDP.
+# The server makes short-lived credentials from turn-secret for each client.
+# See CONFIGURATION.md, section "Restrictive networks / TURN".
+# turn-urls:
+#   - turn:turn.example.com:3478?transport=udp
+#   - turn:turn.example.com:3478?transport=tcp
+#   - turns:turn.example.com:443?transport=tcp
+# turn-secret: CHANGE-THIS-SECRET
+
+# Lifetime of the generated TURN credentials
+# turn-ttl: 52h
+
+# ICE transport policy for web clients: all or relay (relay = TURN only, for tests)
+# ice-transport-policy: all
+
 # Path to write raw API message log (default: messages.txt — set empty to disable)
 # api-log-file: messages.txt
 

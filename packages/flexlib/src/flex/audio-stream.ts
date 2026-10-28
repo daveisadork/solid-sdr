@@ -129,67 +129,67 @@ export class AudioStreamControllerImpl implements AudioStreamController {
       ownHandle !== undefined && this.clientHandle === ownHandle;
   }
 
-  get slice() {
+  get slice(): AudioStreamSnapshot["slice"] {
     return this.current().slice;
   }
 
-  get type() {
+  get type(): AudioStreamSnapshot["type"] {
     return this.current().type;
   }
 
-  get compression() {
+  get compression(): AudioStreamSnapshot["compression"] {
     return this.current().compression;
   }
 
-  get clientHandle() {
+  get clientHandle(): AudioStreamSnapshot["clientHandle"] {
     return this.current().clientHandle;
   }
 
-  get ip() {
+  get ip(): AudioStreamSnapshot["ip"] {
     return this.current().ip;
   }
 
-  get radioAck() {
+  get radioAck(): AudioStreamSnapshot["radioAck"] {
     return this.current().radioAck;
   }
 
-  get daxChannel() {
+  get daxChannel(): AudioStreamSnapshot["daxChannel"] {
     return this.current().daxChannel;
   }
 
-  get daxIqChannel() {
+  get daxIqChannel(): AudioStreamSnapshot["daxIqChannel"] {
     return this.current().daxIqChannel;
   }
 
-  get daxIqRate() {
+  get daxIqRate(): AudioStreamSnapshot["daxIqRate"] {
     return this.current().daxIqRate;
   }
 
-  get active() {
+  get active(): AudioStreamSnapshot["active"] {
     return this.current().active;
   }
 
-  get pan() {
+  get pan(): AudioStreamSnapshot["pan"] {
     return this.current().pan;
   }
 
-  get endpointType() {
+  get endpointType(): AudioStreamSnapshot["endpointType"] {
     return this.current().endpointType;
   }
 
-  get clientGuiHandle() {
+  get clientGuiHandle(): AudioStreamSnapshot["clientGuiHandle"] {
     return this.current().clientGuiHandle;
   }
 
-  get payloadEndian() {
+  get payloadEndian(): AudioStreamSnapshot["payloadEndian"] {
     return this.current().payloadEndian;
   }
 
-  get streamId() {
+  get streamId(): AudioStreamSnapshot["streamId"] {
     return this.current().streamId;
   }
 
-  get tx() {
+  get tx(): AudioStreamSnapshot["tx"] {
     return this.current().tx;
   }
 
@@ -203,7 +203,7 @@ export class AudioStreamControllerImpl implements AudioStreamController {
     return snapshot;
   }
 
-  get sampleRateHz() {
+  get sampleRateHz(): AudioStreamSnapshot["sampleRateHz"] {
     return this.current().sampleRateHz;
   }
 

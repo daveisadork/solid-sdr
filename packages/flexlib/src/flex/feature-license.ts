@@ -40,47 +40,47 @@ export class FeatureLicenseControllerImpl implements FeatureLicenseController {
     return this.current();
   }
 
-  get radioId() {
+  get radioId(): FeatureLicenseSnapshot["radioId"] {
     return this.current().radioId;
   }
 
-  get issueDate() {
+  get issueDate(): FeatureLicenseSnapshot["issueDate"] {
     return this.current().issueDate;
   }
 
-  get lastRefreshDate() {
+  get lastRefreshDate(): FeatureLicenseSnapshot["lastRefreshDate"] {
     return this.current().lastRefreshDate;
   }
 
-  get highestMajorVersion() {
+  get highestMajorVersion(): FeatureLicenseSnapshot["highestMajorVersion"] {
     return this.current().highestMajorVersion;
   }
 
-  get region() {
+  get region(): FeatureLicenseSnapshot["region"] {
     return this.current().region;
   }
 
-  get features() {
+  get features(): FeatureLicenseSnapshot["features"] {
     return this.current().features;
   }
 
-  get subscriptions() {
+  get subscriptions(): FeatureLicenseSnapshot["subscriptions"] {
     return this.current().subscriptions;
   }
 
-  get smartSdrPlusActive() {
+  get smartSdrPlusActive(): FeatureLicenseSnapshot["smartSdrPlusActive"] {
     return this.current().smartSdrPlusActive;
   }
 
-  get smartSdrPlusEarlyAccessActive() {
+  get smartSdrPlusEarlyAccessActive(): FeatureLicenseSnapshot["smartSdrPlusEarlyAccessActive"] {
     return this.current().smartSdrPlusEarlyAccessActive;
   }
 
-  get smartSdrPlusExpiration() {
+  get smartSdrPlusExpiration(): FeatureLicenseSnapshot["smartSdrPlusExpiration"] {
     return this.current().smartSdrPlusExpiration;
   }
 
-  get smartSdrPlusEarlyAccessExpiration() {
+  get smartSdrPlusEarlyAccessExpiration(): FeatureLicenseSnapshot["smartSdrPlusEarlyAccessExpiration"] {
     return this.current().smartSdrPlusEarlyAccessExpiration;
   }
 

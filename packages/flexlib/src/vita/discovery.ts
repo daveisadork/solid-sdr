@@ -67,7 +67,7 @@ export class VitaDiscoveryPacket {
    * If you get discovery text as bytes from the wire (already padded),
    * this avoids a UTF-8 encode roundtrip when re-serializing.
    */
-  setPayloadFromBytes(bytes: Uint8Array) {
+  setPayloadFromBytes(bytes: Uint8Array): void {
     // Enforce 4-byte alignment: pad with spaces if needed
     const rem = bytes.length % 4;
     this._payloadBytes =

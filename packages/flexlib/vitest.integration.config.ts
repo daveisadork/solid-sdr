@@ -1,4 +1,4 @@
-import { defineConfig } from "vitest/config";
+import { defineConfig, type ViteUserConfig } from "vitest/config";
 
 /**
  * Integration test config — runs against a REAL radio.
@@ -13,7 +13,7 @@ import { defineConfig } from "vitest/config";
  *   FLEX_ALLOW_SHARED=1      run even when other clients are connected
  *   FLEX_CAPTURE_GUI=1       also capture a GUI-client handshake artifact
  */
-export default defineConfig({
+const config: ViteUserConfig = defineConfig({
   test: {
     include: ["tests/integration/**/*.itest.ts"],
     globalSetup: ["tests/integration/global-setup.ts"],
@@ -26,3 +26,5 @@ export default defineConfig({
     hookTimeout: 60_000,
   },
 });
+
+export default config;

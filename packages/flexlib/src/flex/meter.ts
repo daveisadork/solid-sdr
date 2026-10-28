@@ -55,35 +55,35 @@ export class MeterControllerImpl implements MeterController {
     return snapshot;
   }
 
-  get source(): string {
+  get source(): MeterSnapshot["source"] {
     return this.current().source;
   }
 
-  get sourceIndex(): number {
+  get sourceIndex(): MeterSnapshot["sourceIndex"] {
     return this.current().sourceIndex;
   }
 
-  get name(): string {
+  get name(): MeterSnapshot["name"] {
     return this.current().name;
   }
 
-  get description(): string {
+  get description(): MeterSnapshot["description"] {
     return this.current().description;
   }
 
-  get units(): MeterUnits {
+  get units(): MeterSnapshot["units"] {
     return this.current().units;
   }
 
-  get low(): number {
+  get low(): MeterSnapshot["low"] {
     return this.current().low;
   }
 
-  get high(): number {
+  get high(): MeterSnapshot["high"] {
     return this.current().high;
   }
 
-  get fps(): number {
+  get fps(): MeterSnapshot["fps"] {
     return this.current().fps;
   }
 

@@ -11,14 +11,14 @@ export class RadioNetworkDiagnosticsTracker {
   private updatedAt: number | null = null;
   private readonly lastPacketCountBySource = new Map<string, number>();
 
-  recordMeterPacket(packetCount: number, now = Date.now()): boolean {
+  recordMeterPacket(packetCount: number, now: number = Date.now()): boolean {
     return this.recordPacket("meter", packetCount, now);
   }
 
   recordStreamPacket(
     streamId: number,
     packetCount: number,
-    now = Date.now(),
+    now: number = Date.now(),
   ): boolean {
     return this.recordPacket(`stream:${streamId}`, packetCount, now);
   }

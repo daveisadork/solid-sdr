@@ -1082,73 +1082,73 @@ function EqSection() {
             <TabsTrigger value="tx">TX</TabsTrigger>
           </TabsList>
           <For each={Object.values(state.status.equalizer)}>
-            {(eq) => {
-              return (
-                <TabsContent value={eq.id} class="flex flex-col gap-3 py-2">
-                  <SimpleSwitch
-                    label={`Enable ${eq.id.toUpperCase()} Equalizer`}
-                    checked={eq.enabled}
-                    onChange={(isChecked) => {
-                      radio()?.equalizer(eq.id)?.setEnabled(isChecked);
-                    }}
-                  />
-                  <div class="grid w-full grid-cols-8 h-48 text-xs">
-                    <For each={Object.keys(eq.bands) as EqualizerBand[]}>
-                      {(band) => {
-                        return (
-                          <Slider
-                            orientation="vertical"
-                            minValue={-10}
-                            maxValue={10}
-                            value={[eq.bands[band]]}
-                            onChange={([value]) => {
-                              radio()?.equalizer(eq.id)?.setLevel(band, value);
-                            }}
-                            // getValueLabel={(params) => {
-                            //   return `${params.values[0]}dB`;
-                            // }}
-                            class="w-full space-y-2"
-                          >
-                            <SliderLabel>
-                              {band.replace("000", "k").replace("Hz", "")}
-                            </SliderLabel>
-                            <SliderTrack>
-                              <SliderFill
-                                style={{
-                                  bottom:
-                                    eq.bands[band] <= 0
-                                      ? `${50 + eq.bands[band] * 5}%`
-                                      : "50%",
-                                  top:
-                                    eq.bands[band] > 0
-                                      ? `${50 - eq.bands[band] * 5}%`
-                                      : "50%",
-                                }}
-                              />
-                              <SliderThumb />
-                            </SliderTrack>
-                            <SliderValueLabel />
-                          </Slider>
-                        );
-                      }}
-                    </For>
-                  </div>
-                  <Button
-                    onClick={() =>
-                      radio()
-                        ?.equalizer(eq.id)
-                        ?.setLevels(
+            {(eq) => (
+              <Show when={radio()?.equalizer(eq.id)}>
+                {(equalizer) => (
+                  <TabsContent value={eq.id} class="flex flex-col gap-3 py-2">
+                    <SimpleSwitch
+                      label={`Enable ${eq.id.toUpperCase()} Equalizer`}
+                      checked={eq.enabled}
+                      onChange={(isChecked) =>
+                        equalizer().setEnabled(isChecked)
+                      }
+                    />
+                    <div class="grid w-full grid-cols-8 h-48 text-xs">
+                      <For each={Object.keys(eq.bands) as EqualizerBand[]}>
+                        {(band) => {
+                          return (
+                            <Slider
+                              orientation="vertical"
+                              minValue={-10}
+                              maxValue={10}
+                              value={[eq.bands[band]]}
+                              onChange={([value]) =>
+                                equalizer().setBand(band, value)
+                              }
+                              // getValueLabel={(params) => {
+                              //   return `${params.values[0]}dB`;
+                              // }}
+                              class="w-full space-y-2"
+                            >
+                              <SliderLabel>
+                                {band.replace("000", "k").replace("Hz", "")}
+                              </SliderLabel>
+                              <SliderTrack>
+                                <SliderFill
+                                  style={{
+                                    bottom:
+                                      eq.bands[band] <= 0
+                                        ? `${50 + eq.bands[band] * 5}%`
+                                        : "50%",
+                                    top:
+                                      eq.bands[band] > 0
+                                        ? `${50 - eq.bands[band] * 5}%`
+                                        : "50%",
+                                  }}
+                                />
+                                <SliderThumb />
+                              </SliderTrack>
+                              <SliderValueLabel />
+                            </Slider>
+                          );
+                        }}
+                      </For>
+                    </div>
+                    <Button
+                      onClick={() =>
+                        equalizer().setBands(
                           Object.fromEntries(
                             Object.keys(eq.bands).map((band) => [band, 0]),
                           ),
                         )
-                    }
-                  >
-                    Reset to Flat
-                  </Button>
-                </TabsContent>
-              );
-            }}
+                      }
+                    >
+                      Reset to Flat
+                    </Button>
+                  </TabsContent>
+                )}
+              </Show>
+            )}
           </For>
         </Tabs>
       </AccordionContent>

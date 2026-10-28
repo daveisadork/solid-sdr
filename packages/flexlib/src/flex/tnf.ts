@@ -59,19 +59,19 @@ export class TnfControllerImpl implements TnfController {
     return this.current();
   }
 
-  get frequencyMHz(): number {
+  get frequencyMHz(): TnfSnapshot["frequencyMHz"] {
     return this.current().frequencyMHz;
   }
 
-  get depth(): number {
+  get depth(): TnfSnapshot["depth"] {
     return this.current().depth;
   }
 
-  get bandwidthMHz(): number {
+  get bandwidthMHz(): TnfSnapshot["bandwidthMHz"] {
     return this.current().bandwidthMHz;
   }
 
-  get permanent(): boolean {
+  get permanent(): TnfSnapshot["permanent"] {
     return this.current().permanent;
   }
 

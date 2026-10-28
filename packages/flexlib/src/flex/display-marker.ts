@@ -46,23 +46,23 @@ export class DisplayMarkerControllerImpl implements DisplayMarkerController {
     return this.current();
   }
 
-  get label(): string {
+  get label(): DisplayMarkerSnapshot["label"] {
     return this.current().label;
   }
 
-  get startFrequencyMHz(): number {
+  get startFrequencyMHz(): DisplayMarkerSnapshot["startFrequencyMHz"] {
     return this.current().startFrequencyMHz;
   }
 
-  get stopFrequencyMHz(): number {
+  get stopFrequencyMHz(): DisplayMarkerSnapshot["stopFrequencyMHz"] {
     return this.current().stopFrequencyMHz;
   }
 
-  get colorName(): string {
+  get colorName(): DisplayMarkerSnapshot["colorName"] {
     return this.current().colorName;
   }
 
-  get opacity(): number {
+  get opacity(): DisplayMarkerSnapshot["opacity"] {
     return this.current().opacity;
   }
 

@@ -4,7 +4,6 @@ import type { RadioSession } from "./radio-core.js";
 import type {
   NtpDirective,
   NtpSourceSnapshot,
-  NtpSourceState,
   NtpSourceStateChange,
 } from "./state/index.js";
 
@@ -123,39 +122,39 @@ export class NtpSourceControllerImpl implements NtpSourceController {
     return this.current();
   }
 
-  get address(): string {
+  get address(): NtpSourceSnapshot["address"] {
     return this.current().address;
   }
 
-  get directive() {
+  get directive(): NtpSourceSnapshot["directive"] {
     return this.current().directive;
   }
 
-  get description(): string {
+  get description(): NtpSourceSnapshot["description"] {
     return this.current().description;
   }
 
-  get prefer(): boolean {
+  get prefer(): NtpSourceSnapshot["prefer"] {
     return this.current().prefer;
   }
 
-  get selected(): boolean {
+  get selected(): NtpSourceSnapshot["selected"] {
     return this.current().selected;
   }
 
-  get enabled(): boolean {
+  get enabled(): NtpSourceSnapshot["enabled"] {
     return this.current().enabled;
   }
 
-  get state(): NtpSourceState {
+  get state(): NtpSourceSnapshot["state"] {
     return this.current().state;
   }
 
-  get stratum(): number {
+  get stratum(): NtpSourceSnapshot["stratum"] {
     return this.current().stratum;
   }
 
-  get reachability(): number {
+  get reachability(): NtpSourceSnapshot["reachability"] {
     return this.current().reachability;
   }
 

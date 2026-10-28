@@ -39,23 +39,23 @@ export class WaveformControllerImpl implements WaveformController {
     return this.current();
   }
 
-  get name(): string {
+  get name(): WaveformSnapshot["name"] {
     return this.current().name;
   }
 
-  get version(): string {
+  get version(): WaveformSnapshot["version"] {
     return this.current().version;
   }
 
-  get isContainer(): boolean {
+  get isContainer(): WaveformSnapshot["isContainer"] {
     return this.current().isContainer;
   }
 
-  get displayName(): string {
+  get displayName(): WaveformSnapshot["displayName"] {
     return this.current().displayName;
   }
 
-  get env(): Readonly<Record<string, string>> {
+  get env(): WaveformSnapshot["env"] {
     return this.current().env;
   }
 

@@ -75,23 +75,23 @@ export class FilterPresetControllerImpl implements FilterPresetController {
     return this.current();
   }
 
-  get ssb(): readonly FilterPresetEntry[] {
+  get ssb(): FilterPresetSnapshot["ssb"] {
     return this.current().ssb;
   }
 
-  get cw(): readonly FilterPresetEntry[] {
+  get cw(): FilterPresetSnapshot["cw"] {
     return this.current().cw;
   }
 
-  get am(): readonly FilterPresetEntry[] {
+  get am(): FilterPresetSnapshot["am"] {
     return this.current().am;
   }
 
-  get digital(): readonly FilterPresetEntry[] {
+  get digital(): FilterPresetSnapshot["digital"] {
     return this.current().digital;
   }
 
-  get rtty(): readonly FilterPresetEntry[] {
+  get rtty(): FilterPresetSnapshot["rtty"] {
     return this.current().rtty;
   }
 

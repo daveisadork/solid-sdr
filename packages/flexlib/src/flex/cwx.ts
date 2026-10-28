@@ -135,27 +135,27 @@ export class CwxControllerImpl implements CwxController {
     return this.current();
   }
 
-  get delay(): number {
+  get delay(): CwxSnapshot["delay"] {
     return this.current().delay;
   }
 
-  get speed(): number {
+  get speed(): CwxSnapshot["speed"] {
     return this.current().speed;
   }
 
-  get qskEnabled(): boolean {
+  get qskEnabled(): CwxSnapshot["qskEnabled"] {
     return this.current().qskEnabled;
   }
 
-  get daxSidetoneEnabled(): boolean {
+  get daxSidetoneEnabled(): CwxSnapshot["daxSidetoneEnabled"] {
     return this.current().daxSidetoneEnabled;
   }
 
-  get mfSidetoneEnabled(): boolean {
+  get mfSidetoneEnabled(): CwxSnapshot["mfSidetoneEnabled"] {
     return this.current().mfSidetoneEnabled;
   }
 
-  get macros(): readonly string[] {
+  get macros(): CwxSnapshot["macros"] {
     return this.current().macros;
   }
 

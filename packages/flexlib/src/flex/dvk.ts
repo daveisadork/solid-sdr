@@ -6,11 +6,7 @@ import {
 } from "./errors.js";
 import type { FileUpload } from "./file-transfer.js";
 import type { RadioSession } from "./radio-core.js";
-import type {
-  DvkRecording,
-  DvkSnapshot,
-  DvkStateChange,
-} from "./state/index.js";
+import type { DvkSnapshot, DvkStateChange } from "./state/index.js";
 
 /** Events emitted by a {@link DvkController}. */
 export interface DvkControllerEvents {
@@ -165,19 +161,19 @@ export class DvkControllerImpl implements DvkController {
     return this.current();
   }
 
-  get status() {
+  get status(): DvkSnapshot["status"] {
     return this.current().status;
   }
 
-  get enabled(): boolean {
+  get enabled(): DvkSnapshot["enabled"] {
     return this.current().enabled;
   }
 
-  get statusRecordingId(): string | undefined {
+  get statusRecordingId(): DvkSnapshot["statusRecordingId"] {
     return this.current().statusRecordingId;
   }
 
-  get recordings(): readonly DvkRecording[] {
+  get recordings(): DvkSnapshot["recordings"] {
     return this.current().recordings;
   }
 

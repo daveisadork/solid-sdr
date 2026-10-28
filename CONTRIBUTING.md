@@ -38,12 +38,12 @@ so it must run on the same LAN — SmartLink is not supported.
 
 ## Repository layout
 
-| Path | What it is |
-|------|------------|
-| `apps/web` | SolidJS web client (Vite) |
-| `apps/server` | Go server — HTTP/WebSocket/WebRTC bridge between browser and radio |
-| `packages/flexlib` | TypeScript FlexRadio protocol library |
-| `packages/tailwind-config` | Shared Tailwind styles |
+| Path                       | What it is                                                         |
+| -------------------------- | ------------------------------------------------------------------ |
+| `apps/web`                 | SolidJS web client (Vite)                                          |
+| `apps/server`              | Go server — HTTP/WebSocket/WebRTC bridge between browser and radio |
+| `packages/flexlib`         | TypeScript FlexRadio protocol library                              |
+| `packages/tailwind-config` | Shared Tailwind styles                                             |
 
 The web app consumes `@repo/flexlib` directly from source (aliased in
 `vite.config.ts` and `tsconfig.json`), so no package build step is needed

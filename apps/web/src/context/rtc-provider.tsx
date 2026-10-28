@@ -11,6 +11,11 @@ import {
   type ParentComponent,
 } from "solid-js";
 import { createStore } from "solid-js/store";
+import {
+  applyRelayOverride,
+  DEFAULT_RTC_CONFIG,
+  rtcConfigFromPayload,
+} from "~/lib/rtc-config";
 import { APP_VERSION } from "~/lib/version";
 import { RtcCtx, type RtcState } from "./rtc";
 
@@ -20,7 +25,14 @@ type SignalingMessage =
   | { type: "error"; payload: { code: string; message: string } }
   | { type: "ping"; payload: null }
   | { type: "pong"; payload: null }
-  | { type: "version"; payload: { version: string } };
+  | { type: "version"; payload: { version: string } }
+  | {
+      type: "config";
+      payload: {
+        iceServers: RTCIceServer[];
+        iceTransportPolicy?: RTCIceTransportPolicy;
+      };
+    };
 
 export const RtcProvider: ParentComponent = (props) => {
   const [rtcState, setRtcState] = createStore<RtcState>({
@@ -32,6 +44,7 @@ export const RtcProvider: ParentComponent = (props) => {
   const [peerConnection, setPeerConnection] =
     createSignal<RTCPeerConnection | null>(null);
   const [serverVersion, setServerVersion] = createSignal<string | null>(null);
+  const [rtcConfig, setRtcConfig] = createSignal<RTCConfiguration | null>(null);
   const [audioTransceiver, setAudioTransceiver] =
     createSignal<RTCRtpTransceiver | null>(null);
   const [remoteAudioRxStream, setRemoteAudioRxStream] =
@@ -117,6 +130,12 @@ export const RtcProvider: ParentComponent = (props) => {
       }
       case "version": {
         setServerVersion(payload.version);
+        // An older server sends no "config" before "version".
+        if (rtcConfig() === null) setRtcConfig(DEFAULT_RTC_CONFIG);
+        break;
+      }
+      case "config": {
+        setRtcConfig(rtcConfigFromPayload(payload));
         break;
       }
     }
@@ -157,17 +176,16 @@ export const RtcProvider: ParentComponent = (props) => {
       if (signalingWsState() !== WebSocket.OPEN) {
         setPeerConnection(null);
         setServerVersion(null);
+        setRtcConfig(null);
         return;
       }
 
-      const pc = new RTCPeerConnection({
-        iceServers: [
-          { urls: "stun:stun.l.google.com:19302" },
-          { urls: "stun:stun1.l.google.com:19302" },
-          { urls: "stun:stun2.l.google.com:19302" },
-          { urls: "stun:stun.cloudflare.com:3478" },
-        ],
-      });
+      const config = rtcConfig();
+      if (!config) return;
+
+      const pc = new RTCPeerConnection(
+        applyRelayOverride(config, window.location.search),
+      );
 
       onRtcStateChange.apply(pc);
       pc.addEventListener("negotiationneeded", onNegotiationNeeded);

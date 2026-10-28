@@ -174,7 +174,7 @@ function cycleListValue<T>(
 ): T | undefined {
   if (values.length === 0) return undefined;
   const currentIndex = values.indexOf(current);
-  const startIndex = currentIndex >= 0 ? currentIndex : 0;
+  const startIndex = Math.max(currentIndex, 0);
   const nextIndex =
     (((startIndex + delta) % values.length) + values.length) % values.length;
   return values[nextIndex];

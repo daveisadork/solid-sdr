@@ -7,7 +7,14 @@
     "defaultBranch": "main"
   },
   "files": {
-    "includes": ["**", "!**/dist", "!**/node_modules", "!**/.turbo"]
+    "includes": [
+      "**",
+      "!pnpm-lock.yaml",
+      "!!**/dist",
+      "!!**/dev-dist",
+      "!!**/node_modules",
+      "!**/.turbo"
+    ]
   },
   "formatter": {
     "enabled": true,

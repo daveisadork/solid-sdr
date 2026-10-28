@@ -734,6 +734,7 @@ function MicSection() {
 
 function CwSection() {
   const { state, radio } = useFlexRadio();
+  const [createProfile, setCreateProfile] = createSignal(false);
 
   const [rawPitch, setRawPitch] = createSignal(state.status.radio.cwPitchHz);
   const [rawDelay, setRawDelay] = createSignal(
@@ -784,6 +785,91 @@ function CwSection() {
 
   return (
     <div class="flex flex-col gap-3">
+      <Show when={radio()}>
+        {(radio) => (
+          <CreateProfileDialog
+            open={createProfile()}
+            onOpenChange={setCreateProfile}
+            radio={radio()}
+            kind="cw"
+          />
+        )}
+      </Show>
+      <Select
+        class="flex flex-col gap-2 select-none relative"
+        value={state.status.radio.profileCwSelection}
+        onChange={(value) => {
+          if (!value || value === state.status.radio.profileCwSelection) return;
+          radio()?.loadCwProfile(value);
+        }}
+        options={Array.from(state.status.radio.profileCwList)}
+        itemComponent={(props) => {
+          return (
+            <SelectItem item={props.item}>{props.item.rawValue}</SelectItem>
+          );
+        }}
+      >
+        <SelectLabel>CW Profile</SelectLabel>
+        <SelectTrigger class="w-auto mr-12">
+          <SelectValue<string> class="overflow-hidden">
+            {({ selectedOption }) => (
+              <div class="flex gap-3 items-center">
+                <Show when={state.status.radio.profileUnsavedChangesCw}>
+                  <div class="rounded-full size-2 bg-warning-foreground shrink-0" />
+                </Show>
+                <div class="truncate">{selectedOption()}</div>
+              </div>
+            )}
+          </SelectValue>
+        </SelectTrigger>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            as={Button<"button">}
+            size="icon"
+            variant="outline"
+            class="absolute right-0 bottom-0 data-expanded:bg-input"
+          >
+            <MaterialSymbolsMoreVert />
+          </DropdownMenuTrigger>
+
+          <DropdownMenuContent>
+            <DropdownMenuItem
+              disabled={
+                !state.status.radio.profileCwSelection ||
+                !state.status.radio.profileUnsavedChangesCw
+              }
+              onSelect={() => {
+                const profile = state.status.radio.profileCwSelection;
+                if (profile) radio()?.createCwProfile(profile);
+              }}
+            >
+              Save
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setCreateProfile(true)}>
+              Save As...
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={!state.status.radio.profileCwSelection}
+              onSelect={() => {
+                const profile = state.status.radio.profileCwSelection;
+                if (profile) radio()?.resetCwProfile(profile);
+              }}
+            >
+              Reset
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={!state.status.radio.profileCwSelection}
+              onSelect={() => {
+                const profile = state.status.radio.profileCwSelection;
+                if (profile) radio()?.deleteCwProfile(profile);
+              }}
+            >
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <SelectContent />
+      </Select>
       <SliderToggle
         label="Break-in"
         switchChecked={state.status.radio.cwBreakIn}

@@ -24,6 +24,7 @@ const (
 	typePing               = "ping"
 	typePong               = "pong"
 	typeVersion            = "version"
+	typeConfig             = "config"
 )
 
 type message struct {
@@ -38,6 +39,18 @@ type errorPayload struct {
 
 type versionPayload struct {
 	Version string `json:"version"`
+}
+
+// Use own types and not webrtc.ICEServer. The pion type also adds fields that the browser does not use.
+type iceServerPayload struct {
+	URLs       []string `json:"urls"`
+	Username   string   `json:"username,omitempty"`
+	Credential string   `json:"credential,omitempty"`
+}
+
+type configPayload struct {
+	ICEServers         []iceServerPayload `json:"iceServers"`
+	ICETransportPolicy string             `json:"iceTransportPolicy"`
 }
 
 func encode(msgType string, payload any) (message, error) {

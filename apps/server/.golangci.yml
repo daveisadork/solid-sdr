@@ -19,6 +19,9 @@ linters:
     - gomodguard
     - depguard
     - exhaustruct
+    # Successor to exhaustruct (default:all enables it); disabled for the same
+    # reason as the original.
+    - exhaustruct_v5
     - mnd
     - nonamedreturns
     - varnamelen

@@ -128,175 +128,175 @@ export class PanadapterControllerImpl implements PanadapterController {
     return snapshot;
   }
 
-  get streamId(): string {
+  get streamId(): PanadapterSnapshot["streamId"] {
     return this.current().streamId;
   }
 
-  get band(): string {
+  get band(): PanadapterSnapshot["band"] {
     return this.current().band;
   }
 
-  get centerFrequencyMHz(): number {
+  get centerFrequencyMHz(): PanadapterSnapshot["centerFrequencyMHz"] {
     return this.current().centerFrequencyMHz;
   }
 
-  get bandwidthMHz(): number {
+  get bandwidthMHz(): PanadapterSnapshot["bandwidthMHz"] {
     return this.current().bandwidthMHz;
   }
 
-  get autoCenterEnabled(): boolean {
+  get autoCenterEnabled(): PanadapterSnapshot["autoCenterEnabled"] {
     return this.current().autoCenterEnabled;
   }
 
-  get minBandwidthMHz(): number {
+  get minBandwidthMHz(): PanadapterSnapshot["minBandwidthMHz"] {
     return this.current().minBandwidthMHz;
   }
 
-  get maxBandwidthMHz(): number {
+  get maxBandwidthMHz(): PanadapterSnapshot["maxBandwidthMHz"] {
     return this.current().maxBandwidthMHz;
   }
 
-  get lowDbm(): number {
+  get lowDbm(): PanadapterSnapshot["lowDbm"] {
     return this.current().lowDbm;
   }
 
-  get highDbm(): number {
+  get highDbm(): PanadapterSnapshot["highDbm"] {
     return this.current().highDbm;
   }
 
-  get fps(): number {
+  get fps(): PanadapterSnapshot["fps"] {
     return this.current().fps;
   }
 
-  get average(): number {
+  get average(): PanadapterSnapshot["average"] {
     return this.current().average;
   }
 
-  get weightedAverage(): boolean {
+  get weightedAverage(): PanadapterSnapshot["weightedAverage"] {
     return this.current().weightedAverage;
   }
 
-  get isBandZoomOn(): boolean {
+  get isBandZoomOn(): PanadapterSnapshot["isBandZoomOn"] {
     return this.current().isBandZoomOn;
   }
 
-  get isSegmentZoomOn(): boolean {
+  get isSegmentZoomOn(): PanadapterSnapshot["isSegmentZoomOn"] {
     return this.current().isSegmentZoomOn;
   }
 
-  get wnbEnabled(): boolean {
+  get wnbEnabled(): PanadapterSnapshot["wnbEnabled"] {
     return this.current().wnbEnabled;
   }
 
-  get wnbLevel(): number {
+  get wnbLevel(): PanadapterSnapshot["wnbLevel"] {
     return this.current().wnbLevel;
   }
 
-  get wnbUpdating(): boolean {
+  get wnbUpdating(): PanadapterSnapshot["wnbUpdating"] {
     return this.current().wnbUpdating;
   }
 
-  get noiseFloorPosition(): number {
+  get noiseFloorPosition(): PanadapterSnapshot["noiseFloorPosition"] {
     return this.current().noiseFloorPosition;
   }
 
-  get noiseFloorPositionEnabled(): boolean {
+  get noiseFloorPositionEnabled(): PanadapterSnapshot["noiseFloorPositionEnabled"] {
     return this.current().noiseFloorPositionEnabled;
   }
 
-  get noiseFloorRange(): number {
+  get noiseFloorRange(): PanadapterSnapshot["noiseFloorRange"] {
     return this.current().noiseFloorRange;
   }
 
-  get rxAntenna(): string {
+  get rxAntenna(): PanadapterSnapshot["rxAntenna"] {
     return this.current().rxAntenna;
   }
 
-  get rfGain(): number {
+  get rfGain(): PanadapterSnapshot["rfGain"] {
     return this.current().rfGain;
   }
 
-  get rfGainLow(): number {
+  get rfGainLow(): PanadapterSnapshot["rfGainLow"] {
     return this.current().rfGainLow;
   }
 
-  get rfGainHigh(): number {
+  get rfGainHigh(): PanadapterSnapshot["rfGainHigh"] {
     return this.current().rfGainHigh;
   }
 
-  get rfGainStep(): number {
+  get rfGainStep(): PanadapterSnapshot["rfGainStep"] {
     return this.current().rfGainStep;
   }
 
-  get rfGainMarkers(): readonly number[] {
+  get rfGainMarkers(): PanadapterSnapshot["rfGainMarkers"] {
     return this.current().rfGainMarkers;
   }
 
-  get daxIqChannel(): number {
+  get daxIqChannel(): PanadapterSnapshot["daxIqChannel"] {
     return this.current().daxIqChannel;
   }
 
-  get daxIqRate(): number {
+  get daxIqRate(): PanadapterSnapshot["daxIqRate"] {
     return this.current().daxIqRate;
   }
 
-  get width(): number {
+  get width(): PanadapterSnapshot["width"] {
     return this.current().width;
   }
 
-  get height(): number {
+  get height(): PanadapterSnapshot["height"] {
     return this.current().height;
   }
 
-  get rxAntennas(): readonly string[] {
+  get rxAntennas(): PanadapterSnapshot["rxAntennas"] {
     return this.current().rxAntennas;
   }
 
-  get loopAEnabled(): boolean {
+  get loopAEnabled(): PanadapterSnapshot["loopAEnabled"] {
     return this.current().loopAEnabled;
   }
 
-  get loopBEnabled(): boolean {
+  get loopBEnabled(): PanadapterSnapshot["loopBEnabled"] {
     return this.current().loopBEnabled;
   }
 
-  get wideEnabled(): boolean {
+  get wideEnabled(): PanadapterSnapshot["wideEnabled"] {
     return this.current().wideEnabled;
   }
 
-  get loggerDisplayEnabled(): boolean {
+  get loggerDisplayEnabled(): PanadapterSnapshot["loggerDisplayEnabled"] {
     return this.current().loggerDisplayEnabled;
   }
 
-  get loggerDisplayAddress(): string {
+  get loggerDisplayAddress(): PanadapterSnapshot["loggerDisplayAddress"] {
     return this.current().loggerDisplayAddress;
   }
 
-  get loggerDisplayPort(): number {
+  get loggerDisplayPort(): PanadapterSnapshot["loggerDisplayPort"] {
     return this.current().loggerDisplayPort;
   }
 
-  get loggerDisplayRadioNum(): number {
+  get loggerDisplayRadioNum(): PanadapterSnapshot["loggerDisplayRadioNum"] {
     return this.current().loggerDisplayRadioNum;
   }
 
-  get waterfallStreamId(): string {
+  get waterfallStreamId(): PanadapterSnapshot["waterfallStreamId"] {
     return this.current().waterfallStreamId;
   }
 
-  get attachedSlices(): readonly string[] {
+  get attachedSlices(): PanadapterSnapshot["attachedSlices"] {
     return this.current().attachedSlices;
   }
 
-  get clientHandle(): number {
+  get clientHandle(): PanadapterSnapshot["clientHandle"] {
     return this.current().clientHandle;
   }
 
-  get xvtr(): string {
+  get xvtr(): PanadapterSnapshot["xvtr"] {
     return this.current().xvtr;
   }
 
-  get preampSetting(): string {
+  get preampSetting(): PanadapterSnapshot["preampSetting"] {
     return this.current().preampSetting;
   }
 

@@ -8,10 +8,7 @@ import {
 import { FlexStateUnavailableError } from "./errors.js";
 import type { RadioSession, StreamPacketHandler } from "./radio-core.js";
 import type { WaterfallSnapshot, WaterfallStateChange } from "./state/index.js";
-import {
-  clampLineSpeed,
-  lineSpeedToDurationMs,
-} from "./waterfall-line-speed.js";
+import { clampLineSpeed } from "./waterfall-line-speed.js";
 
 export interface WaterfallControllerEvents {
   readonly change: WaterfallStateChange;
@@ -62,131 +59,131 @@ export class WaterfallControllerImpl implements WaterfallController {
     return snapshot;
   }
 
-  get streamId(): string {
+  get streamId(): WaterfallSnapshot["streamId"] {
     return this.current().streamId;
   }
 
-  get panadapterStreamId(): string {
+  get panadapterStreamId(): WaterfallSnapshot["panadapterStreamId"] {
     return this.current().panadapterStreamId;
   }
 
-  get width(): number {
+  get width(): WaterfallSnapshot["width"] {
     return this.current().width;
   }
 
-  get height(): number {
+  get height(): WaterfallSnapshot["height"] {
     return this.current().height;
   }
 
-  get lineSpeed(): number {
+  get lineSpeed(): WaterfallSnapshot["lineSpeed"] {
     return this.current().lineSpeed;
   }
 
-  get lineDurationMs(): number {
-    return lineSpeedToDurationMs(this.current().lineSpeed);
+  get lineDurationMs(): WaterfallSnapshot["lineDurationMs"] {
+    return this.current().lineDurationMs;
   }
 
-  get blackLevel(): number {
+  get blackLevel(): WaterfallSnapshot["blackLevel"] {
     return this.current().blackLevel;
   }
 
-  get colorGain(): number {
+  get colorGain(): WaterfallSnapshot["colorGain"] {
     return this.current().colorGain;
   }
 
-  get autoBlackLevelEnabled(): boolean {
+  get autoBlackLevelEnabled(): WaterfallSnapshot["autoBlackLevelEnabled"] {
     return this.current().autoBlackLevelEnabled;
   }
 
-  get gradientIndex(): number {
+  get gradientIndex(): WaterfallSnapshot["gradientIndex"] {
     return this.current().gradientIndex;
   }
 
-  get clientHandle(): number {
+  get clientHandle(): WaterfallSnapshot["clientHandle"] {
     return this.current().clientHandle;
   }
 
-  get centerFrequencyMHz() {
+  get centerFrequencyMHz(): WaterfallSnapshot["centerFrequencyMHz"] {
     return this.current().centerFrequencyMHz;
   }
 
-  get bandwidthMHz() {
+  get bandwidthMHz(): WaterfallSnapshot["bandwidthMHz"] {
     return this.current().bandwidthMHz;
   }
 
-  get lowDbm() {
+  get lowDbm(): WaterfallSnapshot["lowDbm"] {
     return this.current().lowDbm;
   }
 
-  get highDbm() {
+  get highDbm(): WaterfallSnapshot["highDbm"] {
     return this.current().highDbm;
   }
 
-  get fps() {
+  get fps(): WaterfallSnapshot["fps"] {
     return this.current().fps;
   }
 
-  get average() {
+  get average(): WaterfallSnapshot["average"] {
     return this.current().average;
   }
 
-  get weightedAverage() {
+  get weightedAverage(): WaterfallSnapshot["weightedAverage"] {
     return this.current().weightedAverage;
   }
 
-  get rxAntenna() {
+  get rxAntenna(): WaterfallSnapshot["rxAntenna"] {
     return this.current().rxAntenna;
   }
 
-  get rfGain() {
+  get rfGain(): WaterfallSnapshot["rfGain"] {
     return this.current().rfGain;
   }
 
-  get rfGainLow() {
+  get rfGainLow(): WaterfallSnapshot["rfGainLow"] {
     return this.current().rfGainLow;
   }
 
-  get rfGainHigh() {
+  get rfGainHigh(): WaterfallSnapshot["rfGainHigh"] {
     return this.current().rfGainHigh;
   }
 
-  get rfGainStep() {
+  get rfGainStep(): WaterfallSnapshot["rfGainStep"] {
     return this.current().rfGainStep;
   }
 
-  get rfGainMarkers() {
+  get rfGainMarkers(): WaterfallSnapshot["rfGainMarkers"] {
     return this.current().rfGainMarkers;
   }
 
-  get daxIqChannel() {
+  get daxIqChannel(): WaterfallSnapshot["daxIqChannel"] {
     return this.current().daxIqChannel;
   }
 
-  get isBandZoomOn() {
+  get isBandZoomOn(): WaterfallSnapshot["isBandZoomOn"] {
     return this.current().isBandZoomOn;
   }
 
-  get isSegmentZoomOn() {
+  get isSegmentZoomOn(): WaterfallSnapshot["isSegmentZoomOn"] {
     return this.current().isSegmentZoomOn;
   }
 
-  get loopAEnabled() {
+  get loopAEnabled(): WaterfallSnapshot["loopAEnabled"] {
     return this.current().loopAEnabled;
   }
 
-  get loopBEnabled() {
+  get loopBEnabled(): WaterfallSnapshot["loopBEnabled"] {
     return this.current().loopBEnabled;
   }
 
-  get wideEnabled() {
+  get wideEnabled(): WaterfallSnapshot["wideEnabled"] {
     return this.current().wideEnabled;
   }
 
-  get band() {
+  get band(): WaterfallSnapshot["band"] {
     return this.current().band;
   }
 
-  get xvtr() {
+  get xvtr(): WaterfallSnapshot["xvtr"] {
     return this.current().xvtr;
   }
 

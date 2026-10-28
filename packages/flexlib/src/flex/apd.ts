@@ -2,12 +2,7 @@ import { type Subscription, TypedEventEmitter } from "../util/events.js";
 import { formatBooleanFlag } from "./controller-helpers.js";
 import { FlexStateUnavailableError } from "./errors.js";
 import type { RadioSession } from "./radio-core.js";
-import type {
-  ApdLifecycleState,
-  ApdSamplerPort,
-  ApdSnapshot,
-  ApdTxAntenna,
-} from "./state/apd.js";
+import type { ApdSamplerPort, ApdSnapshot, ApdTxAntenna } from "./state/apd.js";
 import type { ApdStateChange } from "./state/index.js";
 
 export interface ApdControllerEvents {
@@ -46,95 +41,91 @@ export class ApdControllerImpl implements ApdController {
     return this.current();
   }
 
-  get enabled(): boolean {
+  get enabled(): ApdSnapshot["enabled"] {
     return this.current().enabled;
   }
 
-  get configurable(): boolean {
+  get configurable(): ApdSnapshot["configurable"] {
     return this.current().configurable;
   }
 
-  get state(): ApdLifecycleState {
+  get state(): ApdSnapshot["state"] {
     return this.current().state;
   }
 
-  get equalizerActive(): boolean {
+  get equalizerActive(): ApdSnapshot["equalizerActive"] {
     return this.current().equalizerActive;
   }
 
-  get equalizerCalibrating(): boolean {
-    return !this.current().equalizerActive;
-  }
-
-  get antenna(): string {
+  get antenna(): ApdSnapshot["antenna"] {
     return this.current().antenna;
   }
 
-  get frequencyMHz(): number {
+  get frequencyMHz(): ApdSnapshot["frequencyMHz"] {
     return this.current().frequencyMHz;
   }
 
-  get rfPower(): number {
+  get rfPower(): ApdSnapshot["rfPower"] {
     return this.current().rfPower;
   }
 
-  get txErrorMilliHz(): number {
+  get txErrorMilliHz(): ApdSnapshot["txErrorMilliHz"] {
     return this.current().txErrorMilliHz;
   }
 
-  get rxErrorMilliHz(): number | undefined {
+  get rxErrorMilliHz(): ApdSnapshot["rxErrorMilliHz"] {
     return this.current().rxErrorMilliHz;
   }
 
-  get sliceId(): string | undefined {
+  get sliceId(): ApdSnapshot["sliceId"] {
     return this.current().sliceId;
   }
 
-  get mmx(): number | undefined {
+  get mmx(): ApdSnapshot["mmx"] {
     return this.current().mmx;
   }
 
-  get clientHandle(): number | undefined {
+  get clientHandle(): ApdSnapshot["clientHandle"] {
     return this.current().clientHandle;
   }
 
-  get sampleIndex(): number | undefined {
+  get sampleIndex(): ApdSnapshot["sampleIndex"] {
     return this.current().sampleIndex;
   }
 
-  get deployed(): boolean {
+  get deployed(): ApdSnapshot["deployed"] {
     return this.current().deployed;
   }
 
-  get availableSamplerPortsAnt1(): readonly string[] {
+  get availableSamplerPortsAnt1(): ApdSnapshot["availableSamplerPortsAnt1"] {
     return this.current().availableSamplerPortsAnt1;
   }
 
-  get availableSamplerPortsAnt2(): readonly string[] {
+  get availableSamplerPortsAnt2(): ApdSnapshot["availableSamplerPortsAnt2"] {
     return this.current().availableSamplerPortsAnt2;
   }
 
-  get availableSamplerPortsXvta(): readonly string[] {
+  get availableSamplerPortsXvta(): ApdSnapshot["availableSamplerPortsXvta"] {
     return this.current().availableSamplerPortsXvta;
   }
 
-  get availableSamplerPortsXvtb(): readonly string[] {
+  get availableSamplerPortsXvtb(): ApdSnapshot["availableSamplerPortsXvtb"] {
     return this.current().availableSamplerPortsXvtb;
   }
 
-  get selectedSamplerPortAnt1(): string {
+  get selectedSamplerPortAnt1(): ApdSnapshot["selectedSamplerPortAnt1"] {
     return this.current().selectedSamplerPortAnt1;
   }
 
-  get selectedSamplerPortAnt2(): string {
+  get selectedSamplerPortAnt2(): ApdSnapshot["selectedSamplerPortAnt2"] {
     return this.current().selectedSamplerPortAnt2;
   }
 
-  get selectedSamplerPortXvta(): string {
+  get selectedSamplerPortXvta(): ApdSnapshot["selectedSamplerPortXvta"] {
     return this.current().selectedSamplerPortXvta;
   }
 
-  get selectedSamplerPortXvtb(): string {
+  get selectedSamplerPortXvtb(): ApdSnapshot["selectedSamplerPortXvtb"] {
     return this.current().selectedSamplerPortXvtb;
   }
 

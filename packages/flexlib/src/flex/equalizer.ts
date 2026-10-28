@@ -2,11 +2,7 @@ import { type Subscription, TypedEventEmitter } from "../util/events.js";
 import { clampInteger, formatBooleanFlag } from "./controller-helpers.js";
 import { FlexStateUnavailableError } from "./errors.js";
 import type { RadioSession } from "./radio-core.js";
-import {
-  EQUALIZER_BANDS,
-  type EqualizerBand,
-  type EqualizerBandLevels,
-} from "./state/equalizer.js";
+import { EQUALIZER_BANDS, type EqualizerBand } from "./state/equalizer.js";
 import type {
   EqualizerId,
   EqualizerSnapshot,
@@ -20,15 +16,14 @@ export interface EqualizerControllerEvents {
   readonly change: EqualizerStateChange;
 }
 
-export type EqualizerLevelUpdate = Partial<Record<EqualizerBand, number>>;
+export type EqualizerBandUpdate = Partial<Record<EqualizerBand, number>>;
 
 export interface EqualizerController
   extends Readonly<Omit<EqualizerSnapshot, "raw">> {
-  getLevel(band: EqualizerBand): number;
   snapshot(): EqualizerSnapshot;
   setEnabled(enabled: boolean): Promise<void>;
-  setLevel(band: EqualizerBand, level: number): Promise<void>;
-  setLevels(levels: EqualizerLevelUpdate): Promise<void>;
+  setBand(band: EqualizerBand, level: number): Promise<void>;
+  setBands(levels: EqualizerBandUpdate): Promise<void>;
   refresh(): Promise<void>;
   on<TKey extends keyof EqualizerControllerEvents>(
     event: TKey,
@@ -54,20 +49,12 @@ export class EqualizerControllerImpl implements EqualizerController {
     return snapshot;
   }
 
-  get enabled(): boolean {
+  get enabled(): EqualizerSnapshot["enabled"] {
     return this.current().enabled;
   }
 
-  get bands(): EqualizerBandLevels {
+  get bands(): EqualizerSnapshot["bands"] {
     return this.current().bands;
-  }
-
-  get levels(): EqualizerBandLevels {
-    return this.current().bands;
-  }
-
-  getLevel(band: EqualizerBand): number {
-    return this.current().bands[band];
   }
 
   snapshot(): EqualizerSnapshot {
@@ -79,11 +66,11 @@ export class EqualizerControllerImpl implements EqualizerController {
     await this.sendEntries({ mode });
   }
 
-  async setLevel(band: EqualizerBand, level: number): Promise<void> {
-    await this.setLevels({ [band]: level });
+  async setBand(band: EqualizerBand, level: number): Promise<void> {
+    await this.setBands({ [band]: level });
   }
 
-  async setLevels(levels: EqualizerLevelUpdate): Promise<void> {
+  async setBands(levels: EqualizerBandUpdate): Promise<void> {
     const entries: Record<string, string> = {};
     for (const band of EQUALIZER_BANDS) {
       const requested = levels[band];

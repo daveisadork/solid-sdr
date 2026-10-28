@@ -43,47 +43,47 @@ export class TxBandSettingControllerImpl implements TxBandSettingController {
     return this.current();
   }
 
-  get bandName(): string | undefined {
+  get bandName(): TxBandSettingSnapshot["bandName"] {
     return this.current().bandName;
   }
 
-  get tunePower(): number | undefined {
+  get tunePower(): TxBandSettingSnapshot["tunePower"] {
     return this.current().tunePower;
   }
 
-  get rfPower(): number | undefined {
+  get rfPower(): TxBandSettingSnapshot["rfPower"] {
     return this.current().rfPower;
   }
 
-  get pttInhibit(): boolean | undefined {
+  get pttInhibit(): TxBandSettingSnapshot["pttInhibit"] {
     return this.current().pttInhibit;
   }
 
-  get accTxReqEnabled(): boolean | undefined {
+  get accTxReqEnabled(): TxBandSettingSnapshot["accTxReqEnabled"] {
     return this.current().accTxReqEnabled;
   }
 
-  get rcaTxReqEnabled(): boolean | undefined {
+  get rcaTxReqEnabled(): TxBandSettingSnapshot["rcaTxReqEnabled"] {
     return this.current().rcaTxReqEnabled;
   }
 
-  get accTxEnabled(): boolean | undefined {
+  get accTxEnabled(): TxBandSettingSnapshot["accTxEnabled"] {
     return this.current().accTxEnabled;
   }
 
-  get rcaTx1Enabled(): boolean | undefined {
+  get rcaTx1Enabled(): TxBandSettingSnapshot["rcaTx1Enabled"] {
     return this.current().rcaTx1Enabled;
   }
 
-  get rcaTx2Enabled(): boolean | undefined {
+  get rcaTx2Enabled(): TxBandSettingSnapshot["rcaTx2Enabled"] {
     return this.current().rcaTx2Enabled;
   }
 
-  get rcaTx3Enabled(): boolean | undefined {
+  get rcaTx3Enabled(): TxBandSettingSnapshot["rcaTx3Enabled"] {
     return this.current().rcaTx3Enabled;
   }
 
-  get tuneTxSuppress(): boolean | undefined {
+  get tuneTxSuppress(): TxBandSettingSnapshot["tuneTxSuppress"] {
     return this.current().tuneTxSuppress;
   }
 

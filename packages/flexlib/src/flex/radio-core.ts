@@ -3396,9 +3396,11 @@ class RadioImpl {
 
 export type Radio = RadioImpl & Readonly<RadioSnapshot>;
 
-export const Radio = {
+export const Radio: {
+  readonly create: typeof RadioImpl.create;
+} = {
   create: RadioImpl.create.bind(RadioImpl),
-} as const;
+};
 
 export function isRadio(target: unknown): target is Radio {
   return target instanceof RadioImpl;

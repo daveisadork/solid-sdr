@@ -8,13 +8,13 @@ import {
 } from "./common.js";
 
 /** Fixed filter-preset mode groups reported by the radio. */
-export const FILTER_PRESET_MODE_GROUPS = Object.freeze([
+export const FILTER_PRESET_MODE_GROUPS: readonly [
   "ssb",
   "cw",
   "am",
   "digital",
   "rtty",
-] as const);
+] = Object.freeze(["ssb", "cw", "am", "digital", "rtty"] as const);
 
 /** Number of preset slots maintained per mode group. */
 export const FILTER_PRESET_COUNT = 6;

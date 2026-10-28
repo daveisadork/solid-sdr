@@ -75,61 +75,61 @@ export class MemoryControllerImpl implements MemoryController {
     return this.current();
   }
 
-  get owner(): string {
+  get owner(): MemorySnapshot["owner"] {
     return this.current().owner;
   }
-  get group(): string {
+  get group(): MemorySnapshot["group"] {
     return this.current().group;
   }
-  get name(): string {
+  get name(): MemorySnapshot["name"] {
     return this.current().name;
   }
-  get frequencyMHz(): number {
+  get frequencyMHz(): MemorySnapshot["frequencyMHz"] {
     return this.current().frequencyMHz;
   }
-  get mode(): string {
+  get mode(): MemorySnapshot["mode"] {
     return this.current().mode;
   }
-  get stepHz(): number {
+  get stepHz(): MemorySnapshot["stepHz"] {
     return this.current().stepHz;
   }
-  get repeaterOffsetDirection(): MemoryRepeaterOffsetDirection {
+  get repeaterOffsetDirection(): MemorySnapshot["repeaterOffsetDirection"] {
     return this.current().repeaterOffsetDirection;
   }
-  get repeaterOffsetMHz(): number {
+  get repeaterOffsetMHz(): MemorySnapshot["repeaterOffsetMHz"] {
     return this.current().repeaterOffsetMHz;
   }
-  get fmToneMode(): MemoryToneMode {
+  get fmToneMode(): MemorySnapshot["fmToneMode"] {
     return this.current().fmToneMode;
   }
-  get fmToneValue(): string {
+  get fmToneValue(): MemorySnapshot["fmToneValue"] {
     return this.current().fmToneValue;
   }
-  get squelchEnabled(): boolean {
+  get squelchEnabled(): MemorySnapshot["squelchEnabled"] {
     return this.current().squelchEnabled;
   }
-  get squelchLevel(): number {
+  get squelchLevel(): MemorySnapshot["squelchLevel"] {
     return this.current().squelchLevel;
   }
-  get filterLowHz(): number {
+  get filterLowHz(): MemorySnapshot["filterLowHz"] {
     return this.current().filterLowHz;
   }
-  get filterHighHz(): number {
+  get filterHighHz(): MemorySnapshot["filterHighHz"] {
     return this.current().filterHighHz;
   }
-  get rttyMarkHz(): number {
+  get rttyMarkHz(): MemorySnapshot["rttyMarkHz"] {
     return this.current().rttyMarkHz;
   }
-  get rttyShiftHz(): number {
+  get rttyShiftHz(): MemorySnapshot["rttyShiftHz"] {
     return this.current().rttyShiftHz;
   }
-  get diglOffsetHz(): number {
+  get diglOffsetHz(): MemorySnapshot["diglOffsetHz"] {
     return this.current().diglOffsetHz;
   }
-  get diguOffsetHz(): number {
+  get diguOffsetHz(): MemorySnapshot["diguOffsetHz"] {
     return this.current().diguOffsetHz;
   }
-  get raw(): Record<string, string> {
+  get raw(): MemorySnapshot["raw"] {
     return this.current().raw;
   }
 

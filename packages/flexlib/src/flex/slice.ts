@@ -440,451 +440,447 @@ export class SliceControllerImpl implements SliceController {
     return snapshot;
   }
 
-  get isInUse() {
+  get isInUse(): SliceSnapshot["isInUse"] {
     return this.current().isInUse;
   }
 
-  get daxIqChannel() {
+  get daxIqChannel(): SliceSnapshot["daxIqChannel"] {
     return this.current().daxIqChannel;
   }
 
-  get daxClientCount() {
+  get daxClientCount(): SliceSnapshot["daxClientCount"] {
     return this.current().daxClientCount;
   }
 
-  get postDemodLowHz() {
+  get postDemodLowHz(): SliceSnapshot["postDemodLowHz"] {
     return this.current().postDemodLowHz;
   }
 
-  get postDemodHighHz() {
+  get postDemodHighHz(): SliceSnapshot["postDemodHighHz"] {
     return this.current().postDemodHighHz;
   }
 
-  get postDemodBypass() {
+  get postDemodBypass(): SliceSnapshot["postDemodBypass"] {
     return this.current().postDemodBypass;
   }
 
-  get recordTimeSeconds() {
+  get recordTimeSeconds(): SliceSnapshot["recordTimeSeconds"] {
     return this.current().recordTimeSeconds;
   }
 
-  get squelchTriggeredWeight() {
+  get squelchTriggeredWeight(): SliceSnapshot["squelchTriggeredWeight"] {
     return this.current().squelchTriggeredWeight;
   }
 
-  get squelchAverageFactor() {
+  get squelchAverageFactor(): SliceSnapshot["squelchAverageFactor"] {
     return this.current().squelchAverageFactor;
   }
 
-  get squelchHangDelayMs() {
+  get squelchHangDelayMs(): SliceSnapshot["squelchHangDelayMs"] {
     return this.current().squelchHangDelayMs;
   }
 
-  get isDetached() {
+  get isDetached(): SliceSnapshot["isDetached"] {
     return this.current().isDetached;
   }
 
-  get rxErrorMilliHz() {
+  get rxErrorMilliHz(): SliceSnapshot["rxErrorMilliHz"] {
     return this.current().rxErrorMilliHz;
   }
 
-  get meterIds() {
+  get meterIds(): SliceSnapshot["meterIds"] {
     return this.current().meterIds;
   }
 
-  get maxInternalPaPowerWatts() {
+  get maxInternalPaPowerWatts(): SliceSnapshot["maxInternalPaPowerWatts"] {
     return this.current().maxInternalPaPowerWatts;
   }
 
-  get frequencyMHz(): number {
+  get frequencyMHz(): SliceSnapshot["frequencyMHz"] {
     return this.current().frequencyMHz;
   }
 
-  get mode(): string {
+  get mode(): SliceSnapshot["mode"] {
     return this.current().mode;
   }
 
-  get sampleRateHz(): number {
+  get sampleRateHz(): SliceSnapshot["sampleRateHz"] {
     return this.current().sampleRateHz;
   }
 
-  get indexLetter(): string {
+  get indexLetter(): SliceSnapshot["indexLetter"] {
     return this.current().indexLetter;
   }
 
-  get isWide(): boolean {
+  get isWide(): SliceSnapshot["isWide"] {
     return this.current().isWide;
   }
 
-  get isQskEnabled(): boolean {
+  get isQskEnabled(): SliceSnapshot["isQskEnabled"] {
     return this.current().isQskEnabled;
   }
 
-  get modeList(): readonly string[] {
+  get modeList(): SliceSnapshot["modeList"] {
     return this.current().modeList;
   }
 
-  get availableRxAntennas(): readonly string[] {
+  get availableRxAntennas(): SliceSnapshot["availableRxAntennas"] {
     return this.current().availableRxAntennas;
   }
 
-  get availableTxAntennas(): readonly string[] {
+  get availableTxAntennas(): SliceSnapshot["availableTxAntennas"] {
     return this.current().availableTxAntennas;
   }
 
-  get owner(): string {
+  get owner(): SliceSnapshot["owner"] {
     return this.current().owner;
   }
 
-  get clientHandle(): number {
+  get clientHandle(): SliceSnapshot["clientHandle"] {
     return this.current().clientHandle;
   }
 
-  get isActive(): boolean {
+  get isActive(): SliceSnapshot["isActive"] {
     return this.current().isActive;
   }
 
-  get isLocked(): boolean {
+  get isLocked(): SliceSnapshot["isLocked"] {
     return this.current().isLocked;
   }
 
-  get isTransmitEnabled(): boolean {
+  get isTransmitEnabled(): SliceSnapshot["isTransmitEnabled"] {
     return this.current().isTransmitEnabled;
   }
 
-  get rxAntenna(): string {
+  get rxAntenna(): SliceSnapshot["rxAntenna"] {
     return this.current().rxAntenna;
   }
 
-  get txAntenna(): string {
+  get txAntenna(): SliceSnapshot["txAntenna"] {
     return this.current().txAntenna;
   }
 
-  get panadapterStream(): string | undefined {
+  get panadapterStreamId(): SliceSnapshot["panadapterStreamId"] {
     return this.current().panadapterStreamId;
   }
 
-  get panadapterStreamId(): string | undefined {
-    return this.current().panadapterStreamId;
-  }
-
-  get daxChannel(): number {
+  get daxChannel(): SliceSnapshot["daxChannel"] {
     return this.current().daxChannel;
   }
 
-  get rfGain(): number {
+  get rfGain(): SliceSnapshot["rfGain"] {
     return this.current().rfGain;
   }
 
-  get filterLowHz(): number {
+  get filterLowHz(): SliceSnapshot["filterLowHz"] {
     return this.current().filterLowHz;
   }
 
-  get filterHighHz(): number {
+  get filterHighHz(): SliceSnapshot["filterHighHz"] {
     return this.current().filterHighHz;
   }
 
-  get rttyMarkHz(): number {
+  get rttyMarkHz(): SliceSnapshot["rttyMarkHz"] {
     return this.current().rttyMarkHz;
   }
 
-  get rttyShiftHz(): number {
+  get rttyShiftHz(): SliceSnapshot["rttyShiftHz"] {
     return this.current().rttyShiftHz;
   }
 
-  get diglOffsetHz(): number {
+  get diglOffsetHz(): SliceSnapshot["diglOffsetHz"] {
     return this.current().diglOffsetHz;
   }
 
-  get diguOffsetHz(): number {
+  get diguOffsetHz(): SliceSnapshot["diguOffsetHz"] {
     return this.current().diguOffsetHz;
   }
 
-  get audioPan(): number {
+  get audioPan(): SliceSnapshot["audioPan"] {
     return this.current().audioPan;
   }
 
-  get audioGain(): number {
+  get audioGain(): SliceSnapshot["audioGain"] {
     return this.current().audioGain;
   }
 
-  get isMuted(): boolean {
+  get isMuted(): SliceSnapshot["isMuted"] {
     return this.current().isMuted;
   }
 
-  get anfEnabled(): boolean {
+  get anfEnabled(): SliceSnapshot["anfEnabled"] {
     return this.current().anfEnabled;
   }
 
-  get anfLevel(): number {
+  get anfLevel(): SliceSnapshot["anfLevel"] {
     return this.current().anfLevel;
   }
 
-  get apfEnabled(): boolean {
+  get apfEnabled(): SliceSnapshot["apfEnabled"] {
     return this.current().apfEnabled;
   }
 
-  get apfLevel(): number {
+  get apfLevel(): SliceSnapshot["apfLevel"] {
     return this.current().apfLevel;
   }
 
-  get wnbEnabled(): boolean {
+  get wnbEnabled(): SliceSnapshot["wnbEnabled"] {
     return this.current().wnbEnabled;
   }
 
-  get wnbLevel(): number {
+  get wnbLevel(): SliceSnapshot["wnbLevel"] {
     return this.current().wnbLevel;
   }
 
-  get nbEnabled(): boolean {
+  get nbEnabled(): SliceSnapshot["nbEnabled"] {
     return this.current().nbEnabled;
   }
 
-  get nbLevel(): number {
+  get nbLevel(): SliceSnapshot["nbLevel"] {
     return this.current().nbLevel;
   }
 
-  get nrEnabled(): boolean {
+  get nrEnabled(): SliceSnapshot["nrEnabled"] {
     return this.current().nrEnabled;
   }
 
-  get nrLevel(): number {
+  get nrLevel(): SliceSnapshot["nrLevel"] {
     return this.current().nrLevel;
   }
 
-  get nrlEnabled(): boolean {
+  get nrlEnabled(): SliceSnapshot["nrlEnabled"] {
     return this.current().nrlEnabled;
   }
 
-  get nrlLevel(): number {
+  get nrlLevel(): SliceSnapshot["nrlLevel"] {
     return this.current().nrlLevel;
   }
 
-  get anflEnabled(): boolean {
+  get anflEnabled(): SliceSnapshot["anflEnabled"] {
     return this.current().anflEnabled;
   }
 
-  get anflLevel(): number {
+  get anflLevel(): SliceSnapshot["anflLevel"] {
     return this.current().anflLevel;
   }
 
-  get nrsEnabled(): boolean {
+  get nrsEnabled(): SliceSnapshot["nrsEnabled"] {
     return this.current().nrsEnabled;
   }
 
-  get nrsLevel(): number {
+  get nrsLevel(): SliceSnapshot["nrsLevel"] {
     return this.current().nrsLevel;
   }
 
-  get rnnEnabled(): boolean {
+  get rnnEnabled(): SliceSnapshot["rnnEnabled"] {
     return this.current().rnnEnabled;
   }
 
-  get anftEnabled(): boolean {
+  get anftEnabled(): SliceSnapshot["anftEnabled"] {
     return this.current().anftEnabled;
   }
 
-  get nrDelay(): number {
+  get nrDelay(): SliceSnapshot["nrDelay"] {
     return this.current().nrDelay;
   }
 
-  get nrWlen(): number {
+  get nrWlen(): SliceSnapshot["nrWlen"] {
     return this.current().nrWlen;
   }
 
-  get nrlFilterSize(): number {
+  get nrlFilterSize(): SliceSnapshot["nrlFilterSize"] {
     return this.current().nrlFilterSize;
   }
 
-  get nrlDelay(): number {
+  get nrlDelay(): SliceSnapshot["nrlDelay"] {
     return this.current().nrlDelay;
   }
 
-  get nrlLeakageLevel(): number {
+  get nrlLeakageLevel(): SliceSnapshot["nrlLeakageLevel"] {
     return this.current().nrlLeakageLevel;
   }
 
-  get nrfWlen(): number {
+  get nrfWlen(): SliceSnapshot["nrfWlen"] {
     return this.current().nrfWlen;
   }
 
-  get anfWlen(): number {
+  get anfWlen(): SliceSnapshot["anfWlen"] {
     return this.current().anfWlen;
   }
 
-  get anfDelay(): number {
+  get anfDelay(): SliceSnapshot["anfDelay"] {
     return this.current().anfDelay;
   }
 
-  get anflFilterSize(): number {
+  get anflFilterSize(): SliceSnapshot["anflFilterSize"] {
     return this.current().anflFilterSize;
   }
 
-  get anflDelay(): number {
+  get anflDelay(): SliceSnapshot["anflDelay"] {
     return this.current().anflDelay;
   }
 
-  get anflLeakageLevel(): number {
+  get anflLeakageLevel(): SliceSnapshot["anflLeakageLevel"] {
     return this.current().anflLeakageLevel;
   }
 
-  get anftMinDb(): number {
+  get anftMinDb(): SliceSnapshot["anftMinDb"] {
     return this.current().anftMinDb;
   }
 
-  get anftToneDbDiff(): number {
+  get anftToneDbDiff(): SliceSnapshot["anftToneDbDiff"] {
     return this.current().anftToneDbDiff;
   }
 
-  get nrAdaptMode(): SliceDspAdaptMode {
+  get nrAdaptMode(): SliceSnapshot["nrAdaptMode"] {
     return this.current().nrAdaptMode;
   }
 
-  get nrIsdftMode(): SliceDspIsdftMode {
+  get nrIsdftMode(): SliceSnapshot["nrIsdftMode"] {
     return this.current().nrIsdftMode;
   }
 
-  get anfAdaptMode(): SliceDspAdaptMode {
+  get anfAdaptMode(): SliceSnapshot["anfAdaptMode"] {
     return this.current().anfAdaptMode;
   }
 
-  get anfIsdftMode(): SliceDspIsdftMode {
+  get anfIsdftMode(): SliceSnapshot["anfIsdftMode"] {
     return this.current().anfIsdftMode;
   }
 
-  get agcThresholdMode(): SliceAgcThresholdMode {
+  get agcThresholdMode(): SliceSnapshot["agcThresholdMode"] {
     return this.current().agcThresholdMode;
   }
 
-  get chainMode(): string {
+  get chainMode(): SliceSnapshot["chainMode"] {
     return this.current().chainMode;
   }
 
-  get nrfEnabled(): boolean {
+  get nrfEnabled(): SliceSnapshot["nrfEnabled"] {
     return this.current().nrfEnabled;
   }
 
-  get escEnabled(): boolean {
+  get escEnabled(): SliceSnapshot["escEnabled"] {
     return this.current().escEnabled;
   }
 
-  get escGain(): number {
+  get escGain(): SliceSnapshot["escGain"] {
     return this.current().escGain;
   }
 
-  get escPhaseShift(): number {
+  get escPhaseShift(): SliceSnapshot["escPhaseShift"] {
     return this.current().escPhaseShift;
   }
 
-  get agcMode(): string {
+  get agcMode(): SliceSnapshot["agcMode"] {
     return this.current().agcMode;
   }
 
-  get agcThreshold(): number {
+  get agcThreshold(): SliceSnapshot["agcThreshold"] {
     return this.current().agcThreshold;
   }
 
-  get agcOffLevel(): number {
+  get agcOffLevel(): SliceSnapshot["agcOffLevel"] {
     return this.current().agcOffLevel;
   }
 
-  get loopAEnabled(): boolean {
+  get loopAEnabled(): SliceSnapshot["loopAEnabled"] {
     return this.current().loopAEnabled;
   }
 
-  get loopBEnabled(): boolean {
+  get loopBEnabled(): SliceSnapshot["loopBEnabled"] {
     return this.current().loopBEnabled;
   }
 
-  get ritEnabled(): boolean {
+  get ritEnabled(): SliceSnapshot["ritEnabled"] {
     return this.current().ritEnabled;
   }
 
-  get ritOffsetHz(): number {
+  get ritOffsetHz(): SliceSnapshot["ritOffsetHz"] {
     return this.current().ritOffsetHz;
   }
 
-  get xitEnabled(): boolean {
+  get xitEnabled(): SliceSnapshot["xitEnabled"] {
     return this.current().xitEnabled;
   }
 
-  get xitOffsetHz(): number {
+  get xitOffsetHz(): SliceSnapshot["xitOffsetHz"] {
     return this.current().xitOffsetHz;
   }
 
-  get tuneStepHz(): number {
+  get tuneStepHz(): SliceSnapshot["tuneStepHz"] {
     return this.current().tuneStepHz;
   }
 
-  get tuneStepListHz(): readonly number[] {
+  get tuneStepListHz(): SliceSnapshot["tuneStepListHz"] {
     return this.current().tuneStepListHz;
   }
 
-  get recordingEnabled(): boolean {
+  get recordingEnabled(): SliceSnapshot["recordingEnabled"] {
     return this.current().recordingEnabled;
   }
 
-  get playbackAvailable(): boolean {
+  get playbackAvailable(): SliceSnapshot["playbackAvailable"] {
     return this.current().playbackAvailable;
   }
 
-  get playbackEnabled(): boolean {
+  get playbackEnabled(): SliceSnapshot["playbackEnabled"] {
     return this.current().playbackEnabled;
   }
 
-  get fmToneMode(): string {
+  get fmToneMode(): SliceSnapshot["fmToneMode"] {
     return this.current().fmToneMode;
   }
 
-  get fmToneValue(): string {
+  get fmToneValue(): SliceSnapshot["fmToneValue"] {
     return this.current().fmToneValue;
   }
 
-  get fmDeviation(): number {
+  get fmDeviation(): SliceSnapshot["fmDeviation"] {
     return this.current().fmDeviation;
   }
 
-  get fmToneBurstEnabled(): boolean {
+  get fmToneBurstEnabled(): SliceSnapshot["fmToneBurstEnabled"] {
     return this.current().fmToneBurstEnabled;
   }
 
-  get fmPreDeEmphasisEnabled(): boolean {
+  get fmPreDeEmphasisEnabled(): SliceSnapshot["fmPreDeEmphasisEnabled"] {
     return this.current().fmPreDeEmphasisEnabled;
   }
 
-  get squelchEnabled(): boolean {
+  get squelchEnabled(): SliceSnapshot["squelchEnabled"] {
     return this.current().squelchEnabled;
   }
 
-  get squelchLevel(): number {
+  get squelchLevel(): SliceSnapshot["squelchLevel"] {
     return this.current().squelchLevel;
   }
 
-  get txOffsetFrequencyMHz(): number {
+  get txOffsetFrequencyMHz(): SliceSnapshot["txOffsetFrequencyMHz"] {
     return this.current().txOffsetFrequencyMHz;
   }
 
-  get fmRepeaterOffsetMHz(): number {
+  get fmRepeaterOffsetMHz(): SliceSnapshot["fmRepeaterOffsetMHz"] {
     return this.current().fmRepeaterOffsetMHz;
   }
 
-  get repeaterOffsetDirection(): string {
+  get repeaterOffsetDirection(): SliceSnapshot["repeaterOffsetDirection"] {
     return this.current().repeaterOffsetDirection;
   }
 
-  get diversityEnabled(): boolean {
+  get diversityEnabled(): SliceSnapshot["diversityEnabled"] {
     return this.current().diversityEnabled;
   }
 
-  get diversityChild(): boolean {
+  get diversityChild(): SliceSnapshot["diversityChild"] {
     return this.current().diversityChild;
   }
 
-  get diversityParent(): boolean {
+  get diversityParent(): SliceSnapshot["diversityParent"] {
     return this.current().diversityParent;
   }
 
-  get diversityIndex(): number {
+  get diversityIndex(): SliceSnapshot["diversityIndex"] {
     return this.current().diversityIndex;
   }
 
@@ -1350,7 +1346,6 @@ export class SliceControllerImpl implements SliceController {
   }
 
   get cwDecoder(): CwDecoderSnapshot | undefined {
-    this.current();
     return this.radio.getStore().getCwDecoder(this.id);
   }
 

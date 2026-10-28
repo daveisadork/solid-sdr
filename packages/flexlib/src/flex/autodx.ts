@@ -118,71 +118,71 @@ export class AutoDxControllerImpl implements AutoDxController {
     return this.current();
   }
 
-  get state() {
+  get state(): AutoDxSnapshot["state"] {
     return this.current().state;
   }
 
-  get enabled() {
+  get enabled(): AutoDxSnapshot["enabled"] {
     return this.current().enabled;
   }
 
-  get detect() {
+  get detect(): AutoDxSnapshot["detect"] {
     return this.current().detect;
   }
 
-  get trigger() {
+  get trigger(): AutoDxSnapshot["trigger"] {
     return this.current().trigger;
   }
 
-  get exchange() {
+  get exchange(): AutoDxSnapshot["exchange"] {
     return this.current().exchange;
   }
 
-  get awaitReplyMs() {
+  get awaitReplyMs(): AutoDxSnapshot["awaitReplyMs"] {
     return this.current().awaitReplyMs;
   }
 
-  get txDelayMs() {
+  get txDelayMs(): AutoDxSnapshot["txDelayMs"] {
     return this.current().txDelayMs;
   }
 
-  get timeoutMs() {
+  get timeoutMs(): AutoDxSnapshot["timeoutMs"] {
     return this.current().timeoutMs;
   }
 
-  get timeoutRestart() {
+  get timeoutRestart(): AutoDxSnapshot["timeoutRestart"] {
     return this.current().timeoutRestart;
   }
 
-  get callRetries() {
+  get callRetries(): AutoDxSnapshot["callRetries"] {
     return this.current().callRetries;
   }
 
-  get dxCall() {
+  get dxCall(): AutoDxSnapshot["dxCall"] {
     return this.current().dxCall;
   }
 
-  get rxRst() {
+  get rxRst(): AutoDxSnapshot["rxRst"] {
     return this.current().rxRst;
   }
 
-  get rxExchange() {
+  get rxExchange(): AutoDxSnapshot["rxExchange"] {
     return this.current().rxExchange;
   }
 
-  get qsoCount() {
+  get qsoCount(): AutoDxSnapshot["qsoCount"] {
     return this.current().qsoCount;
   }
 
-  get sentSeq() {
+  get sentSeq(): AutoDxSnapshot["sentSeq"] {
     return this.current().sentSeq;
   }
 
-  get lastSentText() {
+  get lastSentText(): AutoDxSnapshot["lastSentText"] {
     return this.current().lastSentText;
   }
 
-  get sentCount() {
+  get sentCount(): AutoDxSnapshot["sentCount"] {
     return this.current().sentCount;
   }
 

@@ -19,7 +19,7 @@ export const VITA_FLEX_DAX_IQ_48_CLASS = 0x02e4;
 export const VITA_FLEX_DAX_IQ_96_CLASS = 0x02e5;
 export const VITA_FLEX_DAX_IQ_192_CLASS = 0x02e6;
 
-export const DAX_IQ_CLASS_CODES = new Set<number>([
+export const DAX_IQ_CLASS_CODES: Set<number> = new Set([
   VITA_FLEX_DAX_IQ_24_CLASS,
   VITA_FLEX_DAX_IQ_48_CLASS,
   VITA_FLEX_DAX_IQ_96_CLASS,

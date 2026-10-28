@@ -659,12 +659,13 @@ const RADIO_MODEL_INFO_BY_NAME: Readonly<Record<string, RadioModelInfo>> =
 /**
  * Default model metadata used when a radio reports an unknown model string.
  */
-export const DEFAULT_RADIO_MODEL_INFO = RADIO_MODEL_INFO_BY_NAME.DEFAULT;
+export const DEFAULT_RADIO_MODEL_INFO: RadioModelInfo =
+  RADIO_MODEL_INFO_BY_NAME.DEFAULT;
 
 /**
  * Canonical model names known to the static model table, excluding DEFAULT.
  */
-export const KNOWN_RADIO_MODEL_NAMES = Object.freeze(
+export const KNOWN_RADIO_MODEL_NAMES: readonly string[] = Object.freeze(
   Object.keys(RADIO_MODEL_INFO_BY_NAME).filter(
     (modelName) => modelName !== "DEFAULT",
   ),

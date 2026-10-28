@@ -50,55 +50,55 @@ export class SpotControllerImpl implements SpotController {
     return this.current();
   }
 
-  get callsign(): string {
+  get callsign(): SpotSnapshot["callsign"] {
     return this.current().callsign;
   }
 
-  get rxFreqMHz(): number {
+  get rxFreqMHz(): SpotSnapshot["rxFreqMHz"] {
     return this.current().rxFreqMHz;
   }
 
-  get txFreqMHz(): number {
+  get txFreqMHz(): SpotSnapshot["txFreqMHz"] {
     return this.current().txFreqMHz;
   }
 
-  get mode(): string {
+  get mode(): SpotSnapshot["mode"] {
     return this.current().mode;
   }
 
-  get color(): string | undefined {
+  get color(): SpotSnapshot["color"] {
     return this.current().color;
   }
 
-  get backgroundColor(): string | undefined {
+  get backgroundColor(): SpotSnapshot["backgroundColor"] {
     return this.current().backgroundColor;
   }
 
-  get source(): string | undefined {
+  get source(): SpotSnapshot["source"] {
     return this.current().source;
   }
 
-  get spotterCallsign(): string | undefined {
+  get spotterCallsign(): SpotSnapshot["spotterCallsign"] {
     return this.current().spotterCallsign;
   }
 
-  get timestampSec(): number | undefined {
+  get timestampSec(): SpotSnapshot["timestampSec"] {
     return this.current().timestampSec;
   }
 
-  get lifetimeSeconds(): number | undefined {
+  get lifetimeSeconds(): SpotSnapshot["lifetimeSeconds"] {
     return this.current().lifetimeSeconds;
   }
 
-  get comment(): string | undefined {
+  get comment(): SpotSnapshot["comment"] {
     return this.current().comment;
   }
 
-  get priority(): number {
+  get priority(): SpotSnapshot["priority"] {
     return this.current().priority;
   }
 
-  get triggerAction(): string {
+  get triggerAction(): SpotSnapshot["triggerAction"] {
     return this.current().triggerAction;
   }
 

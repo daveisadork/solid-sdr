@@ -71,47 +71,47 @@ export class XvtrControllerImpl implements XvtrController {
     return this.current();
   }
 
-  get name(): string {
+  get name(): XvtrSnapshot["name"] {
     return this.current().name;
   }
 
-  get rfFreqMHz(): number {
+  get rfFreqMHz(): XvtrSnapshot["rfFreqMHz"] {
     return this.current().rfFreqMHz;
   }
 
-  get ifFreqMHz(): number {
+  get ifFreqMHz(): XvtrSnapshot["ifFreqMHz"] {
     return this.current().ifFreqMHz;
   }
 
-  get loErrorMHz(): number {
+  get loErrorMHz(): XvtrSnapshot["loErrorMHz"] {
     return this.current().loErrorMHz;
   }
 
-  get rxGainDb(): number {
+  get rxGainDb(): XvtrSnapshot["rxGainDb"] {
     return this.current().rxGainDb;
   }
 
-  get rxOnly(): boolean {
+  get rxOnly(): XvtrSnapshot["rxOnly"] {
     return this.current().rxOnly;
   }
 
-  get maxPowerDbm(): number {
+  get maxPowerDbm(): XvtrSnapshot["maxPowerDbm"] {
     return this.current().maxPowerDbm;
   }
 
-  get order(): number {
+  get order(): XvtrSnapshot["order"] {
     return this.current().order;
   }
 
-  get preferred(): boolean {
+  get preferred(): XvtrSnapshot["preferred"] {
     return this.current().preferred;
   }
 
-  get twoMeterInt(): number {
+  get twoMeterInt(): XvtrSnapshot["twoMeterInt"] {
     return this.current().twoMeterInt;
   }
 
-  get valid(): boolean {
+  get valid(): XvtrSnapshot["valid"] {
     return this.current().valid;
   }
 

@@ -43,19 +43,19 @@ export class PresetControllerImpl implements PresetController {
     return this.current();
   }
 
-  get name(): string {
+  get name(): PresetSnapshot["name"] {
     return this.current().name;
   }
 
-  get sliceConfig(): string {
+  get sliceConfig(): PresetSnapshot["sliceConfig"] {
     return this.current().sliceConfig;
   }
 
-  get aleConfig(): string {
+  get aleConfig(): PresetSnapshot["aleConfig"] {
     return this.current().aleConfig;
   }
 
-  get active(): boolean {
+  get active(): PresetSnapshot["active"] {
     return this.current().active;
   }
 

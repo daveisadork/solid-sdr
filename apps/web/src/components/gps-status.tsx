@@ -35,6 +35,11 @@ export function GpsStatus(props: { class?: string }) {
     const entries: Array<{ label: string; value: string }> = [];
     if (current.gpsStatus)
       entries.push({ label: "Status", value: current.gpsStatus });
+    if (current.gpsFix)
+      entries.push({
+        label: "Fix",
+        value: current.gpsFix?.replaceAll("_", " "),
+      });
     if (current.gpsUtcTime)
       entries.push({ label: "UTC Time", value: current.gpsUtcTime });
     if (current.gpsAltitude)

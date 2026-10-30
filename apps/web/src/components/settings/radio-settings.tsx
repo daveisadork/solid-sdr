@@ -1,18 +1,33 @@
 import * as NumberFieldPrimitive from "@kobalte/core/number-field";
 import * as TextFieldPrimitive from "@kobalte/core/text-field";
-import type {
-  ApdSamplerPort,
-  FilterPresetEntry,
-  FlexCommandRejectedError,
-  Radio,
-  RadioOscillatorSetting,
+import {
+  type ApdSamplerPort,
+  type FilterPresetEntry,
+  type FlexCommandRejectedError,
+  isValidNtpAddress,
+  isValidNtpDescription,
+  isValidNtpSourceId,
+  type Radio,
+  type RadioOscillatorSetting,
 } from "@repo/flexlib";
 import type { Mutable } from "@repo/flexlib/flex/state/common";
-import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
-import { createStore } from "solid-js/store";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  onMount,
+  Show,
+} from "solid-js";
+import { createStore, reconcile } from "solid-js/store";
 import { Dynamic } from "solid-js/web";
-import useFlexRadio, { type FilterPresetState } from "~/context/flexradio";
+import useFlexRadio, {
+  type FilterPresetState,
+  type NtpSourceState,
+} from "~/context/flexradio";
 import CheckIcon from "~icons/material-symbols/check";
+import CircleIcon from "~icons/material-symbols/circle";
+import CircleOutlineIcon from "~icons/material-symbols/circle-outline";
 import CloseIcon from "~icons/material-symbols/close";
 import Spinner from "~icons/svg-spinners/180-ring";
 import { usePreferences } from "../../context/preferences";
@@ -22,6 +37,7 @@ import { Button } from "../ui/button";
 import {
   Card,
   CardContent,
+  CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
@@ -64,6 +80,12 @@ import {
 import { SimpleSlider } from "../ui/simple-slider";
 import { SimpleSwitch } from "../ui/simple-switch";
 import { SliderToggle } from "../ui/slider-toggle";
+import {
+  SwitchControl,
+  SwitchLabel,
+  Switch as SwitchRoot,
+  SwitchThumb,
+} from "../ui/switch";
 import {
   Table,
   TableBody,
@@ -451,6 +473,420 @@ function NetworkSettings(props: { radio: Radio }) {
   );
 }
 
+function TransverterCard(props: { xvtrId: string }) {
+  const { radio, state } = useFlexRadio();
+
+  return (
+    <Show when={state.status.xvtr[props.xvtrId]}>
+      {(xvtr) => (
+        <Show when={radio()?.xvtr(xvtr().id)}>
+          {(ctrl) => (
+            <Card class="bg-transparent">
+              <CardHeader>
+                <div class="flex items-center">
+                  <CardTitle class="grow">{xvtr().name || "????"}</CardTitle>
+                  <Badge variant={xvtr().valid ? "success" : "warning"}>
+                    {xvtr().valid ? "Valid" : "Invalid"}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent class="select-none flex flex-col gap-4">
+                <TextField
+                  class="flex flex-col gap-2"
+                  value={xvtr().name}
+                  onChange={(value) => ctrl().setName(value)}
+                >
+                  <TextFieldLabel>Name</TextFieldLabel>
+                  <TextFieldInput placeholder="Name" />
+                </TextField>
+                <div class="grid grid-cols-2 gap-4">
+                  <NumberField
+                    class="flex flex-col gap-2 select-none"
+                    rawValue={xvtr().rfFreqMHz}
+                    format={false}
+                    minValue={0}
+                    onRawValueChange={(value) => {
+                      if (value === xvtr().rfFreqMHz) return;
+                      ctrl().setRfFreqMHz(value);
+                    }}
+                  >
+                    <NumberFieldLabel class="select-none">
+                      RF Freq MHz
+                    </NumberFieldLabel>
+                    <NumberFieldGroup class="select-none">
+                      <NumberFieldInput />
+                    </NumberFieldGroup>
+                  </NumberField>
+                  <NumberField
+                    class="flex flex-col gap-2 select-none"
+                    rawValue={xvtr().ifFreqMHz}
+                    format={false}
+                    minValue={0}
+                    onRawValueChange={(value) => {
+                      if (value === xvtr().ifFreqMHz) return;
+                      ctrl().setIfFreqMHz(value);
+                    }}
+                  >
+                    <NumberFieldLabel class="select-none">
+                      IF Freq MHz
+                    </NumberFieldLabel>
+                    <NumberFieldGroup class="select-none">
+                      <NumberFieldInput />
+                    </NumberFieldGroup>
+                  </NumberField>
+                  <NumberField
+                    class="flex flex-col gap-2 select-none"
+                    rawValue={xvtr().rfFreqMHz - xvtr().ifFreqMHz}
+                    minValue={0}
+                    format={false}
+                    readOnly
+                  >
+                    <NumberFieldLabel class="select-none">
+                      LO Freq MHz
+                    </NumberFieldLabel>
+                    <NumberFieldGroup class="select-none">
+                      <NumberFieldInput />
+                    </NumberFieldGroup>
+                  </NumberField>
+                  <NumberField
+                    class="flex flex-col gap-2 select-none"
+                    rawValue={xvtr().loErrorMHz}
+                    format={false}
+                    minValue={0}
+                    onRawValueChange={(value) => {
+                      if (value === xvtr().loErrorMHz) return;
+                      ctrl().setLoErrorMHz(value);
+                    }}
+                  >
+                    <NumberFieldLabel class="select-none">
+                      LO Error MHz
+                    </NumberFieldLabel>
+                    <NumberFieldGroup class="select-none">
+                      <NumberFieldInput />
+                    </NumberFieldGroup>
+                  </NumberField>
+                </div>
+                <SimpleSwitch
+                  checked={xvtr().rxOnly}
+                  onChange={(isChecked) => {
+                    ctrl().setRxOnly(isChecked);
+                  }}
+                  label="RX Only"
+                />
+                <NumberField
+                  class="flex flex-col gap-2 select-none"
+                  rawValue={xvtr().maxPowerDbm}
+                  format={false}
+                  minValue={0}
+                  onRawValueChange={(value) => {
+                    if (value === xvtr().maxPowerDbm) return;
+                    ctrl().setMaxPowerDbm(value);
+                  }}
+                >
+                  <NumberFieldLabel class="select-none">
+                    Max Power dBm
+                  </NumberFieldLabel>
+                  <NumberFieldGroup class="select-none">
+                    <NumberFieldInput />
+                  </NumberFieldGroup>
+                </NumberField>
+                <NumberField
+                  class="flex flex-col gap-2 select-none"
+                  rawValue={xvtr().rxGainDb}
+                  format={false}
+                  minValue={0}
+                  onRawValueChange={(value) => {
+                    if (value === xvtr().rxGainDb) return;
+                    ctrl().setRxGainDb(value);
+                  }}
+                >
+                  <NumberFieldLabel class="select-none">
+                    RX Gain dB
+                  </NumberFieldLabel>
+                  <NumberFieldGroup class="select-none">
+                    <NumberFieldInput />
+                  </NumberFieldGroup>
+                </NumberField>
+              </CardContent>
+              <CardFooter class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 items-stretch">
+                <ConfirmButton
+                  variant="destructive"
+                  message={`Are you sure you want to remove XVTR ${xvtr().name}?`}
+                  onConfirm={() => ctrl().remove()}
+                >
+                  Remove {xvtr().name}
+                </ConfirmButton>
+              </CardFooter>
+            </Card>
+          )}
+        </Show>
+      )}
+    </Show>
+  );
+}
+
+const Reachability = (props: { reachability: number }) => (
+  <div class="flex">
+    <For
+      each={Array.from(
+        { length: 8 },
+        (_, i) => ((props.reachability >> (7 - i)) & 1) === 1,
+      )}
+    >
+      {(success) => (
+        <Dynamic component={success ? CircleIcon : CircleOutlineIcon} />
+      )}
+    </For>
+  </div>
+);
+
+function EditNtpSource(props: { source?: NtpSourceState }) {
+  const { radio } = useFlexRadio();
+  const [state, setState] = createStore<
+    Partial<
+      Pick<
+        NtpSourceState,
+        "id" | "address" | "directive" | "description" | "prefer"
+      >
+    >
+  >({
+    id: props.source?.id,
+    address: props.source?.address,
+    directive: props.source?.directive ?? "server",
+    description: props.source?.description,
+    prefer: props.source?.prefer,
+  });
+  const [touched, setTouched] = createStore<Record<string, boolean>>({});
+
+  const syncState = () => {
+    setState({
+      id: props.source?.id,
+      address: props.source?.address,
+      directive: props.source?.directive ?? "server",
+      description: props.source?.description,
+      prefer: props.source?.prefer,
+    });
+    setTouched(reconcile({}));
+  };
+
+  const [open, setOpen] = createSignal(false);
+  const [saving, setSaving] = createSignal(false);
+  const valid = createMemo(() => {
+    const address = state.address ? isValidNtpAddress(state.address) : false;
+    const id = state.id ? isValidNtpSourceId(state.id) : false;
+    const description = isValidNtpDescription(state.description ?? "");
+    return address && id && description;
+  });
+
+  onMount(() => syncState());
+
+  createEffect((lastOpen) => {
+    const isOpen = open();
+    if (!isOpen || !lastOpen) syncState();
+    return isOpen;
+  }, false);
+
+  return (
+    <Dialog open={open()} onOpenChange={setOpen}>
+      <DialogTrigger as={Button}>
+        {props.source ? "Edit" : "Add Source"}
+      </DialogTrigger>
+      <DialogContent class="overflow-hidden flex flex-col">
+        <DialogHeader>
+          <DialogTitle>{props.source ? "Edit" : "Add"} NTP Source</DialogTitle>
+        </DialogHeader>
+        <div class="flex flex-col gap-4 text-sm">
+          <TextField
+            class="flex flex-col gap-2"
+            required
+            disabled={!!props.source || saving()}
+            value={state.id}
+            onChange={(value) => setState("id", value)}
+            onFocusOut={() => setTouched("name", true)}
+            validationState={
+              !touched.name || (state.id && isValidNtpSourceId(state.id))
+                ? "valid"
+                : "invalid"
+            }
+          >
+            <TextFieldLabel>Name</TextFieldLabel>
+            <TextFieldInput placeholder="Name" />
+            <TextFieldErrorMessage>
+              Name is required and may contain only letters, digits, and
+              hyphens, and may not start or end with a hyphen.
+            </TextFieldErrorMessage>
+          </TextField>
+          <TextField
+            class="flex flex-col gap-2"
+            required
+            value={state.description}
+            disabled={saving()}
+            onChange={(value) => setState("description", value)}
+            validationState={
+              isValidNtpDescription(state.description ?? "")
+                ? "valid"
+                : "invalid"
+            }
+          >
+            <TextFieldLabel>Description</TextFieldLabel>
+            <TextFieldInput placeholder="Description" />
+            <TextFieldErrorMessage>
+              Description must be a maximum of 62 characters and may only
+              contain letters, numbers, spaces, periods, hyphens, and
+              underscores.
+            </TextFieldErrorMessage>
+          </TextField>
+          <TextField
+            class="flex flex-col gap-2"
+            required
+            value={state.address}
+            disabled={saving()}
+            onChange={(value) => setState("address", value)}
+            onFocusOut={() => setTouched("address", true)}
+            validationState={
+              !touched.address ||
+              (state.address && isValidNtpAddress(state.address))
+                ? "valid"
+                : "invalid"
+            }
+          >
+            <TextFieldLabel>Address</TextFieldLabel>
+            <TextFieldInput placeholder="Address" />
+            <TextFieldErrorMessage>
+              Address is required and must be a valid hostname or IPv4 address.
+            </TextFieldErrorMessage>
+          </TextField>
+          <SegmentedControl
+            disabled={saving()}
+            value={state.directive}
+            onChange={(value) => setState("directive", value)}
+          >
+            <SegmentedControlLabel>Type</SegmentedControlLabel>
+            <SegmentedControlGroup>
+              <SegmentedControlIndicator />
+              <SegmentedControlItemsList class="grid grid-cols-3">
+                <For each={["server", "pool", "peer"]}>
+                  {(directive) => (
+                    <SegmentedControlItem value={directive}>
+                      <SegmentedControlItemLabel class="capitalize">
+                        {directive}
+                      </SegmentedControlItemLabel>
+                    </SegmentedControlItem>
+                  )}
+                </For>
+              </SegmentedControlItemsList>
+            </SegmentedControlGroup>
+          </SegmentedControl>
+          <SimpleSwitch
+            disabled={saving()}
+            label="Prefer this source"
+            checked={state.prefer}
+            onChange={(value) => setState("prefer", value)}
+          />
+        </div>
+        <DialogFooter>
+          <Button
+            disabled={saving() || !valid()}
+            onClick={async () => {
+              const { id, address, directive, description, prefer } = state;
+              if (!id || !address || !directive) return;
+              setSaving(true);
+              try {
+                if (props.source) {
+                  await radio()?.ntpSource(id)?.replace({
+                    address,
+                    directive,
+                    description,
+                    prefer,
+                  });
+                } else {
+                  await radio()?.createNtpSource({
+                    id,
+                    address,
+                    directive,
+                    description,
+                    prefer,
+                  });
+                }
+                setOpen(false);
+              } finally {
+                setSaving(false);
+              }
+            }}
+          >
+            Save
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function NtpSourceCard(props: { radio: Radio; source: NtpSourceState }) {
+  return (
+    <Card class="bg-transparent">
+      <CardHeader>
+        <SwitchRoot
+          class="flex"
+          checked={props.source.enabled}
+          onChange={(isChecked) =>
+            props.radio.ntpSource(props.source.id)?.setEnabled(isChecked)
+          }
+        >
+          <SwitchLabel class="grow flex items-center">
+            <CardTitle>{props.source.id}</CardTitle>
+          </SwitchLabel>
+          <SwitchControl>
+            <SwitchThumb />
+          </SwitchControl>
+        </SwitchRoot>
+        <CardDescription>{props.source.description}</CardDescription>
+      </CardHeader>
+      <CardContent class="select-none flex flex-col gap-4">
+        <SimpleSwitch
+          label="Preferred"
+          checked={props.source.prefer}
+          onChange={async (prefer) => {
+            const { address, directive, description } = props.source;
+            await props.radio.ntpSource(props.source.id)?.replace({
+              address,
+              directive,
+              description,
+              prefer,
+            });
+          }}
+        />
+        <InfoItem label="Address" value={props.source.address} />
+        <InfoItem label="Status" value={props.source.state} />
+        <InfoItem
+          label="Stratum"
+          value={props.source.stratum === -1 ? "—" : props.source.stratum}
+        />
+        <InfoItem
+          label="Reachability"
+          value={
+            props.source.reachability === -1 ? (
+              "—"
+            ) : (
+              <Reachability reachability={props.source.reachability} />
+            )
+          }
+        />
+      </CardContent>
+      <CardFooter class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 items-stretch">
+        <EditNtpSource source={props.source} />
+        <ConfirmButton
+          variant="destructive"
+          message={`Are you sure you want to remove ${props.source.id}?`}
+          onConfirm={() => props.radio.ntpSource(props.source.id)?.remove()}
+        >
+          Remove
+        </ConfirmButton>
+      </CardFooter>
+    </Card>
+  );
+}
+
 function RadioSettingsInner(props: { radio: Radio }) {
   const { state } = useFlexRadio();
   const [nickname, setNickname] = createSignal(state.status.radio.nickname);
@@ -661,6 +1097,28 @@ function RadioSettingsInner(props: { radio: Radio }) {
           <NetworkSettings radio={props.radio} />
         </CardFooter>
       </Card>
+
+      <Show when={radio?.modelInfo?.platform === "big-bend"}>
+        <Card class="bg-transparent">
+          <CardHeader>
+            <CardTitle>NTP Sources</CardTitle>
+            <CardDescription>
+              Configure the NTP sources the radio uses to synchronize its clock.
+              The radio must have network access to reach them.
+            </CardDescription>
+          </CardHeader>
+          <CardContent class="flex flex-col gap-4">
+            <For each={Object.values(state.status.ntpSource)}>
+              {(source) => (
+                <NtpSourceCard radio={props.radio} source={source} />
+              )}
+            </For>
+          </CardContent>
+          <CardFooter class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 items-stretch">
+            <EditNtpSource />
+          </CardFooter>
+        </Card>
+      </Show>
       <Card class="bg-transparent">
         <CardHeader>
           <CardTitle>GPS</CardTitle>
@@ -691,6 +1149,10 @@ function RadioSettingsInner(props: { radio: Radio }) {
               value={state.status.radio.gpsFreqError}
             />
             <InfoItem label="Status" value={state.status.radio.gpsStatus} />
+            <InfoItem
+              label="Fix"
+              value={state.status.radio.gpsFix?.replaceAll("_", " ")}
+            />
             <InfoItem label="UTC Time" value={state.status.radio.gpsUtcTime} />
           </Show>
         </CardContent>
@@ -1442,155 +1904,8 @@ function RadioSettingsInner(props: { radio: Radio }) {
           <CardTitle>XVTR</CardTitle>
         </CardHeader>
         <CardContent class="flex flex-col gap-4">
-          <For each={Object.values(state.status.xvtr)}>
-            {(xvtr) => (
-              <Show when={props.radio.xvtr(xvtr.id)}>
-                {(controller) => {
-                  const ctrl = controller();
-                  return (
-                    <Card class="bg-transparent">
-                      <CardHeader>
-                        <div class="flex items-center">
-                          <CardTitle class="grow">
-                            {xvtr.name || "????"}
-                          </CardTitle>
-                          <Badge variant={xvtr.valid ? "success" : "warning"}>
-                            {xvtr.valid ? "Valid" : "Invalid"}
-                          </Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent class="select-none flex flex-col gap-4">
-                        <TextField
-                          class="flex flex-col gap-2"
-                          value={xvtr.name}
-                          onChange={(value) => ctrl.setName(value)}
-                        >
-                          <TextFieldLabel>Name</TextFieldLabel>
-                          <TextFieldInput placeholder="Name" />
-                        </TextField>
-                        <div class="grid grid-cols-2 gap-4">
-                          <NumberField
-                            class="flex flex-col gap-2 select-none"
-                            rawValue={xvtr.rfFreqMHz}
-                            format={false}
-                            minValue={0}
-                            onRawValueChange={(value) => {
-                              if (value === xvtr.rfFreqMHz) return;
-                              ctrl.setRfFreqMHz(value);
-                            }}
-                          >
-                            <NumberFieldLabel class="select-none">
-                              RF Freq MHz
-                            </NumberFieldLabel>
-                            <NumberFieldGroup class="select-none">
-                              <NumberFieldInput />
-                            </NumberFieldGroup>
-                          </NumberField>
-                          <NumberField
-                            class="flex flex-col gap-2 select-none"
-                            rawValue={xvtr.ifFreqMHz}
-                            format={false}
-                            minValue={0}
-                            onRawValueChange={(value) => {
-                              if (value === xvtr.ifFreqMHz) return;
-                              ctrl.setIfFreqMHz(value);
-                            }}
-                          >
-                            <NumberFieldLabel class="select-none">
-                              IF Freq MHz
-                            </NumberFieldLabel>
-                            <NumberFieldGroup class="select-none">
-                              <NumberFieldInput />
-                            </NumberFieldGroup>
-                          </NumberField>
-                          <NumberField
-                            class="flex flex-col gap-2 select-none"
-                            rawValue={xvtr.rfFreqMHz - xvtr.ifFreqMHz}
-                            minValue={0}
-                            format={false}
-                            readOnly
-                          >
-                            <NumberFieldLabel class="select-none">
-                              LO Freq MHz
-                            </NumberFieldLabel>
-                            <NumberFieldGroup class="select-none">
-                              <NumberFieldInput />
-                            </NumberFieldGroup>
-                          </NumberField>
-                          <NumberField
-                            class="flex flex-col gap-2 select-none"
-                            rawValue={xvtr.loErrorMHz}
-                            format={false}
-                            minValue={0}
-                            onRawValueChange={(value) => {
-                              if (value === xvtr.loErrorMHz) return;
-                              ctrl.setLoErrorMHz(value);
-                            }}
-                          >
-                            <NumberFieldLabel class="select-none">
-                              LO Error MHz
-                            </NumberFieldLabel>
-                            <NumberFieldGroup class="select-none">
-                              <NumberFieldInput />
-                            </NumberFieldGroup>
-                          </NumberField>
-                        </div>
-                        <SimpleSwitch
-                          checked={xvtr.rxOnly}
-                          onChange={(isChecked) => {
-                            ctrl.setRxOnly(isChecked);
-                          }}
-                          label="RX Only"
-                        />
-                        <NumberField
-                          class="flex flex-col gap-2 select-none"
-                          rawValue={xvtr.maxPowerDbm}
-                          format={false}
-                          minValue={0}
-                          onRawValueChange={(value) => {
-                            if (value === xvtr.maxPowerDbm) return;
-                            ctrl.setMaxPowerDbm(value);
-                          }}
-                        >
-                          <NumberFieldLabel class="select-none">
-                            Max Power dBm
-                          </NumberFieldLabel>
-                          <NumberFieldGroup class="select-none">
-                            <NumberFieldInput />
-                          </NumberFieldGroup>
-                        </NumberField>
-                        <NumberField
-                          class="flex flex-col gap-2 select-none"
-                          rawValue={xvtr.rxGainDb}
-                          format={false}
-                          minValue={0}
-                          onRawValueChange={(value) => {
-                            if (value === xvtr.rxGainDb) return;
-                            ctrl.setRxGainDb(value);
-                          }}
-                        >
-                          <NumberFieldLabel class="select-none">
-                            RX Gain dB
-                          </NumberFieldLabel>
-                          <NumberFieldGroup class="select-none">
-                            <NumberFieldInput />
-                          </NumberFieldGroup>
-                        </NumberField>
-                      </CardContent>
-                      <CardFooter class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 items-stretch">
-                        <ConfirmButton
-                          variant="destructive"
-                          message={`Are you sure you want to remove XVTR ${xvtr.name}?`}
-                          onConfirm={() => ctrl.remove()}
-                        >
-                          Remove {xvtr.name}
-                        </ConfirmButton>
-                      </CardFooter>
-                    </Card>
-                  );
-                }}
-              </Show>
-            )}
+          <For each={Object.keys(state.status.xvtr)}>
+            {(xvtrId) => <TransverterCard xvtrId={xvtrId} />}
           </For>
         </CardContent>
         <CardFooter class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 items-stretch">
@@ -1726,7 +2041,7 @@ function RadioSettingsInner(props: { radio: Radio }) {
 export function RadioSettings() {
   const { state, radio } = useFlexRadio();
   return (
-    <DialogContent class="translate-y-0 top-1/12 flex flex-col max-h-10/12 overflow-hidden sm:max-w-10/12 sm:w-auto">
+    <DialogContent class="translate-y-0 top-1/12 flex flex-col max-h-10/12 overflow-hidden sm:max-w-10/12 sm:w-xl">
       <DialogHeader>
         <DialogTitle>Radio Settings</DialogTitle>
       </DialogHeader>

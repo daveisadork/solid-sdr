@@ -392,6 +392,7 @@ export interface RadioSession {
    * port the radio connects back on (e.g. `dvk download id=N`).
    */
   createDownloadWithCommand(command: string): FileDownload;
+  createNtpSource(options: NtpSourceCreateOptions): Promise<void>;
 }
 
 const DEFAULT_COMMAND_TIMEOUT_MS = 5_000;

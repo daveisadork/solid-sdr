@@ -106,6 +106,8 @@ export interface NtpSourceController
    */
   setEnabled(enabled: boolean): Promise<void>;
 
+  replace(source: Omit<NtpSourceCreateOptions, "id">): Promise<void>;
+
   /** Removes the source from the radio. */
   remove(): Promise<void>;
 }
@@ -172,6 +174,36 @@ export class NtpSourceControllerImpl implements NtpSourceController {
 
   async remove(): Promise<void> {
     await this.radio.command(`ntp_sources remove id=${this.id}`);
+  }
+
+  async replace(source: Omit<NtpSourceCreateOptions, "id">): Promise<void> {
+    const { id, address, directive, description, prefer, enabled } =
+      this.current();
+    this.patch({
+      address: source.address,
+      directive: source.directive,
+      description: source.description ?? "",
+      prefer: source.prefer ? "1" : "0",
+    });
+    try {
+      this.radio.getStore().setNtpSourceReplacing(this.id);
+      await this.remove();
+      await this.radio.createNtpSource({ ...source, id });
+    } catch (error) {
+      await this.radio
+        .createNtpSource({
+          id,
+          address,
+          directive,
+          description,
+          prefer,
+        })
+        .catch(() => {});
+      throw error;
+    } finally {
+      if (!enabled) await this.setEnabled(enabled);
+      this.radio.getStore().clearNtpSourceReplacing(this.id);
+    }
   }
 
   on<TKey extends keyof NtpSourceControllerEvents>(

@@ -69,6 +69,10 @@ type clientSession struct {
 	mu    sync.Mutex
 	pc    *webrtc.PeerConnection
 	radio *radioConn
+
+	// Local ICE candidates that wait for the answer. See sendICE.
+	holdICE    bool
+	pendingICE []message
 }
 
 func newClientSession(srv *Server, ws *websocket.Conn, cancel context.CancelFunc, clientIP string) *clientSession {
@@ -183,7 +187,12 @@ func (cs *clientSession) handleOffer(ctx context.Context, raw json.RawMessage) {
 		return
 	}
 
+	// Send the local ICE candidates only after the answer.
+	defer cs.releaseICE()
+
 	cs.mu.Lock()
+	cs.holdICE = true
+
 	if cs.pc == nil {
 		pc, err := cs.srv.api.NewPeerConnection(webrtc.Configuration{ICEServers: cs.srv.iceServers})
 		if err != nil {
@@ -226,6 +235,35 @@ func (cs *clientSession) handleOffer(ctx context.Context, raw json.RawMessage) {
 	}
 
 	cs.trySend(mustEncode(typeAnswer, cs.pc.LocalDescription()))
+}
+
+// Send a local ICE candidate to the client.
+// The client rejects a candidate that arrives before the answer.
+// Thus, while an offer is in progress, keep the candidate until releaseICE.
+func (cs *clientSession) sendICE(msg message) {
+	cs.mu.Lock()
+	defer cs.mu.Unlock()
+
+	if cs.holdICE {
+		cs.pendingICE = append(cs.pendingICE, msg)
+
+		return
+	}
+
+	cs.trySend(msg)
+}
+
+// Send the kept ICE candidates. Call this after the answer is sent.
+func (cs *clientSession) releaseICE() {
+	cs.mu.Lock()
+	defer cs.mu.Unlock()
+
+	for _, msg := range cs.pendingICE {
+		cs.trySend(msg)
+	}
+
+	cs.pendingICE = nil
+	cs.holdICE = false
 }
 
 func (cs *clientSession) handleICE(raw json.RawMessage) {
@@ -276,7 +314,7 @@ func (cs *clientSession) setupPeerConnection(ctx context.Context) {
 			return
 		}
 
-		cs.trySend(mustEncode(typeICE, c.ToJSON()))
+		cs.sendICE(mustEncode(typeICE, c.ToJSON()))
 	})
 	cs.pc.OnConnectionStateChange(func(state webrtc.PeerConnectionState) {
 		if state == webrtc.PeerConnectionStateFailed || state == webrtc.PeerConnectionStateClosed {

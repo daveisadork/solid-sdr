@@ -22,6 +22,8 @@ type SignalingMessage =
   | { type: "pong"; payload: null }
   | { type: "version"; payload: { version: string } };
 
+const PING_MESSAGE = JSON.stringify({ type: "ping", payload: null });
+
 export const RtcProvider: ParentComponent = (props) => {
   const [rtcState, setRtcState] = createStore<RtcState>({
     connectionState: "new",
@@ -42,7 +44,7 @@ export const RtcProvider: ParentComponent = (props) => {
   const signalingWs = makeHeartbeatWS(
     createReconnectingWS("/ws/signal", [], { delay: 3000 }),
     {
-      message: JSON.stringify({ type: "ping", payload: null }),
+      message: PING_MESSAGE,
       interval: 1000,
       wait: 5000,
     },
@@ -70,6 +72,9 @@ export const RtcProvider: ParentComponent = (props) => {
       signalingWs.send(
         JSON.stringify({ type: "ice", payload: ev.candidate.toJSON() }),
       );
+      // The heartbeat reconnects if no message arrives within 5 s after a send.
+      // The server does not reply to "ice". Send a ping to get a reply.
+      signalingWs.send(PING_MESSAGE);
     }
   }
 

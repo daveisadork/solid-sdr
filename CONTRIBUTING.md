@@ -73,8 +73,8 @@ the Go server has no embedded web assets — Vite owns the frontend.
 
 ```sh
 pnpm lint          # Biome (TS) + golangci-lint (Go)
-pnpm format        # Biome, write fixes
-pnpm check-types   # tsc --noEmit, all packages
+pnpm lint:fix      # Biome and golangci-lint, write fixes
+pnpm typecheck     # tsc --noEmit, all packages
 
 pnpm --filter @repo/flexlib test   # vitest
 pnpm --filter @repo/server test    # go test ./...

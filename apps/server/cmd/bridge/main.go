@@ -46,6 +46,12 @@ func main() {
 		STUN:         cfg.StunURLs,
 		NAT1To1IPs:   cfg.NAT1To1IPs,
 		Version:      v,
+
+		ClientSTUN:         cfg.ClientSTUN,
+		TURNURLs:           cfg.TURNURLs,
+		TURNSecret:         cfg.TURNSecret,
+		TURNTTL:            cfg.TURNTTL,
+		ICETransportPolicy: cfg.ICETransportPolicy,
 	})
 
 	// ---- HTTP mux ----

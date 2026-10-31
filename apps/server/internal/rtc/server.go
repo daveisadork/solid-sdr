@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/daveisadork/solid-sdr/apps/server/internal/discovery"
 	"github.com/gorilla/websocket"
@@ -19,6 +20,13 @@ type Options struct {
 	STUN         []string
 	NAT1To1IPs   []string
 	Version      string
+
+	// ICE servers for web clients
+	ClientSTUN         []string
+	TURNURLs           []string
+	TURNSecret         string
+	TURNTTL            time.Duration
+	ICETransportPolicy string
 }
 
 type Server struct {
@@ -26,6 +34,12 @@ type Server struct {
 	api        *webrtc.API
 	iceServers []webrtc.ICEServer
 	version    string
+
+	clientSTUN         []string
+	turnURLs           []string
+	turnSecret         string
+	turnTTL            time.Duration
+	iceTransportPolicy string
 }
 
 func New(disco *discovery.Service, opt Options) *Server {
@@ -74,7 +88,22 @@ func New(disco *discovery.Service, opt Options) *Server {
 		iceServers = append(iceServers, webrtc.ICEServer{URLs: opt.STUN})
 	}
 
-	return &Server{disco: disco, api: api, iceServers: iceServers, version: opt.Version}
+	policy := opt.ICETransportPolicy
+	if policy == "" {
+		policy = "all"
+	}
+
+	return &Server{
+		disco:              disco,
+		api:                api,
+		iceServers:         iceServers,
+		version:            opt.Version,
+		clientSTUN:         opt.ClientSTUN,
+		turnURLs:           opt.TURNURLs,
+		turnSecret:         opt.TURNSecret,
+		turnTTL:            opt.TURNTTL,
+		iceTransportPolicy: policy,
+	}
 }
 
 var upgrader = websocket.Upgrader{ //nolint:gochecknoglobals
@@ -98,8 +127,38 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	cs := newClientSession(s, ws, cancel, clientIP)
+	// Send config first. A new client must have it before it makes the PeerConnection.
+	cs.trySend(mustEncode(typeConfig, s.clientConfig(time.Now())))
 	cs.trySend(mustEncode(typeVersion, versionPayload{Version: s.version}))
 	cs.serve(ctx)
+}
+
+func (s *Server) turnEnabled() bool {
+	return len(s.turnURLs) > 0 && s.turnSecret != ""
+}
+
+// Make the ICE configuration for the browser PeerConnection.
+// The TURN entry gets new credentials for each connection.
+func (s *Server) clientConfig(now time.Time) configPayload {
+	cfg := configPayload{
+		ICEServers:         []iceServerPayload{},
+		ICETransportPolicy: s.iceTransportPolicy,
+	}
+
+	if len(s.clientSTUN) > 0 {
+		cfg.ICEServers = append(cfg.ICEServers, iceServerPayload{URLs: s.clientSTUN})
+	}
+
+	if s.turnEnabled() {
+		creds := newTURNCredentials(s.turnSecret, s.turnTTL, now)
+		cfg.ICEServers = append(cfg.ICEServers, iceServerPayload{
+			URLs:       s.turnURLs,
+			Username:   creds.Username,
+			Credential: creds.Password,
+		})
+	}
+
+	return cfg
 }
 
 func summarizeMuxListeners(addrs []net.Addr) (hasUDP4, hasUDP6 bool, listeners []string) {

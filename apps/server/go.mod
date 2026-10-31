@@ -7,6 +7,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/pion/ice/v4 v4.4.8
+	github.com/pion/turn/v5 v5.1.2
 	github.com/pion/webrtc/v4 v4.2.25
 	github.com/spf13/pflag v1.0.10
 	github.com/spf13/viper v1.21.0
@@ -33,7 +34,6 @@ require (
 	github.com/pion/srtp/v3 v3.1.3 // indirect
 	github.com/pion/stun/v4 v4.0.1 // indirect
 	github.com/pion/transport/v5 v5.1.1 // indirect
-	github.com/pion/turn/v5 v5.1.2 // indirect
 	github.com/sagikazarmark/locafero v0.12.0 // indirect
 	github.com/spf13/afero v1.15.0 // indirect
 	github.com/spf13/cast v1.10.0 // indirect

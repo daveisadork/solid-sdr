@@ -427,7 +427,7 @@ export function Panafall(props: { index: number }) {
                         ? ["DIGU", "FDVU"].includes(slice.mode)
                           ? slice.diguOffsetHz
                           : ["DIGL", "FDVL"].includes(slice.mode)
-                            ? slice.diglOffsetHz
+                            ? -slice.diglOffsetHz
                             : 0
                         : 0;
                       const freq = roundToDecimals(

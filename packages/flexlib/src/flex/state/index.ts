@@ -323,6 +323,8 @@ export interface RadioStateStore {
   getActivePresetId(): string | undefined;
   getNtpSource(id: string): NtpSourceSnapshot | undefined;
   getNtpSources(): readonly NtpSourceSnapshot[];
+  setNtpSourceReplacing(id: string): void;
+  clearNtpSourceReplacing(id: string): void;
   patchNtpSource(
     id: string,
     attributes: Record<string, string>,
@@ -465,6 +467,7 @@ export function createRadioStateStore(
   const cwDecoders = new Map<string, CwDecoderSnapshot>();
   const autoDxes = new Map<string, AutoDxSnapshot>();
   const ntpSources = new Map<string, NtpSourceSnapshot>();
+  const replacingNtpSourceIds = new Set<string>();
   let activePresetId: string | undefined;
   const spots = new Map<string, SpotSnapshot>();
   const displayMarkers = new Map<string, Map<string, DisplayMarkerSnapshot>>();
@@ -550,8 +553,7 @@ export function createRadioStateStore(
         case "transmit": {
           if (message.identifier === "band") {
             const change = handleTxBandSetting(message);
-            if (change) return [change];
-            return [];
+            return change ? [change] : [];
           }
           return [handleRadio(message)];
         }
@@ -559,8 +561,7 @@ export function createRadioStateStore(
           return handleClient(message);
         case "eq": {
           const change = handleEqualizer(message);
-          if (change) return [change];
-          return [];
+          return change ? [change] : [];
         }
         case "xvtr":
           return [handleXvtr(message)];
@@ -570,60 +571,53 @@ export function createRadioStateStore(
           return handleAutoDx(message);
         case "preset":
           return handlePreset(message);
-        case "ntp_sources":
-          return [handleNtpSource(message)];
+        case "ntp_sources": {
+          const change = handleNtpSource(message);
+          return change ? [change] : [];
+        }
         case "tnf":
           return [handleTnf(message)];
         case "memory":
           return [handleMemory(message)];
         case "spot": {
-          const spotChange = handleSpot(message);
-          if (spotChange) return [spotChange];
-          return [];
+          const change = handleSpot(message);
+          return change ? [change] : [];
         }
         case "display_marker":
           return [handleDisplayMarker(message)];
         case "filt_preset": {
           const change = handleFilterPreset(message);
-          if (change) return [change];
-          return [];
+          return change ? [change] : [];
         }
         case "cwx": {
           const change = handleCwx(message);
-          if (change) return [change];
-          return [];
+          return change ? [change] : [];
         }
         case "dvk": {
           const change = handleDvk(message);
-          if (change) return [change];
-          return [];
+          return change ? [change] : [];
         }
         case "waveform":
           return handleWaveform(message);
         case "apd": {
           const change = handleApd(message);
-          if (change) return [change];
-          return [];
+          return change ? [change] : [];
         }
         case "license": {
           const change = handleLicense(message);
-          if (change) return [change];
-          return [];
+          return change ? [change] : [];
         }
         case "log": {
           const change = handleLog(message);
-          if (change) return [change];
-          return [];
+          return change ? [change] : [];
         }
         case "profile": {
           const change = handleProfile(message);
-          if (change) return [change];
-          return [];
+          return change ? [change] : [];
         }
         case "atu": {
           const change = handleAtu(message);
-          if (change) return [change];
-          return [];
+          return change ? [change] : [];
         }
         case "display": {
           switch (message.identifier) {
@@ -743,6 +737,12 @@ export function createRadioStateStore(
     },
     patchNtpSource(id, attributes) {
       return patchNtpSource(id, attributes);
+    },
+    setNtpSourceReplacing(id) {
+      replacingNtpSourceIds.add(id);
+    },
+    clearNtpSourceReplacing(id) {
+      replacingNtpSourceIds.delete(id);
     },
     getXvtr(id) {
       return xvtrs.get(id);
@@ -1988,7 +1988,9 @@ export function createRadioStateStore(
     return [{ entity: "preset", id, diff, removed: false }];
   }
 
-  function handleNtpSource(message: FlexStatusMessage): RadioStateChange {
+  function handleNtpSource(
+    message: FlexStatusMessage,
+  ): RadioStateChange | undefined {
     const id = message.attributes.id;
     if (!id) {
       return {
@@ -1999,6 +2001,7 @@ export function createRadioStateStore(
     }
 
     if ("removed" in message.attributes) {
+      if (replacingNtpSourceIds.delete(id)) return undefined;
       ntpSources.delete(id);
       return { entity: "ntpSource", id, removed: true };
     }

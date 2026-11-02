@@ -9,6 +9,16 @@ import {
 /** NTP source directive. */
 export type NtpDirective = "server" | "pool" | "peer";
 
+const NTP_DIRECTIVES: ReadonlySet<string> = new Set<NtpDirective>([
+  "server",
+  "pool",
+  "peer",
+]);
+
+function isNtpDirective(value: string): value is NtpDirective {
+  return NTP_DIRECTIVES.has(value);
+}
+
 /** Source state from the radio's time service (chrony). */
 export type NtpSourceState =
   | "selected"
@@ -42,7 +52,7 @@ export interface NtpSourceSnapshot {
   /** Host name or IP address. Wire: `address`. */
   readonly address: string;
   /** Wire: `directive`. An unexpected value is kept as sent. */
-  readonly directive: NtpDirective | (string & {});
+  readonly directive: NtpDirective;
   /** Free text description. Wire: `description`. */
   readonly description: string;
   /** Whether the time service prefers this source while it is reachable. Wire: `prefer`. */
@@ -71,37 +81,29 @@ export function createNtpSourceSnapshot(
     : {
         id,
         description: "",
-        stratum: -1,
+        state: "unknown",
       };
 
   for (const [key, value] of Object.entries(attributes)) {
     switch (key) {
       case "id":
       case "address":
-      case "directive":
       case "description":
         partial[key] = value;
+        break;
+      case "directive":
+        if (isNtpDirective(value)) partial.directive = value;
+        else logParseError("ntp_sources", key, value);
         break;
       case "enabled":
       case "selected":
       case "prefer": {
-        if (value !== "0" && value !== "1") {
-          logParseError("ntp_sources", key, value);
-          break;
-        }
         partial[key] = value === "1";
         break;
       }
       case "state":
-        if (!isNtpSourceState(value)) {
-          logParseError("ntp_sources", key, value);
-          break;
-        }
-        partial.state = value;
-        if (value === "unknown") {
-          partial.stratum = partial.stratum ?? -1;
-          partial.reachability = partial.reachability ?? -1;
-        }
+        if (isNtpSourceState(value)) partial.state = value;
+        else logParseError("ntp_sources", key, value);
         break;
       case "stratum": {
         const parsed = parseInteger(value);
@@ -119,6 +121,11 @@ export function createNtpSourceSnapshot(
         logUnknownAttribute("ntp_sources", key, value);
         break;
     }
+  }
+
+  if (partial.state === "unknown") {
+    partial.stratum = partial.stratum ?? -1;
+    partial.reachability = partial.reachability ?? -1;
   }
 
   const snapshot = Object.freeze({

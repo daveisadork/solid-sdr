@@ -94,10 +94,10 @@
     "lint:fix": "biome check --write src tests"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.6.3",
-    "@types/node": "^26.6.5",
+    "@biomejs/biome": "2.6.4",
+    "@types/node": "^26.6.6",
     "bumpp": "^12.3.0",
-    "tsdown": "0.23.2",
+    "tsdown": "0.23.4",
     "typescript": "^7.0.2",
     "vitest": "^5.0.5"
   }

@@ -18,6 +18,7 @@ export * from "./audio-stream.js";
 export * from "./autodx.js";
 export * from "./client-handle.js";
 export * from "./cw-break-in-delay.js";
+export * from "./cw-decoder.js";
 export * from "./cwx.js";
 // Discovery parsing
 export { decodeDiscoveryPayload, parseDiscoveryPayload } from "./discovery.js";

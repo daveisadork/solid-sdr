@@ -90,6 +90,10 @@ import {
   RemoteAudioTxStreamControllerImpl,
 } from "./audio-stream.js";
 import { type AutoDxController, AutoDxControllerImpl } from "./autodx.js";
+import {
+  type CwDecoderController,
+  CwDecoderControllerImpl,
+} from "./cw-decoder.js";
 import { type CwxController, CwxControllerImpl } from "./cwx.js";
 import {
   type DisplayMarkerController,
@@ -617,6 +621,10 @@ class RadioImpl {
     TxBandSettingControllerImpl
   >();
   private readonly xvtrControllers = new Map<string, XvtrControllerImpl>();
+  private readonly cwDecoderControllers = new Map<
+    string,
+    CwDecoderControllerImpl
+  >();
   private readonly autoDxControllers = new Map<string, AutoDxControllerImpl>();
   private readonly presetControllers = new Map<string, PresetControllerImpl>();
   private readonly ntpSourceControllers = new Map<
@@ -879,6 +887,23 @@ class RadioImpl {
 
   xvtrs(): XvtrController[] {
     return Array.from(this.xvtrControllers.values());
+  }
+
+  cwDecoders(): CwDecoderController[] {
+    return Array.from(this.cwDecoderControllers.values());
+  }
+
+  /** The CW decoder for a slice, or `undefined` until the radio reports one. */
+  cwDecoder(sliceId: string): CwDecoderController | undefined {
+    return this.getOrCreateController(
+      "cwDecoder",
+      sliceId,
+      this.cwDecoderControllers,
+      () => {
+        if (!this.store.getCwDecoder(sliceId)) return undefined;
+        return new CwDecoderControllerImpl(this, sliceId);
+      },
+    );
   }
 
   xvtr(id: string): XvtrController | undefined {
@@ -1716,6 +1741,16 @@ class RadioImpl {
           () => new EqualizerControllerImpl(this, change.id as EqualizerId),
         );
         break;
+      case "cwDecoder":
+        this.updateController(
+          change as Identified & CwDecoderStateChange,
+          this.cwDecoderControllers,
+          () => {
+            if (!this.store.getCwDecoder(change.id)) return undefined;
+            return new CwDecoderControllerImpl(this, change.id);
+          },
+        );
+        break;
       case "xvtr":
         this.updateController(
           change as Extract<RadioStateChange, { id: string }> & XvtrStateChange,
@@ -1736,11 +1771,6 @@ class RadioImpl {
             return new AutoDxControllerImpl(this, change.id);
           },
         );
-        break;
-      case "cwDecoder":
-        this.sliceControllers
-          .get(change.id)
-          ?.onCwDecoderChange(change as CwDecoderStateChange);
         break;
       case "preset":
         this.updateController(
@@ -3329,6 +3359,7 @@ class RadioImpl {
     this.equalizerControllers.clear();
     this.txBandControllers.clear();
     this.xvtrControllers.clear();
+    this.cwDecoderControllers.clear();
     this.autoDxControllers.clear();
     this.presetControllers.clear();
     this.ntpSourceControllers.clear();

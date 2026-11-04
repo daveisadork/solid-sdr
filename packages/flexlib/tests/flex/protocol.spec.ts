@@ -100,4 +100,14 @@ describe("parseFlexMessage", () => {
     expect(message.attributes.color).toBe("gray");
     expect(message.attributes.opacity).toBe("30");
   });
+
+  it("keeps whitespace inside quoted status values", () => {
+    const message = parseFlexMessage(
+      'S0|cw slice=0 active=1 wpm=34 snr=25.4 lock=1 pitch=600 cwl=0 text=" "',
+      Date.now(),
+    );
+    if (message?.kind !== "status") throw new Error("expected status");
+    expect(message.attributes.text).toBe(" ");
+    expect(message.attributes.cwl).toBe("0");
+  });
 });

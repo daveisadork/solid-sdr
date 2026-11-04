@@ -375,9 +375,9 @@ function parseSpaceSeparatedAttributes(
 const ESCAPED_STATUS_QUOTE = /\\(["\\])/g;
 
 function normalizeStatusAttributeValue(value: string): string {
-  let v = value;
+  let v = value.trim();
   if (v.startsWith('"') && v.endsWith('"') && v.length >= 2) {
     v = v.slice(1, -1).replace(ESCAPED_STATUS_QUOTE, "$1");
   }
-  return v.replace(/\u007f/g, " ").trim();
+  return v.replace(/\u007f/g, " ");
 }

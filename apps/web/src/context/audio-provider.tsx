@@ -22,6 +22,7 @@ import { DaxAudioTx } from "~/lib/dax-audio-tx";
 import { DaxIqAudioSink } from "~/lib/dax-iq-audio-sink";
 import { createPermission } from "~/lib/permission";
 import { RemoteTxGain } from "~/lib/remote-tx-gain";
+import { synchronizeMaps } from "~/lib/utils";
 import { AudioContext } from "./audio";
 import useFlexRadio from "./flexradio";
 import { usePreferences } from "./preferences";
@@ -56,6 +57,39 @@ export const AudioProvider: ParentComponent = (props) => {
     number,
     DaxRxAudioStreamController
   >();
+  const daxIqControllers = new ReactiveMap<
+    number,
+    DaxIqAudioStreamController
+  >();
+
+  const daxRxStreamIdsByChannel = new ReactiveMap<number, string>();
+  const daxIqStreamIdsByChannel = new ReactiveMap<number, string>();
+
+  createEffect(() =>
+    batch(() => {
+      const channels = new Map<number, string>();
+      for (const stream of Object.values(state.status.audioStream).filter(
+        (s) => s.clientHandle === state.clientHandleInt && s.type === "dax_rx",
+      )) {
+        if (stream.daxChannel !== undefined)
+          channels.set(stream.daxChannel, stream.id);
+      }
+      synchronizeMaps(daxRxStreamIdsByChannel, channels);
+    }),
+  );
+
+  createEffect(() =>
+    batch(() => {
+      const channels = new Map<number, string>();
+      for (const stream of Object.values(state.status.audioStream).filter(
+        (s) => s.clientHandle === state.clientHandleInt && s.type === "dax_iq",
+      )) {
+        if (stream.daxChannel !== undefined)
+          channels.set(stream.daxChannel, stream.id);
+      }
+      synchronizeMaps(daxIqStreamIdsByChannel, channels);
+    }),
+  );
 
   // Prompt for microphone permission when any audio feature is enabled
   createEffect(() => {
@@ -63,8 +97,8 @@ export const AudioProvider: ParentComponent = (props) => {
     const audioEnabled =
       preferences.remoteAudio.rx.enabled ||
       preferences.dax.tx.enabled ||
-      Object.values(preferences.dax.rx).some((c) => c.enabled);
-    Object.values(preferences.dax.iq).some((c) => c.enabled);
+      Object.values(preferences.dax.rx).some((c) => c.enabled) ||
+      Object.values(preferences.dax.iq).some((c) => c.enabled);
     if (!audioEnabled) return;
     navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
       for (const t of stream.getTracks()) t.stop();
@@ -218,6 +252,7 @@ export const AudioProvider: ParentComponent = (props) => {
   // Create/destroy DAX RX radio streams for each channel
   for (let channel = 1; channel <= 16; channel++) {
     const daxChannel = channel;
+
     createEffect(() => {
       if (!state.clientHandle || !preferences.dax.rx[daxChannel]?.enabled)
         return;
@@ -235,23 +270,11 @@ export const AudioProvider: ParentComponent = (props) => {
         }),
       );
     });
-  }
-
-  // Manage DaxAudioSink instances for active DAX RX streams
-  for (let channel = 1; channel <= 16; channel++) {
-    const daxChannel = channel;
 
     createEffect(() => {
-      const activeStream = Object.values(state.status.audioStream).find(
-        (s) =>
-          s.clientHandle === state.clientHandleInt &&
-          s.type === "dax_rx" &&
-          s.daxChannel === daxChannel,
-      );
-      if (!activeStream) return;
-
+      const controller = daxRxControllers.get(daxChannel);
+      if (!controller) return;
       const sink = new DaxAudioSink();
-      const controller = radio()?.audioStream(activeStream.id);
       sink.init().catch(console.error);
       const subscription = controller?.on("data", (event) => sink.play(event));
       daxSinks.set(daxChannel, sink);
@@ -280,6 +303,12 @@ export const AudioProvider: ParentComponent = (props) => {
         preferences.dax.rx[daxChannel]?.channelMode ?? "both",
       );
     });
+
+    createEffect(() => {
+      daxRxControllers
+        .get(daxChannel)
+        ?.setRxGain(preferences.dax.rx[daxChannel].gain);
+    });
   }
 
   // Create/destroy DAX IQ radio streams + sinks per channel
@@ -300,8 +329,17 @@ export const AudioProvider: ParentComponent = (props) => {
         daxIqChannel: iqChannel,
         sampleRate: initialRate,
       });
+      promise?.then((controller) =>
+        daxIqControllers.set(iqChannel, controller),
+      );
       onCleanup(() =>
-        promise?.then((stream) => radio()?.audioStream(stream.id)?.close()),
+        promise?.then((stream) => {
+          // Use the captured daxChannel local, not stream.daxChannel: on
+          // disconnect the store snapshot is already gone, so reading the
+          // getter would throw FlexStateUnavailableError.
+          daxIqControllers.delete(iqChannel);
+          radio()?.audioStream(stream.id)?.close();
+        }),
       );
     });
 
@@ -310,16 +348,9 @@ export const AudioProvider: ParentComponent = (props) => {
     createEffect(() => {
       const rate = preferences.dax.iq[iqChannel]?.sampleRate;
       if (!rate) return;
-      const activeStream = Object.values(state.status.audioStream).find(
-        (s) =>
-          s.clientHandle === state.clientHandleInt &&
-          s.type === "dax_iq" &&
-          s.daxIqChannel === iqChannel,
-      );
-      if (!activeStream) return;
-
+      const controller = daxIqControllers.get(iqChannel);
+      if (!controller) return;
       const sink = new DaxIqAudioSink({ sampleRate: rate });
-      const controller = radio()?.audioStream(activeStream.id);
       sink.init().catch(console.error);
       const subscription = controller?.on("data", (event) => sink.play(event));
       daxIqSinks.set(iqChannel, sink);
@@ -342,17 +373,14 @@ export const AudioProvider: ParentComponent = (props) => {
 
     // Sample rate sync — push the preference rate to the radio when it differs.
     createEffect(() => {
-      const stream = Object.values(state.status.audioStream).find(
-        (s) =>
-          s.clientHandle === state.clientHandleInt &&
-          s.type === "dax_iq" &&
-          s.daxIqChannel === iqChannel,
-      );
+      const streamId = daxIqStreamIdsByChannel.get(iqChannel);
+      if (!streamId) return;
+      const stream = state.status.audioStream[streamId];
       if (!stream) return;
       const desired = preferences.dax.iq[iqChannel]?.sampleRate;
       if (!desired || stream.daxIqRate === desired) return;
-      const controller = radio()?.audioStream(stream.id);
-      if (controller && "setSampleRate" in controller) {
+      const controller = daxIqControllers.get(iqChannel);
+      if (controller) {
         (controller as DaxIqAudioStreamController)
           .setSampleRate(desired)
           .catch(console.error);
@@ -399,10 +427,12 @@ export const AudioProvider: ParentComponent = (props) => {
     const controller = daxTxController();
     if (!controller) return Promise.resolve();
 
+    const constraints = {
+      audio: { ...preferredDaxInputDevice() },
+    };
+
     const streamPromise = lastCleanupPromise.then(() =>
-      navigator.mediaDevices.getUserMedia({
-        audio: { ...preferredDaxInputDevice() },
-      }),
+      navigator.mediaDevices.getUserMedia(constraints),
     );
 
     const daxPromise = streamPromise.then(async (stream) => {
@@ -448,13 +478,6 @@ export const AudioProvider: ParentComponent = (props) => {
   // Sync channel mode to running DaxAudioTx instance
   createEffect(() => {
     daxTxInstance()?.setChannelMode(preferences.dax.tx.channelMode);
-  });
-
-  createEffect(() => {
-    for (const [channel, config] of Object.entries(preferences.dax.rx)) {
-      if (config.enabled)
-        daxRxControllers.get(Number(channel))?.setRxGain(config.gain);
-    }
   });
 
   return (

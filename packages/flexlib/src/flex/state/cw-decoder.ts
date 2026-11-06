@@ -1,6 +1,8 @@
 import type { Mutable, SnapshotUpdate } from "./common.js";
 import {
   freezeAttributes,
+  isTruthy,
+  logParseError,
   logUnknownAttribute,
   parseFloatSafe,
   parseInteger,
@@ -13,10 +15,10 @@ import { decodeCwxText } from "./cwx.js";
  */
 export interface CwDecoderSnapshot {
   /** Id of the slice the decoder runs on. */
-  readonly sliceId: string;
+  readonly id: string;
   /** Whether a decoder is running on the slice. Wire: `active`. */
   readonly active: boolean;
-  /** Most recently decoded text. Wire: `text`. */
+  /** Most recent decoded character. Wire: `text`. */
   readonly text: string;
   /** Estimated sending speed in words per minute. Wire: `wpm`. */
   readonly wpm: number;
@@ -24,62 +26,52 @@ export interface CwDecoderSnapshot {
   readonly snrDb: number;
   /** Whether the decoder timing is locked to the signal. Wire: `lock`. */
   readonly locked: boolean;
-  /** Effective tone pitch in Hz. Wire: `pitch`. */
+  /** Tone pitch the decoder uses, in Hz. Wire: `pitch`. */
   readonly pitchHz: number;
   /** Whether the decoder copies on the lower sideband. Wire: `cwl`. */
   readonly lowerSideband: boolean;
   readonly raw: Readonly<Record<string, string>>;
 }
 
+/**
+ * Every field the message carries goes into the diff, even when the value
+ * repeats, because each `text` value is a newly decoded character.
+ */
 export function createCwDecoderSnapshot(
-  sliceId: string,
+  id: string,
   attributes: Record<string, string>,
   previous?: CwDecoderSnapshot,
 ): SnapshotUpdate<CwDecoderSnapshot> {
   const rawDiff = freezeAttributes(attributes);
-  const partial: Mutable<Partial<CwDecoderSnapshot>> = previous
-    ? {}
-    : {
-        sliceId,
-        active: false,
-        text: "",
-        wpm: 0,
-        snrDb: 0,
-        locked: false,
-        pitchHz: 0,
-        lowerSideband: false,
-      };
+  const partial: Mutable<Partial<CwDecoderSnapshot>> = previous ? {} : { id };
 
   for (const [key, value] of Object.entries(attributes)) {
     switch (key) {
-      case "active": {
-        const parsed = parseInteger(value);
-        if (parsed !== undefined) partial.active = parsed !== 0;
+      case "active":
+        partial.active = isTruthy(value);
         break;
-      }
-      case "lock": {
-        const parsed = parseInteger(value);
-        if (parsed !== undefined) partial.locked = parsed !== 0;
+      case "lock":
+        partial.locked = isTruthy(value);
         break;
-      }
-      case "cwl": {
-        const parsed = parseInteger(value);
-        if (parsed !== undefined) partial.lowerSideband = parsed !== 0;
+      case "cwl":
+        partial.lowerSideband = isTruthy(value);
         break;
-      }
       case "wpm": {
         const parsed = parseFloatSafe(value);
         if (parsed !== undefined) partial.wpm = parsed;
+        else logParseError("cw", key, value);
         break;
       }
       case "snr": {
         const parsed = parseFloatSafe(value);
         if (parsed !== undefined) partial.snrDb = parsed;
+        else logParseError("cw", key, value);
         break;
       }
       case "pitch": {
         const parsed = parseInteger(value);
         if (parsed !== undefined) partial.pitchHz = parsed;
+        else logParseError("cw", key, value);
         break;
       }
       case "text":

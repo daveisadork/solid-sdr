@@ -9,8 +9,6 @@ import {
 import { FlexError, FlexStateUnavailableError } from "./errors.js";
 import type { RadioSession } from "./radio-core.js";
 import type {
-  CwDecoderSnapshot,
-  CwDecoderStateChange,
   SliceAgcMode,
   SliceAgcThresholdMode,
   SliceDspAdaptMode,
@@ -55,8 +53,6 @@ function isPowerOfTwo(value: number): boolean {
 
 export interface SliceControllerEvents {
   readonly change: SliceStateChange;
-  /** The CW decoder state on this slice changed. */
-  readonly cwDecoder: CwDecoderStateChange;
 }
 
 export interface SliceUpdateRequest {
@@ -128,11 +124,6 @@ export interface SliceUpdateRequest {
 
 export interface SliceController extends Readonly<Omit<SliceSnapshot, "raw">> {
   snapshot(): SliceSnapshot;
-  /**
-   * State of the CW decoder on this slice, or `undefined` until the radio
-   * reports one. Decoded text is not a DSP setting of the slice.
-   */
-  readonly cwDecoder: CwDecoderSnapshot | undefined;
   /** AutoDX controller for this slice. It is available before the radio reports any AutoDX state. */
   readonly autoDx: AutoDxController;
   on<TKey extends keyof SliceControllerEvents>(
@@ -1339,14 +1330,6 @@ export class SliceControllerImpl implements SliceController {
 
   onStateChange(change: SliceStateChange): void {
     this.events.emit("change", change);
-  }
-
-  onCwDecoderChange(change: CwDecoderStateChange): void {
-    this.events.emit("cwDecoder", change);
-  }
-
-  get cwDecoder(): CwDecoderSnapshot | undefined {
-    return this.radio.getStore().getCwDecoder(this.id);
   }
 
   get autoDx(): AutoDxController {

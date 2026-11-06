@@ -303,10 +303,11 @@ export interface RadioStateStore {
   getEqualizers(): readonly EqualizerSnapshot[];
   getTxBandSetting(id: string): TxBandSettingSnapshot | undefined;
   getTxBandSettings(): readonly TxBandSettingSnapshot[];
-  /** CW decoder state for a slice, keyed by slice id. */
-  getCwDecoder(sliceId: string): CwDecoderSnapshot | undefined;
   /** AutoDX state for a slice, keyed by slice id. Absent until the radio reports it or a setter runs. */
   getAutoDx(sliceId: string): AutoDxSnapshot | undefined;
+  /** CW decoder state for a slice, keyed by slice id. Absent until the radio reports it. */
+  getCwDecoder(sliceId: string): CwDecoderSnapshot | undefined;
+  getCwDecoders(): readonly CwDecoderSnapshot[];
   /**
    * Writes AutoDX fields for a live slice, creating the default state first
    * when none exists. Returns nothing when the slice is gone.
@@ -703,6 +704,9 @@ export function createRadioStateStore(
     },
     getCwDecoder(sliceId) {
       return cwDecoders.get(sliceId);
+    },
+    getCwDecoders() {
+      return Array.from(cwDecoders.values());
     },
     getAutoDx(sliceId) {
       return autoDxes.get(sliceId);
@@ -1901,11 +1905,10 @@ export function createRadioStateStore(
   function handleCwDecoder(message: FlexStatusMessage): RadioStateChange[] {
     const sliceId = liveSliceId(message);
     if (!sliceId) return [];
-    const previous = cwDecoders.get(sliceId);
     const { snapshot, diff } = createCwDecoderSnapshot(
       sliceId,
       message.attributes,
-      previous,
+      cwDecoders.get(sliceId),
     );
     cwDecoders.set(sliceId, snapshot);
     return [{ entity: "cwDecoder", id: sliceId, diff, removed: false }];

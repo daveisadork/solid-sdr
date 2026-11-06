@@ -20,7 +20,7 @@ describe("CW decoder", () => {
     );
 
     expect(radio.cwDecoder("0")).toMatchObject({
-      sliceId: "0",
+      id: "0",
       active: true,
       text: "A",
       wpm: 34,

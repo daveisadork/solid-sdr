@@ -18,7 +18,7 @@ export interface CwDecoderSnapshot {
   readonly id: string;
   /** Whether a decoder is running on the slice. Wire: `active`. */
   readonly active: boolean;
-  /** Text from the most recent message, usually one character. Wire: `text`. */
+  /** Most recent decoded character. Wire: `text`. */
   readonly text: string;
   /** Estimated sending speed in words per minute. Wire: `wpm`. */
   readonly wpm: number;

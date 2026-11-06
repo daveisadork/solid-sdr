@@ -13,7 +13,7 @@ export const LicenseGate: Component<
   ComponentProps<"div"> & { feature: string }
 > = (props) => {
   const { state } = useFlexRadio();
-  const feature = () => state.status.featureLicense.features[props.feature];
+  const feature = () => state.status.featureLicense.features?.[props.feature];
   const [local, others] = splitProps(props, ["class"]);
   return (
     <Show

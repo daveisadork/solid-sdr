@@ -232,7 +232,7 @@ export function FilterControls(props: {
         >
           <NumberFieldLabel class="select-none">Low Hz</NumberFieldLabel>
           <NumberFieldGroup class="select-none">
-            <NumberFieldInput />
+            <NumberFieldInput size={6} />
             <NumberFieldIncrementTrigger class="select-none" />
             <NumberFieldDecrementTrigger class="select-none" />
           </NumberFieldGroup>

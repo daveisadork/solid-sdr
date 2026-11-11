@@ -42,7 +42,6 @@ import {
   ConnectionState,
   FlexRadioContext,
   initialState,
-  type LicensedFeature,
   type SpotState,
 } from "./flexradio";
 import { usePreferences } from "./preferences";
@@ -53,7 +52,7 @@ const WS_STATES = ["Connecting...", "Established", "Closing...", "Closed"];
 export const FlexRadioProvider: ParentComponent = (props) => {
   const [state, setState] = createStore(initialState());
 
-  const isLicensed = (feature: LicensedFeature) =>
+  const isLicensed = (feature: string) =>
     state.status.featureLicense?.features?.[feature]?.enabled === true;
   const { preferences, setPreferences } = usePreferences();
   const { peerConnection, rtcState, signalingWsState } = useRtc();

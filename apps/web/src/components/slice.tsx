@@ -723,6 +723,7 @@ const OptDspControls = (props: {
   slice: SliceState;
   controller: SliceController;
 }) => {
+  const { radio } = useFlexRadio();
   const [rawRepeaterOffset, setRawRepeaterOffset] = createSignal(0);
   const [tuneToOffset, setTuneToOffset] = createSignal(false);
 
@@ -917,7 +918,7 @@ const OptDspControls = (props: {
                   props.controller.setNrEnabled(isChecked);
                 }}
               />
-              <Show when={radio?.modelInfo?.platform === "big-bend"}>
+              <Show when={radio()?.modelInfo?.platform === "big-bend"}>
                 <LicenseGate feature="NOISE_REDUCTION">
                   <SliderToggle
                     disabled={!props.slice.nrsEnabled}
@@ -946,7 +947,7 @@ const OptDspControls = (props: {
                 </LicenseGate>
               </Show>
               <Show when={props.slice.mode !== "CW"}>
-                <Show when={radio?.modelInfo?.platform === "big-bend"}>
+                <Show when={radio()?.modelInfo?.platform === "big-bend"}>
                   <LicenseGate feature="NOISE_REDUCTION">
                     <SimpleSwitch
                       checked={props.slice.rnnEnabled}

@@ -9,7 +9,7 @@ require (
 	github.com/pion/ice/v4 v4.4.8
 	github.com/pion/turn/v5 v5.1.2
 	github.com/pion/webrtc/v4 v4.2.25
-	github.com/spf13/pflag v1.0.10
+	github.com/spf13/pflag v1.1.0
 	github.com/spf13/viper v1.21.0
 	golang.org/x/sys v0.49.0
 )

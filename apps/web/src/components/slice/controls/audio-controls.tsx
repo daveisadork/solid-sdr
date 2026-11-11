@@ -1,0 +1,208 @@
+import type { SliceController } from "@repo/flexlib";
+import { For, Show } from "solid-js";
+import { LicenseGate } from "~/components/license-gate";
+import {
+  Popover,
+  PopoverArrow,
+  PopoverContent,
+  PopoverTrigger,
+} from "~/components/ui/popover";
+import {
+  SegmentedControl,
+  SegmentedControlGroup,
+  SegmentedControlIndicator,
+  SegmentedControlItem,
+  SegmentedControlItemLabel,
+  SegmentedControlItemsList,
+  SegmentedControlLabel,
+} from "~/components/ui/segmented-control";
+import { SimpleSlider } from "~/components/ui/simple-slider";
+import { SimpleSwitch } from "~/components/ui/simple-switch";
+import { SliderToggle } from "~/components/ui/slider-toggle";
+import type { SliceState } from "~/context/flexradio";
+import { degToRad, radToDeg } from "~/lib/utils";
+import MaterialSymbolsVolumeOff from "~icons/material-symbols/volume-off";
+import MaterialSymbolsVolumeUp from "~icons/material-symbols/volume-up";
+
+export const AudioControls = (props: {
+  slice: SliceState;
+  controller: SliceController;
+}) => {
+  return (
+    <Popover>
+      <PopoverTrigger
+        onContextMenu={(e) => {
+          e.preventDefault();
+          props.controller.setMute(!props.slice.isMuted);
+        }}
+      >
+        <Show when={props.slice.isMuted} fallback={<MaterialSymbolsVolumeUp />}>
+          <MaterialSymbolsVolumeOff />
+        </Show>
+      </PopoverTrigger>
+      <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 fancy-bg-popover">
+        <PopoverArrow />
+        <div class="p-4 flex flex-col gap-4 max-h-(--kb-popper-content-available-height) overflow-x-auto">
+          <SimpleSwitch
+            checked={props.slice.isMuted}
+            onChange={(isChecked) => {
+              props.controller.setMute(isChecked);
+            }}
+            label="Audio Mute"
+          />
+          <SimpleSlider
+            minValue={0}
+            maxValue={100}
+            value={[props.slice.audioGain]}
+            onChange={([value]) => {
+              props.controller.setAudioGain(value);
+            }}
+            getValueLabel={(params) => `${params.values[0]}%`}
+            label="Audio Level"
+          />
+          <SimpleSlider
+            label="Audio Pan"
+            minValue={0}
+            maxValue={100}
+            value={[props.slice.audioPan]}
+            onChange={([value]) => {
+              props.controller.setAudioPan(value);
+            }}
+            getValueLabel={(params) => {
+              const value = params.values[0] - 50;
+              if (value === 0) return "Center";
+              return value < 0 ? `L${-value}` : `R${value}`;
+            }}
+            fromCenter
+          />
+          <SegmentedControl
+            value={props.slice.agcMode}
+            onChange={(value) => {
+              props.controller.setAgcMode(value);
+            }}
+          >
+            <SegmentedControlLabel>AGC Mode</SegmentedControlLabel>
+            <SegmentedControlGroup>
+              <SegmentedControlIndicator />
+              <SegmentedControlItemsList>
+                <For
+                  each={[
+                    { label: "Off", value: "off" },
+                    { label: "Slow", value: "slow" },
+                    { label: "Med", value: "med" },
+                    { label: "Fast", value: "fast" },
+                  ]}
+                >
+                  {({ label, value }) => (
+                    <SegmentedControlItem value={value}>
+                      <SegmentedControlItemLabel>
+                        {label}
+                      </SegmentedControlItemLabel>
+                    </SegmentedControlItem>
+                  )}
+                </For>
+              </SegmentedControlItemsList>
+            </SegmentedControlGroup>
+          </SegmentedControl>
+          <SimpleSlider
+            disabled={props.slice.agcMode === "off"}
+            minValue={0}
+            maxValue={100}
+            value={[props.slice.agcThreshold]}
+            onChange={([threshold]) => {
+              props.controller.setAgcSettings({
+                threshold,
+              });
+            }}
+            getValueLabel={(params) => `${params.values[0]}%`}
+            label="AGC Threshold"
+          />
+          <LicenseGate feature="AUTO_AGC_T">
+            <SimpleSwitch
+              checked={props.slice.agcThresholdMode === "auto"}
+              onChange={(isChecked) => {
+                props.controller.setAgcThresholdMode(
+                  isChecked ? "auto" : "manual",
+                );
+              }}
+              label="Auto AGC-T"
+            />
+          </LicenseGate>
+          <Show
+            when={
+              !["DIGU", "DIGL", "CW", "RTTY", "FDVL", "FDVU"].includes(
+                props.slice.mode,
+              )
+            }
+          >
+            <SliderToggle
+              disabled={!props.slice.squelchEnabled}
+              minValue={0}
+              maxValue={100}
+              value={[props.slice.squelchLevel]}
+              onChange={([value]) => {
+                props.controller.setSquelchLevel(value);
+              }}
+              getValueLabel={(params) => `${params.values[0]}%`}
+              label="Squelch"
+              switchChecked={props.slice.squelchEnabled}
+              onSwitchChange={(isChecked) => {
+                props.controller.setSquelchEnabled(isChecked);
+              }}
+            />
+          </Show>
+          <SimpleSwitch
+            checked={props.slice.diversityEnabled}
+            disabled={props.slice.diversityChild}
+            onChange={(isChecked) => {
+              props.controller.setDiversityEnabled(isChecked);
+            }}
+            label="Diversity Reception"
+          />
+          <Show when={props.slice.diversityParent}>
+            <LicenseGate feature="DIV_ESC">
+              <SimpleSwitch
+                checked={props.slice.escEnabled}
+                disabled={props.slice.diversityChild}
+                onChange={(isChecked) => {
+                  props.controller.setEscEnabled(isChecked);
+                }}
+                label="Enhanced Signal Clarity (ESC)"
+              />
+            </LicenseGate>
+            <LicenseGate feature="DIV_ESC">
+              <SimpleSlider
+                disabled={!props.slice.escEnabled}
+                value={[props.slice.escGain]}
+                minValue={0.01}
+                maxValue={2.0}
+                step={0.01}
+                onChange={([value]) => {
+                  if (value === props.slice.escGain) return;
+                  props.controller.setEscGain(value).catch(console.log);
+                }}
+                getValueLabel={(params) => `${params.values[0]}`}
+                label="ESC Gain"
+              />
+            </LicenseGate>
+            <LicenseGate feature="DIV_ESC">
+              <SimpleSlider
+                disabled={!props.slice.escEnabled}
+                minValue={0}
+                maxValue={360}
+                value={[Math.round(radToDeg(props.slice.escPhaseShift))]}
+                onChange={([value]) => {
+                  const rad = degToRad(value);
+                  if (rad === props.slice.escPhaseShift) return;
+                  props.controller.setEscPhaseShift(rad).catch(console.log);
+                }}
+                getValueLabel={(params) => `${params.values[0]}°`}
+                label="ESC Phase Shift"
+              />
+            </LicenseGate>
+          </Show>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+};

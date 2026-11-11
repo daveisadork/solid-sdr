@@ -34,10 +34,10 @@ import {
   TableRow,
 } from "~/components/ui/table";
 import useFlexRadio, { type MemoryState } from "~/context/flexradio";
+import { toneValues } from "~/lib/fm-tones";
 import { cn } from "~/lib/utils";
 import IcBaselinePlayCircleOutline from "~icons/ic/baseline-play-circle-outline";
 import IconChevronDown from "~icons/mdi/chevron-down";
-import { toneValues } from "../slice";
 import { ConfirmButton } from "../ui/confirm-button";
 import {
   DialogContent,

@@ -19,6 +19,15 @@ import { degToRad, radToDeg } from "~/lib/utils";
 import MaterialSymbolsVolumeOff from "~icons/material-symbols/volume-off";
 import MaterialSymbolsVolumeUp from "~icons/material-symbols/volume-up";
 import { SlicePopoverContent } from "./slice-popover-content";
+import {
+  Slider,
+  SliderFill,
+  SliderLabel,
+  SliderThumb,
+  SliderTrack,
+  SliderValueLabel,
+} from "~/components/ui/slider";
+import { Switch, SwitchControl, SwitchThumb } from "~/components/ui/switch";
 
 export const AudioControls = (props: {
   slice: SliceState;
@@ -98,7 +107,8 @@ export const AudioControls = (props: {
             </SegmentedControlItemsList>
           </SegmentedControlGroup>
         </SegmentedControl>
-        <SimpleSlider
+        <Slider
+          class="space-y-0"
           disabled={props.slice.agcMode === "off"}
           minValue={0}
           maxValue={100}
@@ -108,20 +118,38 @@ export const AudioControls = (props: {
               threshold,
             });
           }}
-          getValueLabel={(params) => `${params.values[0]}%`}
-          label="AGC Threshold"
-        />
-        <LicenseGate feature="AUTO_AGC_T">
-          <SimpleSwitch
-            checked={props.slice.agcThresholdMode === "auto"}
-            onChange={(isChecked) => {
-              props.controller.setAgcThresholdMode(
-                isChecked ? "auto" : "manual",
-              );
-            }}
-            label="Auto AGC-T"
-          />
-        </LicenseGate>
+          getValueLabel={(params) =>
+            props.slice.agcThresholdMode === "auto"
+              ? "Auto"
+              : `${params.values[0]}%`
+          }
+        >
+          <div class="flex w-full justify-between">
+            <SliderLabel>AGC Threshold</SliderLabel>
+            <SliderValueLabel />
+          </div>
+          <div class="flex w-full items-center justify-between space-x-2">
+            <SliderTrack>
+              <SliderFill />
+              <SliderThumb />
+            </SliderTrack>
+            <LicenseGate feature="AUTO_AGC_T">
+              <Switch
+                class="h-auto flex items-center origin-right scale-75"
+                checked={props.slice.agcThresholdMode === "auto"}
+                onChange={(isChecked) => {
+                  props.controller.setAgcThresholdMode(
+                    isChecked ? "auto" : "manual",
+                  );
+                }}
+              >
+                <SwitchControl>
+                  <SwitchThumb />
+                </SwitchControl>
+              </Switch>
+            </LicenseGate>
+          </div>
+        </Slider>
         <Show
           when={
             !["DIGU", "DIGL", "CW", "RTTY", "FDVL", "FDVU"].includes(

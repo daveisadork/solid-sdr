@@ -11,12 +11,7 @@ import {
   NumberFieldInput,
   NumberFieldLabel,
 } from "~/components/ui/number-field";
-import {
-  Popover,
-  PopoverArrow,
-  PopoverContent,
-  PopoverTrigger,
-} from "~/components/ui/popover";
+import { Popover, PopoverTrigger } from "~/components/ui/popover";
 import {
   Slider,
   SliderFill,
@@ -25,6 +20,7 @@ import {
 } from "~/components/ui/slider";
 import { ToggleGroup, ToggleGroupItem } from "~/components/ui/toggle-group";
 import useFlexRadio, { type SliceState } from "~/context/flexradio";
+import { SlicePopoverContent } from "./slice-popover-content";
 
 const FILTER_MAX_HZ = 12_000;
 const FILTER_MIN_HZ = -FILTER_MAX_HZ;
@@ -304,12 +300,9 @@ export const SliceFilter = (props: {
       <PopoverTrigger class="w-12 text-blue-500 text-xs text-center font-mono grow textbox-trim-both textbox-edge-cap-alphabetic">
         {filterText()}
       </PopoverTrigger>
-      <PopoverContent class="overflow-x-visible shadow-black/75 shadow-lg p-0 fancy-bg-popover">
-        <PopoverArrow />
-        <div class="p-4 flex flex-col gap-4 max-h-(--kb-popper-content-available-height) overflow-x-auto">
-          <FilterControls slice={props.slice} controller={props.controller} />
-        </div>
-      </PopoverContent>
+      <SlicePopoverContent>
+        <FilterControls slice={props.slice} controller={props.controller} />
+      </SlicePopoverContent>
     </Popover>
   );
 };

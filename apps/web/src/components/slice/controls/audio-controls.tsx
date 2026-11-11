@@ -13,12 +13,6 @@ import {
 } from "~/components/ui/segmented-control";
 import { SimpleSlider } from "~/components/ui/simple-slider";
 import { SimpleSwitch } from "~/components/ui/simple-switch";
-import { SliderToggle } from "~/components/ui/slider-toggle";
-import type { SliceState } from "~/context/flexradio";
-import { degToRad, radToDeg } from "~/lib/utils";
-import MaterialSymbolsVolumeOff from "~icons/material-symbols/volume-off";
-import MaterialSymbolsVolumeUp from "~icons/material-symbols/volume-up";
-import { SlicePopoverContent } from "./slice-popover-content";
 import {
   Slider,
   SliderFill,
@@ -27,7 +21,13 @@ import {
   SliderTrack,
   SliderValueLabel,
 } from "~/components/ui/slider";
+import { SliderToggle } from "~/components/ui/slider-toggle";
 import { Switch, SwitchControl, SwitchThumb } from "~/components/ui/switch";
+import type { SliceState } from "~/context/flexradio";
+import { degToRad, radToDeg } from "~/lib/utils";
+import MaterialSymbolsVolumeOff from "~icons/material-symbols/volume-off";
+import MaterialSymbolsVolumeUp from "~icons/material-symbols/volume-up";
+import { SlicePopoverContent } from "./slice-popover-content";
 
 export const AudioControls = (props: {
   slice: SliceState;

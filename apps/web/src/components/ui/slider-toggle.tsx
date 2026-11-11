@@ -42,7 +42,7 @@ export const SliderToggle: Component<SliderToggleProps> = (props) => {
       {...sliderProps}
     >
       <Tooltip placement="top">
-        <TooltipTrigger as="div" class="flex w-full justify-between">
+        <TooltipTrigger as="div" class="flex w-full justify-between gap-2">
           <SliderLabel>{local.label}</SliderLabel>
           <SliderValueLabel />
         </TooltipTrigger>
@@ -52,7 +52,7 @@ export const SliderToggle: Component<SliderToggleProps> = (props) => {
       </Tooltip>
       <div
         class={cn(
-          "flex w-full items-center justify-between space-x-2",
+          "flex w-full items-center justify-between gap-2",
           local.switchContainerClass,
         )}
       >

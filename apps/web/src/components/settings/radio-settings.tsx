@@ -1441,6 +1441,13 @@ function RadioSettingsInner(props: { radio: Radio }) {
             label="Enable +20dB Mic Preamp Boost"
           />
           <SimpleSwitch
+            checked={state.status.radio.pttMicOverride}
+            onChange={(isChecked) => {
+              props.radio.setPttMicOverride(isChecked);
+            }}
+            label="Enable PTT Override"
+          />
+          <SimpleSwitch
             checked={state.status.radio.meterInRx}
             onChange={(isChecked) => {
               props.radio.setMeterInRxEnabled(isChecked);

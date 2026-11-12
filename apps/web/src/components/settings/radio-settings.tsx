@@ -996,7 +996,9 @@ function RadioSettingsInner(props: { radio: Radio }) {
         </CardHeader>
         <CardContent class="flex flex-col gap-4">
           <For
-            each={Object.values(state.status.featureLicense.subscriptions)}
+            each={Object.values(
+              state.status.featureLicense.subscriptions,
+            ).filter(({ expiration }) => expiration > new Date())}
             fallback={
               <>
                 <InfoItem label="Subscription" value="SmartSDR Basic" />

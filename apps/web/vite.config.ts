@@ -59,7 +59,9 @@ export default defineConfig({
         config: true,
       },
       workbox: {
-        globPatterns: ["**/*.{js,html,css,wasm,svg,png,ico,tff,woff2}"],
+        // Do not precache index.html. The page load must reach the network,
+        // so an auth proxy in front of the server can show its login page.
+        globPatterns: ["**/*.{js,css,wasm,svg,png,ico,tff,woff2}"],
         navigateFallback: "",
         cleanupOutdatedCaches: true,
       },

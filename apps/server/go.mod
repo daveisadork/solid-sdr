@@ -6,7 +6,7 @@ require (
 	github.com/fd/go-nat v1.0.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3
-	github.com/pion/ice/v4 v4.4.8
+	github.com/pion/ice/v4 v4.4.9
 	github.com/pion/turn/v5 v5.1.3
 	github.com/pion/webrtc/v4 v4.2.26
 	github.com/spf13/pflag v1.1.0

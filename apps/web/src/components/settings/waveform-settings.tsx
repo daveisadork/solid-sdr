@@ -32,7 +32,6 @@ const UninstallButton = (props: { ctrl: WaveformController }) => {
     <Button
       size="icon"
       variant="destructive"
-      class="size-control"
       disabled={working()}
       onClick={() => {
         setWorking(true);
@@ -50,7 +49,6 @@ const RestartButton = (props: { ctrl: WaveformController }) => {
   return (
     <Button
       size="icon"
-      class="size-control"
       disabled={working()}
       onClick={() => {
         setWorking(true);
@@ -106,95 +104,90 @@ export function WaveformSettings() {
   });
 
   return (
-    <DialogContent class="translate-y-0 top-1/12 flex flex-col max-h-10/12 overflow-hidden">
+    <DialogContent>
       <DialogHeader>
         <DialogTitle>Waveform Manager</DialogTitle>
       </DialogHeader>
-      <div
-        class="relative flex flex-col gap-4 text-sm overflow-y-auto shrink"
-        style={{ "scrollbar-width": "thin" }}
-      >
-        <Card class="bg-transparent">
-          <CardHeader>
-            <CardTitle>WFP Status</CardTitle>
-          </CardHeader>
-          <CardContent class="grid grid-cols-2 gap-4">
-            <div>Power:</div>
-            <div class="text-right">
-              <Badge
-                variant={state.status.radio.wfpPowered ? "success" : "error"}
-              >
-                {state.status.radio.wfpPowered ? "On" : "Off"}
-              </Badge>
-            </div>
-            <div>Ready:</div>
-            <div class="text-right">
-              <Badge
-                variant={state.status.radio.wfpPowered ? "success" : "error"}
-              >
-                {state.status.radio.wfpReady ? "Yes" : "No"}
-              </Badge>
-            </div>
-            <div>IP Address:</div>
-            <div class="text-right">{state.status.radio.wfpIpAddress}</div>
-          </CardContent>
-        </Card>
-        <Table class="whitespace-nowrap">
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Version</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <For each={Object.values(state.status.waveform)}>
-              {(waveform) => {
-                return (
-                  <TableRow>
-                    <TableCell>{waveform.name}</TableCell>
-                    <TableCell>{waveform.version}</TableCell>
-                    <TableCell>
-                      {waveform.isContainer ? "Container" : "Legacy"}
-                    </TableCell>
-                    <TableCell>
-                      <div class="flex gap-1">
-                        <div class="grow" />
-                        <Show when={radio()?.waveform(waveform.id)}>
-                          {(ctrl) => (
-                            <>
-                              <UninstallButton ctrl={ctrl()} />
-                              <Show when={waveform.isContainer}>
-                                <RestartButton ctrl={ctrl()} />
-                              </Show>
-                            </>
-                          )}
-                        </Show>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              }}
-            </For>
-          </TableBody>
-        </Table>
-        <Show when={uploadFile()}>
-          <Progress
-            value={uploadProgress()}
-            minValue={0}
-            maxValue={100}
-            getValueLabel={({ value }) => `${value}%`}
-            class="flex flex-col gap-2"
-          >
-            <div class="flex justify-between">
-              <ProgressLabel>Uploading {uploadFile()?.name}</ProgressLabel>
-              <ProgressValueLabel />
-            </div>
-          </Progress>
-        </Show>
-      </div>
-      <DialogFooter class="flex flex-col gap-2 items-stretch sm:items-center">
+      <Card class="bg-transparent">
+        <CardHeader>
+          <CardTitle>WFP Status</CardTitle>
+        </CardHeader>
+        <CardContent class="grid grid-cols-2 gap-4">
+          <div>Power:</div>
+          <div class="text-right">
+            <Badge
+              variant={state.status.radio.wfpPowered ? "success" : "error"}
+            >
+              {state.status.radio.wfpPowered ? "On" : "Off"}
+            </Badge>
+          </div>
+          <div>Ready:</div>
+          <div class="text-right">
+            <Badge
+              variant={state.status.radio.wfpPowered ? "success" : "error"}
+            >
+              {state.status.radio.wfpReady ? "Yes" : "No"}
+            </Badge>
+          </div>
+          <div>IP Address:</div>
+          <div class="text-right">{state.status.radio.wfpIpAddress}</div>
+        </CardContent>
+      </Card>
+      <Table class="whitespace-nowrap shrink-0">
+        <TableHeader>
+          <TableRow>
+            <TableHead>Name</TableHead>
+            <TableHead>Version</TableHead>
+            <TableHead>Type</TableHead>
+            <TableHead />
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <For each={Object.values(state.status.waveform)}>
+            {(waveform) => {
+              return (
+                <TableRow>
+                  <TableCell>{waveform.name}</TableCell>
+                  <TableCell>{waveform.version}</TableCell>
+                  <TableCell>
+                    {waveform.isContainer ? "Container" : "Legacy"}
+                  </TableCell>
+                  <TableCell>
+                    <div class="flex gap-1">
+                      <div class="grow" />
+                      <Show when={radio()?.waveform(waveform.id)}>
+                        {(ctrl) => (
+                          <>
+                            <UninstallButton ctrl={ctrl()} />
+                            <Show when={waveform.isContainer}>
+                              <RestartButton ctrl={ctrl()} />
+                            </Show>
+                          </>
+                        )}
+                      </Show>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            }}
+          </For>
+        </TableBody>
+      </Table>
+      <Show when={uploadFile()}>
+        <Progress
+          value={uploadProgress()}
+          minValue={0}
+          maxValue={100}
+          getValueLabel={({ value }) => `${value}%`}
+          class="flex flex-col gap-2"
+        >
+          <div class="flex justify-between">
+            <ProgressLabel>Uploading {uploadFile()?.name}</ProgressLabel>
+            <ProgressValueLabel />
+          </div>
+        </Progress>
+      </Show>
+      <DialogFooter sticky>
         <Button as="label" disabled={Boolean(uploadFile())}>
           <input
             class="hidden"

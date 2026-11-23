@@ -44,6 +44,9 @@ importers:
       '@repo/flexlib':
         specifier: workspace:*
         version: link:../../packages/flexlib
+      '@solid-primitives/bounds':
+        specifier: ^0.1.7
+        version: 0.1.7(solid-js@1.9.19)
       '@solid-primitives/clipboard':
         specifier: ^1.6.6
         version: 1.6.6(solid-js@1.9.19)
@@ -62,6 +65,9 @@ importers:
       '@solid-primitives/map':
         specifier: ^0.7.4
         version: 0.7.4(solid-js@1.9.19)
+      '@solid-primitives/media':
+        specifier: ^2.3.6
+        version: 2.3.6(solid-js@1.9.19)
       '@solid-primitives/mouse':
         specifier: ^2.1.7
         version: 2.1.7(solid-js@1.9.19)
@@ -1449,6 +1455,11 @@ packages:
     resolution: {integrity: sha512-BfzEnDJOt9T8M989/lA37EcJgat01wLRnoi5dQf3QzOH7jzpqTAzdDbVfRljVr5r+jzKqpbHeyOfAaXxAd0PAA==}
     cpu: [x64]
     os: [win32]
+
+  '@solid-primitives/bounds@0.1.7':
+    resolution: {integrity: sha512-uWE47+MhAGYB3EadHVg79C/6CawVVL7MwTArricxX2GDDJX+7SBnD+WsnMbkLOi7UbCOA3EsepnBr3bix83LLA==}
+    peerDependencies:
+      solid-js: ^1.6.12
 
   '@solid-primitives/clipboard@1.6.6':
     resolution: {integrity: sha512-dw7ela8hidoiSFiZiDsJeVfwR15Z/vuePrIj9UJclR9PS6DNYuRd06PV5ppo5blvLXvvdDF6GJj9Eo7cwJBa8w==}
@@ -4736,6 +4747,14 @@ snapshots:
 
   '@rollup/rollup-win32-x64-msvc@4.62.2':
     optional: true
+
+  '@solid-primitives/bounds@0.1.7(solid-js@1.9.19)':
+    dependencies:
+      '@solid-primitives/event-listener': 2.4.6(solid-js@1.9.19)
+      '@solid-primitives/resize-observer': 2.2.0(solid-js@1.9.19)
+      '@solid-primitives/static-store': 0.1.4(solid-js@1.9.19)
+      '@solid-primitives/utils': 6.4.1(solid-js@1.9.19)
+      solid-js: 1.9.19
 
   '@solid-primitives/clipboard@1.6.6(solid-js@1.9.19)':
     dependencies:

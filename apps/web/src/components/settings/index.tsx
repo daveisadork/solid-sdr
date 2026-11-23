@@ -1,5 +1,12 @@
 import { useMatch, useNavigate } from "@solidjs/router";
-import { createEffect, ErrorBoundary, lazy, onMount, Show } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  ErrorBoundary,
+  lazy,
+  onMount,
+  Show,
+} from "solid-js";
 import { Dynamic } from "solid-js/web";
 import useFlexRadio from "~/context/flexradio";
 import { APP_VERSION } from "~/lib/version";
@@ -234,6 +241,10 @@ export function Settings() {
   createEffect(() => {
     if (match() && activeTab() === null) navigate("/", { replace: true });
   });
+  const shownTab = createMemo<keyof typeof tabs | null>(
+    (prev) => activeTab() ?? prev,
+    null,
+  );
   return (
     <>
       <Dialog
@@ -243,7 +254,7 @@ export function Settings() {
         {/* Each tab is the dialog body. The fallback must render
             DialogContent too, or a throw before that body leaves the
             open dialog blank. */}
-        <Show when={activeTab()} keyed>
+        <Show when={shownTab()} keyed>
           {(tab) => (
             <ErrorBoundary
               fallback={(error, reset) => (

@@ -539,6 +539,324 @@ body,
   }
 }
 
+/*
+ * clip-path-* mirrors rounded-* (same radius scale, sides and corners), but
+ * clips with clip-path instead of overflow. Chromium fails to clip composited
+ * descendants (sticky + backdrop-filter) to nested rounded overflow clips;
+ * clip-path is honored. It also clips the element's own shadow and ring.
+ *
+ * Each utility sets per-corner vars, and every utility writes the same
+ * clip-path, so combinations compose (clip-path-lg clip-path-t-none). The vars
+ * do not inherit, so a nested clip-path-* element starts from square corners.
+ * Logical corners (ss/se/ee/es) take precedence over physical ones and map to
+ * physical corners by direction.
+ */
+@theme inline {
+  --clip-radius-none: 0px;
+  --clip-radius-full: calc(infinity * 1px);
+}
+
+@property --clip-tl {
+  syntax: "*";
+  inherits: false;
+}
+@property --clip-tr {
+  syntax: "*";
+  inherits: false;
+}
+@property --clip-br {
+  syntax: "*";
+  inherits: false;
+}
+@property --clip-bl {
+  syntax: "*";
+  inherits: false;
+}
+@property --clip-ss {
+  syntax: "*";
+  inherits: false;
+}
+@property --clip-se {
+  syntax: "*";
+  inherits: false;
+}
+@property --clip-ee {
+  syntax: "*";
+  inherits: false;
+}
+@property --clip-es {
+  syntax: "*";
+  inherits: false;
+}
+
+@utility clip-path {
+  --clip-tl: var(--radius);
+  --clip-tr: var(--radius);
+  --clip-br: var(--radius);
+  --clip-bl: var(--radius);
+  clip-path: inset(
+    0 round var(--clip-ss, var(--clip-tl, 0px))
+      var(--clip-se, var(--clip-tr, 0px)) var(--clip-ee, var(--clip-br, 0px))
+      var(--clip-es, var(--clip-bl, 0px))
+  );
+  &:where(:dir(rtl)) {
+    clip-path: inset(
+      0 round var(--clip-se, var(--clip-tl, 0px))
+        var(--clip-ss, var(--clip-tr, 0px)) var(--clip-es, var(--clip-br, 0px))
+        var(--clip-ee, var(--clip-bl, 0px))
+    );
+  }
+}
+
+@utility clip-path-* {
+  --clip-tl: --value(--clip-radius-*, --radius-*, [*]);
+  --clip-tr: --value(--clip-radius-*, --radius-*, [*]);
+  --clip-br: --value(--clip-radius-*, --radius-*, [*]);
+  --clip-bl: --value(--clip-radius-*, --radius-*, [*]);
+  clip-path: inset(
+    0 round var(--clip-ss, var(--clip-tl, 0px))
+      var(--clip-se, var(--clip-tr, 0px)) var(--clip-ee, var(--clip-br, 0px))
+      var(--clip-es, var(--clip-bl, 0px))
+  );
+  &:where(:dir(rtl)) {
+    clip-path: inset(
+      0 round var(--clip-se, var(--clip-tl, 0px))
+        var(--clip-ss, var(--clip-tr, 0px)) var(--clip-es, var(--clip-br, 0px))
+        var(--clip-ee, var(--clip-bl, 0px))
+    );
+  }
+}
+
+@utility clip-path-t-* {
+  --clip-tl: --value(--clip-radius-*, --radius-*, [*]);
+  --clip-tr: --value(--clip-radius-*, --radius-*, [*]);
+  clip-path: inset(
+    0 round var(--clip-ss, var(--clip-tl, 0px))
+      var(--clip-se, var(--clip-tr, 0px)) var(--clip-ee, var(--clip-br, 0px))
+      var(--clip-es, var(--clip-bl, 0px))
+  );
+  &:where(:dir(rtl)) {
+    clip-path: inset(
+      0 round var(--clip-se, var(--clip-tl, 0px))
+        var(--clip-ss, var(--clip-tr, 0px)) var(--clip-es, var(--clip-br, 0px))
+        var(--clip-ee, var(--clip-bl, 0px))
+    );
+  }
+}
+
+@utility clip-path-r-* {
+  --clip-tr: --value(--clip-radius-*, --radius-*, [*]);
+  --clip-br: --value(--clip-radius-*, --radius-*, [*]);
+  clip-path: inset(
+    0 round var(--clip-ss, var(--clip-tl, 0px))
+      var(--clip-se, var(--clip-tr, 0px)) var(--clip-ee, var(--clip-br, 0px))
+      var(--clip-es, var(--clip-bl, 0px))
+  );
+  &:where(:dir(rtl)) {
+    clip-path: inset(
+      0 round var(--clip-se, var(--clip-tl, 0px))
+        var(--clip-ss, var(--clip-tr, 0px)) var(--clip-es, var(--clip-br, 0px))
+        var(--clip-ee, var(--clip-bl, 0px))
+    );
+  }
+}
+
+@utility clip-path-b-* {
+  --clip-br: --value(--clip-radius-*, --radius-*, [*]);
+  --clip-bl: --value(--clip-radius-*, --radius-*, [*]);
+  clip-path: inset(
+    0 round var(--clip-ss, var(--clip-tl, 0px))
+      var(--clip-se, var(--clip-tr, 0px)) var(--clip-ee, var(--clip-br, 0px))
+      var(--clip-es, var(--clip-bl, 0px))
+  );
+  &:where(:dir(rtl)) {
+    clip-path: inset(
+      0 round var(--clip-se, var(--clip-tl, 0px))
+        var(--clip-ss, var(--clip-tr, 0px)) var(--clip-es, var(--clip-br, 0px))
+        var(--clip-ee, var(--clip-bl, 0px))
+    );
+  }
+}
+
+@utility clip-path-l-* {
+  --clip-tl: --value(--clip-radius-*, --radius-*, [*]);
+  --clip-bl: --value(--clip-radius-*, --radius-*, [*]);
+  clip-path: inset(
+    0 round var(--clip-ss, var(--clip-tl, 0px))
+      var(--clip-se, var(--clip-tr, 0px)) var(--clip-ee, var(--clip-br, 0px))
+      var(--clip-es, var(--clip-bl, 0px))
+  );
+  &:where(:dir(rtl)) {
+    clip-path: inset(
+      0 round var(--clip-se, var(--clip-tl, 0px))
+        var(--clip-ss, var(--clip-tr, 0px)) var(--clip-es, var(--clip-br, 0px))
+        var(--clip-ee, var(--clip-bl, 0px))
+    );
+  }
+}
+
+@utility clip-path-s-* {
+  --clip-ss: --value(--clip-radius-*, --radius-*, [*]);
+  --clip-es: --value(--clip-radius-*, --radius-*, [*]);
+  clip-path: inset(
+    0 round var(--clip-ss, var(--clip-tl, 0px))
+      var(--clip-se, var(--clip-tr, 0px)) var(--clip-ee, var(--clip-br, 0px))
+      var(--clip-es, var(--clip-bl, 0px))
+  );
+  &:where(:dir(rtl)) {
+    clip-path: inset(
+      0 round var(--clip-se, var(--clip-tl, 0px))
+        var(--clip-ss, var(--clip-tr, 0px)) var(--clip-es, var(--clip-br, 0px))
+        var(--clip-ee, var(--clip-bl, 0px))
+    );
+  }
+}
+
+@utility clip-path-e-* {
+  --clip-se: --value(--clip-radius-*, --radius-*, [*]);
+  --clip-ee: --value(--clip-radius-*, --radius-*, [*]);
+  clip-path: inset(
+    0 round var(--clip-ss, var(--clip-tl, 0px))
+      var(--clip-se, var(--clip-tr, 0px)) var(--clip-ee, var(--clip-br, 0px))
+      var(--clip-es, var(--clip-bl, 0px))
+  );
+  &:where(:dir(rtl)) {
+    clip-path: inset(
+      0 round var(--clip-se, var(--clip-tl, 0px))
+        var(--clip-ss, var(--clip-tr, 0px)) var(--clip-es, var(--clip-br, 0px))
+        var(--clip-ee, var(--clip-bl, 0px))
+    );
+  }
+}
+
+@utility clip-path-tl-* {
+  --clip-tl: --value(--clip-radius-*, --radius-*, [*]);
+  clip-path: inset(
+    0 round var(--clip-ss, var(--clip-tl, 0px))
+      var(--clip-se, var(--clip-tr, 0px)) var(--clip-ee, var(--clip-br, 0px))
+      var(--clip-es, var(--clip-bl, 0px))
+  );
+  &:where(:dir(rtl)) {
+    clip-path: inset(
+      0 round var(--clip-se, var(--clip-tl, 0px))
+        var(--clip-ss, var(--clip-tr, 0px)) var(--clip-es, var(--clip-br, 0px))
+        var(--clip-ee, var(--clip-bl, 0px))
+    );
+  }
+}
+
+@utility clip-path-tr-* {
+  --clip-tr: --value(--clip-radius-*, --radius-*, [*]);
+  clip-path: inset(
+    0 round var(--clip-ss, var(--clip-tl, 0px))
+      var(--clip-se, var(--clip-tr, 0px)) var(--clip-ee, var(--clip-br, 0px))
+      var(--clip-es, var(--clip-bl, 0px))
+  );
+  &:where(:dir(rtl)) {
+    clip-path: inset(
+      0 round var(--clip-se, var(--clip-tl, 0px))
+        var(--clip-ss, var(--clip-tr, 0px)) var(--clip-es, var(--clip-br, 0px))
+        var(--clip-ee, var(--clip-bl, 0px))
+    );
+  }
+}
+
+@utility clip-path-br-* {
+  --clip-br: --value(--clip-radius-*, --radius-*, [*]);
+  clip-path: inset(
+    0 round var(--clip-ss, var(--clip-tl, 0px))
+      var(--clip-se, var(--clip-tr, 0px)) var(--clip-ee, var(--clip-br, 0px))
+      var(--clip-es, var(--clip-bl, 0px))
+  );
+  &:where(:dir(rtl)) {
+    clip-path: inset(
+      0 round var(--clip-se, var(--clip-tl, 0px))
+        var(--clip-ss, var(--clip-tr, 0px)) var(--clip-es, var(--clip-br, 0px))
+        var(--clip-ee, var(--clip-bl, 0px))
+    );
+  }
+}
+
+@utility clip-path-bl-* {
+  --clip-bl: --value(--clip-radius-*, --radius-*, [*]);
+  clip-path: inset(
+    0 round var(--clip-ss, var(--clip-tl, 0px))
+      var(--clip-se, var(--clip-tr, 0px)) var(--clip-ee, var(--clip-br, 0px))
+      var(--clip-es, var(--clip-bl, 0px))
+  );
+  &:where(:dir(rtl)) {
+    clip-path: inset(
+      0 round var(--clip-se, var(--clip-tl, 0px))
+        var(--clip-ss, var(--clip-tr, 0px)) var(--clip-es, var(--clip-br, 0px))
+        var(--clip-ee, var(--clip-bl, 0px))
+    );
+  }
+}
+
+@utility clip-path-ss-* {
+  --clip-ss: --value(--clip-radius-*, --radius-*, [*]);
+  clip-path: inset(
+    0 round var(--clip-ss, var(--clip-tl, 0px))
+      var(--clip-se, var(--clip-tr, 0px)) var(--clip-ee, var(--clip-br, 0px))
+      var(--clip-es, var(--clip-bl, 0px))
+  );
+  &:where(:dir(rtl)) {
+    clip-path: inset(
+      0 round var(--clip-se, var(--clip-tl, 0px))
+        var(--clip-ss, var(--clip-tr, 0px)) var(--clip-es, var(--clip-br, 0px))
+        var(--clip-ee, var(--clip-bl, 0px))
+    );
+  }
+}
+
+@utility clip-path-se-* {
+  --clip-se: --value(--clip-radius-*, --radius-*, [*]);
+  clip-path: inset(
+    0 round var(--clip-ss, var(--clip-tl, 0px))
+      var(--clip-se, var(--clip-tr, 0px)) var(--clip-ee, var(--clip-br, 0px))
+      var(--clip-es, var(--clip-bl, 0px))
+  );
+  &:where(:dir(rtl)) {
+    clip-path: inset(
+      0 round var(--clip-se, var(--clip-tl, 0px))
+        var(--clip-ss, var(--clip-tr, 0px)) var(--clip-es, var(--clip-br, 0px))
+        var(--clip-ee, var(--clip-bl, 0px))
+    );
+  }
+}
+
+@utility clip-path-ee-* {
+  --clip-ee: --value(--clip-radius-*, --radius-*, [*]);
+  clip-path: inset(
+    0 round var(--clip-ss, var(--clip-tl, 0px))
+      var(--clip-se, var(--clip-tr, 0px)) var(--clip-ee, var(--clip-br, 0px))
+      var(--clip-es, var(--clip-bl, 0px))
+  );
+  &:where(:dir(rtl)) {
+    clip-path: inset(
+      0 round var(--clip-se, var(--clip-tl, 0px))
+        var(--clip-ss, var(--clip-tr, 0px)) var(--clip-es, var(--clip-br, 0px))
+        var(--clip-ee, var(--clip-bl, 0px))
+    );
+  }
+}
+
+@utility clip-path-es-* {
+  --clip-es: --value(--clip-radius-*, --radius-*, [*]);
+  clip-path: inset(
+    0 round var(--clip-ss, var(--clip-tl, 0px))
+      var(--clip-se, var(--clip-tr, 0px)) var(--clip-ee, var(--clip-br, 0px))
+      var(--clip-es, var(--clip-bl, 0px))
+  );
+  &:where(:dir(rtl)) {
+    clip-path: inset(
+      0 round var(--clip-se, var(--clip-tl, 0px))
+        var(--clip-ss, var(--clip-tr, 0px)) var(--clip-es, var(--clip-br, 0px))
+        var(--clip-ee, var(--clip-bl, 0px))
+    );
+  }
+}
+
 .tnf-stripes {
   @apply border-x-(--tnf-color);
   --tnf-transparency-color: oklch(from var(--tnf-color) l c h / 0.3);

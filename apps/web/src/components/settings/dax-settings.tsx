@@ -47,10 +47,7 @@ function InnerDaxSettings() {
   const inputs = createMicrophones();
 
   return (
-    <div
-      class="relative flex flex-col gap-4 text-sm overflow-y-auto shrink"
-      style={{ "scrollbar-width": "thin" }}
-    >
+    <>
       <Card class="bg-transparent">
         <CardHeader>
           <SwitchRoot
@@ -298,7 +295,7 @@ function InnerDaxSettings() {
           </Card>
         )}
       </For>
-    </div>
+    </>
   );
 }
 
@@ -313,7 +310,7 @@ export function DaxSettings() {
   });
 
   return (
-    <DialogContent class="translate-y-0 top-1/12 flex flex-col max-h-10/12 overflow-hidden">
+    <DialogContent>
       <DialogHeader>
         <DialogTitle>DAX Settings</DialogTitle>
       </DialogHeader>

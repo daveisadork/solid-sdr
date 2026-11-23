@@ -7,11 +7,9 @@ import {
   columnFilteringFeature,
   columnVisibilityFeature,
   createFilteredRowModel,
-  createPaginatedRowModel,
   createSortedRowModel,
   createTable,
   FlexRender,
-  rowPaginationFeature,
   rowSelectionFeature,
   rowSortingFeature,
   tableFeatures,
@@ -19,12 +17,6 @@ import {
 import { createMemo, For, type JSX, Show, splitProps } from "solid-js";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "~/components/ui/dropdown-menu";
 import {
   Table,
   TableBody,
@@ -37,7 +29,6 @@ import useFlexRadio, { type MemoryState } from "~/context/flexradio";
 import { toneValues } from "~/lib/fm-tones";
 import { cn } from "~/lib/utils";
 import IcBaselinePlayCircleOutline from "~icons/ic/baseline-play-circle-outline";
-import IconChevronDown from "~icons/mdi/chevron-down";
 import { ConfirmButton } from "../ui/confirm-button";
 import {
   DialogContent,
@@ -50,11 +41,9 @@ import { SelectContent, SelectItem } from "../ui/select";
 const features = tableFeatures({
   columnFilteringFeature,
   columnVisibilityFeature,
-  rowPaginationFeature,
   rowSelectionFeature,
   rowSortingFeature,
   filteredRowModel: createFilteredRowModel(),
-  paginatedRowModel: createPaginatedRowModel(),
   sortedRowModel: createSortedRowModel(),
 });
 
@@ -84,7 +73,12 @@ const NumberFieldCell = (
       changeOnWheel={false}
       {...others}
     >
-      <NumberFieldPrimitive.Input class="field-sizing-content min-w-full px-1" />
+      <NumberFieldPrimitive.Input
+        class="field-sizing-content min-w-full px-1"
+        style={{
+          "touch-action": "auto",
+        }}
+      />
     </NumberFieldPrimitive.Root>
   );
 };
@@ -463,109 +457,48 @@ function MemorySettingsInner(componentProps: { radio: Radio }) {
 
   return (
     <>
-      <div
-        class="relative flex flex-col gap-4 text-sm overflow-hidden shrink"
-        style={{ "scrollbar-width": "thin" }}
-      >
-        <div class="flex items-center">
-          <DropdownMenu placement="bottom-end">
-            <DropdownMenuTrigger
-              as={Button<"button">}
-              variant="outline"
-              class="ml-auto"
-            >
-              Columns <IconChevronDown />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <For
-                each={table
-                  .getAllColumns()
-                  .filter((column) => column.getCanHide())}
-              >
-                {(column) => {
-                  return (
-                    <DropdownMenuCheckboxItem
-                      class="capitalize"
-                      checked={column.getIsVisible()}
-                      onChange={(value) => column.toggleVisibility(!!value)}
-                    >
-                      {column.columnDef.header?.toString() ?? column.id}
-                    </DropdownMenuCheckboxItem>
-                  );
-                }}
-              </For>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-        <div class="relative rounded-md border shrink overflow-hidden flex flex-col">
-          <Table class="shrink">
-            <TableHeader>
-              <For each={table.getHeaderGroups()}>
-                {(headerGroup) => (
-                  <TableRow>
-                    <For each={headerGroup.headers}>
-                      {(header) => {
-                        return (
-                          <TableHead>
-                            {header.isPlaceholder ? null : (
-                              <FlexRender header={header} />
-                            )}
-                          </TableHead>
-                        );
-                      }}
-                    </For>
-                  </TableRow>
-                )}
-              </For>
-            </TableHeader>
-            <TableBody>
-              {table.getRowModel().rows?.length ? (
-                table.getRowModel().rows.map((row) => (
-                  <TableRow data-state={row.getIsSelected() && "selected"}>
-                    <For each={row.getVisibleCells()}>
-                      {(cell) => (
-                        <TableCell>
-                          <FlexRender cell={cell} />
-                        </TableCell>
-                      )}
-                    </For>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={columns.length} class="h-24 text-center">
-                    No results.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
-        <div class="flex items-center justify-end space-x-2">
-          <div class="flex-1 text-sm text-muted-foreground">
-            {table.getFilteredSelectedRowModel().rows.length} of{" "}
-            {table.getFilteredRowModel().rows.length} row(s) selected.
-          </div>
-          <div class="space-x-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
-            >
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
-            >
-              Next
-            </Button>
-          </div>
-        </div>
-      </div>
+      <Table>
+        <TableHeader sticky class="z-10">
+          <For each={table.getHeaderGroups()}>
+            {(headerGroup) => (
+              <TableRow>
+                <For each={headerGroup.headers}>
+                  {(header) => {
+                    return (
+                      <TableHead>
+                        {header.isPlaceholder ? null : (
+                          <FlexRender header={header} />
+                        )}
+                      </TableHead>
+                    );
+                  }}
+                </For>
+              </TableRow>
+            )}
+          </For>
+        </TableHeader>
+        <TableBody>
+          {table.getRowModel().rows?.length ? (
+            table.getRowModel().rows.map((row) => (
+              <TableRow data-state={row.getIsSelected() && "selected"}>
+                <For each={row.getVisibleCells()}>
+                  {(cell) => (
+                    <TableCell>
+                      <FlexRender cell={cell} />
+                    </TableCell>
+                  )}
+                </For>
+              </TableRow>
+            ))
+          ) : (
+            <TableRow>
+              <TableCell colSpan={columns.length} class="h-24 text-center">
+                No results.
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
       <DialogFooter>
         <ConfirmButton
           variant="destructive"
@@ -598,7 +531,7 @@ function MemorySettingsInner(componentProps: { radio: Radio }) {
 export function MemorySettings() {
   const { state, radio } = useFlexRadio();
   return (
-    <DialogContent class="translate-y-0 top-1/12 flex flex-col max-h-10/12 overflow-hidden sm:max-w-10/12 sm:w-auto">
+    <DialogContent class="data-dialog:fixed data-dialog:top-1/12 data-dialog:max-h-10/12 data-dialog:max-w-10/12 data-dialog:min-w-md data-dialog:w-auto">
       <DialogHeader>
         <DialogTitle>Memory Settings</DialogTitle>
       </DialogHeader>

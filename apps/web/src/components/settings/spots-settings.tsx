@@ -36,54 +36,50 @@ function SpotsSettingsInner(props: { radio: Radio }) {
 
   return (
     <>
-      <div class="flex flex-col gap-4">
-        <SimpleSwitch
-          checked={preferences.spots.enabled}
-          onChange={(isChecked) =>
-            setPreferences("spots", "enabled", isChecked)
-          }
-          label="Enable Spots"
-        />
-        <SimpleSlider
-          minValue={1}
-          maxValue={10}
-          value={[preferences.spots.levels]}
-          onChange={([value]) => setPreferences("spots", "levels", value)}
-          getValueLabel={({ values }) => values[0].toString()}
-          label="Levels"
-        />
-        <SimpleSlider
-          minValue={0}
-          maxValue={100}
-          value={[preferences.spots.position]}
-          onChange={([value]) => setPreferences("spots", "position", value)}
-          getValueLabel={({ values }) => `${values[0]}%`}
-          label="Position"
-        />
-        <SimpleSlider
-          minValue={0}
-          maxValue={100}
-          value={[preferences.spots.verticalSpacing]}
-          onChange={([value]) =>
-            setPreferences("spots", "verticalSpacing", value)
-          }
-          getValueLabel={({ values }) => `${values[0]}%`}
-          label="Vertical Spacing"
-        />
-        <SimpleSlider
-          minValue={0}
-          maxValue={FONT_SIZES.length - 1}
-          value={[preferences.spots.fontSize]}
-          onChange={([value]) => setPreferences("spots", "fontSize", value)}
-          getValueLabel={({ values }) => FONT_SIZES[values[0]]}
-          label="Font Size"
-        />
-        <InfoItem
-          label="Total Spots"
-          value={Object.keys(state.status.spot).length}
-        />
-      </div>
-      <DialogFooter class="gap-2">
+      <SimpleSwitch
+        checked={preferences.spots.enabled}
+        onChange={(isChecked) => setPreferences("spots", "enabled", isChecked)}
+        label="Enable Spots"
+      />
+      <SimpleSlider
+        minValue={1}
+        maxValue={10}
+        value={[preferences.spots.levels]}
+        onChange={([value]) => setPreferences("spots", "levels", value)}
+        getValueLabel={({ values }) => values[0].toString()}
+        label="Levels"
+      />
+      <SimpleSlider
+        minValue={0}
+        maxValue={100}
+        value={[preferences.spots.position]}
+        onChange={([value]) => setPreferences("spots", "position", value)}
+        getValueLabel={({ values }) => `${values[0]}%`}
+        label="Position"
+      />
+      <SimpleSlider
+        minValue={0}
+        maxValue={100}
+        value={[preferences.spots.verticalSpacing]}
+        onChange={([value]) =>
+          setPreferences("spots", "verticalSpacing", value)
+        }
+        getValueLabel={({ values }) => `${values[0]}%`}
+        label="Vertical Spacing"
+      />
+      <SimpleSlider
+        minValue={0}
+        maxValue={FONT_SIZES.length - 1}
+        value={[preferences.spots.fontSize]}
+        onChange={([value]) => setPreferences("spots", "fontSize", value)}
+        getValueLabel={({ values }) => FONT_SIZES[values[0]]}
+        label="Font Size"
+      />
+      <InfoItem
+        label="Total Spots"
+        value={Object.keys(state.status.spot).length}
+      />
+      <DialogFooter sticky>
         <Button variant="destructive" onClick={() => props.radio.clearSpots()}>
           Clear All Spots
         </Button>

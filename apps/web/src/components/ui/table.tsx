@@ -6,18 +6,35 @@ import { cn } from "~/lib/utils";
 const Table: Component<ComponentProps<"table">> = (props) => {
   const [local, others] = splitProps(props, ["class"]);
   return (
-    <div class="relative w-full overflow-auto">
+    <div
+      class={cn(
+        "relative rounded-md clip-path-md border overflow-x-auto bg-background text-sm",
+        local.class,
+      )}
+    >
       <table
-        class={cn("w-full caption-bottom text-sm", local.class)}
+        class={cn("relative w-full caption-bottom", local.class)}
         {...others}
       />
     </div>
   );
 };
 
-const TableHeader: Component<ComponentProps<"thead">> = (props) => {
-  const [local, others] = splitProps(props, ["class"]);
-  return <thead class={cn("[&_tr]:border-b", local.class)} {...others} />;
+const TableHeader: Component<
+  ComponentProps<"thead"> & { sticky?: boolean | undefined }
+> = (props) => {
+  const [local, others] = splitProps(props, ["class", "sticky"]);
+  return (
+    <thead
+      class={cn(
+        local.sticky
+          ? "sticky top-0 fancy-bg-background shadow-[inset_0_-1px_0_var(--color-border)] [&_tr]:border-none"
+          : "[&_tr]:border-b",
+        local.class,
+      )}
+      {...others}
+    />
+  );
 };
 
 const TableBody: Component<ComponentProps<"tbody">> = (props) => {
@@ -55,7 +72,7 @@ const TableHead: Component<ComponentProps<"th">> = (props) => {
   return (
     <th
       class={cn(
-        "h-10 px-2 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0",
+        "h-10 px-2 text-left align-middle font-medium text-muted-foreground has-[[role=checkbox]]:pr-0",
         local.class,
       )}
       {...others}
@@ -67,7 +84,7 @@ const TableCell: Component<ComponentProps<"td">> = (props) => {
   const [local, others] = splitProps(props, ["class"]);
   return (
     <td
-      class={cn("p-2 align-middle [&:has([role=checkbox])]:pr-0", local.class)}
+      class={cn("p-2 align-middle has-[[role=checkbox]]:pr-0", local.class)}
       {...others}
     />
   );

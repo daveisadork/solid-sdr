@@ -16,62 +16,58 @@ export function MultiflexSettings() {
   const { radio, state } = useFlexRadio();
 
   return (
-    <DialogContent class="translate-y-0 top-1/12 flex flex-col max-h-10/12 overflow-hidden">
+    <DialogContent>
       <DialogHeader>
         <DialogTitle>multiFLEX Dashboard</DialogTitle>
       </DialogHeader>
-      <div
-        class="relative flex flex-col gap-4 text-sm overflow-y-auto shrink"
-        style={{ "scrollbar-width": "thin" }}
-      >
-        <SimpleSwitch
-          checked={state.status.radio.mfEnabled}
-          onChange={(isChecked) => radio()?.setMfEnabled(isChecked)}
-          label="Enable multiFLEX"
-        />
-        <Table class="whitespace-nowrap">
-          <TableHeader>
-            <TableRow>
-              <TableHead>Local PTT</TableHead>
-              <TableHead>Station</TableHead>
-              <TableHead>TX Antenna</TableHead>
-              <TableHead>TX Freq</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <For each={Object.values(state.status.guiClient)}>
-              {(client) => {
-                const txSlice = () => {
-                  const sliceId = client.transmitSliceId;
-                  return sliceId != null
-                    ? state.status.slice[sliceId]
-                    : undefined;
-                };
-                return (
-                  <TableRow>
-                    <TableCell>
-                      <Checkbox
-                        disabled={!client.isThisClient}
-                        checked={client.isLocalPtt}
-                        onChange={(checked) =>
-                          radio()?.setLocalPttEnabled(checked)
-                        }
-                      />
-                    </TableCell>
-                    <TableCell>{client.station}</TableCell>
-                    <TableCell>{txSlice()?.txAntenna}</TableCell>
-                    <TableCell>
-                      <Show when={txSlice()}>
-                        {(slice) => `${slice().frequencyMHz} MHz`}
-                      </Show>
-                    </TableCell>
-                  </TableRow>
-                );
-              }}
-            </For>
-          </TableBody>
-        </Table>
-      </div>
+      <SimpleSwitch
+        checked={state.status.radio.mfEnabled}
+        onChange={(isChecked) => radio()?.setMfEnabled(isChecked)}
+        label="Enable multiFLEX"
+      />
+
+      <Table class="whitespace-nowrap">
+        <TableHeader sticky>
+          <TableRow>
+            <TableHead>Local PTT</TableHead>
+            <TableHead>Station</TableHead>
+            <TableHead>TX Antenna</TableHead>
+            <TableHead>TX Freq</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <For each={Object.values(state.status.guiClient)}>
+            {(client) => {
+              const txSlice = () => {
+                const sliceId = client.transmitSliceId;
+                return sliceId != null
+                  ? state.status.slice[sliceId]
+                  : undefined;
+              };
+              return (
+                <TableRow>
+                  <TableCell>
+                    <Checkbox
+                      disabled={!client.isThisClient}
+                      checked={client.isLocalPtt}
+                      onChange={(checked) =>
+                        radio()?.setLocalPttEnabled(checked)
+                      }
+                    />
+                  </TableCell>
+                  <TableCell>{client.station}</TableCell>
+                  <TableCell>{txSlice()?.txAntenna}</TableCell>
+                  <TableCell>
+                    <Show when={txSlice()}>
+                      {(slice) => `${slice().frequencyMHz} MHz`}
+                    </Show>
+                  </TableCell>
+                </TableRow>
+              );
+            }}
+          </For>
+        </TableBody>
+      </Table>
     </DialogContent>
   );
 }

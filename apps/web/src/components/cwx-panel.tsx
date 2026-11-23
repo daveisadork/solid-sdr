@@ -13,7 +13,13 @@ import { usePreferences } from "~/context/preferences";
 import IconSend from "~icons/mdi/send";
 import IconStop from "~icons/mdi/stop-circle-outline";
 import { Button } from "./ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "./ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { SimpleSlider } from "./ui/simple-slider";
 import { SimpleSwitch } from "./ui/simple-switch";
@@ -148,7 +154,6 @@ export function CwxPanel() {
   const { state, radio } = useFlexRadio();
   const { preferences, setPreferences } = usePreferences();
 
-  const [setupOpen, setSetupOpen] = createSignal(false);
   const [history, setHistory] = createStore<QueuedMessage[]>([]);
   /** The message being edited — conceptually the newest, unstamped entry. */
   const [composerBuffer, setComposerBuffer] = createStore<MessageBuffer>({
@@ -670,43 +675,12 @@ export function CwxPanel() {
         >
           Live
         </Toggle>
-        <Button
-          variant="outline"
-          class="min-w-0 flex-auto overflow-hidden px-2"
-          onClick={() => setSetupOpen(true)}
-        >
-          Setup
-        </Button>
-        <Popover>
-          <PopoverTrigger
-            as={Button<"button">}
-            variant="outline"
-            class="min-w-0 flex-auto overflow-hidden px-2 tabular-nums"
-          >
-            {rawSpeed()} WPM
-          </PopoverTrigger>
-          <PopoverContent class="w-56">
-            <SimpleSlider
-              minValue={5}
-              maxValue={100}
-              value={[rawSpeed()]}
-              onChange={([value]) => setRawSpeed(value)}
-              getValueLabel={(params) => `${params.values[0]} WPM`}
-              label="Speed"
-            />
-          </PopoverContent>
-        </Popover>
-      </div>
 
-      <Dialog open={setupOpen()} onOpenChange={setSetupOpen}>
-        <DialogContent class="flex flex-col max-h-10/12 overflow-hidden sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>CWX Setup</DialogTitle>
-          </DialogHeader>
-          <div
-            class="flex flex-col gap-4 overflow-y-auto shrink"
-            style={{ "scrollbar-width": "thin" }}
-          >
+        <Dialog>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>CWX Setup</DialogTitle>
+            </DialogHeader>
             <SimpleSwitch
               checked={state.status.cwx.qskEnabled ?? false}
               onChange={(isChecked) => void cwx()?.setQskEnabled(isChecked)}
@@ -750,9 +724,35 @@ export function CwxPanel() {
                 )}
               </For>
             </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+          </DialogContent>
+          <DialogTrigger
+            as={Button}
+            variant="outline"
+            class="min-w-0 flex-auto overflow-hidden px-2"
+          >
+            Setup
+          </DialogTrigger>
+        </Dialog>
+        <Popover>
+          <PopoverTrigger
+            as={Button<"button">}
+            variant="outline"
+            class="min-w-0 flex-auto overflow-hidden px-2 tabular-nums"
+          >
+            {rawSpeed()} WPM
+          </PopoverTrigger>
+          <PopoverContent class="w-56">
+            <SimpleSlider
+              minValue={5}
+              maxValue={100}
+              value={[rawSpeed()]}
+              onChange={([value]) => setRawSpeed(value)}
+              getValueLabel={(params) => `${params.values[0]} WPM`}
+              label="Speed"
+            />
+          </PopoverContent>
+        </Popover>
+      </div>
     </div>
   );
 }

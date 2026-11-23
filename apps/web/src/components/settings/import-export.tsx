@@ -335,11 +335,11 @@ type SelectionPanelProps = {
 };
 
 const SelectionPanel = (props: SelectionPanelProps) => (
-  <Card class="flex flex-col bg-transparent flex-1 overflow-hidden relative">
-    <CardHeader>
+  <Card class="flex flex-col bg-transparent flex-0">
+    <CardHeader class="p-4">
       <CardTitle>Selections</CardTitle>
     </CardHeader>
-    <CardContent class="flex flex-col gap-4 overflow-y-auto flex-1">
+    <CardContent class="flex flex-col gap-4 px-4 pb-4">
       <CheckboxRow
         checked={props.allSelected}
         indeterminate={props.anySelected && !props.allSelected}
@@ -538,14 +538,14 @@ function ImportExportInner(props: { radio: Radio }) {
       <Tabs
         value={activeTab()}
         onChange={setActiveTab}
-        class="flex flex-col flex-1 min-h-0"
+        class="flex flex-col grow"
       >
         <TabsList class="w-full grid grid-cols-2 shrink-0">
           <TabsTrigger value="export">Export</TabsTrigger>
           <TabsTrigger value="import">Import</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="export" class="flex flex-col flex-1 gap-2 min-h-0">
+        <TabsContent value="export" class="flex flex-col">
           <Show
             when={exportMeta()}
             fallback={<div class="text-muted-foreground text-sm">Loading…</div>}
@@ -564,9 +564,9 @@ function ImportExportInner(props: { radio: Radio }) {
           </Show>
         </TabsContent>
 
-        <TabsContent value="import" class="flex flex-col flex-1 gap-2 min-h-0">
+        <TabsContent value="import" class="flex flex-col gap-2">
           <Show when={importError()}>
-            <Callout variant="error" class="flex flex-col min-h-0">
+            <Callout variant="error" class="flex flex-col">
               <CalloutTitle>Import Error</CalloutTitle>
               <CalloutContent class="min-h-0 overflow-auto">
                 {importError()}
@@ -614,7 +614,7 @@ function ImportExportInner(props: { radio: Radio }) {
         </TabsContent>
       </Tabs>
 
-      <DialogFooter>
+      <DialogFooter sticky>
         <Show when={activeTab() === "export"}>
           <Button
             disabled={!exportAnySelected() || busy()}
@@ -644,7 +644,7 @@ function ImportExportInner(props: { radio: Radio }) {
 export function ImportExport() {
   const { radio } = useFlexRadio();
   return (
-    <DialogContent class="translate-y-0 top-1/12 flex max-h-10/12 flex-col overflow-hidden text-sm">
+    <DialogContent class="data-dialog:fixed data-dialog:top-1/12 data-dialog:max-h-10/12 data-dialog:max-w-10/12 data-dialog:min-w-md data-dialog:w-auto data-sheet:h-full">
       <DialogHeader class="shrink-0">
         <DialogTitle>Import / Export</DialogTitle>
         <DialogDescription>Import or export radio data</DialogDescription>

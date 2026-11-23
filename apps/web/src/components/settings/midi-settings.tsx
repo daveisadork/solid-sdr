@@ -714,289 +714,311 @@ function AddMappingDialog(props: {
       <DialogTrigger as={Button} class={props.class} disabled={props.disabled}>
         New
       </DialogTrigger>
-      <DialogContent class="translate-y-0 flex flex-col top-1/12 max-h-10/12 overflow-hidden">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Add Mapping</DialogTitle>
         </DialogHeader>
 
-        <div class="shrink overflow-auto">
-          <Timeline
-            activeItem={activeItem()}
-            items={[
-              {
-                title: "Capture Control",
-                description: (
-                  <div class="pt-2 flex gap-2 justify-between items-center">
-                    <Select<string | null>
-                      class="flex flex-col gap-2 flex-1 min-w-0"
-                      value={selectedPort()}
-                      onChange={setSelectedPort}
-                      options={inputs.keys().toArray()}
-                      placeholder="Any Device"
+        <Timeline
+          activeItem={activeItem()}
+          items={[
+            {
+              title: "Capture Control",
+              description: (
+                <div class="pt-2 flex gap-2 justify-between items-center">
+                  <Select<string | null>
+                    class="flex flex-col gap-2 flex-1 min-w-0"
+                    value={selectedPort()}
+                    onChange={setSelectedPort}
+                    options={inputs.keys().toArray()}
+                    placeholder="Any Device"
+                    itemComponent={(props) => (
+                      <SelectItem item={props.item}>
+                        {inputs.get(props.item.rawValue ?? "")?.name}
+                      </SelectItem>
+                    )}
+                  >
+                    <SelectLabel>Which device?</SelectLabel>
+                    <div class="flex gap-2">
+                      <SelectTrigger class="flex-1 min-w-0">
+                        <SelectValue<InputType> class="truncate">
+                          {(state) => inputs.get(state.selectedOption())?.name}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <Button
+                        variant="outline"
+                        class="grow-0 shrink-0"
+                        size="icon"
+                        disabled={!capturedSource()}
+                        onClick={() => {
+                          setCapturedSource(null);
+                        }}
+                      >
+                        <Show
+                          when={capturedSource()}
+                          fallback={<SvgSpinners180Ring class="size-full" />}
+                        >
+                          <MdiRefresh class="size-full" />
+                        </Show>
+                      </Button>
+                    </div>
+                    <SelectDescription>
+                      <Show
+                        when={capturedSource()}
+                        fallback={<span>Listening for input...</span>}
+                      >
+                        {(source) => (
+                          <span>
+                            Captured{" "}
+                            <span class="text-green-500">
+                              {sourceToString(source())}
+                            </span>
+                          </span>
+                        )}
+                      </Show>
+                    </SelectDescription>
+                    <SelectContent />
+                  </Select>
+                  <div class="size-16">
+                    <Show when={lastMessage()}>
+                      {(message) => (
+                        <MidiValueRing
+                          message={message()}
+                          forceNote={inputType() === "button"}
+                        />
+                      )}
+                    </Show>
+                  </div>
+                </div>
+              ),
+            },
+            {
+              title: "Control Type",
+              description: (
+                <div class="pt-2 flex flex-col gap-4">
+                  <div>
+                    <Select<InputType>
+                      class="flex flex-col gap-2"
+                      disabled={inputOptions().length < 2}
+                      value={inputType()}
+                      onChange={setInputType}
+                      options={inputOptions()}
                       itemComponent={(props) => (
                         <SelectItem item={props.item}>
-                          {inputs.get(props.item.rawValue ?? "")?.name}
+                          {INPUT_LABELS[props.item.rawValue]}
                         </SelectItem>
                       )}
                     >
-                      <SelectLabel>Which device?</SelectLabel>
-                      <div class="flex gap-2">
-                        <SelectTrigger class="flex-1 min-w-0">
-                          <SelectValue<InputType> class="truncate">
-                            {(state) =>
-                              inputs.get(state.selectedOption())?.name
-                            }
-                          </SelectValue>
-                        </SelectTrigger>
-                        <Button
-                          variant="outline"
-                          class="grow-0 shrink-0"
-                          size="icon"
-                          disabled={!capturedSource()}
-                          onClick={() => {
-                            setCapturedSource(null);
-                          }}
-                        >
-                          <Show
-                            when={capturedSource()}
-                            fallback={<SvgSpinners180Ring class="size-full" />}
-                          >
-                            <MdiRefresh class="size-full" />
-                          </Show>
-                        </Button>
-                      </div>
-                      <SelectDescription>
-                        <Show
-                          when={capturedSource()}
-                          fallback={<span>Listening for input...</span>}
-                        >
-                          {(source) => (
-                            <span>
-                              Captured{" "}
-                              <span class="text-green-500">
-                                {sourceToString(source())}
-                              </span>
-                            </span>
-                          )}
-                        </Show>
-                      </SelectDescription>
+                      <SelectLabel>How should this control behave?</SelectLabel>
+                      <SelectTrigger>
+                        <SelectValue<InputType> class="truncate">
+                          {(state) => INPUT_LABELS[state.selectedOption()]}
+                        </SelectValue>
+                      </SelectTrigger>
                       <SelectContent />
                     </Select>
-                    <div class="size-16">
-                      <Show when={lastMessage()}>
-                        {(message) => (
-                          <MidiValueRing
-                            message={message()}
-                            forceNote={inputType() === "button"}
-                          />
-                        )}
-                      </Show>
-                    </div>
                   </div>
-                ),
-              },
-              {
-                title: "Control Type",
-                description: (
-                  <div class="pt-2 flex flex-col gap-4">
-                    <div>
-                      <Select<InputType>
-                        class="flex flex-col gap-2"
-                        disabled={inputOptions().length < 2}
-                        value={inputType()}
-                        onChange={setInputType}
-                        options={inputOptions()}
-                        itemComponent={(props) => (
-                          <SelectItem item={props.item}>
-                            {INPUT_LABELS[props.item.rawValue]}
-                          </SelectItem>
-                        )}
-                      >
-                        <SelectLabel>
-                          How should this control behave?
-                        </SelectLabel>
-                        <SelectTrigger>
-                          <SelectValue<InputType> class="truncate">
-                            {(state) => INPUT_LABELS[state.selectedOption()]}
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent />
-                      </Select>
-                    </div>
 
-                    <Show when={inputType() === "button"}>
-                      <SimpleSlider
-                        class="w-fit"
-                        label="Activation Threshold"
-                        value={[thresholdPercent()]}
-                        onChange={setThresholdPercent}
-                        minValue={1}
-                        maxValue={100}
-                        getValueLabel={({ values: [value] }) => `${value}%`}
-                      />
-                    </Show>
-                  </div>
-                ),
-              },
-              {
-                title: "Target Control",
-                description: (
-                  <div class="pt-2 flex flex-col gap-4">
-                    <Combobox<TargetOption, TargetCategory>
+                  <Show when={inputType() === "button"}>
+                    <SimpleSlider
+                      class="w-fit"
+                      label="Activation Threshold"
+                      value={[thresholdPercent()]}
+                      onChange={setThresholdPercent}
+                      minValue={1}
+                      maxValue={100}
+                      getValueLabel={({ values: [value] }) => `${value}%`}
+                    />
+                  </Show>
+                </div>
+              ),
+            },
+            {
+              title: "Target Control",
+              description: (
+                <div class="pt-2 flex flex-col gap-4">
+                  <Combobox<TargetOption, TargetCategory>
+                    class="flex flex-col gap-2"
+                    value={target() ?? undefined}
+                    disabled={validTargets().length === 0}
+                    onChange={setTarget}
+                    options={validTargets()}
+                    optionValue="value"
+                    optionTextValue="label"
+                    optionLabel="label"
+                    optionDisabled="disabled"
+                    optionGroupChildren="options"
+                    placeholder="Type to search controls..."
+                    triggerMode="focus"
+                    itemComponent={(props) => (
+                      <ComboboxItem item={props.item}>
+                        <ComboboxItemLabel>
+                          {props.item.rawValue.label}
+                        </ComboboxItemLabel>
+                        <ComboboxItemIndicator />
+                      </ComboboxItem>
+                    )}
+                    sectionComponent={(props) => (
+                      <ComboboxSection>
+                        {props.section.rawValue.label}
+                      </ComboboxSection>
+                    )}
+                  >
+                    <ComboboxLabel>What should it control?</ComboboxLabel>
+                    <ComboboxControl aria-label="Target Control">
+                      <ComboboxInput />
+                      <ComboboxTrigger />
+                    </ComboboxControl>
+                    <ComboboxContent class="overflow-auto" />
+                  </Combobox>
+                  <Show when={controlNeedsSlice(control()?.target ?? null)}>
+                    <Select<SliceOption>
                       class="flex flex-col gap-2"
-                      value={target() ?? undefined}
-                      disabled={validTargets().length === 0}
-                      onChange={setTarget}
-                      options={validTargets()}
-                      optionValue="value"
-                      optionTextValue="label"
-                      optionLabel="label"
-                      optionDisabled="disabled"
-                      optionGroupChildren="options"
-                      placeholder="Type to search controls..."
-                      triggerMode="focus"
+                      value={sliceOption()}
+                      onChange={setSliceOption}
+                      options={[...SLICE_OPTIONS]}
                       itemComponent={(props) => (
-                        <ComboboxItem item={props.item}>
-                          <ComboboxItemLabel>
-                            {props.item.rawValue.label}
-                          </ComboboxItemLabel>
-                          <ComboboxItemIndicator />
-                        </ComboboxItem>
-                      )}
-                      sectionComponent={(props) => (
-                        <ComboboxSection>
-                          {props.section.rawValue.label}
-                        </ComboboxSection>
+                        <SelectItem item={props.item}>
+                          {props.item.rawValue === "active"
+                            ? "Active"
+                            : `Slice ${props.item.rawValue}`}
+                        </SelectItem>
                       )}
                     >
-                      <ComboboxLabel>What should it control?</ComboboxLabel>
-                      <ComboboxControl aria-label="Target Control">
-                        <ComboboxInput />
-                        <ComboboxTrigger />
-                      </ComboboxControl>
-                      <ComboboxContent class="overflow-auto" />
-                    </Combobox>
-                    <Show when={controlNeedsSlice(control()?.target ?? null)}>
-                      <Select<SliceOption>
-                        class="flex flex-col gap-2"
-                        value={sliceOption()}
-                        onChange={setSliceOption}
-                        options={[...SLICE_OPTIONS]}
-                        itemComponent={(props) => (
-                          <SelectItem item={props.item}>
-                            {props.item.rawValue === "active"
+                      <SelectLabel>
+                        Which {sliceTargetNoun(target()?.value)}?
+                      </SelectLabel>
+                      <SelectTrigger>
+                        <SelectValue<SliceOption>>
+                          {(state) =>
+                            state.selectedOption() === "active"
                               ? "Active"
-                              : `Slice ${props.item.rawValue}`}
-                          </SelectItem>
-                        )}
-                      >
-                        <SelectLabel>
-                          Which {sliceTargetNoun(target()?.value)}?
-                        </SelectLabel>
-                        <SelectTrigger>
-                          <SelectValue<SliceOption>>
-                            {(state) =>
-                              state.selectedOption() === "active"
-                                ? "Active"
-                                : `Slice ${state.selectedOption()}`
-                            }
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent />
-                      </Select>
-                    </Show>
-                  </div>
-                ),
-              },
-              {
-                title: "Behavior",
-                description: (
-                  <Show when={control()}>
-                    <div class="flex flex-col gap-4 pt-2">
-                      <Select<Behavior>
-                        class="flex flex-col gap-2"
-                        value={behavior()}
-                        onChange={setBehavior}
-                        disabled={currentBehaviorOptions().length <= 1}
-                        options={currentBehaviorOptions().map(
-                          (option) => option.value,
-                        )}
-                        itemComponent={(props) => (
-                          <SelectItem item={props.item}>
-                            {
-                              currentBehaviorOptions().find(
-                                (option) =>
-                                  option.value === props.item.rawValue,
-                              )?.label
-                            }
-                          </SelectItem>
-                        )}
-                      >
-                        <SelectLabel>What should it do?</SelectLabel>
-                        <SelectTrigger>
-                          <SelectValue<Behavior>>
-                            {(state) =>
-                              currentBehaviorOptions().find(
-                                (option) =>
-                                  option.value === state.selectedOption(),
-                              )?.label
-                            }
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent />
-                      </Select>
-
-                      <Switch>
-                        <Match
-                          when={
-                            behavior() === "set-item" &&
-                            choiceOptions().length > 0
+                              : `Slice ${state.selectedOption()}`
                           }
-                        >
-                          <Select<string>
-                            class="flex flex-col gap-2"
-                            value={selectedChoiceKey()}
-                            onChange={setSelectedChoiceKey}
-                            options={choiceOptions().map(
-                              (option) => option.key,
-                            )}
-                            itemComponent={(props) => (
-                              <SelectItem item={props.item}>
-                                {
-                                  choiceOptions().find(
-                                    (option) =>
-                                      option.key === props.item.rawValue,
-                                  )?.label
-                                }
-                              </SelectItem>
-                            )}
-                          >
-                            <SelectLabel>Item</SelectLabel>
-                            <SelectTrigger>
-                              <SelectValue<string>>
-                                {(state) =>
-                                  choiceOptions().find(
-                                    (option) =>
-                                      option.key === state.selectedOption(),
-                                  )?.label
-                                }
-                              </SelectValue>
-                            </SelectTrigger>
-                            <SelectContent />
-                          </Select>
-                        </Match>
-
-                        <Match
-                          when={
-                            behavior() === "change-item" &&
-                            inputType() === "button"
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent />
+                    </Select>
+                  </Show>
+                </div>
+              ),
+            },
+            {
+              title: "Behavior",
+              description: (
+                <Show when={control()}>
+                  <div class="flex flex-col gap-4 pt-2">
+                    <Select<Behavior>
+                      class="flex flex-col gap-2"
+                      value={behavior()}
+                      onChange={setBehavior}
+                      disabled={currentBehaviorOptions().length <= 1}
+                      options={currentBehaviorOptions().map(
+                        (option) => option.value,
+                      )}
+                      itemComponent={(props) => (
+                        <SelectItem item={props.item}>
+                          {
+                            currentBehaviorOptions().find(
+                              (option) => option.value === props.item.rawValue,
+                            )?.label
                           }
+                        </SelectItem>
+                      )}
+                    >
+                      <SelectLabel>What should it do?</SelectLabel>
+                      <SelectTrigger>
+                        <SelectValue<Behavior>>
+                          {(state) =>
+                            currentBehaviorOptions().find(
+                              (option) =>
+                                option.value === state.selectedOption(),
+                            )?.label
+                          }
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent />
+                    </Select>
+
+                    <Switch>
+                      <Match
+                        when={
+                          behavior() === "set-item" &&
+                          choiceOptions().length > 0
+                        }
+                      >
+                        <Select<string>
+                          class="flex flex-col gap-2"
+                          value={selectedChoiceKey()}
+                          onChange={setSelectedChoiceKey}
+                          options={choiceOptions().map((option) => option.key)}
+                          itemComponent={(props) => (
+                            <SelectItem item={props.item}>
+                              {
+                                choiceOptions().find(
+                                  (option) =>
+                                    option.key === props.item.rawValue,
+                                )?.label
+                              }
+                            </SelectItem>
+                          )}
                         >
-                          <Select<"next" | "previous">
+                          <SelectLabel>Item</SelectLabel>
+                          <SelectTrigger>
+                            <SelectValue<string>>
+                              {(state) =>
+                                choiceOptions().find(
+                                  (option) =>
+                                    option.key === state.selectedOption(),
+                                )?.label
+                              }
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent />
+                        </Select>
+                      </Match>
+
+                      <Match
+                        when={
+                          behavior() === "change-item" &&
+                          inputType() === "button"
+                        }
+                      >
+                        <Select<"next" | "previous">
+                          class="flex flex-col gap-2"
+                          value={itemDirection()}
+                          onChange={setItemDirection}
+                          options={["previous", "next"]}
+                          itemComponent={(props) => (
+                            <SelectItem item={props.item} class="capitalize">
+                              {props.item.rawValue}
+                            </SelectItem>
+                          )}
+                        >
+                          <SelectLabel>Direction</SelectLabel>
+                          <SelectTrigger>
+                            <SelectValue<
+                              "next" | "previous"
+                            > class="capitalize">
+                              {(state) => state.selectedOption()}
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent />
+                        </Select>
+                      </Match>
+
+                      <Match
+                        when={
+                          behavior() === "change-value" &&
+                          inputType() === "button"
+                        }
+                      >
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                          <Select<"increase" | "decrease">
                             class="flex flex-col gap-2"
-                            value={itemDirection()}
-                            onChange={setItemDirection}
-                            options={["previous", "next"]}
+                            value={valueDirection()}
+                            onChange={setValueDirection}
+                            options={["decrease", "increase"]}
                             itemComponent={(props) => (
                               <SelectItem item={props.item} class="capitalize">
                                 {props.item.rawValue}
@@ -1006,73 +1028,14 @@ function AddMappingDialog(props: {
                             <SelectLabel>Direction</SelectLabel>
                             <SelectTrigger>
                               <SelectValue<
-                                "next" | "previous"
+                                "increase" | "decrease"
                               > class="capitalize">
                                 {(state) => state.selectedOption()}
                               </SelectValue>
                             </SelectTrigger>
                             <SelectContent />
                           </Select>
-                        </Match>
 
-                        <Match
-                          when={
-                            behavior() === "change-value" &&
-                            inputType() === "button"
-                          }
-                        >
-                          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                            <Select<"increase" | "decrease">
-                              class="flex flex-col gap-2"
-                              value={valueDirection()}
-                              onChange={setValueDirection}
-                              options={["decrease", "increase"]}
-                              itemComponent={(props) => (
-                                <SelectItem
-                                  item={props.item}
-                                  class="capitalize"
-                                >
-                                  {props.item.rawValue}
-                                </SelectItem>
-                              )}
-                            >
-                              <SelectLabel>Direction</SelectLabel>
-                              <SelectTrigger>
-                                <SelectValue<
-                                  "increase" | "decrease"
-                                > class="capitalize">
-                                  {(state) => state.selectedOption()}
-                                </SelectValue>
-                              </SelectTrigger>
-                              <SelectContent />
-                            </Select>
-
-                            <NumberField
-                              class="flex flex-col gap-2 select-none"
-                              rawValue={amount()}
-                              minValue={0.000001}
-                              onRawValueChange={setAmount}
-                              changeOnWheel={false}
-                              format={false}
-                            >
-                              <NumberFieldLabel class="select-none">
-                                Amount
-                              </NumberFieldLabel>
-                              <NumberFieldGroup class="select-none">
-                                <NumberFieldInput />
-                                <NumberFieldIncrementTrigger class="select-none" />
-                                <NumberFieldDecrementTrigger class="select-none" />
-                              </NumberFieldGroup>
-                            </NumberField>
-                          </div>
-                        </Match>
-
-                        <Match
-                          when={
-                            behavior() === "change-value" &&
-                            inputType() === "relative"
-                          }
-                        >
                           <NumberField
                             class="flex flex-col gap-2 select-none"
                             rawValue={amount()}
@@ -1082,7 +1045,7 @@ function AddMappingDialog(props: {
                             format={false}
                           >
                             <NumberFieldLabel class="select-none">
-                              Amount Per Step
+                              Amount
                             </NumberFieldLabel>
                             <NumberFieldGroup class="select-none">
                               <NumberFieldInput />
@@ -1090,112 +1053,137 @@ function AddMappingDialog(props: {
                               <NumberFieldDecrementTrigger class="select-none" />
                             </NumberFieldGroup>
                           </NumberField>
-                        </Match>
-
-                        <Match
-                          when={
-                            behavior() === "scale-value" &&
-                            inputType() === "button"
-                          }
-                        >
-                          <Select<"increase" | "decrease">
-                            class="flex flex-col gap-2"
-                            value={valueDirection()}
-                            onChange={setValueDirection}
-                            options={["increase", "decrease"]}
-                            itemComponent={(props) => (
-                              <SelectItem item={props.item} class="capitalize">
-                                {props.item.rawValue === "increase"
-                                  ? "Multiply"
-                                  : "Divide"}
-                              </SelectItem>
-                            )}
-                          >
-                            <SelectLabel>Operation</SelectLabel>
-                            <SelectTrigger>
-                              <SelectValue<
-                                "increase" | "decrease"
-                              > class="capitalize">
-                                {(state) =>
-                                  state.selectedOption() === "increase"
-                                    ? "Multiply"
-                                    : "Divide"
-                                }
-                              </SelectValue>
-                            </SelectTrigger>
-                            <SelectContent />
-                          </Select>
-
-                          <SimpleSlider
-                            label="Factor"
-                            value={[factor()]}
-                            onChange={setFactor}
-                            minValue={0}
-                            maxValue={1}
-                            step={0.01}
-                            getValueLabel={({ values: [value] }) =>
-                              `${value * 100}%`
-                            }
-                          />
-                        </Match>
-
-                        <Match
-                          when={
-                            behavior() === "scale-value" &&
-                            inputType() === "relative"
-                          }
-                        >
-                          <SimpleSlider
-                            label="Factor"
-                            value={[factor()]}
-                            onChange={setFactor}
-                            minValue={0}
-                            maxValue={1}
-                            step={0.01}
-                            getValueLabel={({ values: [value] }) =>
-                              `${value * 100}%`
-                            }
-                          />
-                        </Match>
-                      </Switch>
-
-                      <Show
-                        when={
-                          behavior() === "set-value" ||
-                          behavior() === "follow-button" ||
-                          (inputType() === "relative" &&
-                            (behavior() === "change-item" ||
-                              behavior() === "change-value" ||
-                              behavior() === "scale-value"))
-                        }
-                      >
-                        <SimpleSwitch
-                          checked={invert()}
-                          onChange={setInvert}
-                          label="Invert"
-                        />
-                      </Show>
-
-                      <Show
-                        when={
-                          behavior() === "set-item" &&
-                          choiceOptions().length === 0
-                        }
-                      >
-                        <div class="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
-                          No items are currently available for this control.
                         </div>
-                      </Show>
-                    </div>
-                  </Show>
-                ),
-              },
-            ]}
-          />
-        </div>
+                      </Match>
 
-        <DialogFooter class="flex-row justify-between sm:justify-between items-center gap-4">
-          <div class="text-xs text-muted-foreground">
+                      <Match
+                        when={
+                          behavior() === "change-value" &&
+                          inputType() === "relative"
+                        }
+                      >
+                        <NumberField
+                          class="flex flex-col gap-2 select-none"
+                          rawValue={amount()}
+                          minValue={0.000001}
+                          onRawValueChange={setAmount}
+                          changeOnWheel={false}
+                          format={false}
+                        >
+                          <NumberFieldLabel class="select-none">
+                            Amount Per Step
+                          </NumberFieldLabel>
+                          <NumberFieldGroup class="select-none">
+                            <NumberFieldInput />
+                            <NumberFieldIncrementTrigger class="select-none" />
+                            <NumberFieldDecrementTrigger class="select-none" />
+                          </NumberFieldGroup>
+                        </NumberField>
+                      </Match>
+
+                      <Match
+                        when={
+                          behavior() === "scale-value" &&
+                          inputType() === "button"
+                        }
+                      >
+                        <Select<"increase" | "decrease">
+                          class="flex flex-col gap-2"
+                          value={valueDirection()}
+                          onChange={setValueDirection}
+                          options={["increase", "decrease"]}
+                          itemComponent={(props) => (
+                            <SelectItem item={props.item} class="capitalize">
+                              {props.item.rawValue === "increase"
+                                ? "Multiply"
+                                : "Divide"}
+                            </SelectItem>
+                          )}
+                        >
+                          <SelectLabel>Operation</SelectLabel>
+                          <SelectTrigger>
+                            <SelectValue<
+                              "increase" | "decrease"
+                            > class="capitalize">
+                              {(state) =>
+                                state.selectedOption() === "increase"
+                                  ? "Multiply"
+                                  : "Divide"
+                              }
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent />
+                        </Select>
+
+                        <SimpleSlider
+                          label="Factor"
+                          value={[factor()]}
+                          onChange={setFactor}
+                          minValue={0}
+                          maxValue={1}
+                          step={0.01}
+                          getValueLabel={({ values: [value] }) =>
+                            `${value * 100}%`
+                          }
+                        />
+                      </Match>
+
+                      <Match
+                        when={
+                          behavior() === "scale-value" &&
+                          inputType() === "relative"
+                        }
+                      >
+                        <SimpleSlider
+                          label="Factor"
+                          value={[factor()]}
+                          onChange={setFactor}
+                          minValue={0}
+                          maxValue={1}
+                          step={0.01}
+                          getValueLabel={({ values: [value] }) =>
+                            `${value * 100}%`
+                          }
+                        />
+                      </Match>
+                    </Switch>
+
+                    <Show
+                      when={
+                        behavior() === "set-value" ||
+                        behavior() === "follow-button" ||
+                        (inputType() === "relative" &&
+                          (behavior() === "change-item" ||
+                            behavior() === "change-value" ||
+                            behavior() === "scale-value"))
+                      }
+                    >
+                      <SimpleSwitch
+                        checked={invert()}
+                        onChange={setInvert}
+                        label="Invert"
+                      />
+                    </Show>
+
+                    <Show
+                      when={
+                        behavior() === "set-item" &&
+                        choiceOptions().length === 0
+                      }
+                    >
+                      <div class="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+                        No items are currently available for this control.
+                      </div>
+                    </Show>
+                  </div>
+                </Show>
+              ),
+            },
+          ]}
+        />
+
+        <DialogFooter sticky class="flex-col">
+          <div class="text-xs text-muted-foreground mr-auto self-center">
             {draftMappingDescription()}
           </div>
           <Button onClick={saveMapping} disabled={!draftMapping()}>
@@ -1237,87 +1225,83 @@ function MidiSettingsInner() {
 
   return (
     <>
-      <div class="flex flex-col gap-4 overflow-auto shrink">
-        <Show when={midiError()}>
-          {(err) => (
-            <Callout variant="error">
-              <CalloutTitle>MIDI Error</CalloutTitle>
-              <CalloutContent>{err().message}</CalloutContent>
-            </Callout>
-          )}
-        </Show>
-        <Table class="whitespace-nowrap">
-          <TableHeader>
-            <TableRow>
-              <TableHead>Device</TableHead>
-              <TableHead>MIDI</TableHead>
-              <TableHead>Control</TableHead>
-              <TableHead>Action</TableHead>
-              <TableHead class="min-w-0" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <For each={preferences.midiMappings}>
-              {(mapping, index) => (
-                <TableRow>
-                  <TableCell>
-                    {mapping.midi.port
-                      ? (inputs.get(mapping.midi.port)?.name ?? "Missing")
-                      : "Any device"}
-                  </TableCell>
-                  <TableCell>{sourceToString(mapping.midi)}</TableCell>
-                  <TableCell>{describeControl(mapping)}</TableCell>
-                  <TableCell>
-                    {describeBehavior(
-                      mapping,
-                      mapping.behavior === "set-item" &&
-                        mapping.control.target === "memory.channel"
-                        ? formatMemoryChannelLabel(
-                            state.status.memory[String(mapping.value)],
-                          )
-                        : undefined,
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => {
-                        setPreferences("midiMappings", (previous) =>
-                          previous.toSpliced(index(), 1),
-                        );
-                      }}
-                    >
-                      <BaselineDelete />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              )}
-            </For>
-          </TableBody>
-        </Table>
-      </div>
+      <Show when={midiError()}>
+        {(err) => (
+          <Callout variant="error">
+            <CalloutTitle>MIDI Error</CalloutTitle>
+            <CalloutContent>{err().message}</CalloutContent>
+          </Callout>
+        )}
+      </Show>
+      <Table class="whitespace-nowrap">
+        <TableHeader sticky>
+          <TableRow>
+            <TableHead>Device</TableHead>
+            <TableHead>MIDI</TableHead>
+            <TableHead>Control</TableHead>
+            <TableHead>Action</TableHead>
+            <TableHead class="min-w-0" />
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <For each={preferences.midiMappings}>
+            {(mapping, index) => (
+              <TableRow>
+                <TableCell>
+                  {mapping.midi.port
+                    ? (inputs.get(mapping.midi.port)?.name ?? "Missing")
+                    : "Any device"}
+                </TableCell>
+                <TableCell>{sourceToString(mapping.midi)}</TableCell>
+                <TableCell>{describeControl(mapping)}</TableCell>
+                <TableCell>
+                  {describeBehavior(
+                    mapping,
+                    mapping.behavior === "set-item" &&
+                      mapping.control.target === "memory.channel"
+                      ? formatMemoryChannelLabel(
+                          state.status.memory[String(mapping.value)],
+                        )
+                      : undefined,
+                  )}
+                </TableCell>
+                <TableCell>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      setPreferences("midiMappings", (previous) =>
+                        previous.toSpliced(index(), 1),
+                      );
+                    }}
+                  >
+                    <BaselineDelete />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            )}
+          </For>
+        </TableBody>
+      </Table>
       <DialogFooter>
-        <div class="sm:grow flex flex-col-reverse sm:flex-row gap-2">
-          <Button as="label">
-            <input
-              class="hidden"
-              type="file"
-              onChange={(event) => {
-                setImportFile(event.currentTarget.files?.item(0) ?? undefined);
-              }}
-            />
-            Import
-          </Button>
-          <Button
-            as="a"
-            href={downloadUrl()}
-            download="solid-sdr-midi-mappings.json"
-          >
-            Export
-          </Button>
-        </div>
-        <AddMappingDialog disabled={Boolean(midiError())} />
+        <Button as="label">
+          <input
+            class="hidden"
+            type="file"
+            onChange={(event) => {
+              setImportFile(event.currentTarget.files?.item(0) ?? undefined);
+            }}
+          />
+          Import
+        </Button>
+        <Button
+          as="a"
+          href={downloadUrl()}
+          download="solid-sdr-midi-mappings.json"
+        >
+          Export
+        </Button>
+        <AddMappingDialog class="sm:ml-auto" disabled={Boolean(midiError())} />
       </DialogFooter>
     </>
   );
@@ -1325,7 +1309,7 @@ function MidiSettingsInner() {
 
 export function MidiSettings() {
   return (
-    <DialogContent class="translate-y-0 top-1/12 flex flex-col max-h-10/12 overflow-hidden sm:max-w-10/12 sm:w-auto">
+    <DialogContent class="data-dialog:fixed data-dialog:top-1/12 data-dialog:max-h-10/12 data-dialog:max-w-10/12 data-dialog:min-w-md data-dialog:w-auto">
       <DialogHeader>
         <DialogTitle>MIDI Controllers</DialogTitle>
       </DialogHeader>

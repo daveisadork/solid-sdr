@@ -83,7 +83,7 @@ export default function Connect() {
         </DialogTrigger>
         <TooltipContent>{label()}</TooltipContent>
       </Tooltip>
-      <DialogContent class="flex flex-col sm:max-w-md data-closed:slide-out-to-left data-closed:slide-out-to-bottom data-expanded:slide-in-from-left data-expanded:slide-in-from-bottom overflow-hidden">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Connect</DialogTitle>
         </DialogHeader>

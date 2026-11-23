@@ -43,7 +43,7 @@ function NetworkStatsInner() {
   const network = () => runtime.network;
 
   return (
-    <div class="flex flex-col gap-4 overflow-y-auto pr-1">
+    <>
       <Card class="bg-transparent">
         <CardHeader>
           <CardTitle class="flex items-center justify-between">
@@ -119,14 +119,14 @@ function NetworkStatsInner() {
           />
         </CardContent>
       </Card>
-    </div>
+    </>
   );
 }
 
 export function NetworkStats() {
   const { state } = useFlexRadio();
   return (
-    <DialogContent class="translate-y-0 top-1/12 flex max-h-10/12 flex-col overflow-hidden text-sm">
+    <DialogContent>
       <DialogHeader>
         <DialogTitle>Network Diagnostics</DialogTitle>
       </DialogHeader>

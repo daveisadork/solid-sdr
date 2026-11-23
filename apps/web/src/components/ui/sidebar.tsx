@@ -24,8 +24,8 @@ import {
 } from "solid-js";
 import type { ButtonProps } from "~/components/ui/button";
 import { Button } from "~/components/ui/button";
+import { Dialog, DialogContent } from "~/components/ui/dialog";
 import { Separator } from "~/components/ui/separator";
-import { Sheet, SheetContent } from "~/components/ui/sheet";
 import { Skeleton } from "~/components/ui/skeleton";
 import { TextField, TextFieldInput } from "~/components/ui/text-field";
 import {
@@ -218,8 +218,13 @@ const Sidebar: Component<SidebarProps> = (rawProps) => {
         </div>
       </Match>
       <Match when={isMobile()}>
-        <Sheet open={openMobile()} onOpenChange={setOpenMobile} {...others}>
-          <SheetContent
+        <Dialog
+          variant="sheet"
+          open={openMobile()}
+          onOpenChange={setOpenMobile}
+          {...others}
+        >
+          <DialogContent
             data-sidebar="sidebar"
             data-mobile="true"
             class="w-(--sidebar-width) p-0 text-sidebar-foreground [&>button]:hidden overflow-y-hidden"
@@ -228,9 +233,9 @@ const Sidebar: Component<SidebarProps> = (rawProps) => {
             }}
             position={local.side}
           >
-            <div class="flex size-full flex-col">{local.children}</div>
-          </SheetContent>
-        </Sheet>
+            {local.children}
+          </DialogContent>
+        </Dialog>
       </Match>
       <Match when={!isMobile()}>
         <div
@@ -257,8 +262,8 @@ const Sidebar: Component<SidebarProps> = (rawProps) => {
             class={cn(
               "w-(--sidebar-width) fixed inset-y-0 z-10 hidden h-svh transition-[left,right,width] duration-200 ease-linear md:flex",
               local.side === "left"
-                ? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]"
-                : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]",
+                ? "left-0 group-data-[collapsible=offcanvas]:-left-(--sidebar-width)"
+                : "right-0 group-data-[collapsible=offcanvas]:-right-(--sidebar-width)",
               // Adjust the padding for floating and inset variants.
               local.variant === "floating" || local.variant === "inset"
                 ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]"

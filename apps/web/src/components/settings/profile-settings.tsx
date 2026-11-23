@@ -40,8 +40,8 @@ type ProfileKind = "global" | "mic" | "tx" | "cw";
 
 const TABS: Record<ProfileKind, string> = {
   global: "Global",
-  mic: "Microphone",
-  tx: "Transmit",
+  mic: "Mic",
+  tx: "TX",
   cw: "CW",
 };
 
@@ -132,7 +132,7 @@ function GlobalProfiles(props: { radio: Radio }) {
 
   return (
     <Table class="whitespace-nowrap">
-      <TableHeader>
+      <TableHeader sticky>
         <TableRow>
           <TableHead />
           <TableHead class="w-full">Name</TableHead>
@@ -202,7 +202,7 @@ function TxProfiles(props: { radio: Radio }) {
 
   return (
     <Table class="whitespace-nowrap">
-      <TableHeader>
+      <TableHeader sticky>
         <TableRow>
           <TableHead />
           <TableHead class="w-full">Name</TableHead>
@@ -284,7 +284,7 @@ function MicProfiles(props: { radio: Radio }) {
 
   return (
     <Table class="whitespace-nowrap">
-      <TableHeader>
+      <TableHeader sticky>
         <TableRow>
           <TableHead />
           <TableHead class="w-full">Name</TableHead>
@@ -366,7 +366,7 @@ function CwProfiles(props: { radio: Radio }) {
 
   return (
     <Table class="whitespace-nowrap">
-      <TableHeader>
+      <TableHeader sticky>
         <TableRow>
           <TableHead />
           <TableHead class="w-full">Name</TableHead>
@@ -449,41 +449,29 @@ function ProfileSettingsInner(props: { radio: Radio }) {
 
   return (
     <>
-      <div class="flex flex-col gap-4 overflow-hidden py-4">
-        <SimpleSwitch
-          label="Enable Profile Auto-Save"
-          checked={state.status.radio.profileAutoSave}
-          onChange={(checked) => props.radio.setProfileAutoSave(checked)}
-        />
-        <Tabs
-          value={activeTab()}
-          onChange={setActiveTab}
-          class=" flex flex-col overflow-hidden"
-        >
-          <TabsList class="grid w-fit grid-cols-4 m-auto">
-            <For each={Object.entries(TABS)}>
-              {([value, label]) => (
-                <TabsTrigger value={value}>{label}</TabsTrigger>
-              )}
-            </For>
-          </TabsList>
-          <div class="shrink overflow-auto">
-            <TabsContent value="global">
-              <GlobalProfiles radio={props.radio} />
-            </TabsContent>
-            <TabsContent value="tx">
-              <TxProfiles radio={props.radio} />
-            </TabsContent>
-            <TabsContent value="mic">
-              <MicProfiles radio={props.radio} />
-            </TabsContent>
-            <TabsContent value="cw">
-              <CwProfiles radio={props.radio} />
-            </TabsContent>
-          </div>
-        </Tabs>
-      </div>
-      <DialogFooter>
+      <SimpleSwitch
+        label="Enable Profile Auto-Save"
+        checked={state.status.radio.profileAutoSave}
+        onChange={(checked) => props.radio.setProfileAutoSave(checked)}
+      />
+      <Tabs
+        value={activeTab()}
+        onChange={setActiveTab}
+        class="flex flex-col overflow-hidden gap-2 grow"
+      >
+        <TabsList class="grid grid-cols-4">
+          <For each={Object.entries(TABS)}>
+            {([value, label]) => (
+              <TabsTrigger value={value}>{label}</TabsTrigger>
+            )}
+          </For>
+        </TabsList>
+        <TabsContent value="global" as={GlobalProfiles} radio={props.radio} />
+        <TabsContent value="tx" as={TxProfiles} radio={props.radio} />
+        <TabsContent value="mic" as={MicProfiles} radio={props.radio} />
+        <TabsContent value="cw" as={CwProfiles} radio={props.radio} />
+      </Tabs>
+      <DialogFooter sticky>
         <CreateProfileDialog radio={props.radio} kind={activeTab()}>
           <DialogTrigger as={Button}>Create Profile</DialogTrigger>
         </CreateProfileDialog>
@@ -495,7 +483,7 @@ function ProfileSettingsInner(props: { radio: Radio }) {
 export function ProfileSettings() {
   const { radio } = useFlexRadio();
   return (
-    <DialogContent class="translate-y-0 top-1/12 flex max-h-10/12 flex-col overflow-hidden text-sm">
+    <DialogContent class="data-dialog:fixed data-dialog:top-1/12 data-dialog:max-h-10/12 data-dialog:max-w-10/12 data-dialog:min-w-md data-dialog:w-auto data-sheet:h-full">
       <DialogHeader>
         <DialogTitle>Profile Manager</DialogTitle>
       </DialogHeader>

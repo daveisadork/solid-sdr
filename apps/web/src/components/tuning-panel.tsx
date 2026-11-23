@@ -12,7 +12,7 @@ import { useRuntime } from "~/context/runtime";
 import MaterialSymbolsKeyboardArrowDown from "~icons/material-symbols/keyboard-arrow-down";
 import MaterialSymbolsKeyboardArrowUp from "~icons/material-symbols/keyboard-arrow-up";
 import { Button } from "./ui/button";
-import { Sheet, SheetContent, SheetTitle } from "./ui/sheet";
+import { Dialog, DialogContent, DialogTitle } from "./ui/dialog";
 
 const digitCount = (value: number) =>
   value < 10 ? 1 : Math.floor(Math.log10(value)) + 1;
@@ -102,13 +102,14 @@ export const TuningPanel: Component = () => {
   };
 
   return (
-    <Sheet
+    <Dialog
+      variant="sheet"
       open={runtime.tuningPanelOpen && Boolean(activeSlice())}
       onOpenChange={(open) => setRuntime("tuningPanelOpen", open)}
       modal={false}
       preventScroll={false}
     >
-      <SheetContent
+      <DialogContent
         position="bottom"
         hideOverlay
         class="select-none pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-black"
@@ -117,9 +118,9 @@ export const TuningPanel: Component = () => {
         <Show when={activeSlice()}>
           {(slice) => (
             <>
-              <SheetTitle>
+              <DialogTitle>
                 Slice {slice().indexLetter} · {slice().mode}
-              </SheetTitle>
+              </DialogTitle>
               <div class="mx-auto flex max-w-full justify-center gap-1 py-2 font-mono">
                 <For each={columns()}>
                   {(col) => (
@@ -163,7 +164,7 @@ export const TuningPanel: Component = () => {
             </>
           )}
         </Show>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 };

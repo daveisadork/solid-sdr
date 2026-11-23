@@ -351,6 +351,15 @@ function DisplaySettings(props: {
         }
         label="Black Level"
       />
+      <LicenseGate feature="PANADAPTER_VISUALS">
+        <SimpleSwitch
+          checked={preferences.showDisplayMarkers}
+          onChange={(checked) => {
+            setPreferences("showDisplayMarkers", checked);
+          }}
+          label="Show Band Plan"
+        />
+      </LicenseGate>
       <ColorField
         class="flex flex-col gap-2 select-none"
         value={rawPanBackgroundColor()}

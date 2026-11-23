@@ -8,26 +8,24 @@ function MetersInner() {
   const { state } = useFlexRadio();
 
   return (
-    <div class="flex flex-col gap-4">
-      <Key each={Object.values(state.status.meter)} by="id">
-        {(meter) => (
-          <SimpleMeter
-            meter={meter()}
-            showTicks
-            showTickLabels
-            showDescription
-            containTickLabels
-          />
-        )}
-      </Key>
-    </div>
+    <Key each={Object.values(state.status.meter)} by="id">
+      {(meter) => (
+        <SimpleMeter
+          meter={meter()}
+          showTicks
+          showTickLabels
+          showDescription
+          containTickLabels
+        />
+      )}
+    </Key>
   );
 }
 
 export function Meters() {
   const { state } = useFlexRadio();
   return (
-    <DialogContent class="max-h-11/12">
+    <DialogContent>
       <DialogHeader>
         <DialogTitle>Meters</DialogTitle>
       </DialogHeader>

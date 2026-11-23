@@ -108,7 +108,7 @@ export default defineConfig({
               test: /node_modules[\\/]@kobalte[\\/]/,
               tags: ["$initial"],
               priority: 20,
-              includeDependenciesRecursively: false,
+              includeDependenciesRecursively: true,
             },
             {
               name: "flexlib",

@@ -48,6 +48,10 @@ export class TxBandSettingControllerImpl implements TxBandSettingController {
     return this.current().bandName;
   }
 
+  get hwAlcEnabled(): TxBandSettingSnapshot["hwAlcEnabled"] {
+    return this.current().hwAlcEnabled;
+  }
+
   get tunePower(): TxBandSettingSnapshot["tunePower"] {
     return this.current().tunePower;
   }

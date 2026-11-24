@@ -143,7 +143,7 @@ describe("createRadioStateStore", () => {
 
     store.apply(
       makeStatus(
-        "S1|interlock band 1 band_name=160m rfpower=25 tunepower=10 hwalc_enabled=1 inhibit=0 acc_txreq_enable=1 rca_txreq_enable=0 acc_tx_enabled=1 tx1_enabled=1 tx2_enabled=0 tx3_enabled=0",
+        "S1|interlock band 1 band_name=160m rfpower=25 tunepower=10 hwalc_enabled=1 inhibit=0 acc_txreq_enable=1 rca_txreq_enable=0 acc_tx_enabled=1 tx1_enabled=1 tx2_enabled=0 tx3_enabled=0 tune_tx_suppress=1",
       ),
     );
     const band = store.getTxBandSetting("1");
@@ -157,6 +157,7 @@ describe("createRadioStateStore", () => {
     expect(band?.rcaTxReqEnabled).toBe(false);
     expect(band?.accTxEnabled).toBe(true);
     expect(band?.rcaTx1Enabled).toBe(true);
+    expect(band?.tuneTxSuppress).toBe(true);
 
     store.apply(makeStatus("S1|interlock band 1 removed"));
     expect(store.getTxBandSetting("1")).toBeUndefined();

@@ -9,18 +9,18 @@ import {
 
 export interface TxBandSettingSnapshot {
   readonly id: string;
-  readonly bandName?: string;
-  readonly hwAlcEnabled?: boolean;
-  readonly tunePower?: number;
-  readonly rfPower?: number;
-  readonly pttInhibit?: boolean;
-  readonly accTxReqEnabled?: boolean;
-  readonly rcaTxReqEnabled?: boolean;
-  readonly accTxEnabled?: boolean;
-  readonly rcaTx1Enabled?: boolean;
-  readonly rcaTx2Enabled?: boolean;
-  readonly rcaTx3Enabled?: boolean;
-  readonly tuneTxSuppress?: boolean;
+  readonly bandName: string;
+  readonly hwAlcEnabled: boolean;
+  readonly tunePower: number;
+  readonly rfPower: number;
+  readonly pttInhibit: boolean;
+  readonly accTxReqEnabled: boolean;
+  readonly rcaTxReqEnabled: boolean;
+  readonly accTxEnabled: boolean;
+  readonly rcaTx1Enabled: boolean;
+  readonly rcaTx2Enabled: boolean;
+  readonly rcaTx3Enabled: boolean;
+  readonly tuneTxSuppress: boolean;
   readonly raw: Readonly<Record<string, string>>;
 }
 
@@ -43,12 +43,16 @@ export function createTxBandSettingSnapshot(
       case "hwalc_enabled":
         partial.hwAlcEnabled = isTruthy(value);
         break;
-      case "tunepower":
-        partial.tunePower = parsePower(value, "tunepower");
+      case "tunepower": {
+        const parsed = parsePower(value, key);
+        if (parsed !== undefined) partial.tunePower = parsed;
         break;
-      case "rfpower":
-        partial.rfPower = parsePower(value, "rfpower");
+      }
+      case "rfpower": {
+        const parsed = parsePower(value, key);
+        if (parsed !== undefined) partial.rfPower = parsed;
         break;
+      }
       case "inhibit":
         partial.pttInhibit = isTruthy(value);
         break;
@@ -96,13 +100,10 @@ export function createTxBandSettingSnapshot(
   };
 }
 
-function parsePower(
-  value: string | undefined,
-  key: string,
-): number | undefined {
+function parsePower(value: string, key: string): number | undefined {
   const parsed = parseInteger(value);
   if (parsed === undefined) {
-    if (value !== undefined) logParseError("tx_band", key, value);
+    logParseError("tx_band", key, value);
     return undefined;
   }
   if (parsed < 0) return 0;

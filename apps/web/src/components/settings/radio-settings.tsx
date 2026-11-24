@@ -145,8 +145,8 @@ function TxBandSettings(props: { radio: Radio }) {
             </SelectTrigger>
             <SelectContent />
           </Select>
-          <Table class="overflow-auto shrink">
-            <TableHeader>
+          <Table>
+            <TableHeader class="z-10" sticky>
               <TableRow>
                 <TableHead>Band</TableHead>
                 <TableHead>RF PWR(%)</TableHead>
@@ -158,6 +158,7 @@ function TxBandSettings(props: { radio: Radio }) {
                 <TableHead>RCA TX1</TableHead>
                 <TableHead>RCA TX2</TableHead>
                 <TableHead>RCA TX3</TableHead>
+                <TableHead>Tune Supp</TableHead>
                 <TableHead>HW ALC</TableHead>
               </TableRow>
             </TableHeader>
@@ -249,6 +250,14 @@ function TxBandSettings(props: { radio: Radio }) {
                               checked={bandSettings.rcaTx3Enabled}
                               onChange={(checked) =>
                                 ctrl.setRcaTx3Enabled(checked)
+                              }
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Checkbox
+                              checked={bandSettings.tuneTxSuppress}
+                              onChange={(checked) =>
+                                ctrl.setTuneTxSuppress(checked)
                               }
                             />
                           </TableCell>

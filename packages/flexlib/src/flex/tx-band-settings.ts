@@ -24,6 +24,7 @@ export interface TxBandSettingController
   setRcaTx1Enabled(enabled: boolean): Promise<void>;
   setRcaTx2Enabled(enabled: boolean): Promise<void>;
   setRcaTx3Enabled(enabled: boolean): Promise<void>;
+  setTuneTxSuppress(enabled: boolean): Promise<void>;
   on<TKey extends keyof TxBandSettingControllerEvents>(
     event: TKey,
     listener: (payload: TxBandSettingControllerEvents[TKey]) => void,
@@ -146,6 +147,12 @@ export class TxBandSettingControllerImpl implements TxBandSettingController {
   async setRcaTx3Enabled(enabled: boolean): Promise<void> {
     await this.sendBandsetCommand("interlock", {
       tx3_enabled: formatBooleanFlag(enabled),
+    });
+  }
+
+  async setTuneTxSuppress(enabled: boolean): Promise<void> {
+    await this.sendBandsetCommand("interlock", {
+      tune_tx_suppress: formatBooleanFlag(enabled),
     });
   }
 

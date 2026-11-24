@@ -51,7 +51,7 @@
     "@solid-primitives/mouse": "^2.1.7",
     "@solid-primitives/page-visibility": "^2.1.6",
     "@solid-primitives/pointer": "^0.3.6",
-    "@solid-primitives/resize-observer": "^2.2.0",
+    "@solid-primitives/resize-observer": "^4.0.0",
     "@solid-primitives/scheduled": "^1.5.2",
     "@solid-primitives/storage": "^4.4.0",
     "@solid-primitives/websocket": "^1.4.0",

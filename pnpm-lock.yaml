@@ -90,8 +90,8 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0(solid-js@1.9.19)
       '@solid-primitives/workers':
-        specifier: ^0.4.3
-        version: 0.4.3(solid-js@1.9.19)
+        specifier: ^2.0.1
+        version: 2.0.1(@solidjs/web@2.0.3(solid-js@1.9.19))(solid-js@1.9.19)
       '@solidjs/router':
         specifier: ^1.0.3
         version: 1.0.3(solid-js@1.9.19)
@@ -1578,15 +1578,22 @@ packages:
     peerDependencies:
       solid-js: ^1.6.12
 
-  '@solid-primitives/workers@0.4.3':
-    resolution: {integrity: sha512-BUZnxVTfwB1+vUnoKRBV4u165Dx01DRQTpayvlltgqf/OREHFja9911ZDq/kX4wZS35iY7HFad8nzBo6j1yhXQ==}
+  '@solid-primitives/workers@2.0.1':
+    resolution: {integrity: sha512-FGO4iUywCH+XaKMp2tLwQUmjDlQDRqhXzzaflevOVj7P/t5pYFAUp7dPpMuGqsFXWCbdoDj5xkatzxJj7QLnIA==}
     peerDependencies:
-      solid-js: ^1.6.12
+      '@solidjs/web': ^2.0.0
+      solid-js: ^2.0.0
 
   '@solidjs/router@1.0.3':
     resolution: {integrity: sha512-EULOxZNMGISNgQU+uXLtt6o4X5bIE+0HiPW0gGSOyl3HJmyClSDDHLGJ5JTHkbiyUSc6DttVvnVZYfK1a+70BA==}
     peerDependencies:
       solid-js: ^1.8.6
+
+  '@solidjs/web@2.0.3':
+    resolution: {integrity: sha512-XYl9JGOtQ8yJSZRnd6uC+5gYXsYvnIRNxhn89m+F1v6D4d4ZFdTJY2Lq/8XJ3YcjckkCrK/mNfd3kIiqqgnG7w==}
+    engines: {node: '>=22.12.0'}
+    peerDependencies:
+      solid-js: ^2.0.3
 
   '@swc/helpers@0.5.23':
     resolution: {integrity: sha512-5lSsMOTXURePglDfvuAQUqkGek9Hg2kksOYay2m0+XR++b2NWYL/4sWyuvVBIs8oKnJaxkdi9whaL/sqN13afw==}
@@ -2958,9 +2965,19 @@ packages:
     peerDependencies:
       seroval: ^1.0
 
+  seroval-plugins@1.8.0:
+    resolution: {integrity: sha512-96vBb12rDvPPwdKUgWw1op3fGq8AVBFOr0IllbnM72yR5J9WWXF18cQ4g1XfDO7HCyh2dt70P3XdtyRayP8FWg==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      seroval: ^1.8.0
+
   seroval@1.6.12:
     resolution: {integrity: sha512-CqbIVfk/7GL3ITwZI55lcPbpQbjHZ2DD5cUj4iH7E9YsCfHNJV1mx7yNp86Z84w5IpmkZZS/2s5vPOWmVWSdQg==}
     engines: {node: '>=10'}
+
+  seroval@1.8.2:
+    resolution: {integrity: sha512-zmMxi/9MdLK1MKazLmIP6Rk39RuK0Xydd+QHeOYntS37olJeTjB3+nwVj4ce/ZWiZJeRhcO5htfxt0mUzQBscQ==}
+    engines: {node: '>=20'}
 
   set-function-length@1.2.2:
     resolution: {integrity: sha512-pgRc4hJ4/sNjWCSS9AmnS40x3bNMDTknHgL5UaMBTMyJnU90EgWh1Rz+MC9eFu4BuN/UwZjKQuY/1v3rM7HMfg==}
@@ -4876,12 +4893,20 @@ snapshots:
     dependencies:
       solid-js: 1.9.19
 
-  '@solid-primitives/workers@0.4.3(solid-js@1.9.19)':
+  '@solid-primitives/workers@2.0.1(@solidjs/web@2.0.3(solid-js@1.9.19))(solid-js@1.9.19)':
     dependencies:
+      '@solidjs/web': 2.0.3(solid-js@1.9.19)
       solid-js: 1.9.19
 
   '@solidjs/router@1.0.3(solid-js@1.9.19)':
     dependencies:
+      solid-js: 1.9.19
+
+  '@solidjs/web@2.0.3(solid-js@1.9.19)':
+    dependencies:
+      csstype: 3.2.3
+      seroval: 1.8.2
+      seroval-plugins: 1.8.0(seroval@1.8.2)
       solid-js: 1.9.19
 
   '@swc/helpers@0.5.23':
@@ -6209,7 +6234,13 @@ snapshots:
     dependencies:
       seroval: 1.6.12
 
+  seroval-plugins@1.8.0(seroval@1.8.2):
+    dependencies:
+      seroval: 1.8.2
+
   seroval@1.6.12: {}
+
+  seroval@1.8.2: {}
 
   set-function-length@1.2.2:
     dependencies:

@@ -55,7 +55,7 @@
     "@solid-primitives/scheduled": "^1.5.2",
     "@solid-primitives/storage": "^4.4.0",
     "@solid-primitives/websocket": "^1.4.0",
-    "@solid-primitives/workers": "^0.4.3",
+    "@solid-primitives/workers": "^2.0.1",
     "@solidjs/router": "^1.0.3",
     "@tanstack/solid-table": "^9.3.1",
     "class-variance-authority": "^0.7.1",

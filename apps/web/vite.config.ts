@@ -19,7 +19,9 @@ function getVersion(): string {
     return process.env.APP_VERSION;
   }
   try {
-    return execSync("git describe --tags", { encoding: "utf8" }).trim();
+    return execSync("git describe --tags", { encoding: "utf8" })
+      .trim()
+      .replace("-", "+");
   } catch {
     const pkg = JSON.parse(readFileSync("./package.json", "utf8")) as {
       version: string;

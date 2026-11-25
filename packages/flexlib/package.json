@@ -1,5 +1,5 @@
 {
-  "name": "@repo/flexlib",
+  "name": "flexlib",
   "version": "0.0.0",
   "description": "FlexRadio protocol and client utilities used by SolidSDR.",
   "type": "module",

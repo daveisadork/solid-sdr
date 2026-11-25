@@ -11,16 +11,17 @@ import {
   type RadioOscillatorSetting,
 } from "@repo/flexlib";
 import type { Mutable } from "@repo/flexlib/flex/state/common";
+import { Dynamic } from "@solidjs/web";
 import {
   createEffect,
   createMemo,
   createSignal,
+  createStore,
   For,
   onMount,
+  reconcile,
   Show,
 } from "solid-js";
-import { createStore, reconcile } from "solid-js/store";
-import { Dynamic } from "solid-js/web";
 import useFlexRadio, {
   type FilterPresetState,
   type NtpSourceState,

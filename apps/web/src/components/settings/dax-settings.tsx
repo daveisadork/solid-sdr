@@ -1,6 +1,6 @@
 import { createMicrophones, createSpeakers } from "@solid-primitives/devices";
 import { createEffect, For, Match, Show, Switch } from "solid-js";
-import { Dynamic } from "solid-js/web";
+import { Dynamic } from "@solidjs/web";
 import { useAudio } from "~/context/audio";
 import useFlexRadio from "~/context/flexradio";
 import type { DaxChannelMode } from "~/lib/dax-audio-sink/types";

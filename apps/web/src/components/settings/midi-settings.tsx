@@ -5,10 +5,10 @@ import {
   For,
   Match,
   onCleanup,
+  reconcile,
   Show,
   Switch,
 } from "solid-js";
-import { reconcile } from "solid-js/store";
 import {
   CONTROL_DEFINITIONS,
   CONTROL_REGISTRY,

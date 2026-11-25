@@ -9,7 +9,7 @@ import {
   Show,
   type ValidComponent,
 } from "solid-js";
-import { Dynamic } from "solid-js/web";
+import { Dynamic } from "@solidjs/web";
 import useFlexRadio from "~/context/flexradio";
 import { usePanafallLayout } from "~/context/panafall-layout";
 import { usePreferences } from "~/context/preferences";

@@ -1,6 +1,6 @@
 import type { ConfigColorMode } from "@kobalte/core";
+import type { SetStoreFunction } from "solid-js";
 import { createContext, useContext } from "solid-js";
-import type { SetStoreFunction } from "solid-js/store";
 import type { DaxChannelMode } from "~/lib/dax-audio-sink/types";
 import type { MidiMapping } from "~/lib/midi";
 

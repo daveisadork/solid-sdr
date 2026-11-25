@@ -1,6 +1,5 @@
 import { createPointerListeners } from "@solid-primitives/pointer";
-import { batch, createSignal } from "solid-js";
-import { createStore } from "solid-js/store";
+import { batch, createSignal, createStore } from "solid-js";
 import useFlexRadio, {
   type PanadapterState,
   type TnfState,

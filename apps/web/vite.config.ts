@@ -1,12 +1,12 @@
 import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import solid from "@solidjs/vite-plugin";
 import tailwindcss from "@tailwindcss/vite";
 import { visualizer } from "rollup-plugin-visualizer";
 import Icons from "unplugin-icons/vite";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
-import solidPlugin from "vite-plugin-solid";
 
 const coiHeaders = {
   "Cross-Origin-Opener-Policy": "same-origin",
@@ -35,7 +35,7 @@ export default defineConfig({
     __APP_VERSION__: JSON.stringify(getVersion()),
   },
   plugins: [
-    solidPlugin(),
+    solid(),
     tailwindcss(),
     Icons({ compiler: "solid" }),
     visualizer(),

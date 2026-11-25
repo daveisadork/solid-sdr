@@ -2,7 +2,7 @@ import type { PolymorphicProps } from "@kobalte/core";
 import { ToggleButton } from "@kobalte/core/toggle-button";
 import type { SliceController } from "@repo/flexlib";
 import { splitProps, type ValidComponent } from "solid-js";
-import { Dynamic } from "solid-js/web";
+import { Dynamic } from "@solidjs/web";
 import type { SliceState } from "~/context/flexradio";
 import { cn } from "~/lib/utils";
 import MdiLock from "~icons/material-symbols/lock-open-circle-outline";

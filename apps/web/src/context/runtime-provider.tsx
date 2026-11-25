@@ -1,11 +1,13 @@
-import { createPageVisibility } from "@solid-primitives/page-visibility";
+import { createPageVisibility } from "@solid-primitives/page-utilities";
 import {
   createEffect,
   createSignal,
+  createStore,
   onCleanup,
   type ParentComponent,
+  produce,
+  reconcile,
 } from "solid-js";
-import { createStore, produce, reconcile } from "solid-js/store";
 import {
   createInitialNetworkState,
   NetworkTelemetryAggregator,

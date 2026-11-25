@@ -4,7 +4,7 @@ import type { VariantProps } from "class-variance-authority";
 import { cva } from "class-variance-authority";
 import type { JSX, ValidComponent } from "solid-js";
 import { Match, Switch, splitProps } from "solid-js";
-import { Portal } from "solid-js/web";
+import { Portal } from "@solidjs/web";
 
 import { cn } from "~/lib/utils";
 

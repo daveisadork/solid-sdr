@@ -1,6 +1,6 @@
-import { ReactiveMap } from "@kobalte/utils";
+import { ReactiveMap } from "@solid-primitives/map";
+import { isServer } from "@solidjs/web";
 import { type Accessor, createSignal } from "solid-js";
-import { isServer } from "solid-js/web";
 
 type PermissionInput =
   | PermissionDescriptor

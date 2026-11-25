@@ -1,17 +1,17 @@
 import type { Radio } from "@repo/flexlib";
+import { Dynamic } from "@solidjs/web";
 import { unzip, zip } from "fflate";
+import type { SetStoreFunction } from "solid-js";
 import {
   createEffect,
   createMemo,
   createResource,
   createSignal,
+  createStore,
   For,
   type JSX,
   Show,
 } from "solid-js";
-import type { SetStoreFunction } from "solid-js/store";
-import { createStore } from "solid-js/store";
-import { Dynamic } from "solid-js/web";
 import useFlexRadio from "~/context/flexradio";
 import { cn } from "~/lib/utils";
 import Download from "~icons/material-symbols/download";

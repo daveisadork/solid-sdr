@@ -3,11 +3,12 @@ import {
   createEffect,
   createMemo,
   createSignal,
+  createStore,
   For,
   onCleanup,
+  produce,
   Show,
 } from "solid-js";
-import { createStore, produce } from "solid-js/store";
 import useFlexRadio from "~/context/flexradio";
 import { usePreferences } from "~/context/preferences";
 import IconSend from "~icons/mdi/send";

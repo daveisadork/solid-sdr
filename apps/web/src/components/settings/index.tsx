@@ -1,4 +1,5 @@
 import { useMatch, useNavigate } from "@solidjs/router";
+import { Dynamic } from "@solidjs/web";
 import {
   createEffect,
   createMemo,
@@ -7,7 +8,6 @@ import {
   onMount,
   Show,
 } from "solid-js";
-import { Dynamic } from "solid-js/web";
 import useFlexRadio from "~/context/flexradio";
 import { APP_VERSION } from "~/lib/version";
 import AreaChartIcon from "~icons/material-symbols/area-chart";
@@ -54,9 +54,9 @@ const tabs = {
   radio: lazy(() =>
     import("./radio-settings").then((m) => ({ default: m.RadioSettings })),
   ),
-  memory: lazy(() =>
-    import("./memory-settings").then((m) => ({ default: m.MemorySettings })),
-  ),
+  // memory: lazy(() =>
+  //   import("./memory-settings").then((m) => ({ default: m.MemorySettings })),
+  // ),
   spots: lazy(() =>
     import("./spots-settings").then((m) => ({ default: m.SpotsSettings })),
   ),
@@ -293,15 +293,15 @@ export function Settings() {
             </DropdownMenuIcon>
             Radio Setup
           </DropdownMenuItem>
-          <DropdownMenuItem
-            disabled={disconnected()}
-            onSelect={() => setActiveTab("memory")}
-          >
-            <DropdownMenuIcon>
-              <BookmarksIcon />
-            </DropdownMenuIcon>
-            Memory
-          </DropdownMenuItem>
+          {/* <DropdownMenuItem */}
+          {/*   disabled={disconnected()} */}
+          {/*   onSelect={() => setActiveTab("memory")} */}
+          {/* > */}
+          {/*   <DropdownMenuIcon> */}
+          {/*     <BookmarksIcon /> */}
+          {/*   </DropdownMenuIcon> */}
+          {/*   Memory */}
+          {/* </DropdownMenuItem> */}
           <DropdownMenuItem
             disabled={disconnected()}
             onSelect={() => setActiveTab("spots")}

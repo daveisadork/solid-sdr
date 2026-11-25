@@ -6,9 +6,9 @@ import {
   createSignal,
   For,
   onCleanup,
+  reconcile,
   Show,
 } from "solid-js";
-import { reconcile } from "solid-js/store";
 import useFlexRadio from "~/context/flexradio";
 import { useRtc } from "~/context/rtc";
 import { APP_VERSION } from "~/lib/version";

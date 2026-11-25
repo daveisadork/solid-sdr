@@ -1,7 +1,7 @@
 import { useRegisterSW } from "virtual:pwa-register/solid";
-import { createPageVisibility } from "@solid-primitives/page-visibility";
+import { createPageVisibility } from "@solid-primitives/page-utilities";
+import { Portal } from "@solidjs/web";
 import { createEffect, createSignal, onCleanup, onMount, Show } from "solid-js";
-import { Portal } from "solid-js/web";
 import createPresence from "solid-presence";
 import RefreshIcon from "~icons/material-symbols/refresh";
 import { Button } from "./ui/button";

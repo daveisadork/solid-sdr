@@ -1,7 +1,7 @@
 import { type DvkRecording, validateDvkWavFile } from "@repo/flexlib";
 import { Key } from "@solid-primitives/keyed";
 import { createEffect, createSignal, onCleanup, Show } from "solid-js";
-import { Dynamic } from "solid-js/web";
+import { Dynamic } from "@solidjs/web";
 import useFlexRadio from "~/context/flexradio";
 import { usePreferences } from "~/context/preferences";
 import IconTransmit from "~icons/mdi/access-point";

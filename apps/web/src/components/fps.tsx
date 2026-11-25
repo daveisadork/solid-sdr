@@ -1,6 +1,6 @@
 import { createDraggable } from "@neodrag/solid";
 import { createEffect, createSignal, For, onCleanup } from "solid-js";
-import { Portal } from "solid-js/web";
+import { Portal } from "@solidjs/web";
 import { Card, CardContent } from "~/components/ui/card";
 import { usePreferences } from "~/context/preferences";
 import { useRuntime } from "~/context/runtime";

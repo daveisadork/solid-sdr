@@ -1,6 +1,6 @@
 import type { WaveformController } from "@repo/flexlib";
 import { createEffect, createSignal, For, Show } from "solid-js";
-import { Dynamic } from "solid-js/web";
+import { Dynamic } from "@solidjs/web";
 import useFlexRadio from "~/context/flexradio";
 import BaselineDelete from "~icons/ic/baseline-delete";
 import MdiRefresh from "~icons/mdi/refresh";

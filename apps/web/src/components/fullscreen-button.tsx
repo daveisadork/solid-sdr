@@ -9,7 +9,7 @@ import {
   splitProps,
   type ValidComponent,
 } from "solid-js";
-import { Dynamic } from "solid-js/web";
+import { Dynamic } from "@solidjs/web";
 import { cn } from "~/lib/utils";
 import Fullscreen from "~icons/material-symbols/fullscreen";
 import FullscreenExit from "~icons/material-symbols/fullscreen-exit";

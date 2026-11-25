@@ -1,5 +1,5 @@
 import type { ComponentProps } from "solid-js";
-import { Portal } from "solid-js/web";
+import { Portal } from "@solidjs/web";
 import { usePanafall } from "~/context/panafall";
 
 type PanafallControlProps = ComponentProps<typeof Portal>;

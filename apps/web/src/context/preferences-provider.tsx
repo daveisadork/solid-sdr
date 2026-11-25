@@ -2,15 +2,13 @@ import { makePersisted } from "@solid-primitives/storage";
 import {
   createEffect,
   createResource,
-  type ParentComponent,
-  Show,
-} from "solid-js";
-import {
   createStore,
+  type ParentComponent,
   reconcile,
   type SetStoreFunction,
+  Show,
   type Store,
-} from "solid-js/store";
+} from "solid-js";
 import { showToast } from "~/components/ui/toast";
 import { SLOT_COUNT } from "~/lib/panafall-layout";
 import {

@@ -2,7 +2,7 @@ import { getModelInfo } from "@repo/flexlib";
 import { Key } from "@solid-primitives/keyed";
 import { useMatch, useNavigate } from "@solidjs/router";
 import { type ComponentProps, createEffect, For, Show } from "solid-js";
-import { Dynamic } from "solid-js/web";
+import { Dynamic } from "@solidjs/web";
 import useFlexRadio, { ConnectionState } from "~/context/flexradio";
 import MdiCheckNetworkOutline from "~icons/mdi/check-network-outline";
 import MdiCloseNetworkOutline from "~icons/mdi/close-network-outline";

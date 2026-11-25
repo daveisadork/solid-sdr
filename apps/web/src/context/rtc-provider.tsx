@@ -7,10 +7,10 @@ import {
   batch,
   createEffect,
   createSignal,
+  createStore,
   onCleanup,
   type ParentComponent,
 } from "solid-js";
-import { createStore } from "solid-js/store";
 import {
   applyRelayOverride,
   DEFAULT_RTC_CONFIG,

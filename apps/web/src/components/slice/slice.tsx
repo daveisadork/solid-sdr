@@ -2,18 +2,18 @@ import { ToggleButton } from "@kobalte/core/toggle-button";
 import type { SliceController } from "@repo/flexlib";
 import { createPointerListeners } from "@solid-primitives/pointer";
 import { createElementSize } from "@solid-primitives/resize-observer";
+import { Portal } from "@solidjs/web";
 import type { Accessor, Component, ComponentProps, JSX } from "solid-js";
 import {
   batch,
   createEffect,
   createMemo,
   createSignal,
+  createStore,
   onCleanup,
   Show,
   splitProps,
 } from "solid-js";
-import { createStore } from "solid-js/store";
-import { Portal } from "solid-js/web";
 import { FrequencyInput } from "~/components/frequency-input";
 import { LevelMeter } from "~/components/level-meter";
 import { Separator } from "~/components/ui/separator";

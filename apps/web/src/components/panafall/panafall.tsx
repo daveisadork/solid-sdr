@@ -7,13 +7,13 @@ import {
   type ComponentProps,
   createEffect,
   createSignal,
+  createStore,
   For,
   type JSX,
   Show,
   splitProps,
   type ValidComponent,
 } from "solid-js";
-import { createStore } from "solid-js/store";
 import { useControls } from "~/context/controls";
 import useFlexRadio from "~/context/flexradio";
 import { usePanafall } from "~/context/panafall";
@@ -346,14 +346,16 @@ export function Panafall(props: { index: number }) {
                 <Resizable
                   class="size-full overflow-visible select-none"
                   orientation="vertical"
-                  sizes={preferences.panadapterSizes[props.index]}
-                  initialSizes={[0.25, 0.75]}
-                  onSizesChange={(sizes) => {
-                    if (sizes?.length !== 2) return;
+                  layout={preferences.panadapterSizes[props.index]?.map(
+                    (size) => size * 100,
+                  )}
+                  defaultLayout={[25, 75]}
+                  onLayoutChange={(layout) => {
+                    if (layout.length !== 2) return;
                     const cellHeight = panafallPortalRef()?.clientHeight ?? 0;
                     if (!cellHeight) return;
                     const targetHeight = roundToDevicePixels(
-                      sizes[0] * cellHeight,
+                      (layout[0] / 100) * cellHeight,
                     );
                     const panHeight = roundToDecimals(
                       targetHeight / cellHeight,

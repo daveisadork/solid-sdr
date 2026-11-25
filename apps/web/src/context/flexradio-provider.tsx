@@ -21,11 +21,13 @@ import {
   createEffect,
   createMemo,
   createSignal,
+  createStore,
   onCleanup,
   type ParentComponent,
+  produce,
+  reconcile,
   Show,
 } from "solid-js";
-import { createStore, produce, reconcile } from "solid-js/store";
 import { InfoItem } from "~/components/settings/common";
 import {
   AlertDialog,

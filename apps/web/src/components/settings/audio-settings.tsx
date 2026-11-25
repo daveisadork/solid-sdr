@@ -1,7 +1,7 @@
 import { ToggleButton } from "@kobalte/core/toggle-button";
 import { createMicrophones, createSpeakers } from "@solid-primitives/devices";
 import { createEffect, Match, Show, Switch } from "solid-js";
-import { Dynamic } from "solid-js/web";
+import { Dynamic } from "@solidjs/web";
 import { useAudio } from "~/context/audio";
 import useFlexRadio from "~/context/flexradio";
 import { createPermission } from "~/lib/permission";

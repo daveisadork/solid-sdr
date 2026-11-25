@@ -7,7 +7,7 @@ import {
   onMount,
   Show,
 } from "solid-js";
-import { Portal } from "solid-js/web";
+import { Portal } from "@solidjs/web";
 import createPresence from "solid-presence";
 import { APP_VERSION } from "~/lib/version";
 import MaterialSymbolsOpenInNew from "~icons/material-symbols/open-in-new";

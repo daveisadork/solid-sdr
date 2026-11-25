@@ -6,5 +6,9 @@ allowBuilds:
   "@tailwindcss/oxide": true
   esbuild: true
 
+minimumReleaseAgeExclude:
+  - '@solidjs/signals@2.0.4'
+  - solid-js@2.0.4
+
 patchedDependencies:
   tailwindcss-animate@1.0.7: patches/tailwindcss-animate@1.0.7.patch

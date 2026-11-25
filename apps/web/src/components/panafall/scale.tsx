@@ -1,15 +1,7 @@
-import ResizablePrimitive, {
-  type DynamicProps,
-  type HandleProps,
-} from "@corvu/resizable";
 import { createElementSize } from "@solid-primitives/resize-observer";
-import {
-  createEffect,
-  createSignal,
-  For,
-  splitProps,
-  type ValidComponent,
-} from "solid-js";
+import type { ComponentProps } from "@solidjs/web";
+import { ResizableHandle } from "@ui-sdk/solid/resizable";
+import { createEffect, createMemo, createSignal, For, omit } from "solid-js";
 import type { PanadapterState } from "~/context/flexradio";
 import { usePreferences } from "~/context/preferences";
 import { cn } from "~/lib/utils";
@@ -98,52 +90,43 @@ export function buildFrequencyGrid(params: {
   return ticks;
 }
 
-type ResizableHandleProps<T extends ValidComponent = "button"> =
-  HandleProps<T> & {
-    class?: string;
-    pan: PanadapterState;
-    onGridChange?: (ticks: FrequencyGridTick[]) => void;
-  };
+type ScaleProps = Omit<ComponentProps<typeof ResizableHandle>, "class"> & {
+  class?: string;
+  pan: PanadapterState;
+  onGridChange?: (ticks: FrequencyGridTick[]) => void;
+};
 
-export const Scale = <T extends ValidComponent = "button">(
-  props: DynamicProps<T, ResizableHandleProps<T>>,
-) => {
-  const [local, rest] = splitProps(props as ResizableHandleProps, [
-    "class",
-    "pan",
-    "onGridChange",
-  ]);
-  const [gridFreqs, setGridFreqs] = createSignal<FrequencyGridTick[]>([]);
+export const Scale = (props: ScaleProps) => {
+  const rest = omit(props, "class", "pan", "onGridChange");
   const [ref, setRef] = createSignal<HTMLDivElement>();
   const size = createElementSize(ref);
   const { preferences } = usePreferences();
 
-  createEffect(() => {
+  const gridFreqs = createMemo<FrequencyGridTick[]>((prev) => {
     const { width } = size;
-    if (!width) return;
-    const { centerFrequencyMHz, bandwidthMHz } = local.pan;
-    const ticks = buildFrequencyGrid({
+    if (!width) return prev ?? [];
+    const { centerFrequencyMHz, bandwidthMHz } = props.pan;
+    return buildFrequencyGrid({
       bandwidthMHz,
       centerFrequencyMHz,
       width,
       alignmentOffset: preferences.panadapterOffset,
     });
-    setGridFreqs(ticks);
   });
 
-  createEffect(() => {
-    local.onGridChange?.(gridFreqs());
+  createEffect(gridFreqs, (ticks) => {
+    props.onGridChange?.(ticks);
   });
 
   return (
     <div class="relative overflow-visible w-full h-0">
-      <ResizablePrimitive.Handle
+      <ResizableHandle
+        {...rest}
         class={cn(
           "fancy-bg-background flex items-center w-full h-freq-scale bottom-freq-scale justify-around select-none font-mono z-(--z-cell-overlays) translate-x-(--drag-offset)",
-          local.class,
+          props.class,
         )}
         ref={setRef}
-        {...rest}
       >
         <For each={gridFreqs()}>
           {({ label, offset }) => (
@@ -155,7 +138,7 @@ export const Scale = <T extends ValidComponent = "button">(
             </div>
           )}
         </For>
-      </ResizablePrimitive.Handle>
+      </ResizableHandle>
     </div>
   );
 };

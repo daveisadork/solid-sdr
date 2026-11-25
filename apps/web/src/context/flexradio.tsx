@@ -29,8 +29,8 @@ import type {
   XvtrSnapshot,
 } from "@repo/flexlib";
 import type { ReactiveMap } from "@solid-primitives/map";
+import type { SetStoreFunction } from "solid-js";
 import { type Accessor, createContext, useContext } from "solid-js";
-import type { SetStoreFunction } from "solid-js/store";
 
 declare global {
   // Debug handles exposed for use from the browser console

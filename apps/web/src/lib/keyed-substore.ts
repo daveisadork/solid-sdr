@@ -1,5 +1,5 @@
+import type { SetStoreFunction } from "solid-js";
 import { createMemo } from "solid-js";
-import type { SetStoreFunction } from "solid-js/store";
 
 /**
  * Keyed substore for maps like Record<string, Value>.

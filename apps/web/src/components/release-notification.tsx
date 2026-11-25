@@ -1,3 +1,4 @@
+import gt from "semver/functions/gt";
 import {
   createEffect,
   createResource,
@@ -38,7 +39,7 @@ export function ReleaseNotification() {
   createEffect(() => {
     const currentVersion = currentRelease()?.tag_name;
     if (!currentVersion) return;
-    setHasNewVersion(!APP_VERSION.startsWith(currentVersion));
+    setHasNewVersion(gt(currentVersion, APP_VERSION));
   });
 
   onMount(() => {

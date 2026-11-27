@@ -1,10 +1,12 @@
-import type { Component, ComponentProps } from "solid-js";
-import { splitProps } from "solid-js";
+import type { ComponentProps } from "@solidjs/web";
+import type { Component } from "solid-js";
+import { omit } from "solid-js";
 
 import { cn } from "~/lib/utils";
 
 const Label: Component<ComponentProps<"label">> = (props) => {
-  const [local, others] = splitProps(props, ["class"]);
+  const local = props;
+  const others = omit(local, "class");
   return (
     // biome-ignore lint/a11y/noLabelWithoutControl: generic wrapper component; consumers provide for= or nest the control
     <label

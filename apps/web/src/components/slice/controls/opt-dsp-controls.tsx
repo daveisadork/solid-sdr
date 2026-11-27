@@ -1,5 +1,5 @@
 import type { SliceController } from "@repo/flexlib";
-import { createEffect, createSignal, For, Show } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
 import { LicenseGate } from "~/components/license-gate";
 import {
   NumberField,
@@ -38,10 +38,10 @@ export const OptDspControls = (props: {
   controller: SliceController;
 }) => {
   const { radio } = useFlexRadio();
-  const [rawRepeaterOffset, setRawRepeaterOffset] = createSignal(0);
+  const [rawRepeaterOffset, setRawRepeaterOffset] = createSignal(
+    () => props.slice.fmRepeaterOffsetMHz,
+  );
   const [tuneToOffset, setTuneToOffset] = createSignal(false);
-
-  createEffect(() => setRawRepeaterOffset(props.slice.fmRepeaterOffsetMHz));
 
   return (
     <>
@@ -60,8 +60,8 @@ export const OptDspControls = (props: {
               }}
             >
               <SegmentedControlLabel>Tone Mode</SegmentedControlLabel>
+              <SegmentedControlIndicator />
               <SegmentedControlGroup>
-                <SegmentedControlIndicator />
                 <SegmentedControlItemsList>
                   <For
                     each={[
@@ -117,8 +117,8 @@ export const OptDspControls = (props: {
               }}
             >
               <SegmentedControlLabel>Offset Direction</SegmentedControlLabel>
+              <SegmentedControlIndicator />
               <SegmentedControlGroup>
-                <SegmentedControlIndicator />
                 <SegmentedControlItemsList>
                   <For each={["DOWN", "SIMPLEX", "UP"]}>
                     {(value) => (

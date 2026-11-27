@@ -1,4 +1,4 @@
-import { createSignal, Show, unwrap } from "solid-js";
+import { createSignal, Show, snapshot } from "solid-js";
 import { Button } from "~/components/ui/button";
 import { useDebugMode } from "~/context/debug-mode";
 import useFlexRadio from "~/context/flexradio";
@@ -12,16 +12,16 @@ export function DebugBanner() {
   const [reportJson, setReportJson] = createSignal<string | null>(null);
 
   const generate = async () => {
-    const snapshot = JSON.parse(JSON.stringify(unwrap(flex.state)));
+    const stateCopy = JSON.parse(JSON.stringify(snapshot(flex.state)));
     const firmwareVersion: string | null =
-      snapshot.status?.radio?.version ?? null;
-    const model: string | null = snapshot.status?.radio?.model ?? null;
+      stateCopy.status?.radio?.version ?? null;
+    const model: string | null = stateCopy.status?.radio?.model ?? null;
 
     flex.disconnect();
     await Promise.resolve();
 
     const json = debug.generateReport({
-      state: snapshot,
+      state: stateCopy,
       firmwareVersion,
       model,
     });

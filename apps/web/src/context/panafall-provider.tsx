@@ -4,7 +4,7 @@ import {
   createEffect,
   createMemo,
   createSignal,
-  on,
+  untrack,
   onCleanup,
   type ParentComponent,
   Show,
@@ -72,12 +72,13 @@ export const PanafallProvider: ParentComponent<{
    * signals change — never per pointer event, to keep getBoundingClientRect
    * off the hot paths.
    */
-  const cellLeft = createMemo(
-    on(
-      () => [panadapterWrapperSize.width, panadapterWrapperSize.height],
+  const cellLeft = createMemo(() => {
+    void panadapterWrapperSize.width;
+    void panadapterWrapperSize.height;
+    return untrack(
       () => panadapterWrapper()?.getBoundingClientRect().left ?? 0,
-    ),
-  );
+    );
+  });
 
   const clientXToCellX = (clientX: number) => clientX - cellLeft();
 
@@ -98,7 +99,7 @@ export const PanafallProvider: ParentComponent<{
     (insets: VisibleInsets) => setSettledInsets(insets),
     CHROME_TRANSITION_MS,
   );
-  createEffect(() => applySettledInsets(visibleInsets()));
+  createEffect(visibleInsets, (insets) => applySettledInsets(insets));
   onCleanup(() => applySettledInsets.clear());
 
   const pxPerMHz = createMemo(() => panMath.pxPerMHz(scale()));
@@ -157,7 +158,7 @@ export const PanafallProvider: ParentComponent<{
   return (
     <Show when={panafallScope()}>
       {(scope) => (
-        <PanafallContext.Provider
+        <PanafallContext
           value={{
             activeSlice,
             clientXToCellX,
@@ -195,7 +196,7 @@ export const PanafallProvider: ParentComponent<{
           }}
         >
           {props.children}
-        </PanafallContext.Provider>
+        </PanafallContext>
       )}
     </Show>
   );

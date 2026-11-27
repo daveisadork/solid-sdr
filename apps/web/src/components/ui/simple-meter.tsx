@@ -1,11 +1,10 @@
 import * as MeterPrimitive from "@kobalte/core/meter";
+import type { JSX } from "@solidjs/web";
 import {
   createEffect,
   createMemo,
   createSignal,
   For,
-  type JSX,
-  onCleanup,
   Show,
 } from "solid-js";
 
@@ -72,12 +71,15 @@ export function SimpleMeter(props: MeterProps) {
   const { radio } = useFlexRadio();
   const [value, setValue] = createSignal(0);
 
-  createEffect(() => {
-    const sub = radio()
-      ?.meter(props.meter?.id)
-      ?.on("data", ({ value }) => setValue(value));
-    onCleanup(() => sub?.unsubscribe());
-  });
+  createEffect(
+    () => ({ id: props.meter?.id, activeRadio: radio() }),
+    ({ id, activeRadio }) => {
+      const sub = activeRadio
+        ?.meter(id)
+        ?.on("data", ({ value }) => setValue(value));
+      return () => sub?.unsubscribe();
+    },
+  );
 
   const stops = createMemo(() => {
     if (Array.isArray(props.stops)) return props.stops;
@@ -166,16 +168,20 @@ export function SimpleMeter(props: MeterProps) {
             // JSX style diff (insertExpression) for the one CSS var that
             // updates at meter rate. The static styles stay declarative.
             let fillEl!: HTMLDivElement;
-            createEffect(() => {
-              const v = props.value ?? value();
-              const min = props.minValue ?? props.meter.low;
-              const max = props.maxValue ?? props.meter.high;
-              const pct = Math.max(
-                0,
-                Math.min(100, ((v - min) / (max - min)) * 100),
-              );
-              fillEl?.style.setProperty("--kb-meter-fill-width", `${pct}%`);
-            });
+            createEffect(
+              () => {
+                const v = props.value ?? value();
+                const min = props.minValue ?? props.meter.low;
+                const max = props.maxValue ?? props.meter.high;
+                return Math.max(
+                  0,
+                  Math.min(100, ((v - min) / (max - min)) * 100),
+                );
+              },
+              (pct) => {
+                fillEl?.style.setProperty("--kb-meter-fill-width", `${pct}%`);
+              },
+            );
             return (
               <div
                 ref={fillEl}
@@ -195,20 +201,20 @@ export function SimpleMeter(props: MeterProps) {
           })()}
           <Show when={Number.isFinite(props.peakValue)}>
             {(_) => {
-              const [peakOffset, setPeakOffset] = createSignal(0);
-              createEffect(() => {
+              const peakOffset = createMemo(() => {
                 const peak = props.peakValue;
-                if (peak === undefined) return setPeakOffset(0);
-                setPeakOffset(calculatePeakOffset()(peak));
+                return peak === undefined ? 0 : calculatePeakOffset()(peak);
               });
               return (
                 <div class="absolute inset-0 rounded-xl overflow-hidden">
                   <div
-                    class="absolute inset-y-px right-full rounded-full aspect-square translate-x-(--peak-position) will-change-transform"
-                    classList={{
-                      "bg-foreground": peakOffset() <= 99.9,
-                      "bg-red-500": peakOffset() > 99.9,
-                    }}
+                    class={[
+                      "absolute inset-y-px right-full rounded-full aspect-square translate-x-(--peak-position) will-change-transform",
+                      {
+                        "bg-foreground": peakOffset() <= 99.9,
+                        "bg-red-500": peakOffset() > 99.9,
+                      },
+                    ]}
                     style={{
                       "--peak-position": `${peakOffset()}cqw`,
                       transition: `transform ${1 / (props.meter?.fps || 4)}s linear`,
@@ -237,12 +243,16 @@ export function SimpleMeter(props: MeterProps) {
             <For each={tickLabels()}>
               {(label) => (
                 <div
-                  class="w-0 basis-0 flex flex-col"
-                  classList={{
-                    "items-center": !(label.isEdge && props.containTickLabels),
-                    "items-start": label.isMin && props.containTickLabels,
-                    "items-end": label.isMax && props.containTickLabels,
-                  }}
+                  class={[
+                    "w-0 basis-0 flex flex-col",
+                    {
+                      "items-center": !(
+                        label.isEdge && props.containTickLabels
+                      ),
+                      "items-start": label.isMin && props.containTickLabels,
+                      "items-end": label.isMax && props.containTickLabels,
+                    },
+                  ]}
                 >
                   <Show
                     when={

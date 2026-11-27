@@ -1,4 +1,4 @@
-import type { SetStoreFunction } from "solid-js";
+import type { StoreSetter } from "solid-js";
 import { createMemo } from "solid-js";
 
 /**
@@ -16,9 +16,10 @@ export function createKeyedSubstore<
 >(
   getMap: () => TMap,
   key: () => K | undefined,
-  setRoot: SetStoreFunction<unknown>,
+  // biome-ignore lint/suspicious/noExplicitAny: the root shape is opaque here
+  setRoot: StoreSetter<any>,
   pathToMap: readonly (string | number)[],
-): [() => TMap[K] | undefined, SetStoreFunction<TMap[K]>] {
+): [() => TMap[K] | undefined, StoreSetter<TMap[K]>] {
   // Reactive getter that follows map + key
   const item = createMemo<TMap[K] | undefined>(() => {
     const m = getMap();
@@ -26,14 +27,17 @@ export function createKeyedSubstore<
     return k === undefined ? undefined : (m[k] as TMap[K]);
   });
 
-  // Bound setter that writes to ["...pathToMap", key()]
-  const setItem = ((...args: unknown[]) => {
+  // Bound setter that drafts against root[...pathToMap][key()]
+  const setItem: StoreSetter<TMap[K]> = (fn) => {
     const k = key();
     if (k === undefined) return; // no-op if key isn't ready
-    const call = setRoot as unknown as (...xs: unknown[]) => void;
-    const p = [...pathToMap, k] as unknown[];
-    call(...p, ...args);
-  }) as unknown as SetStoreFunction<TMap[K]>;
+    setRoot((root) => {
+      let map = root;
+      for (const part of pathToMap) map = map[part];
+      const next = fn(map[k]);
+      if (next !== undefined) map[k] = next;
+    });
+  };
 
   return [item, setItem];
 }

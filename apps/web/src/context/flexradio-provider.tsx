@@ -17,14 +17,13 @@ import {
 import { BridgeTransport } from "@repo/flexlib/bridge";
 import { ReactiveMap } from "@solid-primitives/map";
 import {
-  batch,
   createEffect,
   createMemo,
   createSignal,
   createStore,
+  flush,
   onCleanup,
   type ParentComponent,
-  produce,
   reconcile,
   Show,
 } from "solid-js";
@@ -51,20 +50,32 @@ import { useRtc } from "./rtc";
 
 const WS_STATES = ["Connecting...", "Established", "Closing...", "Closed"];
 
+// Shallow-merges a radio diff into an entity record, creating it if absent.
+function mergeEntry(
+  collection: Record<string, object>,
+  id: string,
+  diff: object,
+) {
+  if (collection[id]) Object.assign(collection[id], diff);
+  else collection[id] = { ...diff };
+}
+
 export const FlexRadioProvider: ParentComponent = (props) => {
   const [state, setState] = createStore(initialState());
+  const setConnectModal = (patch: Partial<typeof state.connectModal>) =>
+    setState((s) => {
+      Object.assign(s.connectModal, patch);
+    });
 
   const isLicensed = (feature: string) =>
     state.status.featureLicense?.features?.[feature]?.enabled === true;
   const { preferences, setPreferences } = usePreferences();
   const { peerConnection, rtcState, signalingWsState } = useRtc();
   const [activeRadio, setActiveRadio] = createSignal<Radio | null>(null);
-  const [showAlert, setShowAlert] = createSignal(false);
   const [alertMessage, setAlertMessage] = createSignal("");
+  const showAlert = () => Boolean(alertMessage());
 
   const spots = new ReactiveMap<string, SpotState>();
-
-  createEffect(() => setShowAlert(Boolean(alertMessage())));
 
   let radioSubscriptions: Subscription[] = [];
 
@@ -78,6 +89,8 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     if (resetState) {
       setState(reconcile(initialState()));
       spots.clear();
+      // Writes commit together in v2; flush so the reset lands first.
+      flush();
     }
     setActiveRadio(null);
     currentRadio
@@ -98,22 +111,20 @@ export const FlexRadioProvider: ParentComponent = (props) => {
 
   const updateDiscoveryRadio = (descriptor?: FlexRadioDescriptor) => {
     if (!descriptor) return;
-    if (state.discoveredRadios[descriptor.host]) {
-      // Each discovery packet is a complete snapshot: reconcile so fields the
-      // radio stopped reporting (e.g. guiClients after the last client
-      // disconnects) are removed instead of merged over.
-      setState(
-        "discoveredRadios",
-        descriptor.host,
-        reconcile({ ...descriptor }),
-      );
-    } else {
-      setState("discoveredRadios", descriptor.host, { ...descriptor });
-    }
+    setState((s) => {
+      const existing = s.discoveredRadios[descriptor.host];
+      if (existing) {
+        // Each discovery packet is a complete snapshot: reconcile so fields the
+        // radio stopped reporting (e.g. guiClients after the last client
+        // disconnects) are removed instead of merged over.
+        reconcile({ ...descriptor }, null)(existing);
+      } else {
+        s.discoveredRadios[descriptor.host] = { ...descriptor };
+      }
+    });
   };
 
-  createEffect(() => {
-    const client = flexClient();
+  createEffect(flexClient, (client) => {
     if (!client) return;
 
     const clientSubscriptions = [
@@ -124,16 +135,17 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         updateDiscoveryRadio(radio.descriptor),
       ),
       client.on("radioLost", (radio) =>
-        setState(
-          "discoveredRadios",
-          produce((radios) => {
-            delete radios[radio.endpoint.host];
-          }),
-        ),
+        setState((s) => {
+          delete s.discoveredRadios[radio.endpoint.host];
+        }),
       ),
     ];
 
-    onCleanup(() => {
+    client.startDiscovery().catch((error) => {
+      console.error("Failed to start discovery session", error);
+    });
+
+    return () => {
       console.debug("Cleaning up discovery subscriptions and session");
       for (const sub of clientSubscriptions) sub.unsubscribe();
       client
@@ -141,11 +153,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         .catch((error) =>
           console.error("Failed to stop discovery session", error),
         );
-    });
-
-    client.startDiscovery().catch((error) => {
-      console.error("Failed to start discovery session", error);
-    });
+    };
   });
 
   const cleanupRadioSubscriptions = () => {
@@ -156,18 +164,18 @@ export const FlexRadioProvider: ParentComponent = (props) => {
   const handleSpotChange = (change: SpotStateChange) => {
     if (change.removed) {
       const callsign = state.status.spot[change.id].callsign;
-      setState(
-        "status",
-        "spot",
-        produce((items) => {
-          delete items[change.id];
-        }),
-      );
+      setState((s) => {
+        delete s.status.spot[change.id];
+      });
       if (spots.get(callsign)?.id === change.id) {
         spots.delete(callsign);
       }
     } else {
-      setState("status", change.entity, change.id, change.diff);
+      setState((s) => {
+        mergeEntry(s.status.spot, change.id, change.diff);
+      });
+      // The lines below read the spot back, so commit the write first.
+      flush();
       const callsign = state.status.spot[change.id].callsign;
       if (spots.get(callsign)?.id !== change.id) {
         spots.set(callsign, state.status.spot[change.id]);
@@ -176,21 +184,15 @@ export const FlexRadioProvider: ParentComponent = (props) => {
   };
 
   const handleDisplayMarkerChange = (change: DisplayMarkerStateChange) => {
-    if (change.removed) {
-      setState(
-        "status",
-        change.entity,
-        change.group,
-        produce((items) => {
-          delete items[change.id];
-        }),
-      );
-    } else {
-      batch(() => {
-        setState("status", change.entity, change.group, {});
-        setState("status", change.entity, change.group, change.id, change.diff);
-      });
-    }
+    setState((s) => {
+      const groups = s.status[change.entity];
+      if (change.removed) {
+        delete groups[change.group]?.[change.id];
+      } else {
+        groups[change.group] ??= {};
+        mergeEntry(groups[change.group], change.id, change.diff);
+      }
+    });
   };
 
   const handleStateChange = (change: RadioStateChange) => {
@@ -209,23 +211,21 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         case "filterPreset":
         case "radio":
           // singleton entities are never removed
-          if (!change.removed) setState("status", change.entity, change.diff);
+          if (!change.removed) {
+            setState((s) => {
+              Object.assign(s.status[change.entity], change.diff);
+            });
+          }
           break;
         case "unknown":
           console.warn("Unknown state change", change);
           break;
         default:
-          if (change.removed) {
-            setState(
-              "status",
-              change.entity,
-              produce((items) => {
-                delete items[change.id];
-              }),
-            );
-          } else {
-            setState("status", change.entity, change.id, change.diff);
-          }
+          setState((s) => {
+            const items = s.status[change.entity] as Record<string, object>;
+            if (change.removed) delete items[change.id];
+            else mergeEntry(items, change.id, change.diff);
+          });
           break;
       }
     } catch (err) {
@@ -233,19 +233,21 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     }
   };
 
-  createEffect(() => {
-    if (state.connectModal.status !== ConnectionState.connecting) return;
-
-    const handle = setTimeout(async () => {
-      console.warn("Connection timed out");
-      showToast({
-        description: "Connection timed out",
-        variant: "error",
-      });
-      disconnect();
-    }, 15_000);
-    onCleanup(() => clearTimeout(handle));
-  });
+  createEffect(
+    () => state.connectModal.status === ConnectionState.connecting,
+    (connecting) => {
+      if (!connecting) return;
+      const handle = setTimeout(() => {
+        console.warn("Connection timed out");
+        showToast({
+          description: "Connection timed out",
+          variant: "error",
+        });
+        disconnect();
+      }, 15_000);
+      return () => clearTimeout(handle);
+    },
+  );
 
   const sendCommand = async (command: string) => {
     const currentRadio = activeRadio();
@@ -270,27 +272,30 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     }
   };
 
-  createEffect(() => {
-    if (!state.clientHandleInt) {
-      return;
-    }
-    const selectedPanadapter = state.selectedPanadapter;
-    const panadapter = selectedPanadapter
-      ? state.status.panadapter[selectedPanadapter]
-      : null;
-
-    if (panadapter) {
-      return;
-    }
-
-    const firstOwnPan =
-      Object.keys(state.status.panadapter).filter(
-        (streamId) =>
-          state.status.panadapter[streamId]?.clientHandle ===
-          state.clientHandleInt,
-      )[0] || null;
-    setState("selectedPanadapter", firstOwnPan ?? null);
-  });
+  // Falls back to our first own panadapter when the selection is missing.
+  // `undefined` means the current selection is fine and nothing is written.
+  createEffect(
+    (): string | null | undefined => {
+      if (!state.clientHandleInt) return undefined;
+      const selectedPanadapter = state.selectedPanadapter;
+      if (selectedPanadapter && state.status.panadapter[selectedPanadapter]) {
+        return undefined;
+      }
+      return (
+        Object.keys(state.status.panadapter).find(
+          (streamId) =>
+            state.status.panadapter[streamId]?.clientHandle ===
+            state.clientHandleInt,
+        ) ?? null
+      );
+    },
+    (firstOwnPan) => {
+      if (firstOwnPan === undefined) return;
+      setState((s) => {
+        s.selectedPanadapter = firstOwnPan;
+      });
+    },
+  );
 
   const previousToasts: Record<string, number> = {};
 
@@ -380,7 +385,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
 
   const connect = async (addr: { host: string; port: number }) => {
     console.log("Connecting to", addr);
-    setState("connectModal", {
+    setConnectModal({
       status: ConnectionState.connecting,
       selectedRadio: addr.host,
       stage: ConnectionStage.TCP,
@@ -393,7 +398,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         description: "Selected radio is unavailable",
         variant: "error",
       });
-      setState("connectModal", {
+      setConnectModal({
         status: ConnectionState.disconnected,
         selectedRadio: null,
         stage: ConnectionStage.TCP,
@@ -405,7 +410,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         description: "Selected radio handle is unavailable",
         variant: "error",
       });
-      setState("connectModal", {
+      setConnectModal({
         status: ConnectionState.disconnected,
         selectedRadio: null,
         stage: ConnectionStage.TCP,
@@ -416,16 +421,16 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     const handleProgress = (progress: ConnectionProgressDetail) => {
       switch (progress.stage) {
         case "tcp":
-          setState("connectModal", "stage", ConnectionStage.TCP);
+          setConnectModal({ stage: ConnectionStage.TCP });
           break;
         case "sync":
-          setState("connectModal", "stage", ConnectionStage.Data);
+          setConnectModal({ stage: ConnectionStage.Data });
           break;
         case "udp":
-          setState("connectModal", "stage", ConnectionStage.UDP);
+          setConnectModal({ stage: ConnectionStage.UDP });
           break;
         case "ready":
-          setState("connectModal", {
+          setConnectModal({
             stage: ConnectionStage.Done,
             status: ConnectionState.connected,
           });
@@ -451,10 +456,15 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         description: "Failed to connect to radio",
         variant: "error",
       });
-      setState("connectModal", "status", ConnectionState.disconnected);
-      setState("connectModal", "selectedRadio", null);
-      setState("connectModal", "stage", ConnectionStage.TCP);
-      setState({ clientHandle: null, clientHandleInt: null });
+      setConnectModal({
+        status: ConnectionState.disconnected,
+        selectedRadio: null,
+        stage: ConnectionStage.TCP,
+      });
+      setState((s) => {
+        s.clientHandle = null;
+        s.clientHandleInt = null;
+      });
       cleanupRadioSubscriptions();
       if (activeRadio() === radio) {
         setActiveRadio(null);
@@ -466,17 +476,19 @@ export const FlexRadioProvider: ParentComponent = (props) => {
       }
       return;
     }
-    setState({
-      clientHandle: radio.clientHandle,
-      clientHandleInt: radio.clientHandle
+    setState((s) => {
+      s.clientHandle = radio.clientHandle;
+      s.clientHandleInt = radio.clientHandle
         ? parseInt(radio.clientHandle, 16)
-        : null,
+        : null;
     });
     // Tearing down a connection clears radio.clientId. Persisting that null
     // would make the next connect send a bare "client gui", and the radio
     // answers that by minting a new id with an all-default settings record.
     if (radio.clientId) {
-      setPreferences("guiClientId", radio.clientId);
+      setPreferences((draft) => {
+        draft.guiClientId = radio.clientId;
+      });
     }
   };
 
@@ -484,8 +496,8 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     teardownRadioConnection({ resetState: false });
   });
 
-  createEffect(() => {
-    globalThis.radio = activeRadio();
+  createEffect(activeRadio, (radio) => {
+    globalThis.radio = radio;
   });
   globalThis.state = state;
   globalThis.sendCommand = sendCommand; // Expose for debugging
@@ -508,20 +520,23 @@ export const FlexRadioProvider: ParentComponent = (props) => {
     ["630", "630m"],
   ]);
 
-  createEffect(() => {
-    const xvrtBands = new Map<string, string>(
-      Object.values(state.status.xvtr)
-        .filter(({ valid }) => valid)
-        .toSorted((a, b) => a.order - b.order)
-        .map(({ id, name }) => [`x${id}`, name]),
-    );
-    for (const band of bands.keys()) {
-      if (band.startsWith("x") && !xvrtBands.has(band)) bands.delete(band);
-    }
-    for (const [key, value] of xvrtBands) {
-      bands.set(key, value);
-    }
-  });
+  createEffect(
+    () =>
+      new Map<string, string>(
+        Object.values(state.status.xvtr)
+          .filter(({ valid }) => valid)
+          .toSorted((a, b) => a.order - b.order)
+          .map(({ id, name }) => [`x${id}`, name]),
+      ),
+    (xvrtBands) => {
+      for (const band of bands.keys()) {
+        if (band.startsWith("x") && !xvrtBands.has(band)) bands.delete(band);
+      }
+      for (const [key, value] of xvrtBands) {
+        bands.set(key, value);
+      }
+    },
+  );
 
   return (
     <>
@@ -574,7 +589,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
         }
       >
         {(client) => (
-          <FlexRadioContext.Provider
+          <FlexRadioContext
             value={{
               spots,
               state,
@@ -589,7 +604,7 @@ export const FlexRadioProvider: ParentComponent = (props) => {
             }}
           >
             {props.children}
-          </FlexRadioContext.Provider>
+          </FlexRadioContext>
         )}
       </Show>
       <AlertDialog

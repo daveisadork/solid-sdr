@@ -4,7 +4,6 @@ import {
   createMemo,
   createSignal,
   For,
-  on,
   Show,
 } from "solid-js";
 import useFlexRadio from "~/context/flexradio";
@@ -45,12 +44,12 @@ export const TuningPanel: Component = () => {
     const slice = activeSlice();
     setValueHz(slice ? Math.round(slice.frequencyMHz * 1e6) : 0);
   };
-  createEffect(on(activeId, seed));
+  createEffect(activeId, () => seed());
   createEffect(
-    on(
-      () => runtime.tuningPanelOpen,
-      (open) => open && seed(),
-    ),
+    () => runtime.tuningPanelOpen,
+    (open) => {
+      if (open) seed();
+    },
   );
 
   // Column count is stable across slices: the model's native ceiling, widened
@@ -105,7 +104,11 @@ export const TuningPanel: Component = () => {
     <Dialog
       variant="sheet"
       open={runtime.tuningPanelOpen && Boolean(activeSlice())}
-      onOpenChange={(open) => setRuntime("tuningPanelOpen", open)}
+      onOpenChange={(open) =>
+        setRuntime((draft) => {
+          draft.tuningPanelOpen = open;
+        })
+      }
       modal={false}
       preventScroll={false}
     >
@@ -127,8 +130,10 @@ export const TuningPanel: Component = () => {
                     <>
                       <Show when={col.separatorBefore}>
                         <div
-                          class="flex w-2 shrink-0 items-center justify-center text-3xl text-muted-foreground sm:text-4xl"
-                          classList={{ "opacity-30": col.leading }}
+                          class={[
+                            "flex w-2 shrink-0 items-center justify-center text-3xl text-muted-foreground sm:text-4xl",
+                            { "opacity-30": col.leading },
+                          ]}
                         >
                           .
                         </div>
@@ -143,8 +148,10 @@ export const TuningPanel: Component = () => {
                           <MaterialSymbolsKeyboardArrowUp />
                         </Button>
                         <span
-                          class="text-3xl tabular-nums sm:text-4xl"
-                          classList={{ "opacity-30": col.leading }}
+                          class={[
+                            "text-3xl tabular-nums sm:text-4xl",
+                            { "opacity-30": col.leading },
+                          ]}
                         >
                           {col.digit}
                         </span>

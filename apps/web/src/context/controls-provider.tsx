@@ -129,11 +129,11 @@ export const ControlsProvider: ParentComponent = (props) => {
   };
 
   return (
-    <ControlsContext.Provider value={{ dispatch, getChoices }}>
+    <ControlsContext value={{ dispatch, getChoices }}>
       {props.children}
       <Show when={preferences.midiMappings.length}>
         <MidiControl />
       </Show>
-    </ControlsContext.Provider>
+    </ControlsContext>
   );
 };

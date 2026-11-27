@@ -1,5 +1,6 @@
-import type { PolymorphicProps } from "@kobalte/core";
-import { createSignal, splitProps, type ValidComponent } from "solid-js";
+import type { PolymorphicProps } from "@kobalte/core/polymorphic";
+import type { ValidComponent } from "@solidjs/web";
+import { createSignal, omit } from "solid-js";
 import { Button, type ButtonProps } from "./button";
 import {
   Popover,
@@ -17,10 +18,8 @@ type ConfirmButtonProps<T extends ValidComponent = "button"> =
 const ConfirmButton = <T extends ValidComponent = "button">(
   props: PolymorphicProps<T, ConfirmButtonProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as ConfirmButtonProps, [
-    "message",
-    "onConfirm",
-  ]);
+  const local = props as ConfirmButtonProps;
+  const others = omit(local, "message", "onConfirm");
   const [open, setOpen] = createSignal(false);
   return (
     <Popover open={open()} onOpenChange={setOpen}>

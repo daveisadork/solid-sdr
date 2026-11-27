@@ -1,7 +1,7 @@
 import type { PolymorphicProps } from "@kobalte/core/polymorphic";
 import * as SwitchPrimitive from "@kobalte/core/switch";
-import type { JSX, ValidComponent } from "solid-js";
-import { splitProps } from "solid-js";
+import type { JSX, ValidComponent } from "@solidjs/web";
+import { omit } from "solid-js";
 
 import { cn } from "~/lib/utils";
 
@@ -15,9 +15,8 @@ type SwitchDescriptionProps = SwitchPrimitive.SwitchDescriptionProps & {
 const SwitchDescription = <T extends ValidComponent = "div">(
   props: PolymorphicProps<T, SwitchDescriptionProps>,
 ) => {
-  const [local, others] = splitProps(props as SwitchDescriptionProps, [
-    "class",
-  ]);
+  const local = props as SwitchDescriptionProps;
+  const others = omit(local, "class");
   return (
     <SwitchPrimitive.Description
       class={cn("text-muted-foreground text-xs", local.class)}
@@ -34,10 +33,8 @@ type SwitchControlProps = SwitchPrimitive.SwitchControlProps & {
 const SwitchControl = <T extends ValidComponent = "input">(
   props: PolymorphicProps<T, SwitchControlProps>,
 ) => {
-  const [local, others] = splitProps(props as SwitchControlProps, [
-    "class",
-    "children",
-  ]);
+  const local = props as SwitchControlProps;
+  const others = omit(local, "class", "children");
   return (
     <>
       <SwitchPrimitive.Input
@@ -66,7 +63,8 @@ type SwitchThumbProps = SwitchPrimitive.SwitchThumbProps & {
 const SwitchThumb = <T extends ValidComponent = "div">(
   props: PolymorphicProps<T, SwitchThumbProps>,
 ) => {
-  const [local, others] = splitProps(props as SwitchThumbProps, ["class"]);
+  const local = props as SwitchThumbProps;
+  const others = omit(local, "class");
   return (
     <SwitchPrimitive.Thumb
       class={cn(
@@ -85,7 +83,8 @@ type SwitchLabelProps = SwitchPrimitive.SwitchLabelProps & {
 const SwitchLabel = <T extends ValidComponent = "label">(
   props: PolymorphicProps<T, SwitchLabelProps>,
 ) => {
-  const [local, others] = splitProps(props as SwitchLabelProps, ["class"]);
+  const local = props as SwitchLabelProps;
+  const others = omit(local, "class");
   return (
     <SwitchPrimitive.Label
       class={cn(

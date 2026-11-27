@@ -7,6 +7,7 @@ import useFlexRadio, {
 import { usePanafall } from "~/context/panafall";
 import MaterialSymbolsChevronLeft from "~icons/material-symbols/chevron-left";
 import MaterialSymbolsChevronRight from "~icons/material-symbols/chevron-right";
+import { cn } from "~/lib/utils";
 
 export function DetachedSlice(props: {
   slice: SliceState;
@@ -20,10 +21,12 @@ export function DetachedSlice(props: {
   return (
     <Button
       variant="outline"
-      class="flex p-2 font-extrabold font-mono items-center z-(--z-cell-overlays) pointer-events-auto text-shadow-md text-shadow-background gap-1 [&_svg]:size-8 hover:bg-muted border-none opacity-50"
-      classList={{
-        "flex-row-reverse": props.side === "right",
-      }}
+      class={cn(
+        "flex p-2 font-extrabold font-mono items-center z-(--z-cell-overlays) pointer-events-auto text-shadow-md text-shadow-background gap-1 [&_svg]:size-8 hover:bg-muted border-none opacity-50",
+        {
+          "flex-row-reverse": props.side === "right",
+        },
+      )}
       onClick={() => {
         panadapterController()?.setCenterFrequency(props.slice.frequencyMHz);
         sliceController()?.setActive(true);

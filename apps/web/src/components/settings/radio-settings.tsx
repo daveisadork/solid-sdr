@@ -18,7 +18,7 @@ import {
   createSignal,
   createStore,
   For,
-  onMount,
+  onSettled,
   reconcile,
   Show,
 } from "solid-js";
@@ -26,6 +26,7 @@ import useFlexRadio, {
   type FilterPresetState,
   type NtpSourceState,
 } from "~/context/flexradio";
+import { cn } from "~/lib/utils";
 import CheckIcon from "~icons/material-symbols/check";
 import CircleIcon from "~icons/material-symbols/circle";
 import CircleOutlineIcon from "~icons/material-symbols/circle-outline";
@@ -111,9 +112,10 @@ const isValidIPv4 = (ip: string) => ipv4Regex.test(ip);
 
 function TxBandSettings(props: { radio: Radio }) {
   const { state } = useFlexRadio();
-  const [txProfiles, setTxProfiles] = createStore<string[]>([]);
-
-  createEffect(() => setTxProfiles(state?.status?.radio?.profileTxList ?? []));
+  const [txProfiles] = createStore<string[]>(
+    () => [...(state?.status?.radio?.profileTxList ?? [])],
+    [],
+  );
 
   return (
     <Dialog>
@@ -288,7 +290,7 @@ function NetworkSettings(props: { radio: Radio }) {
   const { state } = useFlexRadio();
   const { preferences, setPreferences } = usePreferences();
   const [rawNetworkMtu, setRawNetworkMtu] = createSignal(
-    preferences.networkMtu,
+    () => preferences.networkMtu,
   );
   const [staticNetwork, setStaticNetwork] = createStore({
     ip: state.status.radio.staticIp ?? "",
@@ -308,19 +310,20 @@ function NetworkSettings(props: { radio: Radio }) {
   );
 
   const [rawNetworkMode, setRawNetworkMode] = createSignal<"static" | "dhcp">(
-    networkMode(),
+    () => networkMode(),
   );
 
-  createEffect(() => setRawNetworkMode(networkMode()));
-  createEffect(() => setRawNetworkMtu(preferences.networkMtu));
-
-  createEffect(() => {
-    const desiredMtu = rawNetworkMtu();
-    if (desiredMtu === preferences.networkMtu) return;
-    props.radio
-      .setNetworkMtu(desiredMtu)
-      .then(() => setPreferences("networkMtu", desiredMtu));
-  });
+  createEffect(
+    () => ({ desiredMtu: rawNetworkMtu(), current: preferences.networkMtu }),
+    ({ desiredMtu, current }) => {
+      if (desiredMtu === current) return;
+      props.radio.setNetworkMtu(desiredMtu).then(() =>
+        setPreferences((draft) => {
+          draft.networkMtu = desiredMtu;
+        }),
+      );
+    },
+  );
 
   const applyDisabled = createMemo(() =>
     rawNetworkMode() === "dhcp"
@@ -415,7 +418,11 @@ function NetworkSettings(props: { radio: Radio }) {
               <CardContent class="flex flex-col gap-4">
                 <TextField
                   value={staticNetwork.ip}
-                  onChange={(value) => setStaticNetwork("ip", value)}
+                  onChange={(value) =>
+                    setStaticNetwork((draft) => {
+                      draft.ip = value;
+                    })
+                  }
                   validationState={
                     !staticNetwork.ipTouched || isValidIPv4(staticNetwork.ip)
                       ? "valid"
@@ -425,7 +432,11 @@ function NetworkSettings(props: { radio: Radio }) {
                 >
                   <TextFieldLabel>Static IP</TextFieldLabel>
                   <TextFieldInput
-                    onBlur={() => setStaticNetwork("ipTouched", true)}
+                    onBlur={() =>
+                      setStaticNetwork((draft) => {
+                        draft.ipTouched = true;
+                      })
+                    }
                   />
                   <TextFieldErrorMessage>
                     Valid IPv4 address required
@@ -439,12 +450,20 @@ function NetworkSettings(props: { radio: Radio }) {
                       ? "valid"
                       : "invalid"
                   }
-                  onChange={(value) => setStaticNetwork("netmask", value)}
+                  onChange={(value) =>
+                    setStaticNetwork((draft) => {
+                      draft.netmask = value;
+                    })
+                  }
                   class="flex flex-col gap-2"
                 >
                   <TextFieldLabel>Static Netmask</TextFieldLabel>
                   <TextFieldInput
-                    onBlur={() => setStaticNetwork("netmaskTouched", true)}
+                    onBlur={() =>
+                      setStaticNetwork((draft) => {
+                        draft.netmaskTouched = true;
+                      })
+                    }
                   />
                   <TextFieldErrorMessage>
                     Valid IPv4 address required
@@ -458,12 +477,20 @@ function NetworkSettings(props: { radio: Radio }) {
                       ? "valid"
                       : "invalid"
                   }
-                  onChange={(value) => setStaticNetwork("gateway", value)}
+                  onChange={(value) =>
+                    setStaticNetwork((draft) => {
+                      draft.gateway = value;
+                    })
+                  }
                   class="flex flex-col gap-2"
                 >
                   <TextFieldLabel>Static Gateway</TextFieldLabel>
                   <TextFieldInput
-                    onBlur={() => setStaticNetwork("gatewayTouched", true)}
+                    onBlur={() =>
+                      setStaticNetwork((draft) => {
+                        draft.gatewayTouched = true;
+                      })
+                    }
                   />
                   <TextFieldErrorMessage>
                     Valid IPv4 address required
@@ -669,12 +696,14 @@ function EditNtpSource(props: { source?: NtpSourceState }) {
   const [touched, setTouched] = createStore<Record<string, boolean>>({});
 
   const syncState = () => {
-    setState({
-      id: props.source?.id,
-      address: props.source?.address,
-      directive: props.source?.directive ?? "server",
-      description: props.source?.description,
-      prefer: props.source?.prefer,
+    setState((draft) => {
+      Object.assign(draft, {
+        id: props.source?.id,
+        address: props.source?.address,
+        directive: props.source?.directive ?? "server",
+        description: props.source?.description,
+        prefer: props.source?.prefer,
+      });
     });
     setTouched(reconcile({}));
   };
@@ -688,13 +717,22 @@ function EditNtpSource(props: { source?: NtpSourceState }) {
     return address && id && description;
   });
 
-  onMount(() => syncState());
+  onSettled(() => syncState());
 
-  createEffect((lastOpen) => {
-    const isOpen = open();
-    if (!isOpen || !lastOpen) syncState();
-    return isOpen;
-  }, false);
+  // Resync from the source while closed, and once when the editor opens.
+  createEffect(
+    () => ({
+      isOpen: open(),
+      id: props.source?.id,
+      address: props.source?.address,
+      directive: props.source?.directive,
+      description: props.source?.description,
+      prefer: props.source?.prefer,
+    }),
+    (next, prev) => {
+      if (!next.isOpen || !prev?.isOpen) syncState();
+    },
+  );
 
   return (
     <Dialog open={open()} onOpenChange={setOpen}>
@@ -711,8 +749,16 @@ function EditNtpSource(props: { source?: NtpSourceState }) {
             required
             disabled={!!props.source || saving()}
             value={state.id}
-            onChange={(value) => setState("id", value)}
-            onFocusOut={() => setTouched("name", true)}
+            onChange={(value) =>
+              setState((draft) => {
+                draft.id = value;
+              })
+            }
+            onFocusOut={() =>
+              setTouched((draft) => {
+                draft.name = true;
+              })
+            }
             validationState={
               !touched.name || (state.id && isValidNtpSourceId(state.id))
                 ? "valid"
@@ -731,7 +777,11 @@ function EditNtpSource(props: { source?: NtpSourceState }) {
             required
             value={state.description}
             disabled={saving()}
-            onChange={(value) => setState("description", value)}
+            onChange={(value) =>
+              setState((draft) => {
+                draft.description = value;
+              })
+            }
             validationState={
               isValidNtpDescription(state.description ?? "")
                 ? "valid"
@@ -751,8 +801,16 @@ function EditNtpSource(props: { source?: NtpSourceState }) {
             required
             value={state.address}
             disabled={saving()}
-            onChange={(value) => setState("address", value)}
-            onFocusOut={() => setTouched("address", true)}
+            onChange={(value) =>
+              setState((draft) => {
+                draft.address = value;
+              })
+            }
+            onFocusOut={() =>
+              setTouched((draft) => {
+                draft.address = true;
+              })
+            }
             validationState={
               !touched.address ||
               (state.address && isValidNtpAddress(state.address))
@@ -769,11 +827,15 @@ function EditNtpSource(props: { source?: NtpSourceState }) {
           <SegmentedControl
             disabled={saving()}
             value={state.directive}
-            onChange={(value) => setState("directive", value)}
+            onChange={(value) =>
+              setState((draft) => {
+                draft.directive = value;
+              })
+            }
           >
             <SegmentedControlLabel>Type</SegmentedControlLabel>
+            <SegmentedControlIndicator />
             <SegmentedControlGroup>
-              <SegmentedControlIndicator />
               <SegmentedControlItemsList class="grid grid-cols-3">
                 <For each={["server", "pool", "peer"]}>
                   {(directive) => (
@@ -791,7 +853,11 @@ function EditNtpSource(props: { source?: NtpSourceState }) {
             disabled={saving()}
             label="Prefer this source"
             checked={state.prefer}
-            onChange={(value) => setState("prefer", value)}
+            onChange={(value) =>
+              setState((draft) => {
+                draft.prefer = value;
+              })
+            }
           />
         </div>
         <DialogFooter>
@@ -899,31 +965,37 @@ function NtpSourceCard(props: { radio: Radio; source: NtpSourceState }) {
 
 function RadioSettingsInner(props: { radio: Radio }) {
   const { state } = useFlexRadio();
-  const [nickname, setNickname] = createSignal(state.status.radio.nickname);
-  const [callsign, setCallsign] = createSignal(state.status.radio.callsign);
+  const [nickname, setNickname] = createSignal(
+    () => state.status.radio.nickname,
+  );
+  const [callsign, setCallsign] = createSignal(
+    () => state.status.radio.callsign,
+  );
   const { preferences, setPreferences } = usePreferences();
-  const [txProfiles, setTxProfiles] = createStore<string[]>([]);
+  const [txProfiles] = createStore<string[]>(
+    () => [...(state?.status?.radio?.profileTxList ?? [])],
+    [],
+  );
   const [filterModeGroup, setFilterModeGroup] =
     createSignal<keyof FilterPresetState>("ssb");
+  // Locally editable copy of the radio's presets; resets when they change.
   const [filterPresets, setFilterPresets] = createStore<
     Mutable<FilterPresetEntry>[]
-  >([]);
+  >(
+    () =>
+      state.status.filterPreset[filterModeGroup()]?.map((p) => ({ ...p })) ??
+      [],
+    [],
+  );
 
   const [calibrationEnabled, setCalibrationEnabled] = createSignal(true);
 
-  createEffect(() => {
-    setFilterPresets(
-      state.status.filterPreset[filterModeGroup()]?.map((p) => ({ ...p })) ??
-        [],
-    );
-  });
-
-  createEffect(() => setNickname(state.status.radio.nickname));
-  createEffect(() => setCallsign(state.status.radio.callsign));
-  createEffect(() => setTxProfiles(state?.status?.radio?.profileTxList ?? []));
-  createEffect(() => {
-    if (state.status.radio.pllDone) setCalibrationEnabled(true);
-  });
+  createEffect(
+    () => !!state.status.radio.pllDone,
+    (pllDone) => {
+      if (pllDone) setCalibrationEnabled(true);
+    },
+  );
 
   const oscillatorSources = createMemo<Record<RadioOscillatorSetting, string>>(
     () => ({
@@ -1064,10 +1136,10 @@ function RadioSettingsInner(props: { radio: Radio }) {
                       </TableCell>
                       <TableCell class="flex justify-end">
                         <Dynamic
-                          classList={{
+                          class={cn({
                             "text-success-foreground": feature.enabled,
                             "text-error-foreground": !feature.enabled,
-                          }}
+                          })}
                           component={feature.enabled ? CheckIcon : CloseIcon}
                         />
                       </TableCell>
@@ -1329,8 +1401,8 @@ function RadioSettingsInner(props: { radio: Radio }) {
             }}
           >
             <SegmentedControlLabel>RCA TX Req</SegmentedControlLabel>
+            <SegmentedControlIndicator />
             <SegmentedControlGroup>
-              <SegmentedControlIndicator />
               <SegmentedControlItemsList>
                 <For each={["low", "high"]}>
                   {(polarity) => (
@@ -1354,8 +1426,8 @@ function RadioSettingsInner(props: { radio: Radio }) {
             }}
           >
             <SegmentedControlLabel>Accessory TX Req</SegmentedControlLabel>
+            <SegmentedControlIndicator />
             <SegmentedControlGroup>
-              <SegmentedControlIndicator />
               <SegmentedControlItemsList>
                 <For each={["low", "high"]}>
                   {(polarity) => (
@@ -1402,8 +1474,8 @@ function RadioSettingsInner(props: { radio: Radio }) {
             }}
           >
             <SegmentedControlLabel>Tune Mode</SegmentedControlLabel>
+            <SegmentedControlIndicator />
             <SegmentedControlGroup>
-              <SegmentedControlIndicator />
               <SegmentedControlItemsList>
                 <For each={["single_tone", "two_tone"]}>
                   {(mode) => (
@@ -1427,7 +1499,9 @@ function RadioSettingsInner(props: { radio: Radio }) {
           <SimpleSwitch
             checked={preferences.showTxFilterInPan}
             onChange={(isChecked) =>
-              setPreferences("showTxFilterInPan", isChecked)
+              setPreferences((draft) => {
+                draft.showTxFilterInPan = isChecked;
+              })
             }
             label="Show TX Filter in Pan"
           />
@@ -1489,8 +1563,8 @@ function RadioSettingsInner(props: { radio: Radio }) {
             }}
           >
             <SegmentedControlLabel>Iambic Mode</SegmentedControlLabel>
+            <SegmentedControlIndicator />
             <SegmentedControlGroup>
-              <SegmentedControlIndicator />
               <SegmentedControlItemsList>
                 <For each={["a", "b"]}>
                   {(mode) => (
@@ -1512,8 +1586,8 @@ function RadioSettingsInner(props: { radio: Radio }) {
             }}
           >
             <SegmentedControlLabel>Sideband</SegmentedControlLabel>
+            <SegmentedControlIndicator />
             <SegmentedControlGroup>
-              <SegmentedControlIndicator />
               <SegmentedControlItemsList>
                 <For each={["cwu", "cwl"]}>
                   {(sideband) => (
@@ -1654,8 +1728,8 @@ function RadioSettingsInner(props: { radio: Radio }) {
             }}
           >
             <SegmentedControlLabel>Source</SegmentedControlLabel>
+            <SegmentedControlIndicator />
             <SegmentedControlGroup>
-              <SegmentedControlIndicator />
               <SegmentedControlItemsList class="grid grid-cols-4">
                 <For each={Object.entries(oscillatorSources())}>
                   {([id, label]) => (
@@ -1835,7 +1909,9 @@ function RadioSettingsInner(props: { radio: Radio }) {
                               value={preset.name}
                               onChange={(name) => {
                                 if (name.length > 4) return;
-                                setFilterPresets(preset.index, "name", name);
+                                setFilterPresets((draft) => {
+                                  draft[preset.index].name = name;
+                                });
                               }}
                             >
                               <TextFieldPrimitive.Input size={4} class="px-1" />
@@ -1845,11 +1921,9 @@ function RadioSettingsInner(props: { radio: Radio }) {
                             <NumberFieldPrimitive.Root
                               rawValue={preset.filterLowHz}
                               onRawValueChange={(filterLowHz) =>
-                                setFilterPresets(
-                                  preset.index,
-                                  "filterLowHz",
-                                  filterLowHz,
-                                )
+                                setFilterPresets((draft) => {
+                                  draft[preset.index].filterLowHz = filterLowHz;
+                                })
                               }
                               minValue={0}
                               maxValue={preset.filterHighHz}
@@ -1865,11 +1939,10 @@ function RadioSettingsInner(props: { radio: Radio }) {
                             <NumberFieldPrimitive.Root
                               rawValue={preset.filterHighHz}
                               onRawValueChange={(filterHighHz) =>
-                                setFilterPresets(
-                                  preset.index,
-                                  "filterHighHz",
-                                  filterHighHz,
-                                )
+                                setFilterPresets((draft) => {
+                                  draft[preset.index].filterHighHz =
+                                    filterHighHz;
+                                })
                               }
                               minValue={preset.filterLowHz}
                               maxValue={12_000}
@@ -1896,7 +1969,7 @@ function RadioSettingsInner(props: { radio: Radio }) {
                   .filterPresets()
                   .reset(filterModeGroup())
                   .then(() =>
-                    setFilterPresets(
+                    setFilterPresets(() =>
                       state.status.filterPreset[filterModeGroup()].map((p) => ({
                         ...p,
                       })),

@@ -5,7 +5,6 @@ import {
   For,
   Match,
   onCleanup,
-  reconcile,
   Show,
   Switch,
 } from "solid-js";
@@ -619,8 +618,8 @@ function AddMappingDialog(props: {
     return draftMapping() ? 4 : 3;
   });
 
-  createEffect(() => {
-    if (!open()) {
+  createEffect(open, (isOpen) => {
+    if (!isOpen) {
       setCapturedSource(null);
       setInputType(undefined);
       setTarget(null);
@@ -636,56 +635,58 @@ function AddMappingDialog(props: {
     }
   });
 
-  createEffect(() => {
-    if (!open()) return;
+  createEffect(
+    () => (open() ? [...inputs.values()] : null),
+    (ports) => {
+      if (!ports) return;
 
-    const handleMessage = (event: MIDIMessageEvent) => {
-      const source = eventToSource(event);
-      if (!source) return;
-      const port = selectedPort();
+      const handleMessage = (event: MIDIMessageEvent) => {
+        const source = eventToSource(event);
+        if (!source) return;
+        const port = selectedPort();
 
-      if (port && source.port !== port) {
-        return;
-      }
-      source.port = port;
+        if (port && source.port !== port) {
+          return;
+        }
+        source.port = port;
 
-      const parsed = parseMidiMessage(event);
-      const currentSource = capturedSource();
-      if (!currentSource) {
-        setCapturedSource(source);
+        const parsed = parseMidiMessage(event);
+        const currentSource = capturedSource();
+        if (!currentSource) {
+          setCapturedSource(source);
+          setLastMessage(parsed);
+          return;
+        }
+
+        if (!sameSource(currentSource, source)) return;
         setLastMessage(parsed);
-        return;
-      }
+      };
 
-      if (!sameSource(currentSource, source)) return;
-      setLastMessage(parsed);
-    };
+      for (const input of ports)
+        input.addEventListener("midimessage", handleMessage);
+      return () => {
+        for (const input of ports)
+          input.removeEventListener("midimessage", handleMessage);
+      };
+    },
+  );
 
-    for (const input of inputs.values())
-      input.addEventListener("midimessage", handleMessage);
-    onCleanup(() => {
-      for (const input of inputs.values())
-        input.removeEventListener("midimessage", handleMessage);
-    });
-  });
-
-  createEffect(() => {
-    const options = inputOptions();
+  createEffect(inputOptions, (options) => {
     setInputType((current) =>
       current && options.includes(current) ? current : (options[0] ?? current),
     );
   });
 
-  createEffect(() => {
-    const currentTarget = target()?.value;
-    const input = inputType();
-    if (currentTarget && input && !supportsInput(currentTarget, input)) {
-      setTarget(null);
-    }
-  });
+  createEffect(
+    () => ({ currentTarget: target()?.value, input: inputType() }),
+    ({ currentTarget, input }) => {
+      if (currentTarget && input && !supportsInput(currentTarget, input)) {
+        setTarget(null);
+      }
+    },
+  );
 
-  createEffect(() => {
-    const options = currentBehaviorOptions();
+  createEffect(currentBehaviorOptions, (options) => {
     setBehavior((current) =>
       current && options.some((option) => option.value === current)
         ? current
@@ -693,8 +694,7 @@ function AddMappingDialog(props: {
     );
   });
 
-  createEffect(() => {
-    const options = choiceOptions();
+  createEffect(choiceOptions, (options) => {
     setSelectedChoiceKey((current) =>
       current && options.some((option) => option.key === current)
         ? current
@@ -705,7 +705,9 @@ function AddMappingDialog(props: {
   const saveMapping = () => {
     const mapping = draftMapping();
     if (!mapping) return;
-    setPreferences("midiMappings", (previous) => [...previous, mapping]);
+    setPreferences((draft) => {
+      draft.midiMappings.push(mapping);
+    });
     setOpen(false);
   };
 
@@ -1210,17 +1212,18 @@ function MidiSettingsInner() {
     return url;
   });
 
-  createEffect(() => {
-    const file = importFile();
+  createEffect(importFile, (file) => {
     if (!file) return;
     const reader = new FileReader();
     const onLoad = () => {
       const mappings = JSON.parse(reader.result as string);
-      setPreferences("midiMappings", reconcile(mappings));
+      setPreferences((draft) => {
+        draft.midiMappings = mappings;
+      });
     };
     reader.addEventListener("load", onLoad, { once: true });
     reader.readAsText(file);
-    onCleanup(() => reader.removeEventListener("load", onLoad));
+    return () => reader.removeEventListener("load", onLoad);
   });
 
   return (
@@ -1270,9 +1273,9 @@ function MidiSettingsInner() {
                     variant="ghost"
                     size="icon"
                     onClick={() => {
-                      setPreferences("midiMappings", (previous) =>
-                        previous.toSpliced(index(), 1),
-                      );
+                      setPreferences((draft) => {
+                        draft.midiMappings.splice(index(), 1);
+                      });
                     }}
                   >
                     <BaselineDelete />

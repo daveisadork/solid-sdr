@@ -1,5 +1,5 @@
 import { createDraggable } from "@neodrag/solid";
-import { createEffect, createSignal, For, onCleanup } from "solid-js";
+import { createSignal, For, onSettled } from "solid-js";
 import { Portal } from "@solidjs/web";
 import { Card, CardContent } from "~/components/ui/card";
 import { usePreferences } from "~/context/preferences";
@@ -36,14 +36,18 @@ export function FPSCounter() {
     if (running()) refreshLoop();
     const avgFrameTime =
       frameTimes.reduce((a, b) => a + b, 0) / frameTimes.length;
-    setRuntime("fps", "B", Math.round(1000 / avgFrameTime));
+    setRuntime((draft) => {
+      draft.fps.B = Math.round(1000 / avgFrameTime);
+    });
   };
 
   const refreshLoop = () => window.requestAnimationFrame(handleFrame);
 
-  createEffect(() => {
+  // Starts the rAF loop after mount; setRunning is a write, so it can't run
+  // in setup or a cleanup registered there via a tracked effect.
+  onSettled(() => {
     refreshLoop();
-    onCleanup(() => setRunning(false));
+    return () => setRunning(false);
   });
 
   return (
@@ -70,7 +74,13 @@ export function FPSCounter() {
         </div>
         <ContextMenuPortal>
           <ContextMenuContent>
-            <ContextMenuItem onSelect={() => setPreferences("showFps", false)}>
+            <ContextMenuItem
+              onSelect={() =>
+                setPreferences((draft) => {
+                  draft.showFps = false;
+                })
+              }
+            >
               Close
             </ContextMenuItem>
           </ContextMenuContent>

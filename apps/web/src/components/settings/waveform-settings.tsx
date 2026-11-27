@@ -66,42 +66,43 @@ export function WaveformSettings() {
   const [uploadFile, setUploadFile] = createSignal<File>();
   const [target, setTarget] = createSignal("waveform_docker_image");
 
-  createEffect(() => {
-    setUploadProgress(0);
-    const file = uploadFile();
-    const connectedRadio = radio();
-    if (!file || !connectedRadio) return;
+  createEffect(
+    () => ({ file: uploadFile(), connectedRadio: radio(), target: target() }),
+    ({ file, connectedRadio, target }) => {
+      setUploadProgress(0);
+      if (!file || !connectedRadio) return;
 
-    connectedRadio
-      .uploadFile({
-        filename: file.name,
-        target: target(),
-        data: file.stream().values(),
-        totalBytes: file.size,
-      })
-      .then((upload) => {
-        upload.on("progress", (p) => {
-          setUploadProgress(Math.round(p * 100));
-        });
-        upload.on("done", () => setUploadFile());
-        upload.on("failed", (f) => {
+      connectedRadio
+        .uploadFile({
+          filename: file.name,
+          target,
+          data: file.stream().values(),
+          totalBytes: file.size,
+        })
+        .then((upload) => {
+          upload.on("progress", (p) => {
+            setUploadProgress(Math.round(p * 100));
+          });
+          upload.on("done", () => setUploadFile());
+          upload.on("failed", (f) => {
+            showToast({
+              title: "Upload Failed",
+              variant: "error",
+              description: f.reason ?? "unknown error",
+            });
+            setUploadFile();
+          });
+        })
+        .catch((err: unknown) => {
           showToast({
             title: "Upload Failed",
             variant: "error",
-            description: f.reason ?? "unknown error",
+            description: err instanceof Error ? err.message : String(err),
           });
           setUploadFile();
         });
-      })
-      .catch((err: unknown) => {
-        showToast({
-          title: "Upload Failed",
-          variant: "error",
-          description: err instanceof Error ? err.message : String(err),
-        });
-        setUploadFile();
-      });
-  });
+    },
+  );
 
   return (
     <DialogContent>

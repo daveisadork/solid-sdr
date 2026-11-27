@@ -29,7 +29,7 @@ import type {
   XvtrSnapshot,
 } from "@repo/flexlib";
 import type { ReactiveMap } from "@solid-primitives/map";
-import type { SetStoreFunction } from "solid-js";
+import type { StoreSetter } from "solid-js";
 import { type Accessor, createContext, useContext } from "solid-js";
 
 declare global {
@@ -181,7 +181,7 @@ export const initialState = () =>
 
 export const FlexRadioContext = createContext<{
   state: AppState;
-  setState: SetStoreFunction<AppState>;
+  setState: StoreSetter<AppState>;
   spots: ReactiveMap<string, SpotState>;
   bands: ReactiveMap<string, string>;
   radio: () => Radio | null;

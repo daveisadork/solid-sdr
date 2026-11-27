@@ -1,5 +1,5 @@
 import { createPointerListeners } from "@solid-primitives/pointer";
-import { batch, createSignal, createStore } from "solid-js";
+import { createSignal, createStore } from "solid-js";
 import useFlexRadio, {
   type PanadapterState,
   type TnfState,
@@ -29,6 +29,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "../ui/tooltip";
+import { cn } from "~/lib/utils";
 
 const MHZ = 1_000_000;
 const TNF_MIN = 5 / MHZ;
@@ -80,26 +81,30 @@ export function Tnf(props: { tnf: TnfState; pan: PanadapterState }) {
         props.tnf.bandwidthMHz + bandwidthChangeMHz,
       );
 
-      batch(() => {
-        setDragState("dragging", true);
-        if (freq !== props.tnf.frequencyMHz) {
-          tnfCtrl()?.setFrequency(freq);
-        }
-        if (bandwidth !== props.tnf.bandwidthMHz) {
-          tnfCtrl()?.setBandwidth(bandwidth);
-        }
+      setDragState((draft) => {
+        draft.dragging = true;
       });
+      if (freq !== props.tnf.frequencyMHz) {
+        tnfCtrl()?.setFrequency(freq);
+      }
+      if (bandwidth !== props.tnf.bandwidthMHz) {
+        tnfCtrl()?.setBandwidth(bandwidth);
+      }
     },
     onUp() {
-      setDragState({
-        down: false,
-        dragging: false,
+      setDragState((draft) => {
+        Object.assign(draft, {
+          down: false,
+          dragging: false,
+        });
       });
     },
     onLeave() {
-      setDragState({
-        down: false,
-        dragging: false,
+      setDragState((draft) => {
+        Object.assign(draft, {
+          down: false,
+          dragging: false,
+        });
       });
     },
   });
@@ -120,10 +125,12 @@ export function Tnf(props: { tnf: TnfState; pan: PanadapterState }) {
       onPointerDown={(event) => {
         if (event.button !== 0) return;
         if (contextMenuOpen()) return;
-        setDragState({
-          down: true,
-          originX: clientXToCellX(event.clientX),
-          originFreq: props.tnf.frequencyMHz,
+        setDragState((draft) => {
+          Object.assign(draft, {
+            down: true,
+            originX: clientXToCellX(event.clientX),
+            originFreq: props.tnf.frequencyMHz,
+          });
         });
       }}
     >
@@ -139,15 +146,17 @@ export function Tnf(props: { tnf: TnfState; pan: PanadapterState }) {
         <TooltipTrigger as="div" class="absolute inset-0">
           <ContextMenu
             onOpenChange={(open) => {
-              if (open) setDragState("dragging", false);
+              if (open)
+                setDragState((draft) => {
+                  draft.dragging = false;
+                });
               setContextMenuOpen(open);
             }}
           >
             <ContextMenuTrigger
-              class="absolute inset-0 touch-none"
-              classList={{
+              class={cn("absolute inset-0 touch-none", {
                 "pointer-events-none": contextMenuOpen(),
-              }}
+              })}
             >
               <div class="absolute inset-0 border-x tnf-stripes" />
             </ContextMenuTrigger>

@@ -1,7 +1,8 @@
 import type { VariantProps } from "class-variance-authority";
 import { cva } from "class-variance-authority";
-import type { Component, ComponentProps } from "solid-js";
-import { splitProps } from "solid-js";
+import type { ComponentProps } from "@solidjs/web";
+import type { Component } from "solid-js";
+import { omit } from "solid-js";
 
 import { cn } from "~/lib/utils";
 
@@ -23,7 +24,8 @@ type CalloutProps = ComponentProps<"div"> &
   VariantProps<typeof calloutVariants>;
 
 const Callout: Component<CalloutProps> = (props) => {
-  const [local, others] = splitProps(props, ["class", "variant"]);
+  const local = props;
+  const others = omit(local, "class", "variant");
   return (
     <div
       class={cn(calloutVariants({ variant: local.variant }), local.class)}
@@ -33,12 +35,14 @@ const Callout: Component<CalloutProps> = (props) => {
 };
 
 const CalloutTitle: Component<ComponentProps<"h3">> = (props) => {
-  const [local, others] = splitProps(props, ["class"]);
+  const local = props;
+  const others = omit(local, "class");
   return <h3 class={cn("font-semibold", local.class)} {...others} />;
 };
 
 const CalloutContent: Component<ComponentProps<"div">> = (props) => {
-  const [local, others] = splitProps(props, ["class"]);
+  const local = props;
+  const others = omit(local, "class");
   return <div class={cn("mt-2", local.class)} {...others} />;
 };
 

@@ -1,8 +1,8 @@
 import type { PolymorphicProps } from "@kobalte/core/polymorphic";
 import * as ToggleGroupPrimitive from "@kobalte/core/toggle-group";
 import type { VariantProps } from "class-variance-authority";
-import type { JSX, ValidComponent } from "solid-js";
-import { createContext, splitProps, useContext } from "solid-js";
+import type { JSX, ValidComponent } from "@solidjs/web";
+import { createContext, useContext, omit } from "solid-js";
 import { toggleVariants } from "~/components/ui/toggle";
 import { cn } from "~/lib/utils";
 
@@ -21,19 +21,15 @@ type ToggleGroupRootProps<T extends ValidComponent = "div"> =
 const ToggleGroup = <T extends ValidComponent = "div">(
   props: PolymorphicProps<T, ToggleGroupRootProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as ToggleGroupRootProps, [
-    "class",
-    "children",
-    "size",
-    "variant",
-  ]);
+  const local = props as ToggleGroupRootProps;
+  const others = omit(local, "class", "children", "size", "variant");
 
   return (
     <ToggleGroupPrimitive.Root
       class={cn("flex items-center justify-center gap-1", local.class)}
       {...others}
     >
-      <ToggleGroupContext.Provider
+      <ToggleGroupContext
         value={{
           get size() {
             return local.size;
@@ -44,7 +40,7 @@ const ToggleGroup = <T extends ValidComponent = "div">(
         }}
       >
         {local.children}
-      </ToggleGroupContext.Provider>
+      </ToggleGroupContext>
     </ToggleGroupPrimitive.Root>
   );
 };
@@ -56,11 +52,8 @@ type ToggleGroupItemProps<T extends ValidComponent = "button"> =
 const ToggleGroupItem = <T extends ValidComponent = "button">(
   props: PolymorphicProps<T, ToggleGroupItemProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as ToggleGroupItemProps, [
-    "class",
-    "size",
-    "variant",
-  ]);
+  const local = props as ToggleGroupItemProps;
+  const others = omit(local, "class", "size", "variant");
   const context = useContext(ToggleGroupContext);
   return (
     <ToggleGroupPrimitive.Item

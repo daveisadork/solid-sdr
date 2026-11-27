@@ -1,7 +1,7 @@
 import type { PolymorphicProps } from "@kobalte/core/polymorphic";
 import * as SliderPrimitive from "@kobalte/core/slider";
-import type { JSX, ValidComponent } from "solid-js";
-import { splitProps } from "solid-js";
+import type { JSX, ValidComponent } from "@solidjs/web";
+import { omit } from "solid-js";
 import { Label } from "~/components/ui/label";
 import { cn } from "~/lib/utils";
 
@@ -13,7 +13,8 @@ type SliderRootProps<T extends ValidComponent = "div"> =
 const Slider = <T extends ValidComponent = "div">(
   props: PolymorphicProps<T, SliderRootProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as SliderRootProps, ["class"]);
+  const local = props as SliderRootProps;
+  const others = omit(local, "class");
   return (
     <SliderPrimitive.Root
       class={cn(
@@ -32,9 +33,8 @@ type SliderDescriptionProps = SliderPrimitive.SliderDescriptionProps & {
 const SliderDescription = <T extends ValidComponent = "div">(
   props: PolymorphicProps<T, SliderDescriptionProps>,
 ) => {
-  const [local, others] = splitProps(props as SliderDescriptionProps, [
-    "class",
-  ]);
+  const local = props as SliderDescriptionProps;
+  const others = omit(local, "class");
   return (
     <SliderPrimitive.Description
       class={cn("text-muted-foreground text-xs", local.class)}
@@ -51,7 +51,8 @@ type SliderTrackProps<T extends ValidComponent = "div"> =
 const SliderTrack = <T extends ValidComponent = "div">(
   props: PolymorphicProps<T, SliderTrackProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as SliderTrackProps, ["class"]);
+  const local = props as SliderTrackProps;
+  const others = omit(local, "class");
   return (
     <SliderPrimitive.Track
       class={cn(
@@ -71,7 +72,8 @@ type SliderFillProps<T extends ValidComponent = "div"> =
 const SliderFill = <T extends ValidComponent = "div">(
   props: PolymorphicProps<T, SliderFillProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as SliderFillProps, ["class"]);
+  const local = props as SliderFillProps;
+  const others = omit(local, "class");
   return (
     <SliderPrimitive.Fill
       class={cn(
@@ -94,11 +96,8 @@ type SliderThumbProps<T extends ValidComponent = "span"> =
 const SliderThumb = <T extends ValidComponent = "span">(
   props: PolymorphicProps<T, SliderThumbProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as SliderThumbProps, [
-    "class",
-    "children",
-    "style",
-  ]);
+  const local = props as SliderThumbProps;
+  const others = omit(local, "class", "children", "style");
   const context = SliderPrimitive.useSliderContext();
   let ref: HTMLElement | undefined;
 

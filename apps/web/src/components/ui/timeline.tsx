@@ -1,12 +1,6 @@
-import type { ComponentProps, ParentComponent } from "solid-js";
-import {
-  type Component,
-  For,
-  type JSXElement,
-  mergeProps,
-  Show,
-  splitProps,
-} from "solid-js";
+import type { ComponentProps, JSX } from "@solidjs/web";
+import type { ParentComponent } from "solid-js";
+import { type Component, For, merge, Show, omit } from "solid-js";
 
 import { cn } from "~/lib/utils";
 
@@ -31,7 +25,7 @@ export type TimelineProps = {
 */
 
 const Timeline: Component<TimelineProps> = (rawProps) => {
-  const props = mergeProps({ bulletSize: 16, lineSize: 2 }, rawProps);
+  const props = merge({ bulletSize: 16, lineSize: 2 }, rawProps);
 
   return (
     <ul
@@ -62,9 +56,9 @@ const Timeline: Component<TimelineProps> = (rawProps) => {
 };
 
 export type TimelineItemProps = {
-  title: JSXElement;
-  description?: JSXElement;
-  bullet?: JSXElement;
+  title: JSX.Element;
+  description?: JSX.Element;
+  bullet?: JSX.Element;
   isLast?: boolean;
   isActive: boolean;
   isActiveBullet: boolean;
@@ -74,7 +68,9 @@ export type TimelineItemProps = {
 };
 
 const TimelineItem: Component<TimelineItemProps> = (props) => {
-  const [local, others] = splitProps(props, [
+  const local = props;
+  const others = omit(
+    local,
     "class",
     "bullet",
     "description",
@@ -84,7 +80,7 @@ const TimelineItem: Component<TimelineItemProps> = (props) => {
     "isActiveBullet",
     "bulletSize",
     "lineSize",
-  ]);
+  );
   return (
     <li
       class={cn(
@@ -114,7 +110,7 @@ const TimelineItem: Component<TimelineItemProps> = (props) => {
 };
 
 export type TimelineItemBulletProps = {
-  children?: JSXElement;
+  children?: JSX.Element;
   isActive?: boolean;
   bulletSize: number;
   lineSize: number;
@@ -149,7 +145,8 @@ const TimelineItemTitle: ParentComponent = (props) => {
 };
 
 const TimelineItemDescription: Component<ComponentProps<"p">> = (props) => {
-  const [local, others] = splitProps(props, ["class", "children"]);
+  const local = props;
+  const others = omit(local, "class", "children");
   return (
     <p class={cn("text-sm text-muted-foreground", local.class)} {...others}>
       {local.children}

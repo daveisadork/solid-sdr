@@ -4,7 +4,7 @@ import { PanafallProvider } from "~/context/panafall-provider";
 import { type CellEdges, cellEdges, type SlotId } from "~/lib/panafall-layout";
 import { TuningPanel } from "../tuning-panel";
 import { Panafall } from "./panafall";
-import { PanSettings } from "./settings";
+// import { PanSettings } from "./settings";
 
 function PanafallCell(props: { slot: SlotId; edges: CellEdges }) {
   const { streamForSlot } = usePanafallLayout();
@@ -32,7 +32,7 @@ function PanafallCell(props: { slot: SlotId; edges: CellEdges }) {
                 "calc(100% - var(--cell-inset-left) - var(--cell-inset-right))",
             }}
           >
-            <PanSettings />
+            {/* <PanSettings /> */}
             <Panafall index={props.slot} />
           </div>
         </PanafallProvider>
@@ -51,18 +51,22 @@ function PanafallGrid() {
   const count = () => Math.min(Math.max(panCount(), 1), 4);
   return (
     <div
-      class="size-full grid grid-flow-col gap-0.5 overflow-visible select-none"
-      classList={{
-        "grid-cols-1 grid-rows-1": count() === 1,
-        "grid-cols-1 grid-rows-2": count() === 2,
-        "grid-cols-2 grid-rows-2": count() >= 3,
-      }}
+      class={[
+        "size-full grid grid-flow-col gap-0.5 overflow-visible select-none",
+        {
+          "grid-cols-1 grid-rows-1": count() === 1,
+          "grid-cols-1 grid-rows-2": count() === 2,
+          "grid-cols-2 grid-rows-2": count() >= 3,
+        },
+      ]}
     >
       <For each={Array.from({ length: count() }, (_, i) => i as SlotId)}>
         {(slot) => (
           <div
-            class="relative flex flex-col min-h-0 min-w-0 overflow-visible select-none"
-            classList={{ "row-span-2": count() === 3 && slot === 2 }}
+            class={[
+              "relative flex flex-col min-h-0 min-w-0 overflow-visible select-none",
+              { "row-span-2": count() === 3 && slot === 2 },
+            ]}
           >
             <PanafallCell slot={slot} edges={cellEdges(count(), slot)} />
           </div>

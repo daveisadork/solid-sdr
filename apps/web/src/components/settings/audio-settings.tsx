@@ -49,7 +49,9 @@ function InnerAudioSettings() {
           class="flex"
           checked={preferences.remoteAudio.rx.enabled}
           onChange={(checked) =>
-            setPreferences("remoteAudio", "rx", "enabled", checked)
+            setPreferences((draft) => {
+              draft.remoteAudio.rx.enabled = checked;
+            })
           }
         >
           <SwitchLabel class="grow flex items-center">
@@ -64,7 +66,9 @@ function InnerAudioSettings() {
         <SimpleSwitch
           checked={!preferences.remoteAudio.tx.enabled}
           onChange={(checked) =>
-            setPreferences("remoteAudio", "tx", "enabled", !checked)
+            setPreferences((draft) => {
+              draft.remoteAudio.tx.enabled = !checked;
+            })
           }
           label="RX Only"
         />
@@ -73,7 +77,9 @@ function InnerAudioSettings() {
           value={preferences.remoteAudio.rx.outputDeviceId}
           onChange={(value) => {
             if (!value) return;
-            setPreferences("remoteAudio", "rx", "outputDeviceId", value);
+            setPreferences((draft) => {
+              draft.remoteAudio.rx.outputDeviceId = value;
+            });
           }}
           options={outputs().map((d) => d.deviceId)}
           itemComponent={(props) => {
@@ -107,7 +113,9 @@ function InnerAudioSettings() {
           value={preferences.remoteAudio.tx.inputDeviceId}
           onChange={(value) => {
             if (!value) return;
-            setPreferences("remoteAudio", "tx", "inputDeviceId", value);
+            setPreferences((draft) => {
+              draft.remoteAudio.tx.inputDeviceId = value;
+            });
           }}
           options={inputs().map((d) => d.deviceId)}
           itemComponent={(props) => (
@@ -136,7 +144,9 @@ function InnerAudioSettings() {
           <SimpleSwitch
             checked={preferences.remoteAudio.tx.autoGainControl}
             onChange={(checked) =>
-              setPreferences("remoteAudio", "tx", "autoGainControl", checked)
+              setPreferences((draft) => {
+                draft.remoteAudio.tx.autoGainControl = checked;
+              })
             }
             label="Auto Gain Control"
           />
@@ -145,7 +155,9 @@ function InnerAudioSettings() {
           <SimpleSwitch
             checked={preferences.remoteAudio.tx.echoCancellation}
             onChange={(checked) =>
-              setPreferences("remoteAudio", "tx", "echoCancellation", checked)
+              setPreferences((draft) => {
+                draft.remoteAudio.tx.echoCancellation = checked;
+              })
             }
             label="Echo Cancellation"
           />
@@ -154,7 +166,9 @@ function InnerAudioSettings() {
           <SimpleSwitch
             checked={preferences.remoteAudio.tx.noiseSuppression}
             onChange={(checked) =>
-              setPreferences("remoteAudio", "tx", "noiseSuppression", checked)
+              setPreferences((draft) => {
+                draft.remoteAudio.tx.noiseSuppression = checked;
+              })
             }
             label="Noise Suppression"
           />
@@ -163,7 +177,9 @@ function InnerAudioSettings() {
           <SimpleSwitch
             checked={preferences.remoteAudio.tx.voiceIsolation}
             onChange={(checked) =>
-              setPreferences("remoteAudio", "tx", "voiceIsolation", checked)
+              setPreferences((draft) => {
+                draft.remoteAudio.tx.voiceIsolation = checked;
+              })
             }
             label="Voice Isolation"
           />
@@ -177,15 +193,15 @@ export function AudioSettings() {
   const { radio, state } = useFlexRadio();
   const audioPermission = createPermission("microphone");
 
-  createEffect(() => {
-    if (audioPermission() === "prompt") {
+  createEffect(
+    () => audioPermission() === "prompt",
+    (needsPrompt) => {
+      if (!needsPrompt) return;
       navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
-        for (const track of stream.getTracks()) {
-          track.stop();
-        }
+        for (const track of stream.getTracks()) track.stop();
       });
-    }
-  });
+    },
+  );
 
   return (
     <DialogContent>

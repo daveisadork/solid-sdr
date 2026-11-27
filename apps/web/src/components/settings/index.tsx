@@ -3,15 +3,15 @@ import { Dynamic } from "@solidjs/web";
 import {
   createEffect,
   createMemo,
-  ErrorBoundary,
+  Errored,
   lazy,
-  onMount,
+  Loading,
+  onSettled,
   Show,
 } from "solid-js";
 import useFlexRadio from "~/context/flexradio";
 import { APP_VERSION } from "~/lib/version";
 import AreaChartIcon from "~icons/material-symbols/area-chart";
-import BookmarksIcon from "~icons/material-symbols/bookmarks";
 import CableIcon from "~icons/material-symbols/cable";
 import NetworkCheckIcon from "~icons/material-symbols/network-check";
 import PianoIcon from "~icons/material-symbols/piano";
@@ -190,7 +190,7 @@ function SettingsError(props: {
       radioModel: radioModel(),
     });
 
-  onMount(() => {
+  onSettled(() => {
     console.error("Settings window failed", props.error);
   });
 
@@ -238,12 +238,15 @@ export function Settings() {
     return tab != null && tab in tabs ? (tab as keyof typeof tabs) : null;
   };
   const setActiveTab = (tab: keyof typeof tabs) => navigate(`/settings/${tab}`);
-  createEffect(() => {
-    if (match() && activeTab() === null) navigate("/", { replace: true });
-  });
+  createEffect(
+    () => !!match() && activeTab() === null,
+    (unknownTab) => {
+      if (unknownTab) navigate("/", { replace: true });
+    },
+  );
+  // Keeps the last tab rendered while the dialog animates closed.
   const shownTab = createMemo<keyof typeof tabs | null>(
-    (prev) => activeTab() ?? prev,
-    null,
+    (prev = null) => activeTab() ?? prev,
   );
   return (
     <>
@@ -256,13 +259,20 @@ export function Settings() {
             open dialog blank. */}
         <Show when={shownTab()} keyed>
           {(tab) => (
-            <ErrorBoundary
+            <Errored
               fallback={(error, reset) => (
-                <SettingsError error={error} reset={reset} tab={tab} />
+                <SettingsError error={error()} reset={reset} tab={tab} />
               )}
             >
-              <Dynamic component={tabs[tab]} />
-            </ErrorBoundary>
+              {/* Lazy tab chunks suspend here, not at the app-wide boundary. */}
+              <Loading
+                fallback={
+                  <div class="text-sm text-muted-foreground">Loading…</div>
+                }
+              >
+                <Dynamic component={tabs[tab]} />
+              </Loading>
+            </Errored>
           )}
         </Show>
       </Dialog>

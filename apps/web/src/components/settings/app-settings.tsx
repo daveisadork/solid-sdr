@@ -1,8 +1,7 @@
-import { useColorMode } from "@kobalte/core";
+import { useColorMode } from "@kobalte/core/color-mode";
 import {
   createEffect,
   createMemo,
-  createResource,
   createSignal,
   For,
   onCleanup,
@@ -123,17 +122,20 @@ export function AppSettings() {
   const [newRelease, setNewRelease] = createSignal(false);
   const [importFile, setImportFile] = createSignal<File>();
 
-  const [currentRelease] = createResource(async () => {
+  const currentRelease = createMemo(async () => {
     const response = await fetch(
       "https://api.github.com/repos/daveisadork/solid-sdr/releases/latest",
     );
     return await response.json();
   });
 
-  createEffect(() => {
-    const currentVersion = currentRelease()?.tag_name;
-    if (!currentVersion) return;
-    setNewRelease(!APP_VERSION.startsWith(currentVersion));
+  createEffect(() => currentRelease()?.tag_name, {
+    effect: (currentVersion) => {
+      if (!currentVersion) return;
+      setNewRelease(!APP_VERSION.startsWith(currentVersion));
+    },
+    // An offline or rate-limited update check must not break the dialog.
+    error: (err) => console.warn("Release check failed", err),
   });
 
   const downloadUrl = createMemo(() => {
@@ -156,23 +158,25 @@ export function AppSettings() {
         });
       });
 
-  createEffect(() => {
-    setColorMode(preferences.theme);
-  });
+  createEffect(
+    () => preferences.theme,
+    (theme) => {
+      setColorMode(theme);
+      if (theme !== "system" || typeof window === "undefined") return;
+      const media = window.matchMedia("(prefers-color-scheme: dark)");
+      const sync = () => setColorMode(media.matches ? "dark" : "light");
+      sync();
+      media.addEventListener("change", sync);
+      return () => media.removeEventListener("change", sync);
+    },
+  );
 
-  createEffect(() => {
-    if (preferences.theme !== "system") return;
-    if (typeof window === "undefined") return;
-    const media = window.matchMedia("(prefers-color-scheme: dark)");
-    const sync = () => setColorMode(media.matches ? "dark" : "light");
-    sync();
-    media.addEventListener("change", sync);
-    onCleanup(() => media.removeEventListener("change", sync));
-  });
-
-  createEffect(() => {
-    radio()?.setClientStationName(preferences.stationName);
-  });
+  createEffect(
+    () => ({ activeRadio: radio(), name: preferences.stationName }),
+    ({ activeRadio, name }) => {
+      activeRadio?.setClientStationName(name);
+    },
+  );
 
   return (
     <DialogContent class="text-sm">
@@ -217,7 +221,11 @@ export function AppSettings() {
         <CardContent class="flex flex-col gap-4">
           <TextField
             value={preferences.stationName}
-            onChange={(value) => setPreferences("stationName", value)}
+            onChange={(value) =>
+              setPreferences((draft) => {
+                draft.stationName = value;
+              })
+            }
             class="flex flex-col gap-2"
           >
             <TextFieldLabel>Station Name</TextFieldLabel>
@@ -233,7 +241,9 @@ export function AppSettings() {
           <SimpleSwitch
             checked={preferences.smoothScroll}
             onChange={(isChecked) => {
-              setPreferences("smoothScroll", isChecked);
+              setPreferences((draft) => {
+                draft.smoothScroll = isChecked;
+              });
             }}
             label="Smooth Scroll"
             description="Enable smooth horizontal scrolling of the panafall."
@@ -241,7 +251,9 @@ export function AppSettings() {
           <SimpleSwitch
             checked={preferences.mousewheelTuning}
             onChange={(isChecked) => {
-              setPreferences("mousewheelTuning", isChecked);
+              setPreferences((draft) => {
+                draft.mousewheelTuning = isChecked;
+              });
             }}
             label="Mousewheel Tuning"
             description="Enable tuning the active slice with the mousewheel."
@@ -249,7 +261,9 @@ export function AppSettings() {
           <SimpleSwitch
             checked={preferences.invertMousewheelTuning}
             onChange={(isChecked) => {
-              setPreferences("invertMousewheelTuning", isChecked);
+              setPreferences((draft) => {
+                draft.invertMousewheelTuning = isChecked;
+              });
             }}
             label="Invert Mousewheel Tuning"
             description="Change the direction mousewheel tuning moves the frequency."
@@ -264,7 +278,9 @@ export function AppSettings() {
           <SimpleSwitch
             checked={preferences.enableTransparencyEffects}
             onChange={(isChecked) => {
-              setPreferences("enableTransparencyEffects", isChecked);
+              setPreferences((draft) => {
+                draft.enableTransparencyEffects = isChecked;
+              });
             }}
             label="Transparency Effects"
             description="Enable the use of transparent/floating UI elements."
@@ -272,7 +288,9 @@ export function AppSettings() {
           <SimpleSwitch
             checked={preferences.enableBlurEffects}
             onChange={(isChecked) => {
-              setPreferences("enableBlurEffects", isChecked);
+              setPreferences((draft) => {
+                draft.enableBlurEffects = isChecked;
+              });
             }}
             label="Blur Effects"
             description="Enable the use of a blur effect on transparent UI elements"
@@ -280,7 +298,9 @@ export function AppSettings() {
           <SimpleSwitch
             checked={preferences.showTuningGuide}
             onChange={(isChecked) => {
-              setPreferences("showTuningGuide", isChecked);
+              setPreferences((draft) => {
+                draft.showTuningGuide = isChecked;
+              });
             }}
             label="Tuning Guide"
           />
@@ -288,7 +308,9 @@ export function AppSettings() {
             <SimpleSwitch
               checked={preferences.showDisplayMarkers}
               onChange={(isChecked) => {
-                setPreferences("showDisplayMarkers", isChecked);
+                setPreferences((draft) => {
+                  draft.showDisplayMarkers = isChecked;
+                });
               }}
               label="Display Markers (Band Plan)"
             />
@@ -296,7 +318,9 @@ export function AppSettings() {
           <SimpleSwitch
             checked={preferences.showFps}
             onChange={(isChecked) => {
-              setPreferences("showFps", isChecked);
+              setPreferences((draft) => {
+                draft.showFps = isChecked;
+              });
             }}
             label="Show FPS"
             description="Show a floating FPS counter."
@@ -304,7 +328,9 @@ export function AppSettings() {
           <SimpleSwitch
             checked={preferences.preventScreenSleep}
             onChange={(isChecked) => {
-              setPreferences("preventScreenSleep", isChecked);
+              setPreferences((draft) => {
+                draft.preventScreenSleep = isChecked;
+              });
             }}
             label="Prevent Screensaver"
           />
@@ -312,12 +338,14 @@ export function AppSettings() {
             value={preferences.peakStyle}
             onChange={(value: PeakStyle) => {
               if (!value) return;
-              setPreferences("peakStyle", value);
+              setPreferences((draft) => {
+                draft.peakStyle = value;
+              });
             }}
           >
             <SegmentedControlLabel>Peak Style</SegmentedControlLabel>
+            <SegmentedControlIndicator />
             <SegmentedControlGroup>
-              <SegmentedControlIndicator />
               <SegmentedControlItemsList>
                 <For each={["none", "points", "line"]}>
                   {(style) => (
@@ -335,12 +363,14 @@ export function AppSettings() {
             value={preferences.fillStyle}
             onChange={(value: FillStyle) => {
               if (!value) return;
-              setPreferences("fillStyle", value);
+              setPreferences((draft) => {
+                draft.fillStyle = value;
+              });
             }}
           >
             <SegmentedControlLabel>Fill Style</SegmentedControlLabel>
+            <SegmentedControlIndicator />
             <SegmentedControlGroup>
-              <SegmentedControlIndicator />
               <SegmentedControlItemsList>
                 <For each={["none", "solid", "gradient"]}>
                   {(style) => (
@@ -358,12 +388,14 @@ export function AppSettings() {
             value={preferences.gradientStyle}
             onChange={(value) => {
               if (!value) return;
-              setPreferences("gradientStyle", value as "color" | "classic");
+              setPreferences((draft) => {
+                draft.gradientStyle = value as "color" | "classic";
+              });
             }}
           >
             <SegmentedControlLabel>Gradient Style</SegmentedControlLabel>
+            <SegmentedControlIndicator />
             <SegmentedControlGroup>
-              <SegmentedControlIndicator />
               <SegmentedControlItemsList>
                 <For each={["color", "classic"]}>
                   {(style) => (
@@ -381,12 +413,14 @@ export function AppSettings() {
             value={preferences.theme}
             onChange={(value: "system" | "light" | "dark") => {
               if (!value) return;
-              setPreferences("theme", value);
+              setPreferences((draft) => {
+                draft.theme = value;
+              });
             }}
           >
             <SegmentedControlLabel>Theme</SegmentedControlLabel>
+            <SegmentedControlIndicator />
             <SegmentedControlGroup>
-              <SegmentedControlIndicator />
               <SegmentedControlItemsList>
                 <For each={["system", "light", "dark"]}>
                   {(style) => (
@@ -460,7 +494,9 @@ export function AppSettings() {
           <TextField
             value={preferences.guiClientId ?? ""}
             onChange={(value) =>
-              setPreferences("guiClientId", value.length ? value : null)
+              setPreferences((draft) => {
+                draft.guiClientId = value.length ? value : null;
+              })
             }
             class="flex flex-col gap-2"
           >
@@ -477,7 +513,11 @@ export function AppSettings() {
             minValue={-5}
             maxValue={5}
             step={1 / devicePixelRatio}
-            onChange={([value]) => setPreferences("panadapterOffset", value)}
+            onChange={([value]) =>
+              setPreferences((draft) => {
+                draft.panadapterOffset = value;
+              })
+            }
             description="Slightly shift frequency-positioned UI elements to improve alignment with panadapter data."
             getValueLabel={({ values: [value] }) => `${value}px`}
             fromCenter
@@ -488,7 +528,11 @@ export function AppSettings() {
             minValue={-5}
             maxValue={5}
             step={1}
-            onChange={([value]) => setPreferences("waterfallOffset", value)}
+            onChange={([value]) =>
+              setPreferences((draft) => {
+                draft.waterfallOffset = value;
+              })
+            }
             description="Slightly shift waterfall data to improve alignment with panadapter data."
             getValueLabel={({ values: [value] }) => `${value} bin`}
             fromCenter

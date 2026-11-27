@@ -1,8 +1,8 @@
 import { useRegisterSW } from "virtual:pwa-register/solid";
 import { createPageVisibility } from "@solid-primitives/page-utilities";
 import { Portal } from "@solidjs/web";
-import { createEffect, createSignal, onCleanup, onMount, Show } from "solid-js";
-import createPresence from "solid-presence";
+import { createEffect, onCleanup, onSettled, Show } from "solid-js";
+import { createPresence } from "@solid-primitives/presence";
 import RefreshIcon from "~icons/material-symbols/refresh";
 import { Button } from "./ui/button";
 import { Callout, CalloutContent, CalloutTitle } from "./ui/callout";
@@ -37,13 +37,14 @@ export function ReloadPrompt() {
     if (updateTimer !== undefined) window.clearInterval(updateTimer);
   });
 
-  createEffect((wasVisible?: boolean) => {
-    const isVisible = !!visible();
-    if (isVisible && wasVisible === false) {
-      void registration?.update();
-    }
-    return isVisible;
-  });
+  createEffect(
+    () => !!visible(),
+    (isVisible, wasVisible) => {
+      if (isVisible && wasVisible === false) {
+        void registration?.update();
+      }
+    },
+  );
 
   const reloadToNewVersion = () => {
     showToastPromise(updateServiceWorker, {
@@ -52,24 +53,24 @@ export function ReloadPrompt() {
     setNeedRefresh(false);
   };
 
-  onMount(() => {
+  onSettled(() => {
     window.addEventListener("vite:preloadError", reloadToNewVersion);
-    onCleanup(() => {
+    return () => {
       window.removeEventListener("vite:preloadError", reloadToNewVersion);
-    });
+    };
   });
 
-  const [element, setElement] = createSignal<HTMLElement | null>(null);
-  const { present } = createPresence({
-    show: needRefresh,
-    element,
+  // The duration is a fallback: done() on animationend ends the exit as soon
+  // as the CSS animation does.
+  const { isMounted: present, done } = createPresence(needRefresh, {
+    transitionDuration: 300,
   });
 
   return (
     <Show when={present()}>
       <Portal>
         <Callout
-          ref={setElement}
+          onAnimationEnd={done}
           class="pointer-events-auto w-max max-w-[90vw] absolute fancy-bg-info! left-1/2 bottom-24 -translate-x-1/2 shadow-black/50 shadow-lg data-expanded:animate-in data-closed:animate-out data-closed:fade-out-0 data-expanded:fade-in-0 data-closed:slide-out-to-bottom data-expanded:slide-in-from-bottom data-closed:zoom-out-50 data-expanded:zoom-in-50 z-100"
           data-closed={!needRefresh() ? "" : undefined}
           data-expanded={needRefresh() ? "" : undefined}

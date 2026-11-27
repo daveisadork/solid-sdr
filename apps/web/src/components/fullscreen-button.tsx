@@ -1,14 +1,9 @@
-import type { PolymorphicProps } from "@kobalte/core";
+import type { PolymorphicProps } from "@kobalte/core/polymorphic";
 import { ToggleButton } from "@kobalte/core/toggle-button";
 import type { TooltipTriggerProps } from "@kobalte/core/tooltip";
 import { createFullscreen } from "@solid-primitives/fullscreen";
-import {
-  createEffect,
-  createSignal,
-  Show,
-  splitProps,
-  type ValidComponent,
-} from "solid-js";
+import type { ValidComponent } from "@solidjs/web";
+import { omit, Show } from "solid-js";
 import { Dynamic } from "@solidjs/web";
 import { cn } from "~/lib/utils";
 import Fullscreen from "~icons/material-symbols/fullscreen";
@@ -21,14 +16,14 @@ type FullscreenButtonProps<T extends ValidComponent = "button"> =
   };
 
 export function FullscreenButton(props: FullscreenButtonProps) {
-  const [local, others] = splitProps(props, ["class"]);
-  const [fs, setFullscreen] = createSignal(false);
-  const fullscreen = createFullscreen(document.documentElement, fs, {
-    navigationUI: "hide",
-  });
-
-  // If fullscreen state changes outside of this component, keep the signal in sync.
-  createEffect(() => setFullscreen(fullscreen()));
+  const local = props;
+  const others = omit(local, "class");
+  // isActive follows the real fullscreen state, including exits via Escape.
+  const {
+    enter,
+    exit,
+    isActive: fullscreen,
+  } = createFullscreen(document.documentElement, { navigationUI: "hide" });
 
   const label = () => (fullscreen() ? "Exit Fullscreen" : "Enter Fullscreen");
 
@@ -41,7 +36,7 @@ export function FullscreenButton(props: FullscreenButtonProps) {
           class={cn("aspect-square size-control", local.class)}
           aria-label={label()}
           pressed={fullscreen()}
-          onChange={setFullscreen}
+          onChange={(pressed: boolean) => void (pressed ? enter() : exit())}
         >
           <Dynamic
             component={fullscreen() ? FullscreenExit : Fullscreen}

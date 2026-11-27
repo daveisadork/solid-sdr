@@ -2,7 +2,7 @@ import {
   filterPresetModeGroupFromSliceMode,
   type SliceController,
 } from "@repo/flexlib";
-import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
+import { createMemo, createSignal, For, Show } from "solid-js";
 import {
   NumberField,
   NumberFieldDecrementTrigger,
@@ -53,20 +53,17 @@ export function FilterControls(props: {
   const { state } = useFlexRadio();
 
   const [rawDiglOffset, setRawDiglOffset] = createSignal(
-    props.slice.diglOffsetHz,
+    () => props.slice.diglOffsetHz,
   );
   const [rawDiguOffset, setRawDiguOffset] = createSignal(
-    props.slice.diguOffsetHz,
+    () => props.slice.diguOffsetHz,
   );
-  const [rawFilterLow, setRawFilterLow] = createSignal(props.slice.filterLowHz);
+  const [rawFilterLow, setRawFilterLow] = createSignal(
+    () => props.slice.filterLowHz,
+  );
   const [rawFilterHigh, setRawFilterHigh] = createSignal(
-    props.slice.filterHighHz,
+    () => props.slice.filterHighHz,
   );
-
-  createEffect(() => setRawDiglOffset(props.slice.diglOffsetHz));
-  createEffect(() => setRawDiguOffset(props.slice.diguOffsetHz));
-  createEffect(() => setRawFilterLow(props.slice.filterLowHz));
-  createEffect(() => setRawFilterHigh(props.slice.filterHighHz));
 
   const recenterFilter = (offset: number, mode: string) => {
     const halfWidth = Math.floor(
@@ -267,13 +264,15 @@ export function FilterControls(props: {
         <SliderTrack>
           <SliderFill />
           <div
-            class="absolute w-0.75 bg-red-500 h-[200%] rounded-sm -translate-y-1/4"
-            classList={{
-              "left-0 -translate-x-1/2": filterMinHz() === 0,
-              "right-0 translate-x-1/2": filterMaxHz() === 0,
-              "left-1/2 -translate-x-1/2":
-                filterMinHz() < 0 && filterMaxHz() > 0,
-            }}
+            class={[
+              "absolute w-0.75 bg-red-500 h-[200%] rounded-sm -translate-y-1/4",
+              {
+                "left-0 -translate-x-1/2": filterMinHz() === 0,
+                "right-0 translate-x-1/2": filterMaxHz() === 0,
+                "left-1/2 -translate-x-1/2":
+                  filterMinHz() < 0 && filterMaxHz() > 0,
+              },
+            ]}
           />
           <SliderThumb />
           <SliderThumb />

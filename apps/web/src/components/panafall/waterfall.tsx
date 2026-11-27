@@ -1,13 +1,6 @@
 import type { VitaWaterfallPacket, WaterfallController } from "@repo/flexlib";
 import { createElementSize } from "@solid-primitives/resize-observer";
-import {
-  batch,
-  createEffect,
-  createMemo,
-  createSignal,
-  onCleanup,
-  Show,
-} from "solid-js";
+import { createEffect, createMemo, createSignal, Show } from "solid-js";
 import useFlexRadio, {
   type PanadapterState,
   type WaterfallState,
@@ -58,8 +51,17 @@ export function Waterfall(props: {
   const [lastBandwidth, setLastBandwidth] = createSignal(0);
   const [autoBlackLevel, setAutoBlackLevel] = createSignal(0);
   const [black, setBlack] = createSignal("#000000");
-  const [colorMin, setColorMin] = createSignal(0);
-  const [colorMax, setColorMax] = createSignal(1);
+  const colorMin = createMemo(() =>
+    props.waterfall.autoBlackLevelEnabled
+      ? autoBlackLevel() / 0xffff
+      : props.waterfall.blackLevel / 400,
+  );
+  // translate the configured color gain into a colorMax value
+  const colorMax = createMemo(() => {
+    const range = 1 - colorMin();
+    const gain = (1 - props.waterfall.colorGain / 100) ** 3;
+    return colorMin() + range * gain;
+  });
 
   // 4096 colors to stay under canvas size limits on iOS
   const paletteCanvas = new OffscreenCanvas(4096, 1);
@@ -89,73 +91,70 @@ export function Waterfall(props: {
 
   const frameTimes: number[] = [];
 
-  createEffect(() => {
-    // translate the configured color gain into a colorMax value
-    const colorGain = props.waterfall.colorGain;
-    const range = 1 - colorMin();
-    const gain = (1 - colorGain / 100) ** 3;
-    setColorMax(colorMin() + range * gain);
-  });
+  // Copy the auto black level to the waterfall black level,
+  // so the display is consistent when toggling auto black off.
+  createEffect(
+    () =>
+      props.waterfall.autoBlackLevelEnabled
+        ? Math.round((autoBlackLevel() / 0x4000) * 100)
+        : null,
+    (level) => {
+      if (level !== null) props.controller.setBlackLevel(level);
+    },
+  );
 
-  createEffect(() => {
-    const { autoBlackLevelEnabled, blackLevel } = props.waterfall;
-    if (autoBlackLevelEnabled) {
-      // Copy the auto black level to the waterfall black level,
-      // so the display is consistent when toggling auto black off.
-      props.controller.setBlackLevel(
-        Math.round((autoBlackLevel() / 0x4000) * 100),
+  createEffect(
+    () => ({
+      // Copied so edits to individual stops retrigger; apply is untracked.
+      stops: preferences.palette.gradients[
+        props.waterfall.gradientIndex
+      ].stops.map(({ offset, color }) => ({ offset, color })),
+      min: colorMin(),
+      max: colorMax(),
+    }),
+    ({ stops, min, max }) => {
+      const paletteCtx = paletteCanvas.getContext("2d", {
+        willReadFrequently: true,
+      });
+      if (!paletteCtx) return;
+      setBlack(stops[0].color);
+      const gradient = paletteCtx.createLinearGradient(
+        0,
+        0,
+        paletteCanvas.width,
+        paletteCanvas.height,
       );
-    }
+      const range = max - min;
+      stops.forEach(({ offset, color }) => {
+        gradient.addColorStop(offset * range + min, color);
+      });
 
-    setColorMin(
-      autoBlackLevelEnabled ? autoBlackLevel() / 0xffff : blackLevel / 400,
-    );
-  });
-
-  createEffect(() => {
-    const paletteCtx = paletteCanvas.getContext("2d", {
-      willReadFrequently: true,
-    });
-    if (!paletteCtx) return;
-    const { gradients } = preferences.palette;
-    const { stops } = gradients[props.waterfall.gradientIndex];
-    setBlack(stops[0].color);
-    const gradient = paletteCtx.createLinearGradient(
-      0,
-      0,
-      paletteCanvas.width,
-      paletteCanvas.height,
-    );
-    const range = colorMax() - colorMin();
-    stops.forEach(({ offset, color }) => {
-      gradient.addColorStop(offset * range + colorMin(), color);
-    });
-
-    paletteCtx.fillStyle = gradient;
-    paletteCtx.fillRect(0, 0, paletteCanvas.width, paletteCanvas.height);
-    const imageData = paletteCtx.getImageData(
-      0,
-      0,
-      paletteCanvas.width,
-      paletteCanvas.height,
-    );
-
-    // NEW: build packed 32-bit palette once per update
-    const u32 = new Uint32Array(4096);
-    for (let i = 0; i < 4096; i++) {
-      const o = i * 4;
-      u32[i] = packRGBA(
-        imageData.data[o + 0] | 0,
-        imageData.data[o + 1] | 0,
-        imageData.data[o + 2] | 0,
-        imageData.data[o + 3] | 0,
+      paletteCtx.fillStyle = gradient;
+      paletteCtx.fillRect(0, 0, paletteCanvas.width, paletteCanvas.height);
+      const imageData = paletteCtx.getImageData(
+        0,
+        0,
+        paletteCanvas.width,
+        paletteCanvas.height,
       );
-    }
-    setPalette32(u32);
-    // loadGradientPNG("/public/gradients/gradient.png", colorMin, colorMax)
-    //   .then(setPalette32)
-    //   .catch(console.error);
-  });
+
+      // NEW: build packed 32-bit palette once per update
+      const u32 = new Uint32Array(4096);
+      for (let i = 0; i < 4096; i++) {
+        const o = i * 4;
+        u32[i] = packRGBA(
+          imageData.data[o + 0] | 0,
+          imageData.data[o + 1] | 0,
+          imageData.data[o + 2] | 0,
+          imageData.data[o + 3] | 0,
+        );
+      }
+      setPalette32(u32);
+      // loadGradientPNG("/public/gradients/gradient.png", colorMin, colorMax)
+      //   .then(setPalette32)
+      //   .catch(console.error);
+    },
+  );
 
   const widthMultiplier = createMemo(
     () =>
@@ -353,15 +352,13 @@ export function Waterfall(props: {
       }
 
       if (startingBin + binsInThisFrame >= totalBins) {
-        batch(() => {
-          if (canvas.width !== offscreen.width) {
-            setCanvasWidth(offscreen.width);
-          }
+        if (canvas.width !== offscreen.width) {
+          setCanvasWidth(offscreen.width);
+        }
 
-          if (canvas.height !== offscreen.height) {
-            setCanvasHeight(offscreen.height);
-          }
-        });
+        if (canvas.height !== offscreen.height) {
+          setCanvasHeight(offscreen.height);
+        }
 
         // Coalesce to one paint per frame
         if (!paintScheduled) {
@@ -374,24 +371,23 @@ export function Waterfall(props: {
           if (frameTimes.length > 10) frameTimes.shift();
           const avgFrameTime =
             frameTimes.reduce((a, b) => a + b, 0) / frameTimes.length;
-          setRuntime("fps", "W", Math.round(1000 / avgFrameTime));
+          setRuntime((draft) => {
+            draft.fps.W = Math.round(1000 / avgFrameTime);
+          });
         }
 
-        batch(() => {
-          setBinBandwidth(binBandwidth);
-          setLastCalculatedCenter(calculatedCenter);
-        });
+        setBinBandwidth(binBandwidth);
+        setLastCalculatedCenter(calculatedCenter);
         expFrame = Math.max(frame + 1, expFrame);
       }
     };
   });
 
-  createEffect(() => {
-    const handler = onWaterfall();
+  createEffect(onWaterfall, (handler) => {
     if (!handler) return;
     const subscription = props.controller.on("data", handler);
     if (!subscription) return;
-    onCleanup(subscription.unsubscribe);
+    return () => subscription.unsubscribe();
   });
 
   const offset = createMemo(() => {

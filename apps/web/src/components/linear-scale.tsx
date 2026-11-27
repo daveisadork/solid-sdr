@@ -1,12 +1,6 @@
 import { createElementSize } from "@solid-primitives/resize-observer";
-import {
-  createEffect,
-  createMemo,
-  createSignal,
-  For,
-  type JSX,
-  mergeProps,
-} from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { createEffect, createMemo, createSignal, For, merge } from "solid-js";
 import { cn } from "~/lib/utils";
 
 export type LinearScaleProps = {
@@ -48,7 +42,7 @@ function defaultFormatter(value: number) {
 }
 
 export function LinearScale(props: LinearScaleProps) {
-  const merged = mergeProps(
+  const merged = merge(
     {
       format: defaultFormatter,
       tickSpacing: DEFAULT_TICK_SPACING,
@@ -102,8 +96,7 @@ export function LinearScale(props: LinearScaleProps) {
     return ticks.filter((tick) => tick.value % modulo === 0);
   });
 
-  createEffect(() => {
-    const next = ticks();
+  createEffect(ticks, (next) => {
     merged.onTicksChange?.(next);
   });
 

@@ -1,5 +1,5 @@
-import type { ConfigColorMode } from "@kobalte/core";
-import type { SetStoreFunction } from "solid-js";
+import type { ConfigColorMode } from "@kobalte/core/color-mode";
+import type { StoreSetter } from "solid-js";
 import { createContext, useContext } from "solid-js";
 import type { DaxChannelMode } from "~/lib/dax-audio-sink/types";
 import type { MidiMapping } from "~/lib/midi";
@@ -119,7 +119,7 @@ export interface Preferences {
 
 export const PreferencesContext = createContext<{
   preferences: Preferences;
-  setPreferences: SetStoreFunction<Preferences>;
+  setPreferences: StoreSetter<Preferences>;
 }>();
 
 export function usePreferences() {

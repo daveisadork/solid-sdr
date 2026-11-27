@@ -1,8 +1,9 @@
 import type { PolymorphicProps } from "@kobalte/core/polymorphic";
 import type * as RadioGroupPrimitive from "@kobalte/core/radio-group";
 import * as SegmentedControlPrimitive from "@kobalte/core/segmented-control";
-import type { Component, ComponentProps, JSX, ValidComponent } from "solid-js";
-import { splitProps } from "solid-js";
+import type { ComponentProps, JSX, ValidComponent } from "@solidjs/web";
+import type { Component } from "solid-js";
+import { omit } from "solid-js";
 
 import { cn } from "~/lib/utils";
 
@@ -22,10 +23,8 @@ const SegmentedControl = <
 >(
   props: PolymorphicProps<T, SegmentedControlRootProps<TValue>>,
 ) => {
-  const [local, others] = splitProps(
-    props as SegmentedControlRootProps<TValue>,
-    ["class"],
-  );
+  const local = props as SegmentedControlRootProps<TValue>;
+  const others = omit(local, "class");
   return (
     <SegmentedControlPrimitive.Root
       class={cn(
@@ -38,7 +37,8 @@ const SegmentedControl = <
 };
 
 const SegmentedControlItemsList: Component<ComponentProps<"div">> = (props) => {
-  const [local, others] = splitProps(props, ["class"]);
+  const local = props;
+  const others = omit(local, "class");
   return (
     <div
       role="presentation"
@@ -52,7 +52,8 @@ const SegmentedControlItemsList: Component<ComponentProps<"div">> = (props) => {
 };
 
 const SegmentedControlGroup: Component<ComponentProps<"div">> = (props) => {
-  const [local, others] = splitProps(props, ["class"]);
+  const local = props;
+  const others = omit(local, "class");
   return (
     <div
       role="presentation"
@@ -70,13 +71,12 @@ type SegmentedControlIndicatorProps =
 const SegmentedControlIndicator = <T extends ValidComponent = "div">(
   props: PolymorphicProps<T, SegmentedControlIndicatorProps>,
 ) => {
-  const [local, others] = splitProps(props as SegmentedControlIndicatorProps, [
-    "class",
-  ]);
+  const local = props as SegmentedControlIndicatorProps;
+  const others = omit(local, "class");
   return (
     <SegmentedControlPrimitive.Indicator
       class={cn(
-        "absolute rounded-sm m-1 text-sm font-medium duration-250ms transition-all bg-primary",
+        "absolute rounded-sm duration-250ms transition-all bg-primary",
         local.class,
       )}
       {...others}
@@ -92,9 +92,8 @@ type SegmentedControlLabelProps<T extends ValidComponent = "span"> =
 const SegmentedControlLabel = <T extends ValidComponent = "span">(
   props: PolymorphicProps<T, SegmentedControlLabelProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as SegmentedControlLabelProps, [
-    "class",
-  ]);
+  const local = props as SegmentedControlLabelProps;
+  const others = omit(local, "class");
   return (
     <SegmentedControlPrimitive.Label
       class={cn("text-sm font-medium leading-none", local.class)}
@@ -111,9 +110,8 @@ type SegmentedControlItemLabelProps<T extends ValidComponent = "label"> =
 const SegmentedControlItemLabel = <T extends ValidComponent = "label">(
   props: PolymorphicProps<T, SegmentedControlItemLabelProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as SegmentedControlLabelProps, [
-    "class",
-  ]);
+  const local = props as SegmentedControlLabelProps;
+  const others = omit(local, "class");
   return (
     <SegmentedControlPrimitive.ItemLabel
       class={cn(
@@ -134,10 +132,8 @@ type SegmentedControlItemProps<T extends ValidComponent = "div"> =
 const SegmentedControlItem = <T extends ValidComponent = "div">(
   props: PolymorphicProps<T, SegmentedControlItemProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as SegmentedControlItemProps, [
-    "class",
-    "children",
-  ]);
+  const local = props as SegmentedControlItemProps;
+  const others = omit(local, "class", "children");
   return (
     <SegmentedControlPrimitive.Item
       class={cn(

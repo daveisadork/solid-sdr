@@ -1,5 +1,5 @@
 import { ReactiveMap } from "@solid-primitives/map";
-import { type Accessor, batch, createMemo, createSignal } from "solid-js";
+import { type Accessor, createMemo, createSignal } from "solid-js";
 import { showToast } from "~/components/ui/toast";
 import { synchronizeMaps } from "../utils";
 
@@ -31,11 +31,9 @@ function ensureMIDIAccess(options?: MIDIOptions) {
         attachedAccess = midi;
         midi.addEventListener("statechange", onStateChange);
       }
-      batch(() => {
-        setError(undefined);
-        setAccess(midi);
-        syncPorts(midi);
-      });
+      setError(undefined);
+      setAccess(midi);
+      syncPorts(midi);
       return midi;
     },
     (error: Error) => {

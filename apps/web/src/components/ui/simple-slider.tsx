@@ -1,10 +1,5 @@
-import {
-  type ComponentProps,
-  createMemo,
-  type JSX,
-  Show,
-  splitProps,
-} from "solid-js";
+import type { ComponentProps, JSX } from "@solidjs/web";
+import { createMemo, Show, omit } from "solid-js";
 import { cn } from "../../lib/utils";
 import {
   Slider,
@@ -29,7 +24,9 @@ type SimpleSliderProps = ComponentProps<typeof Slider> & {
 };
 
 export const SimpleSlider = (props: SimpleSliderProps) => {
-  const [local, sliderProps] = splitProps(props, [
+  const local = props;
+  const sliderProps = omit(
+    local,
     "class",
     "children",
     "label",
@@ -37,7 +34,7 @@ export const SimpleSlider = (props: SimpleSliderProps) => {
     "tooltip",
     "tooltipProps",
     "fromCenter",
-  ]);
+  );
 
   const fillStyle = createMemo((): JSX.CSSProperties => {
     const min = props.minValue ?? 0;

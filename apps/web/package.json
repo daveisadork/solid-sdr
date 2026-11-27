@@ -49,6 +49,7 @@
     "@solid-primitives/mouse": "^4.0.0",
     "@solid-primitives/page-utilities": "^3.0.0",
     "@solid-primitives/pointer": "^1.0.0",
+    "@solid-primitives/presence": "1.0.0",
     "@solid-primitives/resize-observer": "^4.0.0",
     "@solid-primitives/scheduled": "^2.0.0",
     "@solid-primitives/storage": "^5.0.0",
@@ -65,7 +66,6 @@
     "flexlib": "workspace:*",
     "semver": "^7.8.6",
     "solid-js": "^2.0.4",
-    "solid-presence": "^0.2.0",
     "workbox-window": "^7.4.1"
   }
 }

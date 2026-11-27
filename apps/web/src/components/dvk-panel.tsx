@@ -1,6 +1,6 @@
 import { type DvkRecording, validateDvkWavFile } from "@repo/flexlib";
 import { Key } from "@solid-primitives/keyed";
-import { createEffect, createSignal, onCleanup, Show } from "solid-js";
+import { createEffect, createSignal, Show } from "solid-js";
 import { Dynamic } from "@solidjs/web";
 import useFlexRadio from "~/context/flexradio";
 import { usePreferences } from "~/context/preferences";
@@ -145,28 +145,33 @@ export function DvkPanel() {
     );
   };
 
-  createEffect(() => {
-    if (!preferences.dvk.playbackHotkeys) return;
-    if (!preferences.toolsPanelOpen || preferences.toolsPanel !== "dvk") return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.defaultPrevented) return;
-      if (event.key === "Escape") {
-        if (!busy()) return;
+  createEffect(
+    () =>
+      preferences.dvk.playbackHotkeys &&
+      preferences.toolsPanelOpen &&
+      preferences.toolsPanel === "dvk",
+    (enabled) => {
+      if (!enabled) return;
+      const onKeyDown = (event: KeyboardEvent) => {
+        if (event.defaultPrevented) return;
+        if (event.key === "Escape") {
+          if (!busy()) return;
+          event.preventDefault();
+          stopActive();
+          return;
+        }
+        if (!event.altKey || event.ctrlKey || event.metaKey) return;
+        const index = SLOT_HOTKEYS.findIndex((key) => key.code === event.code);
+        if (index === -1) return;
         event.preventDefault();
-        stopActive();
-        return;
-      }
-      if (!event.altKey || event.ctrlKey || event.metaKey) return;
-      const index = SLOT_HOTKEYS.findIndex((key) => key.code === event.code);
-      if (index === -1) return;
-      event.preventDefault();
-      const slot = recordings()[index];
-      if (!slot || slot.durationMs === 0) return;
-      stopActive().then(() => dvk()?.startPlayback(slot.id));
-    };
-    window.addEventListener("keydown", onKeyDown);
-    onCleanup(() => window.removeEventListener("keydown", onKeyDown));
-  });
+        const slot = recordings()[index];
+        if (!slot || slot.durationMs === 0) return;
+        stopActive().then(() => dvk()?.startPlayback(slot.id));
+      };
+      window.addEventListener("keydown", onKeyDown);
+      return () => window.removeEventListener("keydown", onKeyDown);
+    },
+  );
 
   return (
     <div class="flex min-h-0 flex-1 flex-col gap-3 text-sm">
@@ -187,7 +192,9 @@ export function DvkPanel() {
         class="mt-auto"
         checked={preferences.dvk.playbackHotkeys}
         onChange={(isChecked) =>
-          setPreferences("dvk", "playbackHotkeys", isChecked)
+          setPreferences((draft) => {
+            draft.dvk.playbackHotkeys = isChecked;
+          })
         }
         label="Enable Hotkeys"
         description="Alt + 1-9, 0, -, = to TX, Esc to stop."
@@ -195,7 +202,9 @@ export function DvkPanel() {
       <SimpleSwitch
         checked={preferences.dvk.compactLayout}
         onChange={(isChecked) =>
-          setPreferences("dvk", "compactLayout", isChecked)
+          setPreferences((draft) => {
+            draft.dvk.compactLayout = isChecked;
+          })
         }
         label="Compact Layout"
         description="Hide editing controls"
@@ -224,9 +233,7 @@ function SlotRow(props: {
 }) {
   const { dvk, status, activeId, busy, txAllowed, stopActive } = useDvk();
 
-  const [rawName, setRawName] = createSignal(props.slot.name);
-
-  createEffect(() => setRawName(props.slot.name));
+  const [rawName, setRawName] = createSignal(() => props.slot.name);
 
   const changeName = () => {
     let opening = true;

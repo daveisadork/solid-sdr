@@ -2,8 +2,8 @@ import type { PolymorphicProps } from "@kobalte/core/polymorphic";
 import * as ToastPrimitive from "@kobalte/core/toast";
 import type { VariantProps } from "class-variance-authority";
 import { cva } from "class-variance-authority";
-import type { JSX, ValidComponent } from "solid-js";
-import { Match, Switch, splitProps } from "solid-js";
+import type { JSX, ValidComponent } from "@solidjs/web";
+import { Match, Switch, omit } from "solid-js";
 import { Portal } from "@solidjs/web";
 
 import { cn } from "~/lib/utils";
@@ -40,7 +40,8 @@ type ToastListProps<T extends ValidComponent = "ol"> =
 const Toaster = <T extends ValidComponent = "ol">(
   props: PolymorphicProps<T, ToastListProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as ToastListProps, ["class"]);
+  const local = props as ToastListProps;
+  const others = omit(local, "class");
   return (
     <Portal>
       <ToastPrimitive.Region>
@@ -63,10 +64,8 @@ type ToastRootProps<T extends ValidComponent = "li"> =
 const Toast = <T extends ValidComponent = "li">(
   props: PolymorphicProps<T, ToastRootProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as ToastRootProps, [
-    "class",
-    "variant",
-  ]);
+  const local = props as ToastRootProps;
+  const others = omit(local, "class", "variant");
   return (
     <ToastPrimitive.Root
       class={cn(toastVariants({ variant: local.variant }), local.class)}
@@ -81,7 +80,8 @@ type ToastCloseButtonProps<T extends ValidComponent = "button"> =
 const ToastClose = <T extends ValidComponent = "button">(
   props: PolymorphicProps<T, ToastCloseButtonProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as ToastCloseButtonProps, ["class"]);
+  const local = props as ToastCloseButtonProps;
+  const others = omit(local, "class");
   return (
     <ToastPrimitive.CloseButton
       class={cn(
@@ -116,7 +116,8 @@ type ToastTitleProps<T extends ValidComponent = "div"> =
 const ToastTitle = <T extends ValidComponent = "div">(
   props: PolymorphicProps<T, ToastTitleProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as ToastTitleProps, ["class"]);
+  const local = props as ToastTitleProps;
+  const others = omit(local, "class");
   return (
     <ToastPrimitive.Title
       class={cn("text-sm font-semibold", local.class)}
@@ -131,7 +132,8 @@ type ToastDescriptionProps<T extends ValidComponent = "div"> =
 const ToastDescription = <T extends ValidComponent = "div">(
   props: PolymorphicProps<T, ToastDescriptionProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as ToastDescriptionProps, ["class"]);
+  const local = props as ToastDescriptionProps;
+  const others = omit(local, "class");
   return (
     <ToastPrimitive.Description
       class={cn("text-sm opacity-90", local.class)}

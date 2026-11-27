@@ -1,6 +1,7 @@
-import { type JSXElement, Show } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { Show } from "solid-js";
 
-export function InfoItem(props: { label: JSXElement; value: JSXElement }) {
+export function InfoItem(props: { label: JSX.Element; value: JSX.Element }) {
   return (
     <Show when={props.value !== undefined}>
       <div class="flex justify-between items-center">

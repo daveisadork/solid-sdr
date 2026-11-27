@@ -1,5 +1,6 @@
-import type { Component, ComponentProps, JSX } from "solid-js";
-import { Show, splitProps } from "solid-js";
+import type { ComponentProps, JSX } from "@solidjs/web";
+import type { Component } from "solid-js";
+import { Show, omit } from "solid-js";
 import { cn } from "../../lib/utils";
 import {
   Slider,
@@ -23,7 +24,9 @@ type SliderToggleProps = ComponentProps<typeof Slider> & {
 };
 
 export const SliderToggle: Component<SliderToggleProps> = (props) => {
-  const [local, sliderProps] = splitProps(props, [
+  const local = props;
+  const sliderProps = omit(
+    local,
     "class",
     "disabled",
     "label",
@@ -33,7 +36,7 @@ export const SliderToggle: Component<SliderToggleProps> = (props) => {
     "switchContainerClass",
     "switchDisabled",
     "tooltip",
-  ]);
+  );
 
   return (
     <Slider

@@ -1,7 +1,7 @@
 import type { PolymorphicProps } from "@kobalte/core/polymorphic";
 import * as TabsPrimitive from "@kobalte/core/tabs";
-import type { ValidComponent } from "solid-js";
-import { splitProps } from "solid-js";
+import type { ValidComponent } from "@solidjs/web";
+import { omit } from "solid-js";
 
 import { cn } from "~/lib/utils";
 
@@ -15,7 +15,8 @@ type TabsListProps<T extends ValidComponent = "div"> =
 const TabsList = <T extends ValidComponent = "div">(
   props: PolymorphicProps<T, TabsListProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as TabsListProps, ["class"]);
+  const local = props as TabsListProps;
+  const others = omit(local, "class");
   return (
     <TabsPrimitive.List
       class={cn(
@@ -35,7 +36,8 @@ type TabsTriggerProps<T extends ValidComponent = "button"> =
 const TabsTrigger = <T extends ValidComponent = "button">(
   props: PolymorphicProps<T, TabsTriggerProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as TabsTriggerProps, ["class"]);
+  const local = props as TabsTriggerProps;
+  const others = omit(local, "class");
   return (
     <TabsPrimitive.Trigger
       class={cn(
@@ -55,7 +57,8 @@ type TabsContentProps<T extends ValidComponent = "div"> =
 const TabsContent = <T extends ValidComponent = "div">(
   props: PolymorphicProps<T, TabsContentProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as TabsContentProps, ["class"]);
+  const local = props as TabsContentProps;
+  const others = omit(local, "class");
   return (
     <TabsPrimitive.Content
       class={cn(
@@ -75,7 +78,8 @@ type TabsIndicatorProps<T extends ValidComponent = "div"> =
 const TabsIndicator = <T extends ValidComponent = "div">(
   props: PolymorphicProps<T, TabsIndicatorProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as TabsIndicatorProps, ["class"]);
+  const local = props as TabsIndicatorProps;
+  const others = omit(local, "class");
   return (
     <TabsPrimitive.Indicator
       class={cn(

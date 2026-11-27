@@ -31,7 +31,11 @@ export function ToolsSidebar() {
             // A stored "dvk" outlives the radio it was set on; falling back
             // keeps the preference intact for the next licensed radio.
             value={dvk() ? preferences.toolsPanel : "cwx"}
-            onChange={(value) => setPreferences("toolsPanel", value)}
+            onChange={(value) =>
+              setPreferences((draft) => {
+                draft.toolsPanel = value;
+              })
+            }
             class="select-none flex min-h-0 flex-1 flex-col"
           >
             <div class="px-3">

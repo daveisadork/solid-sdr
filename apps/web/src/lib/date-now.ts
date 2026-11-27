@@ -1,4 +1,4 @@
-import { createSignal, onCleanup, onMount } from "solid-js";
+import { createSignal, onCleanup, onSettled } from "solid-js";
 
 const [dateNow, setDateNow] = createSignal(new Date());
 
@@ -22,7 +22,7 @@ function unsubscribe() {
 }
 
 export function createDateNow() {
-  onMount(subscribe);
+  onSettled(subscribe);
   onCleanup(unsubscribe);
   return dateNow;
 }

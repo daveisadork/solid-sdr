@@ -27,10 +27,12 @@ function DisplayMarker(props: {
   const [hidden, setHidden] = createSignal(false);
   const textSize = createElementSize(textRef);
 
-  createEffect(() => {
-    const el = textRef();
-    setHidden(Boolean(textSize.width && el && el.scrollWidth > el.clientWidth));
-  });
+  createEffect(
+    () => ({ width: textSize.width, el: textRef() }),
+    ({ width, el }) => {
+      setHidden(Boolean(width && el && el.scrollWidth > el.clientWidth));
+    },
+  );
 
   const getMarkerOffset = (marker: DisplayMarkerState) =>
     props.freqToAnchorX(marker.startFrequencyMHz ?? marker.stopFrequencyMHz);
@@ -52,7 +54,7 @@ function DisplayMarker(props: {
       ref={setTextRef}
     >
       <span
-        classList={{
+        class={{
           invisible: hidden(),
         }}
       >

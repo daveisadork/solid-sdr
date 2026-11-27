@@ -25,15 +25,18 @@ export const ChromeInsetsProvider: ParentComponent = (props) => {
       : 0,
   );
 
-  createEffect(() => {
-    const root = document.documentElement.style;
-    root.setProperty("--inset-left", `${left()}px`);
-    root.setProperty("--inset-right", `${right()}px`);
-  });
+  createEffect(
+    () => ({ left: left(), right: right() }),
+    ({ left, right }) => {
+      const root = document.documentElement.style;
+      root.setProperty("--inset-left", `${left}px`);
+      root.setProperty("--inset-right", `${right}px`);
+    },
+  );
 
   return (
-    <ChromeInsetsContext.Provider value={{ left, right }}>
+    <ChromeInsetsContext value={{ left, right }}>
       {props.children}
-    </ChromeInsetsContext.Provider>
+    </ChromeInsetsContext>
   );
 };

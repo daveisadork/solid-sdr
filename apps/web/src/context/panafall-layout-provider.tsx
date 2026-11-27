@@ -27,15 +27,19 @@ export const PanafallLayoutProvider: ParentComponent = (props) => {
     Array.from({ length: SLOT_COUNT }, () => null),
   );
 
-  createEffect(() => {
-    const next = reconcileSlotAssignments(assignments, panStreams());
-    for (let i = 0; i < SLOT_COUNT; i++) {
-      if (assignments[i] !== next[i]) setAssignments(i, next[i]);
-    }
-  });
+  createEffect(
+    () => reconcileSlotAssignments(assignments, panStreams()),
+    (next) => {
+      setAssignments((draft) => {
+        for (let i = 0; i < SLOT_COUNT; i++) {
+          if (draft[i] !== next[i]) draft[i] = next[i];
+        }
+      });
+    },
+  );
 
   return (
-    <PanafallLayoutContext.Provider
+    <PanafallLayoutContext
       value={{
         slotAssignments: assignments,
         streamForSlot: (slot) => assignments[slot] ?? null,
@@ -43,6 +47,6 @@ export const PanafallLayoutProvider: ParentComponent = (props) => {
       }}
     >
       {props.children}
-    </PanafallLayoutContext.Provider>
+    </PanafallLayoutContext>
   );
 };

@@ -1,8 +1,8 @@
 import * as ColorFieldPrimitive from "@kobalte/core/color-field";
 import type { PolymorphicProps } from "@kobalte/core/polymorphic";
 import { cva } from "class-variance-authority";
-import type { ValidComponent } from "solid-js";
-import { mergeProps, splitProps } from "solid-js";
+import type { ValidComponent } from "@solidjs/web";
+import { merge, omit } from "solid-js";
 
 import { cn } from "~/lib/utils";
 
@@ -14,7 +14,8 @@ type ColorFieldRootProps<T extends ValidComponent = "div"> =
 const ColorField = <T extends ValidComponent = "div">(
   props: PolymorphicProps<T, ColorFieldRootProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as ColorFieldRootProps, ["class"]);
+  const local = props as ColorFieldRootProps;
+  const others = omit(local, "class");
   return (
     <ColorFieldPrimitive.Root
       class={cn("flex flex-col gap-1", local.class)}
@@ -54,14 +55,9 @@ type ColorFieldInputProps<T extends ValidComponent = "input"> =
 const ColorFieldInput = <T extends ValidComponent = "input">(
   rawProps: PolymorphicProps<T, ColorFieldInputProps<T>>,
 ) => {
-  const props = mergeProps<ColorFieldInputProps<T>[]>(
-    { type: "text" },
-    rawProps,
-  );
-  const [local, others] = splitProps(props as ColorFieldInputProps, [
-    "type",
-    "class",
-  ]);
+  const props = merge<ColorFieldInputProps<T>[]>({ type: "text" }, rawProps);
+  const local = props as ColorFieldInputProps;
+  const others = omit(local, "type", "class");
   return (
     <ColorFieldPrimitive.Input
       type={local.type}
@@ -96,7 +92,8 @@ type ColorFieldLabelProps<T extends ValidComponent = "label"> =
 const ColorFieldLabel = <T extends ValidComponent = "label">(
   props: PolymorphicProps<T, ColorFieldLabelProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as ColorFieldLabelProps, ["class"]);
+  const local = props as ColorFieldLabelProps;
+  const others = omit(local, "class");
   return (
     <ColorFieldPrimitive.Label
       class={cn(labelVariants(), local.class)}
@@ -106,16 +103,15 @@ const ColorFieldLabel = <T extends ValidComponent = "label">(
 };
 
 type ColorFieldDescriptionProps<T extends ValidComponent = "div"> =
-  ColorFieldPrimitive.ColorFieldDescriptionProps<T> & {
+  ColorFieldPrimitive.ColorFieldDescriptionProps & {
     class?: string | undefined;
   };
 
 const ColorFieldDescription = <T extends ValidComponent = "div">(
   props: PolymorphicProps<T, ColorFieldDescriptionProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as ColorFieldDescriptionProps, [
-    "class",
-  ]);
+  const local = props as ColorFieldDescriptionProps;
+  const others = omit(local, "class");
   return (
     <ColorFieldPrimitive.Description
       class={cn(labelVariants({ variant: "description" }), local.class)}
@@ -132,9 +128,8 @@ type ColorFieldErrorMessageProps<T extends ValidComponent = "div"> =
 const ColorFieldErrorMessage = <T extends ValidComponent = "div">(
   props: PolymorphicProps<T, ColorFieldErrorMessageProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as ColorFieldErrorMessageProps, [
-    "class",
-  ]);
+  const local = props as ColorFieldErrorMessageProps;
+  const others = omit(local, "class");
   return (
     <ColorFieldPrimitive.ErrorMessage
       class={cn(labelVariants({ variant: "error" }), local.class)}

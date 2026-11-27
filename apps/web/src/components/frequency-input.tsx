@@ -1,10 +1,5 @@
-import {
-  type Component,
-  createEffect,
-  createSignal,
-  type JSX,
-  splitProps,
-} from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { type Component, createEffect, createSignal, omit } from "solid-js";
 
 type FrequencyInputProps = Omit<
   JSX.InputHTMLAttributes<HTMLInputElement>,
@@ -84,13 +79,8 @@ const digitIndexToCaretPosition = (
 };
 
 export const FrequencyInput: Component<FrequencyInputProps> = (props) => {
-  const [local, others] = splitProps(props, [
-    "valueHz",
-    "onCommit",
-    "onAbort",
-    "class",
-    "classList",
-  ]);
+  const local = props;
+  const others = omit(local, "valueHz", "onCommit", "onAbort", "class");
 
   const [editing, setEditing] = createSignal(false);
   const [digitString, setDigitString] = createSignal(
@@ -370,28 +360,28 @@ export const FrequencyInput: Component<FrequencyInputProps> = (props) => {
     currentTarget.setSelectionRange(0, 0);
   };
 
-  const valueHzEffect = () => {
-    const hz = Math.max(0, Math.round(local.valueHz ?? 0));
-    if (editing()) {
-      return;
-    }
-    const canonical = canonicalDigitsFromHz(hz);
-    setDigitString(canonical);
-    baselineHz = hz;
-  };
-
-  createEffect(valueHzEffect);
+  // Follow the external value unless the user is mid-edit.
+  createEffect(
+    () => ({
+      hz: Math.max(0, Math.round(local.valueHz ?? 0)),
+      editing: editing(),
+    }),
+    ({ hz, editing }) => {
+      if (editing) return;
+      setDigitString(canonicalDigitsFromHz(hz));
+      baselineHz = hz;
+    },
+  );
 
   return (
     <input
       {...others}
       value={formattedValue()}
       type="text"
-      inputMode="numeric"
+      inputmode="numeric"
       autocomplete="off"
       spellcheck={false}
       class={local.class}
-      classList={local.classList}
       onKeyDown={onKeyDown}
       onFocus={handleFocus}
       onBlur={handleBlur}

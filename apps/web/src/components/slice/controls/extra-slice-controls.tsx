@@ -1,7 +1,8 @@
-import type { PolymorphicProps } from "@kobalte/core";
+import type { PolymorphicProps } from "@kobalte/core/polymorphic";
 import { ToggleButton } from "@kobalte/core/toggle-button";
 import type { SliceController } from "@repo/flexlib";
-import { splitProps, type ValidComponent } from "solid-js";
+import type { ValidComponent } from "@solidjs/web";
+import { omit } from "solid-js";
 import { Dynamic } from "@solidjs/web";
 import type { SliceState } from "~/context/flexradio";
 import { cn } from "~/lib/utils";
@@ -21,7 +22,8 @@ export const ExtraSliceControls = <T extends ValidComponent = "div">(
     }
   >,
 ) => {
-  const [local, others] = splitProps(props, ["slice", "controller", "class"]);
+  const local = props;
+  const others = omit(local, "slice", "controller", "class");
 
   return (
     <div

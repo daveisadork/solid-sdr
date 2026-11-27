@@ -85,8 +85,8 @@ export const AudioControls = (props: {
           }}
         >
           <SegmentedControlLabel>AGC Mode</SegmentedControlLabel>
+          <SegmentedControlIndicator />
           <SegmentedControlGroup>
-            <SegmentedControlIndicator />
             <SegmentedControlItemsList>
               <For
                 each={[

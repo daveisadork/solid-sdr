@@ -1,21 +1,22 @@
 import * as AccordionPrimitive from "@kobalte/core/accordion";
 import type { PolymorphicProps } from "@kobalte/core/polymorphic";
-import type { JSX, ValidComponent } from "solid-js";
-import { splitProps } from "solid-js";
+import type { JSX, ValidComponent } from "@solidjs/web";
+import { omit } from "solid-js";
 
 import { cn } from "~/lib/utils";
 
 const Accordion = AccordionPrimitive.Root;
 
 type AccordionItemProps<T extends ValidComponent = "div"> =
-  AccordionPrimitive.AccordionItemProps<T> & {
+  AccordionPrimitive.AccordionItemProps & {
     class?: string | undefined;
   };
 
 const AccordionItem = <T extends ValidComponent = "div">(
   props: PolymorphicProps<T, AccordionItemProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as AccordionItemProps, ["class"]);
+  const local = props as AccordionItemProps;
+  const others = omit(local, "class");
   return (
     <AccordionPrimitive.Item class={cn("border-b", local.class)} {...others} />
   );
@@ -30,10 +31,8 @@ type AccordionTriggerProps<T extends ValidComponent = "button"> =
 const AccordionTrigger = <T extends ValidComponent = "button">(
   props: PolymorphicProps<T, AccordionTriggerProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as AccordionTriggerProps, [
-    "class",
-    "children",
-  ]);
+  const local = props as AccordionTriggerProps;
+  const others = omit(local, "class", "children");
   return (
     <AccordionPrimitive.Header class="flex">
       <AccordionPrimitive.Trigger
@@ -71,10 +70,8 @@ type AccordionContentProps<T extends ValidComponent = "div"> =
 const AccordionContent = <T extends ValidComponent = "div">(
   props: PolymorphicProps<T, AccordionContentProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as AccordionContentProps, [
-    "class",
-    "children",
-  ]);
+  const local = props as AccordionContentProps;
+  const others = omit(local, "class", "children");
   return (
     <AccordionPrimitive.Content
       class={cn(

@@ -1,10 +1,12 @@
-import type { Component, ComponentProps } from "solid-js";
-import { splitProps } from "solid-js";
+import type { ComponentProps } from "@solidjs/web";
+import type { Component } from "solid-js";
+import { omit } from "solid-js";
 
 import { cn } from "~/lib/utils";
 
 const Table: Component<ComponentProps<"table">> = (props) => {
-  const [local, others] = splitProps(props, ["class"]);
+  const local = props;
+  const others = omit(local, "class");
   return (
     <div
       class={cn(
@@ -23,7 +25,8 @@ const Table: Component<ComponentProps<"table">> = (props) => {
 const TableHeader: Component<
   ComponentProps<"thead"> & { sticky?: boolean | undefined }
 > = (props) => {
-  const [local, others] = splitProps(props, ["class", "sticky"]);
+  const local = props;
+  const others = omit(local, "class", "sticky");
   return (
     <thead
       class={cn(
@@ -38,14 +41,16 @@ const TableHeader: Component<
 };
 
 const TableBody: Component<ComponentProps<"tbody">> = (props) => {
-  const [local, others] = splitProps(props, ["class"]);
+  const local = props;
+  const others = omit(local, "class");
   return (
     <tbody class={cn("[&_tr:last-child]:border-0", local.class)} {...others} />
   );
 };
 
 const TableFooter: Component<ComponentProps<"tfoot">> = (props) => {
-  const [local, others] = splitProps(props, ["class"]);
+  const local = props;
+  const others = omit(local, "class");
   return (
     <tfoot
       class={cn("bg-primary font-medium text-primary-foreground", local.class)}
@@ -55,7 +60,8 @@ const TableFooter: Component<ComponentProps<"tfoot">> = (props) => {
 };
 
 const TableRow: Component<ComponentProps<"tr">> = (props) => {
-  const [local, others] = splitProps(props, ["class"]);
+  const local = props;
+  const others = omit(local, "class");
   return (
     <tr
       class={cn(
@@ -68,7 +74,8 @@ const TableRow: Component<ComponentProps<"tr">> = (props) => {
 };
 
 const TableHead: Component<ComponentProps<"th">> = (props) => {
-  const [local, others] = splitProps(props, ["class"]);
+  const local = props;
+  const others = omit(local, "class");
   return (
     <th
       class={cn(
@@ -81,7 +88,8 @@ const TableHead: Component<ComponentProps<"th">> = (props) => {
 };
 
 const TableCell: Component<ComponentProps<"td">> = (props) => {
-  const [local, others] = splitProps(props, ["class"]);
+  const local = props;
+  const others = omit(local, "class");
   return (
     <td
       class={cn("p-2 align-middle has-[[role=checkbox]]:pr-0", local.class)}
@@ -91,7 +99,8 @@ const TableCell: Component<ComponentProps<"td">> = (props) => {
 };
 
 const TableCaption: Component<ComponentProps<"caption">> = (props) => {
-  const [local, others] = splitProps(props, ["class"]);
+  const local = props;
+  const others = omit(local, "class");
   return (
     <caption
       class={cn("mt-4 text-sm text-muted-foreground", local.class)}

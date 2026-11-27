@@ -1,7 +1,8 @@
 import * as HoverCardPrimitive from "@kobalte/core/hover-card";
 import type { PolymorphicProps } from "@kobalte/core/polymorphic";
-import type { Component, ValidComponent } from "solid-js";
-import { splitProps } from "solid-js";
+import type { ValidComponent } from "@solidjs/web";
+import type { Component } from "solid-js";
+import { omit } from "solid-js";
 
 import { cn } from "~/lib/utils";
 
@@ -19,7 +20,8 @@ type HoverCardContentProps<T extends ValidComponent = "div"> =
 const HoverCardContent = <T extends ValidComponent = "div">(
   props: PolymorphicProps<T, HoverCardContentProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as HoverCardContentProps, ["class"]);
+  const local = props as HoverCardContentProps;
+  const others = omit(local, "class");
   return (
     <HoverCardPrimitive.Portal>
       <HoverCardPrimitive.Content

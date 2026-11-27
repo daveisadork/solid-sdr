@@ -47,7 +47,9 @@ export function InnerDaxIqSettings() {
                   class="flex"
                   checked={preferences.dax.iq[channel]?.enabled ?? false}
                   onChange={(checked) =>
-                    setPreferences("dax", "iq", channel, "enabled", checked)
+                    setPreferences((draft) => {
+                      draft.dax.iq[channel].enabled = checked;
+                    })
                   }
                 >
                   <SwitchLabel class="grow flex items-center">
@@ -65,13 +67,9 @@ export function InnerDaxIqSettings() {
                     value={preferences.dax.iq[channel]?.outputDeviceId}
                     onChange={(value) => {
                       if (!value) return;
-                      setPreferences(
-                        "dax",
-                        "iq",
-                        channel,
-                        "outputDeviceId",
-                        value,
-                      );
+                      setPreferences((draft) => {
+                        draft.dax.iq[channel].outputDeviceId = value;
+                      });
                     }}
                     options={outputs().map((d) => d.deviceId)}
                     itemComponent={(props) => (
@@ -103,7 +101,9 @@ export function InnerDaxIqSettings() {
                     value={preferences.dax.iq[channel]?.sampleRate}
                     onChange={(value) => {
                       if (!value) return;
-                      setPreferences("dax", "iq", channel, "sampleRate", value);
+                      setPreferences((draft) => {
+                        draft.dax.iq[channel].sampleRate = value;
+                      });
                     }}
                     options={[...sampleRates()]}
                     itemComponent={(props) => (
@@ -133,14 +133,15 @@ export function InnerDaxIqSettings() {
 export function DaxIqSettings() {
   const audioPermission = createPermission("microphone");
 
-  createEffect(() => {
-    if (audioPermission() === "prompt")
+  createEffect(
+    () => audioPermission() === "prompt",
+    (needsPrompt) => {
+      if (!needsPrompt) return;
       navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
-        for (const track of stream.getTracks()) {
-          track.stop();
-        }
+        for (const track of stream.getTracks()) track.stop();
       });
-  });
+    },
+  );
 
   return (
     <DialogContent>

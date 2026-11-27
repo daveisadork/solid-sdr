@@ -27,7 +27,7 @@ export function AudioLevelMeter(props: {
 
   return (
     <div
-      classList={{
+      class={{
         "opacity-50": !props.stream,
       }}
     >

@@ -1,5 +1,6 @@
-import type { Component, ComponentProps } from "solid-js";
-import { Show, splitProps } from "solid-js";
+import type { ComponentProps } from "@solidjs/web";
+import type { Component } from "solid-js";
+import { Show, omit } from "solid-js";
 import useFlexRadio from "~/context/flexradio";
 import { cn } from "~/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
@@ -14,7 +15,8 @@ export const LicenseGate: Component<
 > = (props) => {
   const { state } = useFlexRadio();
   const feature = () => state.status.featureLicense.features?.[props.feature];
-  const [local, others] = splitProps(props, ["class"]);
+  const local = props;
+  const others = omit(local, "class");
   return (
     <Show
       when={!feature()?.enabled}

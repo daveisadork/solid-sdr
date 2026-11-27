@@ -38,14 +38,22 @@ function SpotsSettingsInner(props: { radio: Radio }) {
     <>
       <SimpleSwitch
         checked={preferences.spots.enabled}
-        onChange={(isChecked) => setPreferences("spots", "enabled", isChecked)}
+        onChange={(isChecked) =>
+          setPreferences((draft) => {
+            draft.spots.enabled = isChecked;
+          })
+        }
         label="Enable Spots"
       />
       <SimpleSlider
         minValue={1}
         maxValue={10}
         value={[preferences.spots.levels]}
-        onChange={([value]) => setPreferences("spots", "levels", value)}
+        onChange={([value]) =>
+          setPreferences((draft) => {
+            draft.spots.levels = value;
+          })
+        }
         getValueLabel={({ values }) => values[0].toString()}
         label="Levels"
       />
@@ -53,7 +61,11 @@ function SpotsSettingsInner(props: { radio: Radio }) {
         minValue={0}
         maxValue={100}
         value={[preferences.spots.position]}
-        onChange={([value]) => setPreferences("spots", "position", value)}
+        onChange={([value]) =>
+          setPreferences((draft) => {
+            draft.spots.position = value;
+          })
+        }
         getValueLabel={({ values }) => `${values[0]}%`}
         label="Position"
       />
@@ -62,7 +74,9 @@ function SpotsSettingsInner(props: { radio: Radio }) {
         maxValue={100}
         value={[preferences.spots.verticalSpacing]}
         onChange={([value]) =>
-          setPreferences("spots", "verticalSpacing", value)
+          setPreferences((draft) => {
+            draft.spots.verticalSpacing = value;
+          })
         }
         getValueLabel={({ values }) => `${values[0]}%`}
         label="Vertical Spacing"
@@ -71,7 +85,11 @@ function SpotsSettingsInner(props: { radio: Radio }) {
         minValue={0}
         maxValue={FONT_SIZES.length - 1}
         value={[preferences.spots.fontSize]}
-        onChange={([value]) => setPreferences("spots", "fontSize", value)}
+        onChange={([value]) =>
+          setPreferences((draft) => {
+            draft.spots.fontSize = value;
+          })
+        }
         getValueLabel={({ values }) => FONT_SIZES[values[0]]}
         label="Font Size"
       />

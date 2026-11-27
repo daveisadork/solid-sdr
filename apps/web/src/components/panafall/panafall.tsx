@@ -2,17 +2,14 @@ import { createMousePosition } from "@solid-primitives/mouse";
 import { createPointerListeners } from "@solid-primitives/pointer";
 import { createWindowSize } from "@solid-primitives/resize-observer";
 import { debounce } from "@solid-primitives/scheduled";
+import type { ComponentProps, JSX, ValidComponent } from "@solidjs/web";
 import {
-  batch,
-  type ComponentProps,
   createEffect,
   createSignal,
   createStore,
   For,
-  type JSX,
   Show,
-  splitProps,
-  type ValidComponent,
+  omit,
 } from "solid-js";
 import { useControls } from "~/context/controls";
 import useFlexRadio from "~/context/flexradio";
@@ -63,7 +60,8 @@ type PanafallButtonProps<T extends ValidComponent = "button"> = ComponentProps<
   };
 
 export function PanafallButton(props: PanafallButtonProps) {
-  const [local, others] = splitProps(props, ["class", "tooltip"]);
+  const local = props;
+  const others = omit(local, "class", "tooltip");
   return (
     <Tooltip>
       <TooltipTrigger
@@ -90,7 +88,8 @@ type PanafallToggleButtonProps = ComponentProps<typeof TooltipTrigger> &
   };
 
 export function PanafallToggleButton(props: PanafallToggleButtonProps) {
-  const [local, others] = splitProps(props, ["class", "tooltip"]);
+  const local = props;
+  const others = omit(local, "class", "tooltip");
   return (
     <Tooltip>
       <TooltipTrigger
@@ -151,32 +150,31 @@ export function Panafall(props: { index: number }) {
 
   const { dispatch } = useControls();
 
+  // Abandon any drag when the window resizes.
   createEffect(
-    (lastSize: { width: number; height: number }) => {
-      if (
-        windowSize.width !== lastSize.width ||
-        windowSize.height !== lastSize.height
-      ) {
-        batch(() => {
-          setDragState({
-            down: false,
-            dragging: false,
-            downX: 0,
-            originX: 0,
-            originFreq: 0,
-          });
-          setDragOffset(0);
+    () => [windowSize.width, windowSize.height],
+    () => {
+      setDragState((draft) => {
+        Object.assign(draft, {
+          down: false,
+          dragging: false,
+          downX: 0,
+          originX: 0,
+          originFreq: 0,
         });
-      }
-      return { ...windowSize };
+      });
+      setDragOffset(0);
     },
-    { width: 0, height: 0 },
+    { defer: true },
   );
 
   const _setPanCenter = (newCenter: number) => {
     newCenter = parseFloat(newCenter.toFixed(6));
     if (newCenter === panadapter()?.centerFrequencyMHz) {
-      if (!dragState.down) setDragState("originX", 0);
+      if (!dragState.down)
+        setDragState((draft) => {
+          draft.originX = 0;
+        });
       return;
     }
     panadapterController()?.setCenterFrequency(newCenter);
@@ -241,21 +239,28 @@ export function Panafall(props: { index: number }) {
   const finalizeDrag = (event: PointerEvent) => {
     if (event.button !== 0 && event.type !== "pointerleave") return;
     if (!dragState.down) return;
-    batch(() => {
-      setDragState("down", false);
-      if (!dragState.dragging) {
-        setDragState("originX", 0);
-        return;
-      }
-      setDragState("dragging", false);
-      if (!preferences.smoothScroll) {
-        setDragState("originX", 0);
-        return;
-      }
-      const newOffset = clientXToCellX(event.x) - dragState.originX;
-      const freq = dragState.originFreq - pxToMHz(newOffset);
-      setPanCenter(freq);
+    // Reads below see pre-write values; none of them read a field written here.
+    setDragState((draft) => {
+      draft.down = false;
     });
+    if (!dragState.dragging) {
+      setDragState((draft) => {
+        draft.originX = 0;
+      });
+      return;
+    }
+    setDragState((draft) => {
+      draft.dragging = false;
+    });
+    if (!preferences.smoothScroll) {
+      setDragState((draft) => {
+        draft.originX = 0;
+      });
+      return;
+    }
+    const newOffset = clientXToCellX(event.x) - dragState.originX;
+    const freq = dragState.originFreq - pxToMHz(newOffset);
+    setPanCenter(freq);
   };
 
   createPointerListeners({
@@ -263,18 +268,22 @@ export function Panafall(props: { index: number }) {
     onDown({ button, x }) {
       if (button !== 0) return; // Only left mouse button
 
-      setDragState({
-        down: true,
-        downX: clientXToCellX(x),
-        originFreq: panadapter()?.centerFrequencyMHz,
+      setDragState((draft) => {
+        Object.assign(draft, {
+          down: true,
+          downX: clientXToCellX(x),
+          originFreq: panadapter()?.centerFrequencyMHz,
+        });
       });
     },
     onMove(event) {
       if (!dragState.down) return;
       if (!dragState.dragging) {
-        setDragState({
-          dragging: true,
-          originX: dragState.originX || dragState.downX,
+        setDragState((draft) => {
+          Object.assign(draft, {
+            dragging: true,
+            originX: dragState.originX || dragState.downX,
+          });
         });
       }
       const newOffset = clientXToCellX(event.x) - dragState.originX;
@@ -301,24 +310,26 @@ export function Panafall(props: { index: number }) {
       offset = 0;
       originX = (panadapterWrapperSize.width ?? 0) / 2;
     }
-    batch(() => {
-      setDragOffset(offset);
-      setDragState({ originX, originFreq: newCenter });
+    setDragOffset(offset);
+    setDragState((draft) => {
+      Object.assign(draft, { originX, originFreq: newCenter });
     });
   };
 
-  createEffect((prev?: { center?: number; pxPerMHz?: number }) => {
-    const prevCenter = prev?.center;
-    const prevPxPerMHz = prev?.pxPerMHz;
-    const newCenter = panadapter()?.centerFrequencyMHz;
-    if (prevPxPerMHz !== pxPerMHz()) {
-      // bandwidth changed or screen resize
-      setDragOffset(0);
-    } else if (prevCenter && newCenter && prevCenter !== newCenter) {
-      updateScroll(prevCenter, newCenter);
-    }
-    return { center: newCenter, pxPerMHz: pxPerMHz() };
-  });
+  createEffect(
+    () => ({
+      center: panadapter()?.centerFrequencyMHz,
+      pxPerMHz: pxPerMHz(),
+    }),
+    (next, prev) => {
+      if (prev?.pxPerMHz !== next.pxPerMHz) {
+        // bandwidth changed or screen resize
+        setDragOffset(0);
+      } else if (prev?.center && next.center && prev.center !== next.center) {
+        updateScroll(prev.center, next.center);
+      }
+    },
+  );
 
   return (
     <div class="relative size-full overflow-clip">
@@ -368,10 +379,12 @@ export function Panafall(props: { index: number }) {
                     ) {
                       return;
                     }
-                    setPreferences("panadapterSizes", props.index, [
-                      panHeight,
-                      1 - panHeight,
-                    ]);
+                    setPreferences((draft) => {
+                      draft.panadapterSizes[props.index] = [
+                        panHeight,
+                        1 - panHeight,
+                      ];
+                    });
                   }}
                 >
                   <ResizablePanel
@@ -397,11 +410,10 @@ export function Panafall(props: { index: number }) {
                 </Resizable>
                 <ContextMenu>
                   <ContextMenuTrigger
-                    classList={{
+                    class={cn("absolute inset-0 select-none touch-none", {
                       "cursor-grabbing": dragState.dragging,
                       "cursor-crosshair": !dragState.dragging,
-                    }}
-                    class="absolute inset-0 select-none touch-none"
+                    })}
                     onWheel={
                       preferences.mousewheelTuning
                         ? (e: WheelEvent) => {
@@ -423,7 +435,9 @@ export function Panafall(props: { index: number }) {
                     }
                     onDblClick={(e: PointerEvent) => {
                       if (dragState.dragging) return;
-                      setDragState("originX", 0);
+                      setDragState((draft) => {
+                        draft.originX = 0;
+                      });
                       const slice = activeSlice();
                       const offset = slice
                         ? ["DIGU", "FDVU"].includes(slice.mode)
@@ -557,7 +571,9 @@ export function Panafall(props: { index: number }) {
                         <ContextMenuCheckboxItem
                           checked={preferences.showTuningGuide}
                           onChange={(checked) => {
-                            setPreferences("showTuningGuide", checked);
+                            setPreferences((draft) => {
+                              draft.showTuningGuide = checked;
+                            });
                           }}
                         >
                           Show Tuning Guide
@@ -565,7 +581,9 @@ export function Panafall(props: { index: number }) {
                         <ContextMenuCheckboxItem
                           checked={preferences.spots.enabled}
                           onChange={(checked) => {
-                            setPreferences("spots", "enabled", checked);
+                            setPreferences((draft) => {
+                              draft.spots.enabled = checked;
+                            });
                           }}
                         >
                           Show Spots
@@ -574,7 +592,9 @@ export function Panafall(props: { index: number }) {
                           <ContextMenuCheckboxItem
                             checked={preferences.showDisplayMarkers}
                             onChange={(checked) => {
-                              setPreferences("showDisplayMarkers", checked);
+                              setPreferences((draft) => {
+                                draft.showDisplayMarkers = checked;
+                              });
                             }}
                           >
                             Show Band Plan
@@ -583,7 +603,9 @@ export function Panafall(props: { index: number }) {
                         <ContextMenuCheckboxItem
                           checked={preferences.showTxFilterInPan}
                           onChange={(checked) => {
-                            setPreferences("showTxFilterInPan", checked);
+                            setPreferences((draft) => {
+                              draft.showTxFilterInPan = checked;
+                            });
                           }}
                         >
                           Show TX Filter
@@ -681,13 +703,15 @@ export function Panafall(props: { index: number }) {
                 }
               >
                 <div
-                  class="absolute inset-y-0 w-px translate-x-(--cursor-x) pointer-events-none will-change-transform pointer-coarse:hidden z-(--z-chrome)"
-                  classList={{
-                    "backdrop-invert-100":
-                      preferences.enableTransparencyEffects,
-                    "border-x border-l-foreground border-r-background opacity-75":
-                      !preferences.enableTransparencyEffects,
-                  }}
+                  class={[
+                    "absolute inset-y-0 w-px translate-x-(--cursor-x) pointer-events-none will-change-transform pointer-coarse:hidden z-(--z-chrome)",
+                    {
+                      "backdrop-invert-100":
+                        preferences.enableTransparencyEffects,
+                      "border-x border-l-foreground border-r-background opacity-75":
+                        !preferences.enableTransparencyEffects,
+                    },
+                  ]}
                   style={{
                     "--cursor-x": `${cellPosX()}px`,
                     "--cursor-y": `${pos.y}px`,

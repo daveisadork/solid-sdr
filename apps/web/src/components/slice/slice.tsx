@@ -3,16 +3,15 @@ import type { SliceController } from "@repo/flexlib";
 import { createPointerListeners } from "@solid-primitives/pointer";
 import { createElementSize } from "@solid-primitives/resize-observer";
 import { Portal } from "@solidjs/web";
-import type { Accessor, Component, ComponentProps, JSX } from "solid-js";
+import type { ComponentProps, JSX } from "@solidjs/web";
+import type { Accessor, Component } from "solid-js";
 import {
-  batch,
   createEffect,
   createMemo,
   createSignal,
   createStore,
-  onCleanup,
   Show,
-  splitProps,
+  omit,
 } from "solid-js";
 import { FrequencyInput } from "~/components/frequency-input";
 import { LevelMeter } from "~/components/level-meter";
@@ -41,7 +40,8 @@ import { RitControls } from "./controls/rit-controls";
 import { SliceSettings } from "./controls/slice-settings";
 
 const Triangle: Component<ComponentProps<"div">> = (props) => {
-  const [local, others] = splitProps(props, ["class", "style"]);
+  const local = props;
+  const others = omit(local, "class", "style");
   return (
     <div
       class={cn("h-1.5 aspect-[2]", local.class)}
@@ -139,12 +139,17 @@ export function Slice(props: {
   // Effect-mirrored so flagSide never pairs a new center frequency with the
   // not-yet-rebased dragOffset (rebasing happens in a Panafall effect) —
   // that transient would latch a spurious side flip.
-  const [anchorX, setAnchorX] = createSignal(0);
-  createEffect(() => setAnchorX(visualAnchorX(props.slice)));
+  const [anchorX, setAnchorX] = createSignal(visualAnchorX(props.slice));
+  createEffect(
+    () => visualAnchorX(props.slice),
+    (x) => {
+      setAnchorX(x);
+    },
+  );
 
   // Hysteresis reducer: keeps the current side until the flag would poke past
   // a visible edge, then flips to whichever side has more room.
-  const flagSide = createMemo<"left" | "right">((side) => {
+  const flagSide = createMemo<"left" | "right">((side = "left") => {
     if (props.slice.diversityParent) return "left";
     if (props.slice.diversityChild) return "right";
 
@@ -166,7 +171,7 @@ export function Slice(props: {
       return visRight - x >= x - insets.left ? "right" : "left";
     }
     return side;
-  }, "left");
+  });
 
   createPointerListeners({
     onMove({ x }) {
@@ -188,75 +193,97 @@ export function Slice(props: {
       const offsetX = localX - insets.left;
       const xPercent = offsetX / insets.width;
       if (xPercent < 0.05 || xPercent > 0.95) {
-        setDragState({
-          contain: freq < props.pan.centerFrequencyMHz ? -1 : 1,
+        setDragState((draft) => {
+          Object.assign(draft, {
+            contain: freq < props.pan.centerFrequencyMHz ? -1 : 1,
+          });
         });
         return;
       }
 
-      setDragState("contain", 0);
+      setDragState((draft) => {
+        draft.contain = 0;
+      });
       sliceController().setFrequency(freq, false);
     },
     onUp() {
-      setDragState({ dragging: false, contain: 0 });
+      setDragState((draft) => {
+        Object.assign(draft, { dragging: false, contain: 0 });
+      });
     },
     onLeave() {
-      setDragState({ dragging: false, contain: 0 });
+      setDragState((draft) => {
+        Object.assign(draft, { dragging: false, contain: 0 });
+      });
     },
   });
 
-  createEffect(() => {
-    if (!dragState.contain) return;
-    const pan = panadapterController();
-    const slice = sliceController();
-    const stepMHz = (slice.tuneStepHz / 1e6) * dragState.contain;
-    const xOffsetPx = filterWidth() / 2;
+  // While a drag is pinned at the pan edge, keep scrolling the pan with it.
+  createEffect(
+    () => {
+      if (!dragState.contain) return null;
+      const slice = sliceController();
+      return {
+        pan: panadapterController(),
+        slice,
+        stepMHz: (slice.tuneStepHz / 1e6) * dragState.contain,
+        xOffsetPx: filterWidth() / 2,
+      };
+    },
+    (drag) => {
+      if (!drag) return;
+      const { pan, slice, stepMHz, xOffsetPx } = drag;
 
-    const interval = setInterval(() => {
-      const newSliceFreq = slice.frequencyMHz + stepMHz;
-      batch(() => {
+      const interval = setInterval(() => {
+        const newSliceFreq = slice.frequencyMHz + stepMHz;
         pan.setCenterFrequency(pan.centerFrequencyMHz + stepMHz);
         slice.setFrequency(newSliceFreq, false);
-      });
-      setDragState({
-        originFreq: newSliceFreq,
-        originX: freqToX(newSliceFreq) + xOffsetPx,
-      });
-    }, 20);
-    onCleanup(() => clearInterval(interval));
-  });
+        setDragState((draft) => {
+          Object.assign(draft, {
+            originFreq: newSliceFreq,
+            originX: freqToX(newSliceFreq) + xOffsetPx,
+          });
+        });
+      }, 20);
+      return () => clearInterval(interval);
+    },
+  );
 
-  createEffect(() => {
-    const txFilterLow =
-      props.slice.mode === "CW"
-        ? -50
-        : ["USB", "DIGU", "FDVU"].includes(props.slice.mode)
-          ? state.status.radio.txFilterLowHz
-          : -state.status.radio.txFilterHighHz;
-    const txFilterHigh =
-      props.slice.mode === "CW"
-        ? 50
-        : ["LSB", "DIGL", "FDVL", "RTTY"].includes(props.slice.mode)
-          ? -state.status.radio.txFilterLowHz
-          : state.status.radio.txFilterHighHz;
+  createEffect(
+    () => {
+      const txFilterLow =
+        props.slice.mode === "CW"
+          ? -50
+          : ["USB", "DIGU", "FDVU"].includes(props.slice.mode)
+            ? state.status.radio.txFilterLowHz
+            : -state.status.radio.txFilterHighHz;
+      const txFilterHigh =
+        props.slice.mode === "CW"
+          ? 50
+          : ["LSB", "DIGL", "FDVL", "RTTY"].includes(props.slice.mode)
+            ? -state.status.radio.txFilterLowHz
+            : state.status.radio.txFilterHighHz;
 
-    batch(() => {
-      setFilterWidth(
-        mhzToAnchorPx(
+      return {
+        filterWidth: mhzToAnchorPx(
           (props.slice.filterHighHz - props.slice.filterLowHz) / 1e6,
         ),
-      );
-      setFilterOffset(mhzToAnchorPx(props.slice.filterLowHz / 1e6));
-      setTxFilterWidth(mhzToAnchorPx((txFilterHigh - txFilterLow) / 1e6));
-      setTxFilterOffset(
-        mhzToAnchorPx(
+        filterOffset: mhzToAnchorPx(props.slice.filterLowHz / 1e6),
+        txFilterWidth: mhzToAnchorPx((txFilterHigh - txFilterLow) / 1e6),
+        txFilterOffset: mhzToAnchorPx(
           (props.slice.mode === "RTTY"
             ? props.slice.rttyMarkHz + txFilterLow
             : txFilterLow) / 1e6,
         ),
-      );
-    });
-  });
+      };
+    },
+    (next) => {
+      setFilterWidth(next.filterWidth);
+      setFilterOffset(next.filterOffset);
+      setTxFilterWidth(next.txFilterWidth);
+      setTxFilterOffset(next.txFilterOffset);
+    },
+  );
 
   const tuneSlice = async (hz: number) => {
     if (!Number.isFinite(hz)) {
@@ -278,35 +305,35 @@ export function Slice(props: {
     sliceController()?.setActive(true);
   };
 
-  createEffect(() => {
-    // we have to compute and set the tx offset since the radio doesn't do it for us.
-    const ctrl = sliceController();
-    if (!props.slice.mode.endsWith("FM")) {
-      ctrl.setTxOffsetFrequency(0);
-      return;
-    }
-    switch (props.slice.repeaterOffsetDirection) {
-      case "UP":
-        ctrl.setTxOffsetFrequency(Math.abs(props.slice.fmRepeaterOffsetMHz));
-        break;
-      case "DOWN":
-        ctrl.setTxOffsetFrequency(-Math.abs(props.slice.fmRepeaterOffsetMHz));
-        break;
-      default:
-        ctrl.setTxOffsetFrequency(0);
-    }
-  });
+  // we have to compute and set the tx offset since the radio doesn't do it for us.
+  createEffect(
+    () => {
+      const offset = Math.abs(props.slice.fmRepeaterOffsetMHz);
+      let txOffset = 0;
+      if (props.slice.mode.endsWith("FM")) {
+        if (props.slice.repeaterOffsetDirection === "UP") txOffset = offset;
+        else if (props.slice.repeaterOffsetDirection === "DOWN")
+          txOffset = -offset;
+      }
+      return { ctrl: sliceController(), txOffset };
+    },
+    ({ ctrl, txOffset }) => {
+      void ctrl.setTxOffsetFrequency(txOffset);
+    },
+  );
 
   return (
     <Show when={!isSliceDetached(props.slice)}>
       {/* biome-ignore lint/a11y/noStaticElementInteractions: keyboard activation is handled via focus on child controls */
       /* biome-ignore lint/a11y/useKeyWithClickEvents: keyboard activation is handled via focus on child controls */}
       <div
-        class="absolute inset-y-0 translate-x-(--slice-offset) z-(--z-cell-overlays)"
-        classList={{
-          "translate-z-1": isActive(),
-          "pointer-events-auto": !props.slice.diversityChild,
-        }}
+        class={[
+          "absolute inset-y-0 translate-x-(--slice-offset) z-(--z-cell-overlays)",
+          {
+            "translate-z-1": isActive(),
+            "pointer-events-auto": !props.slice.diversityChild,
+          },
+        ]}
         style={{
           "--slice-offset": `${sliceAnchorX(props.slice)}px`,
         }}
@@ -314,17 +341,21 @@ export function Slice(props: {
       >
         <Show when={!props.slice.diversityChild}>
           <div
-            class="absolute inset-y-0 pointer-coarse:w-10 -translate-x-1/2 touch-none"
-            classList={{
-              "cursor-grab": !dragState.dragging,
-              "cursor-grabbing": dragState.dragging,
-            }}
+            class={[
+              "absolute inset-y-0 pointer-coarse:w-10 -translate-x-1/2 touch-none",
+              {
+                "cursor-grab": !dragState.dragging,
+                "cursor-grabbing": dragState.dragging,
+              },
+            ]}
             onPointerDown={(event) => {
-              setDragState({
-                dragging: true,
-                originX: clientXToCellX(event.clientX),
-                originFreq: props.slice.frequencyMHz,
-                offset: 0,
+              setDragState((draft) => {
+                Object.assign(draft, {
+                  dragging: true,
+                  originX: clientXToCellX(event.clientX),
+                  originFreq: props.slice.frequencyMHz,
+                  offset: 0,
+                });
               });
               makeActive();
             }}
@@ -358,51 +389,55 @@ export function Slice(props: {
           </div>
         </Show>
         <div
-          class="absolute inset-y-0 max-w-px w-px flex flex-col items-center m-auto top-0 pointer-events-none"
-          classList={{
-            "bg-yellow-300 z-10": props.slice.isActive,
-            "bg-red-500 -z-10":
-              !props.slice.isActive && !props.slice.diversityChild,
-          }}
+          class={[
+            "absolute inset-y-0 max-w-px w-px flex flex-col items-center m-auto top-0 pointer-events-none",
+            {
+              "bg-yellow-300 z-10": props.slice.isActive,
+              "bg-red-500 -z-10":
+                !props.slice.isActive && !props.slice.diversityChild,
+            },
+          ]}
         >
           <Show when={props.slice.isActive}>
             <Triangle
-              class="relative top-0"
-              classList={{
+              class={cn("relative top-0", {
                 "bg-red-500 -z-10": props.slice.diversityChild,
                 "bg-yellow-300": !props.slice.diversityChild,
-              }}
+              })}
             />
             <Show when={props.slice.diversityEnabled}>
               <Triangle
-                class="relative -translate-y-1/2"
-                classList={{
+                class={cn("relative -translate-y-1/2", {
                   "bg-red-500 -z-10 -translate-z-1":
                     props.slice.diversityParent,
                   "bg-yellow-300": props.slice.diversityChild,
-                }}
+                })}
               />
             </Show>
           </Show>
         </div>
         <Portal mount={panafallPortalRef()}>
           <div
-            class="absolute top-0 left-0 w-0 max-w-0 translate-x-(--flag-offset) overflow-visible"
-            classList={{
-              "z-(--z-cell-flags)": isActive(),
-              "z-(--z-cell-overlays)": !isActive(),
-            }}
+            class={[
+              "absolute top-0 left-0 w-0 max-w-0 translate-x-(--flag-offset) overflow-visible",
+              {
+                "z-(--z-cell-flags)": isActive(),
+                "z-(--z-cell-overlays)": !isActive(),
+              },
+            ]}
             style={{
               "--flag-offset": `calc(var(--drag-offset) + ${sliceAnchorX(props.slice)}px)`,
             }}
           >
             {/* biome-ignore lint/a11y/noStaticElementInteractions: pointer-events-none panel; onMouseDown only stops propagation from children, not user interaction */}
             <div
-              class="absolute top-0 pt-1 pb-4 z-20 overflow-visible pointer-events-none"
-              classList={{
-                "left-px": flagSide() === "right",
-                "right-0": flagSide() === "left",
-              }}
+              class={[
+                "absolute top-0 pt-1 pb-4 z-20 overflow-visible pointer-events-none",
+                {
+                  "left-px": flagSide() === "right",
+                  "right-0": flagSide() === "left",
+                },
+              ]}
               style={{
                 // Quantize the box width to the device pixel grid so both
                 // edges land on device pixels; the ≤1-device-px slack sits at
@@ -414,18 +449,19 @@ export function Slice(props: {
               onMouseDown={(e) => e.stopPropagation()}
             >
               <div
-                class="w-max px-1"
-                classList={{ "ml-auto": flagSide() === "left" }}
+                class={["w-max px-1", { "ml-auto": flagSide() === "left" }]}
                 ref={setFlag}
               >
                 <Show
                   when={!compactLayout()}
                   fallback={
                     <div
-                      class="flex items-center gap-1 flex-row-reverse"
-                      classList={{
-                        "flex-row-reverse": flagSide() === "right",
-                      }}
+                      class={[
+                        "flex items-center gap-1 flex-row-reverse",
+                        {
+                          "flex-row-reverse": flagSide() === "right",
+                        },
+                      ]}
                     >
                       <span class="font-mono font-normal text-xl text-shadow-black text-shadow-sm">
                         {(props.slice.frequencyMHz * 1_000_000).toLocaleString(
@@ -459,8 +495,10 @@ export function Slice(props: {
                   }
                 >
                   <div
-                    class="flex gap-0.5 pointer-events-auto"
-                    classList={{ "flex-row-reverse": flagSide() === "right" }}
+                    class={[
+                      "flex gap-0.5 pointer-events-auto",
+                      { "flex-row-reverse": flagSide() === "right" },
+                    ]}
                   >
                     <Show when={!props.slice.diversityChild}>
                       <ExtraSliceControls
@@ -469,17 +507,21 @@ export function Slice(props: {
                       />
                     </Show>
                     <div
-                      class="h-fit border rounded-md overflow-hidden flex flex-col p-1.5 gap-1 pointer-events-auto text-sm font-mono drop-shadow-black fancy-bg-background"
-                      classList={{
-                        "drop-shadow-lg": isActive(),
-                        "drop-shadow-md": !isActive(),
-                      }}
+                      class={[
+                        "h-fit border rounded-md overflow-hidden flex flex-col p-1.5 gap-1 pointer-events-auto text-sm font-mono drop-shadow-black fancy-bg-background",
+                        {
+                          "drop-shadow-lg": isActive(),
+                          "drop-shadow-md": !isActive(),
+                        },
+                      ]}
                     >
                       <div
-                        class="absolute top-0 left-0 right-0 bottom-0 pointer-events-none rounded-md"
-                        classList={{
-                          "bg-background/25": !isActive(),
-                        }}
+                        class={[
+                          "absolute top-0 left-0 right-0 bottom-0 pointer-events-none rounded-md",
+                          {
+                            "bg-background/25": !isActive(),
+                          },
+                        ]}
                       />
                       <div class="flex justify-between items-center gap-1">
                         <RxAntennaSelect
@@ -557,23 +599,31 @@ export function Slice(props: {
                             size={14}
                             valueHz={Math.round(props.slice.frequencyMHz * 1e6)}
                             onCommit={tuneSlice}
-                            // `on:touchstart` binds directly to the element
-                            // (non-passive); the camelCase `onTouchStart` is
-                            // delegated to document, where Chrome forces passive
-                            // and preventDefault() is ignored. We need
-                            // preventDefault to open the panel instead of
-                            // focusing the input (which pops the soft keyboard).
-                            // Fires only on touch, so mouse/pen keep inline edit.
-                            on:touchstart={(event) => {
-                              event.preventDefault();
-                              makeActive();
-                              setRuntime("tuningPanelOpen", true);
-                            }}
+                            // Bound directly on the element as non-passive; the
+                            // camelCase `onTouchStart` is delegated to document,
+                            // where Chrome forces passive and preventDefault() is
+                            // ignored. We need preventDefault to open the panel
+                            // instead of focusing the input (which pops the soft
+                            // keyboard). Fires only on touch, so mouse/pen keep
+                            // inline edit.
+                            ref={(el) =>
+                              el.addEventListener(
+                                "touchstart",
+                                (event) => {
+                                  event.preventDefault();
+                                  makeActive();
+                                  setRuntime((draft) => {
+                                    draft.tuningPanelOpen = true;
+                                  });
+                                },
+                                { passive: false },
+                              )
+                            }
                           />
                         </div>
                       </Show>
                       <div
-                        classList={{
+                        class={{
                           hidden:
                             props.slice.isTransmitEnabled &&
                             state.status.radio.interlockTxClientHandle ===
@@ -588,7 +638,7 @@ export function Slice(props: {
                       </div>
                       <Show when={props.slice.isTransmitEnabled}>
                         <div
-                          classList={{
+                          class={{
                             hidden:
                               state.status.radio.interlockTxClientHandle !==
                               state.clientHandleInt,

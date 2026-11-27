@@ -1,9 +1,9 @@
 import * as FileFieldPrimitive from "@kobalte/core/file-field";
 import type { PolymorphicProps } from "@kobalte/core/polymorphic";
-import { isFunction } from "@kobalte/utils";
+
 import { cva } from "class-variance-authority";
-import type { JSX, ValidComponent } from "solid-js";
-import { children, splitProps } from "solid-js";
+import type { JSX, ValidComponent } from "@solidjs/web";
+import { children, omit } from "solid-js";
 
 import { cn } from "~/lib/utils";
 
@@ -21,7 +21,7 @@ const FileFieldChild = (props: FileFieldChildProps) => {
   const context = FileFieldPrimitive.useFileFieldContext();
   const resolvedChildren = children(() => {
     const body = props.children;
-    return isFunction(body) ? body(context) : body;
+    return typeof body === "function" ? body(context) : body;
   });
 
   return <>{resolvedChildren()}</>;
@@ -29,10 +29,8 @@ const FileFieldChild = (props: FileFieldChildProps) => {
 const FileField = <T extends ValidComponent = "div">(
   props: PolymorphicProps<T, FileFieldProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as FileFieldProps, [
-    "children",
-    "class",
-  ]);
+  const local = props as FileFieldProps;
+  const others = omit(local, "children", "class");
   return (
     <FileFieldPrimitive.Root
       class={cn("flex flex-col gap-1", local.class)}
@@ -65,7 +63,8 @@ type FileFieldLabelProps<T extends ValidComponent = "label"> =
 const FileFieldLabel = <T extends ValidComponent = "label">(
   props: PolymorphicProps<T, FileFieldLabelProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as FileFieldLabelProps, ["class"]);
+  const local = props as FileFieldLabelProps;
+  const others = omit(local, "class");
   return (
     <FileFieldPrimitive.Label
       class={cn(labelVariants(), local.class)}
@@ -75,16 +74,15 @@ const FileFieldLabel = <T extends ValidComponent = "label">(
 };
 
 type FileFieldDescriptionProps<T extends ValidComponent = "div"> =
-  FileFieldPrimitive.FileFieldDescriptionProps<T> & {
+  FileFieldPrimitive.FileFieldDescriptionProps & {
     class?: string | undefined;
   };
 
 const FileFieldDescription = <T extends ValidComponent = "div">(
   props: PolymorphicProps<T, FileFieldDescriptionProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as FileFieldDescriptionProps, [
-    "class",
-  ]);
+  const local = props as FileFieldDescriptionProps;
+  const others = omit(local, "class");
   return (
     <FileFieldPrimitive.Description
       class={cn(labelVariants({ variant: "description" }), local.class)}
@@ -101,9 +99,8 @@ type FileFieldErrorMessageProps<T extends ValidComponent = "div"> =
 const FileFieldErrorMessage = <T extends ValidComponent = "div">(
   props: PolymorphicProps<T, FileFieldErrorMessageProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as FileFieldErrorMessageProps, [
-    "class",
-  ]);
+  const local = props as FileFieldErrorMessageProps;
+  const others = omit(local, "class");
   return (
     <FileFieldPrimitive.ErrorMessage
       class={cn(labelVariants({ variant: "error" }), local.class)}
@@ -122,9 +119,8 @@ type FileFieldDropzoneProps<T extends ValidComponent = "div"> =
 const FileFieldDropzone = <T extends ValidComponent = "div">(
   props: PolymorphicProps<T, FileFieldDropzoneProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as FileFieldDropzoneProps, [
-    "class",
-  ]);
+  const local = props as FileFieldDropzoneProps;
+  const others = omit(local, "class");
   return (
     <FileFieldPrimitive.Dropzone
       class={cn(
@@ -142,9 +138,8 @@ type FileFieldItemListProps<T extends ValidComponent = "ul"> =
 const FileFieldItemList = <T extends ValidComponent = "ul">(
   props: PolymorphicProps<T, FileFieldItemListProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as FileFieldItemListProps, [
-    "class",
-  ]);
+  const local = props as FileFieldItemListProps;
+  const others = omit(local, "class");
   return (
     <FileFieldPrimitive.ItemList
       class={cn("flex flex-col gap-2 overflow-hidden", local.class)}
@@ -159,7 +154,8 @@ type FileFieldItemProps<T extends ValidComponent = "li"> =
 const FileFieldItem = <T extends ValidComponent = "li">(
   props: PolymorphicProps<T, FileFieldItemProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as FileFieldItemProps, ["class"]);
+  const local = props as FileFieldItemProps;
+  const others = omit(local, "class");
   return (
     <FileFieldPrimitive.Item
       class={cn("flex items-center gap-3", local.class)}
@@ -174,9 +170,8 @@ type FileFieldItemNameProps<T extends ValidComponent = "span"> =
 const FileFieldItemName = <T extends ValidComponent = "span">(
   props: PolymorphicProps<T, FileFieldItemNameProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as FileFieldItemNameProps, [
-    "class",
-  ]);
+  const local = props as FileFieldItemNameProps;
+  const others = omit(local, "class");
   return (
     <FileFieldPrimitive.ItemName
       class={cn("text-sm font-medium truncate", local.class)}
@@ -191,9 +186,8 @@ type FileFieldItemSizeProps<T extends ValidComponent = "span"> =
 const FileFieldItemSize = <T extends ValidComponent = "span">(
   props: PolymorphicProps<T, FileFieldItemSizeProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as FileFieldItemSizeProps, [
-    "class",
-  ]);
+  const local = props as FileFieldItemSizeProps;
+  const others = omit(local, "class");
   return (
     <FileFieldPrimitive.ItemSize
       class={cn("text-xs text-muted-foreground shrink-0", local.class)}
@@ -210,9 +204,8 @@ type FileFieldItemPreviewProps<T extends ValidComponent = "div"> =
 const FileFieldItemPreview = <T extends ValidComponent = "div">(
   props: PolymorphicProps<T, FileFieldItemPreviewProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as FileFieldItemPreviewProps, [
-    "class",
-  ]);
+  const local = props as FileFieldItemPreviewProps;
+  const others = omit(local, "class");
   return (
     <FileFieldPrimitive.ItemPreview
       class={cn("shrink-0", local.class)}
@@ -229,9 +222,8 @@ type FileFieldItemPreviewImageProps<T extends ValidComponent = "img"> =
 const FileFieldItemPreviewImage = <T extends ValidComponent = "img">(
   props: PolymorphicProps<T, FileFieldItemPreviewImageProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as FileFieldItemPreviewImageProps, [
-    "class",
-  ]);
+  const local = props as FileFieldItemPreviewImageProps;
+  const others = omit(local, "class");
   return (
     <FileFieldPrimitive.ItemPreviewImage
       class={cn("size-10 rounded-md object-cover", local.class)}

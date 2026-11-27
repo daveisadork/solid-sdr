@@ -1,13 +1,12 @@
 import * as MeterPrimitive from "@kobalte/core/meter";
+import type { ValidComponent } from "@solidjs/web";
 import {
   createEffect,
   createMemo,
   createSignal,
   For,
-  onCleanup,
   Show,
-  splitProps,
-  type ValidComponent,
+  omit,
 } from "solid-js";
 import useFlexRadio, { type MeterState } from "~/context/flexradio";
 import { usePreferences } from "~/context/preferences";
@@ -59,27 +58,29 @@ type LevelMeterProps<T extends ValidComponent = "div"> =
 export const LevelMeter = <T extends ValidComponent = "div">(
   props: LevelMeterProps<T>,
 ) => {
-  const [local, rest] = splitProps(props, [
+  const local = props;
+  const rest = omit(
+    local,
     "class",
     "meter",
     "compressionThreshold",
     "compressionFactor",
     "labelStyle",
-  ]);
+  );
   const { preferences, setPreferences } = usePreferences();
   const [peakValue, setPeakValue] = createSignal(-133);
 
   const [value, setValue] = createSignal(0);
   const { radio } = useFlexRadio();
 
-  createEffect(() => {
-    const id = local.meter?.id;
-    if (id === undefined) return;
-    const sub = radio()
-      ?.meter(id)
-      ?.on("data", (e) => setValue(e.value));
-    onCleanup(() => sub?.unsubscribe());
-  });
+  createEffect(
+    () => ({ id: local.meter?.id, activeRadio: radio() }),
+    ({ id, activeRadio }) => {
+      if (id === undefined) return;
+      const sub = activeRadio?.meter(id)?.on("data", (e) => setValue(e.value));
+      return () => sub?.unsubscribe();
+    },
+  );
 
   const scaleMeterValue = createMemo(() => {
     const compressionFactor = local.compressionFactor;
@@ -136,12 +137,16 @@ export const LevelMeter = <T extends ValidComponent = "div">(
     },
   );
 
-  createEffect((expires: number) => {
-    const v = value();
-    if (v < peakValue() && Date.now() < expires) return expires;
-    setPeakValue(v);
-    return Date.now() + 1000;
-  }, 0);
+  // Peak hold: a lower reading only replaces the peak once it is 1 s old.
+  let peakExpires = 0;
+  createEffect(
+    () => ({ v: value(), peak: peakValue() }),
+    ({ v, peak }) => {
+      if (v < peak && Date.now() < peakExpires) return;
+      setPeakValue(v);
+      peakExpires = Date.now() + 1000;
+    },
+  );
 
   return (
     <MeterPrimitive.Root
@@ -155,7 +160,11 @@ export const LevelMeter = <T extends ValidComponent = "div">(
       // The actual range is from -133 dBm (6 dB below S0) to -13 dBm (S9 + 60 dB),
       // but the app compresses the range above S9.
       maxValue={scaleMeterValue()(-13)} // S9+60
-      onClick={() => setPreferences("sMeterEnabled", (v) => !v)}
+      onClick={() =>
+        setPreferences((draft) => {
+          draft.sMeterEnabled = !draft.sMeterEnabled;
+        })
+      }
       getValueLabel={getValueLabel()}
       {...rest}
     >

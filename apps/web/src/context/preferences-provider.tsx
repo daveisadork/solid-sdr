@@ -1,14 +1,17 @@
-import { makePersisted } from "@solid-primitives/storage";
 import {
   createEffect,
-  createResource,
+  createMemo,
   createStore,
+  latest,
+  Loading,
+  onSettled,
   type ParentComponent,
-  reconcile,
-  type SetStoreFunction,
   Show,
-  type Store,
+  type StoreSetter,
+  snapshot,
 } from "solid-js";
+
+const STORAGE_KEY = "preferences";
 import { showToast } from "~/components/ui/toast";
 import { SLOT_COUNT } from "~/lib/panafall-layout";
 import {
@@ -339,52 +342,60 @@ const deepMerge = <T extends object>(target: T, source: Partial<T>): T => {
 export const PreferencesProviderInner: ParentComponent<{
   getDefaults: () => Preferences;
 }> = (props) => {
-  let rawPersisted: Record<string, unknown> = {};
+  // Built already merged with the stored prefs (populating missing defaults and
+  // dropping deprecated/removed ones), so mounting performs no store write.
+  let stored: Partial<Preferences> = {};
   try {
-    rawPersisted =
-      JSON.parse(localStorage.getItem("preferences") ?? "{}") ?? {};
+    stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}") ?? {};
   } catch {
     // corrupt payload; fall back to defaults
   }
-
-  const [store, setStore] = createStore(props.getDefaults());
-  const [preferences, setPreferences] = makePersisted<
-    Preferences,
-    [Store<Preferences>, SetStoreFunction<Preferences>]
-  >([store, setStore], { name: "preferences" });
-
-  // populate any missing defaults, and clean up any deprecated/removed prefs
-  setPreferences(
-    reconcile(
-      deepMerge(props.getDefaults(), rawPersisted as Partial<Preferences>),
-    ),
+  const [preferences, setStore] = createStore(
+    deepMerge(props.getDefaults(), stored),
   );
 
-  createEffect(() => {
-    if (!preferences.enableTransparencyEffects) {
-      document.documentElement.classList.add("disable-transparency-effects");
-    } else {
-      document.documentElement.classList.remove("disable-transparency-effects");
-    }
-  });
+  // latest() sees the write before it commits; snapshot() drops the proxies.
+  const persist = () =>
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify(latest(() => snapshot(preferences))),
+    );
+  const setPreferences: StoreSetter<Preferences> = (fn) => {
+    setStore(fn);
+    persist();
+  };
+  // Save the cleaned-up merge once, as the reconcile-on-load used to.
+  onSettled(persist);
 
-  createEffect(() => {
-    if (!preferences.enableBlurEffects) {
-      document.documentElement.classList.add("disable-blur-effects");
-    } else {
-      document.documentElement.classList.remove("disable-blur-effects");
-    }
-  });
+  createEffect(
+    () => !preferences.enableTransparencyEffects,
+    (disabled) => {
+      document.documentElement.classList.toggle(
+        "disable-transparency-effects",
+        disabled,
+      );
+    },
+  );
+
+  createEffect(
+    () => !preferences.enableBlurEffects,
+    (disabled) => {
+      document.documentElement.classList.toggle(
+        "disable-blur-effects",
+        disabled,
+      );
+    },
+  );
 
   return (
-    <PreferencesContext.Provider value={{ preferences, setPreferences }}>
+    <PreferencesContext value={{ preferences, setPreferences }}>
       {props.children}
-    </PreferencesContext.Provider>
+    </PreferencesContext>
   );
 };
 
 export const PreferencesProvider: ParentComponent = (props) => {
-  const [serverDefaults] = createResource<Partial<Preferences>>(async () => {
+  const serverDefaults = createMemo(async (): Promise<Partial<Preferences>> => {
     try {
       const response = await fetch("/defaults.json");
       if (!response.ok) throw new Error(response.statusText);
@@ -413,21 +424,23 @@ export const PreferencesProvider: ParentComponent = (props) => {
   });
 
   return (
-    <Show
-      when={serverDefaults()}
+    <Loading
       fallback={
         <div class="absolute top-1/2 left-1/2 -translate-1/2 border rounded-lg p-4">
           Loading...
         </div>
       }
     >
-      {(serverDefaults) => (
-        <PreferencesProviderInner
-          getDefaults={() => deepMerge(getDefaults(), serverDefaults())}
-        >
-          {props.children}
-        </PreferencesProviderInner>
-      )}
-    </Show>
+      {/* Mount only once defaults resolve: the inner store reads them at setup. */}
+      <Show when={serverDefaults()}>
+        {(defaults) => (
+          <PreferencesProviderInner
+            getDefaults={() => deepMerge(getDefaults(), defaults())}
+          >
+            {props.children}
+          </PreferencesProviderInner>
+        )}
+      </Show>
+    </Loading>
   );
 };

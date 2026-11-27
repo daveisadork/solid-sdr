@@ -1,5 +1,6 @@
-import type { Component, ComponentProps } from "solid-js";
-import { mergeProps, splitProps } from "solid-js";
+import type { ComponentProps } from "@solidjs/web";
+import type { Component } from "solid-js";
+import { merge, omit } from "solid-js";
 
 import { cn } from "~/lib/utils";
 
@@ -14,14 +15,9 @@ type GridProps = ComponentProps<"div"> & {
 };
 
 const Grid: Component<GridProps> = (rawProps) => {
-  const props = mergeProps({ cols: 1 } satisfies GridProps, rawProps);
-  const [local, others] = splitProps(props, [
-    "cols",
-    "colsSm",
-    "colsMd",
-    "colsLg",
-    "class",
-  ]);
+  const props = merge({ cols: 1 } satisfies GridProps, rawProps);
+  const local = props;
+  const others = omit(local, "cols", "colsSm", "colsMd", "colsLg", "class");
 
   return (
     <div
@@ -46,14 +42,9 @@ type ColProps = ComponentProps<"div"> & {
 };
 
 const Col: Component<ColProps> = (rawProps) => {
-  const props = mergeProps({ span: 1 as Span }, rawProps);
-  const [local, others] = splitProps(props, [
-    "span",
-    "spanSm",
-    "spanMd",
-    "spanLg",
-    "class",
-  ]);
+  const props = merge({ span: 1 as Span }, rawProps);
+  const local = props;
+  const others = omit(local, "span", "spanSm", "spanMd", "spanLg", "class");
 
   return (
     <div

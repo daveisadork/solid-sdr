@@ -14,7 +14,8 @@ import {
   rowSortingFeature,
   tableFeatures,
 } from "@tanstack/solid-table";
-import { createMemo, For, type JSX, Show, splitProps } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { createMemo, For, Show, omit } from "solid-js";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
 import {
@@ -52,7 +53,8 @@ const TextFieldCell = (
     class?: JSX.ElementClass | undefined;
   },
 ) => {
-  const [local, others] = splitProps(props, ["class"]);
+  const local = props;
+  const others = omit(local, "class");
   return (
     <TextFieldPrimitive.Root class={cn("flex", local.class)} {...others}>
       <TextFieldPrimitive.Input class="field-sizing-content min-w-full px-1" />
@@ -65,7 +67,8 @@ const NumberFieldCell = (
     class?: JSX.ElementClass | undefined;
   },
 ) => {
-  const [local, others] = splitProps(props, ["class"]);
+  const local = props;
+  const others = omit(local, "class");
   return (
     <NumberFieldPrimitive.Root
       class={cn("flex", local.class)}
@@ -492,7 +495,7 @@ function MemorySettingsInner(componentProps: { radio: Radio }) {
             ))
           ) : (
             <TableRow>
-              <TableCell colSpan={columns.length} class="h-24 text-center">
+              <TableCell colspan={columns.length} class="h-24 text-center">
                 No results.
               </TableCell>
             </TableRow>

@@ -4,9 +4,8 @@ import {
   createMemo,
   createSignal,
   createStore,
+  flush,
   For,
-  onCleanup,
-  produce,
   Show,
 } from "solid-js";
 import useFlexRadio from "~/context/flexradio";
@@ -179,11 +178,8 @@ export function CwxPanel() {
    * these straight from state made them lag or sit still depending on whether
    * the value happened to be valid for cw.
    */
-  const [rawDelay, setRawDelay] = createSignal(state.status.cwx.delay);
-  const [rawSpeed, setRawSpeed] = createSignal(state.status.cwx.speed);
-
-  createEffect(() => setRawDelay(state.status.cwx.delay));
-  createEffect(() => setRawSpeed(state.status.cwx.speed));
+  const [rawDelay, setRawDelay] = createSignal(() => state.status.cwx.delay);
+  const [rawSpeed, setRawSpeed] = createSignal(() => state.status.cwx.speed);
 
   const applyDelay = (value: number) => {
     if (value === state.status.cwx.delay) return;
@@ -204,15 +200,19 @@ export function CwxPanel() {
   };
   const debouncedApplySpeed = debounce(applySpeed, COMMAND_DEBOUNCE_MS);
 
-  createEffect(() => {
-    if (rawDelay() === state.status.cwx.delay) return;
-    debouncedApplyDelay(rawDelay());
-  });
+  createEffect(
+    () => ({ raw: rawDelay(), current: state.status.cwx.delay }),
+    ({ raw, current }) => {
+      if (raw !== current) debouncedApplyDelay(raw);
+    },
+  );
 
-  createEffect(() => {
-    if (rawSpeed() === state.status.cwx.speed) return;
-    debouncedApplySpeed(rawSpeed());
-  });
+  createEffect(
+    () => ({ raw: rawSpeed(), current: state.status.cwx.speed }),
+    ({ raw, current }) => {
+      if (raw !== current) debouncedApplySpeed(raw);
+    },
+  );
 
   /**
    * The queued message the radio is actually working through — the oldest one
@@ -273,55 +273,57 @@ export function CwxPanel() {
     );
   };
 
-  createEffect(() => {
-    const controller = cwx();
+  createEffect(cwx, (controller) => {
     if (!controller) return;
     const subscriptions = [
       controller.on("charSent", ({ radioIndex }) => {
-        setHistory(
-          produce((items) => {
-            for (const message of items) applyCharSent(message, radioIndex);
-          }),
-        );
-        setComposerBuffer(
-          produce((buffer) => applyCharSent(buffer, radioIndex)),
-        );
+        setHistory((items) => {
+          for (const message of items) applyCharSent(message, radioIndex);
+        });
+        setComposerBuffer((buffer) => {
+          applyCharSent(buffer, radioIndex);
+        });
       }),
       controller.on("eraseSent", ({ start, stop }) => {
-        setHistory(
-          produce((items) => {
-            for (const message of items) applyErase(message, start, stop);
-          }),
-        );
-        setComposerBuffer(produce((buffer) => applyErase(buffer, start, stop)));
+        setHistory((items) => {
+          for (const message of items) applyErase(message, start, stop);
+        });
+        setComposerBuffer((buffer) => {
+          applyErase(buffer, start, stop);
+        });
       }),
     ];
-    onCleanup(() => {
+    return () => {
       for (const subscription of subscriptions) subscription.unsubscribe();
-    });
+    };
   });
 
   const pushHistory = (message: Omit<QueuedMessage, "id">) => {
     const id = nextId++;
     // FLIP anchor: the newest existing entry, measured before the mutation and
     // again after, tells us how far the transcript moved once the new entry took
-    // its space. Solid applies the DOM update synchronously, so no frame is
+    // its space. flush() applies the DOM update synchronously, so no frame is
     // painted between the two reads, and any in-flight transform is present in
     // both and cancels out of the difference.
     const anchor = stack?.lastElementChild;
     const before = anchor?.getBoundingClientRect().top;
-    setHistory(
-      produce((items) => {
-        items.push({ ...message, id });
-        if (items.length > MAX_HISTORY)
-          items.splice(0, items.length - MAX_HISTORY);
-      }),
-    );
+    setHistory((items) => {
+      items.push({ ...message, id });
+      if (items.length > MAX_HISTORY)
+        items.splice(0, items.length - MAX_HISTORY);
+    });
+    flush();
     scrollToLatest();
     if (anchor && before !== undefined)
       glideStack(before - anchor.getBoundingClientRect().top);
     return id;
   };
+
+  const setHistoryIndices = (id: number, indices: number[]) =>
+    setHistory((items) => {
+      const message = items.find((m) => m.id === id);
+      if (message) message.indices = indices;
+    });
 
   /**
    * Queues a whole message. The entry lands in the history immediately so a
@@ -335,11 +337,7 @@ export function CwxPanel() {
     const block = nextBlock++ & 0xffff;
     try {
       const queued = await controller.send(text, block);
-      setHistory(
-        (message) => message.id === id,
-        "indices",
-        indexRange(queued.radioIndex, text.length),
-      );
+      setHistoryIndices(id, indexRange(queued.radioIndex, text.length));
     } catch (error) {
       console.error("CWX send failed", error);
     }
@@ -353,11 +351,7 @@ export function CwxPanel() {
     const block = nextBlock++ & 0xffff;
     try {
       const queued = await controller.sendMacro(index, block);
-      setHistory(
-        (message) => message.id === id,
-        "indices",
-        indexRange(queued.radioIndex, text.length),
-      );
+      setHistoryIndices(id, indexRange(queued.radioIndex, text.length));
     } catch (error) {
       console.error("CWX macro send failed", error);
     }
@@ -367,7 +361,9 @@ export function CwxPanel() {
 
   const clearComposer = () => {
     if (composer) composer.replaceChildren();
-    setComposerBuffer({ ...EMPTY_BUFFER });
+    setComposerBuffer((draft) => {
+      Object.assign(draft, { ...EMPTY_BUFFER });
+    });
     liveSent = "";
   };
 
@@ -408,12 +404,12 @@ export function CwxPanel() {
     selection?.addRange(range);
   };
 
-  createEffect(() => {
-    const sent = composerBuffer.sent;
-    const erasedFrom = composerBuffer.erasedFrom;
-    if (sent === 0 && erasedFrom === null) return;
-    paintComposer();
-  });
+  createEffect(
+    () => composerBuffer.sent !== 0 || composerBuffer.erasedFrom !== null,
+    (hasProgress) => {
+      if (hasProgress) paintComposer();
+    },
+  );
 
   /** Moves the composer into the history, progress and all, and stamps it. */
   const commit = () => {
@@ -462,12 +458,14 @@ export function CwxPanel() {
       if (buffer.sent >= buffer.text.length) return;
       markErasedFrom(buffer, buffer.sent);
     };
-    setHistory(
-      produce((items) => {
-        for (const message of items) markErased(message);
-      }),
-    );
-    if (live()) setComposerBuffer(produce(markErased));
+    setHistory((items) => {
+      for (const message of items) markErased(message);
+    });
+    if (live()) {
+      setComposerBuffer((buffer) => {
+        markErased(buffer);
+      });
+    }
   };
 
   const handleInput = () => {
@@ -479,7 +477,9 @@ export function CwxPanel() {
       clearComposer();
       return;
     }
-    setComposerBuffer("text", text);
+    setComposerBuffer((draft) => {
+      draft.text = text;
+    });
     if (!live()) return;
     // Only text added since the last dispatch is new. Editing behind the
     // caret cannot be unsent, so resync silently rather than re-keying.
@@ -499,10 +499,9 @@ export function CwxPanel() {
     const block = nextBlock++ & 0xffff;
     try {
       const queued = await controller.send(delta, block);
-      setComposerBuffer("indices", (indices) => [
-        ...indices,
-        ...indexRange(queued.radioIndex, delta.length),
-      ]);
+      setComposerBuffer((buffer) => {
+        buffer.indices.push(...indexRange(queued.radioIndex, delta.length));
+      });
     } catch (error) {
       console.error("CWX live send failed", error);
     }
@@ -535,7 +534,9 @@ export function CwxPanel() {
       }
       // Drop our index for it up front so the erase= status that comes back
       // finds nothing to strike through — the character is already gone here.
-      setComposerBuffer("indices", (indices) => indices.slice(0, -1));
+      setComposerBuffer((buffer) => {
+        buffer.indices.pop();
+      });
       void cwx()
         ?.erase(1)
         .catch((error) => console.error("CWX erase failed", error));
@@ -550,20 +551,25 @@ export function CwxPanel() {
     document.execCommand("insertText", false, text.replace(/\s+/g, " "));
   };
 
-  createEffect(() => {
-    if (!preferences.cwx.macroHotkeys) return;
-    if (!preferences.toolsPanelOpen || preferences.toolsPanel !== "cwx") return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.defaultPrevented) return;
-      if (!event.altKey || event.ctrlKey || event.metaKey) return;
-      const index = MACRO_HOTKEYS.findIndex((key) => key.code === event.code);
-      if (index === -1) return;
-      event.preventDefault();
-      void sendMacro(index);
-    };
-    window.addEventListener("keydown", onKeyDown);
-    onCleanup(() => window.removeEventListener("keydown", onKeyDown));
-  });
+  createEffect(
+    () =>
+      preferences.cwx.macroHotkeys &&
+      preferences.toolsPanelOpen &&
+      preferences.toolsPanel === "cwx",
+    (enabled) => {
+      if (!enabled) return;
+      const onKeyDown = (event: KeyboardEvent) => {
+        if (event.defaultPrevented) return;
+        if (!event.altKey || event.ctrlKey || event.metaKey) return;
+        const index = MACRO_HOTKEYS.findIndex((key) => key.code === event.code);
+        if (index === -1) return;
+        event.preventDefault();
+        void sendMacro(index);
+      };
+      window.addEventListener("keydown", onKeyDown);
+      return () => window.removeEventListener("keydown", onKeyDown);
+    },
+  );
 
   return (
     <div class="flex h-full min-h-0 flex-col gap-3">
@@ -656,7 +662,7 @@ export function CwxPanel() {
             spellcheck={false}
             enterkeyhint="send"
             autocapitalize="characters"
-            tabIndex={0}
+            tabindex={0}
             aria-label="CWX message"
             class="min-h-7 cursor-text p-2 outline-none"
             onInput={handleInput}
@@ -671,7 +677,11 @@ export function CwxPanel() {
           size="lg"
           variant="outline"
           pressed={live()}
-          onChange={(pressed) => setPreferences("cwx", "live", pressed)}
+          onChange={(pressed) =>
+            setPreferences((draft) => {
+              draft.cwx.live = pressed;
+            })
+          }
           class="data-pressed:border-destructive data-pressed:bg-destructive data-pressed:text-destructive-foreground min-w-0 flex-auto overflow-hidden px-2"
         >
           Live
@@ -699,7 +709,9 @@ export function CwxPanel() {
             <SimpleSwitch
               checked={preferences.cwx.macroHotkeys}
               onChange={(isChecked) =>
-                setPreferences("cwx", "macroHotkeys", isChecked)
+                setPreferences((draft) => {
+                  draft.cwx.macroHotkeys = isChecked;
+                })
               }
               label="Enable Macro Hotkeys"
               description="Alt + 1-9, 0, -, = sends a macro while the CWX panel is open."
@@ -765,8 +777,7 @@ function MacroEditor(props: {
   onCapture: () => string;
   onSend: () => void;
 }) {
-  const [value, setValue] = createSignal(props.text);
-  createEffect(() => setValue(props.text));
+  const [value, setValue] = createSignal(() => props.text);
 
   const commit = () => {
     if (value() !== props.text) props.onSave(value());

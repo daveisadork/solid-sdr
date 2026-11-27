@@ -1,4 +1,4 @@
-import type { ComponentProps } from "solid-js";
+import type { ComponentProps } from "@solidjs/web";
 import { Portal } from "@solidjs/web";
 import { usePanafall } from "~/context/panafall";
 

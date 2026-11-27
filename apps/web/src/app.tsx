@@ -10,19 +10,20 @@ import {
   createLocalStorageManager,
 } from "@kobalte/core/color-mode";
 import {
-  HashRouter,
-  Navigate,
-  Route,
+  createRouter,
+  defineRoute,
+  defineRoutes,
+  hashHistory,
   type RouteSectionProps,
   useLocation,
   useNavigate,
   useSearchParams,
 } from "@solidjs/router";
-import { createEffect, Show } from "solid-js";
+import { createEffect, Loading, onSettled, Show } from "solid-js";
 import BaselineViewSidebar from "~icons/ic/baseline-view-sidebar";
 import MaterialSymbolsOpenInNew from "~icons/material-symbols/open-in-new";
 import { DebugBanner } from "./components/debug-mode/banner";
-import { FPSCounter } from "./components/fps";
+// import { FPSCounter } from "./components/fps";
 import { Panafalls } from "./components/panafall/panafalls";
 import { RadioSidebar } from "./components/radio-sidebar";
 import { ReleaseNotification } from "./components/release-notification";
@@ -57,14 +58,22 @@ function AppInner() {
           <SidebarProvider
             class="relative grow h-auto overflow-visible min-h-0 bg-transparent"
             open={!!preferences.toolsPanelOpen}
-            onOpenChange={(open) => setPreferences("toolsPanelOpen", open)}
+            onOpenChange={(open) =>
+              setPreferences((draft) => {
+                draft.toolsPanelOpen = open;
+              })
+            }
             shortcut={null}
           >
             <ToolsSidebar />
             <SidebarProvider
               class="contents"
               open={!!preferences.radioPanelOpen}
-              onOpenChange={(open) => setPreferences("radioPanelOpen", open)}
+              onOpenChange={(open) =>
+                setPreferences((draft) => {
+                  draft.radioPanelOpen = open;
+                })
+              }
             >
               <Panafalls />
               <RadioSidebar />
@@ -76,9 +85,9 @@ function AppInner() {
             </SidebarProvider>
             <StatusBar />
           </SidebarProvider>
-          <Show when={preferences.showFps}>
-            <FPSCounter />
-          </Show>
+          {/* <Show when={preferences.showFps}> */}
+          {/*   <FPSCounter /> */}
+          {/* </Show> */}
         </div>
       </PanafallLayoutProvider>
     </ChromeInsetsProvider>
@@ -98,31 +107,49 @@ function RouteGuard() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
 
-  createEffect((prevStatus: ConnectionState | undefined) => {
-    const status = state.connectModal.status;
-    if (status === prevStatus) return status;
-    if (status === ConnectionState.disconnected) {
-      if (location.pathname !== "/connect") {
-        const next = location.pathname === "/" ? null : location.pathname;
+  // Apply runs only when the status changes, not on route changes.
+  createEffect(
+    () => state.connectModal.status,
+    (status) => {
+      if (status === ConnectionState.disconnected) {
+        if (location.pathname !== "/connect") {
+          const next = location.pathname === "/" ? null : location.pathname;
+          navigate(
+            next ? `/connect?next=${encodeURIComponent(next)}` : "/connect",
+            { replace: true },
+          );
+        }
+      } else if (
+        status === ConnectionState.connected &&
+        location.pathname === "/connect"
+      ) {
+        const next = searchParams.next;
         navigate(
-          next ? `/connect?next=${encodeURIComponent(next)}` : "/connect",
+          typeof next === "string" && next.startsWith("/") ? next : "/",
           { replace: true },
         );
       }
-    } else if (
-      status === ConnectionState.connected &&
-      location.pathname === "/connect"
-    ) {
-      const next = searchParams.next;
-      navigate(typeof next === "string" && next.startsWith("/") ? next : "/", {
-        replace: true,
-      });
-    }
-    return status;
-  }, undefined);
+    },
+  );
 
   return null;
 }
+
+function NotFound() {
+  const navigate = useNavigate();
+  onSettled(() => navigate("/", { replace: true }));
+  return null;
+}
+
+const Router = createRouter({
+  routes: defineRoutes([
+    defineRoute({ path: "/" }),
+    defineRoute({ path: "/connect" }),
+    defineRoute({ path: "/settings/:tab" }),
+    defineRoute({ path: "*404", component: NotFound }),
+  ]),
+  history: hashHistory(),
+});
 
 function AppRoot(props: RouteSectionProps) {
   const storageManager = createLocalStorageManager("vite-ui-theme");
@@ -177,7 +204,11 @@ function AppRoot(props: RouteSectionProps) {
               </RtcProvider>
             </DebugModeProvider>
           </Show>
-          <ReleaseNotification />
+          {/* Own boundary: the GitHub release check must not hold the app's
+              Loading boundary above. */}
+          <Loading>
+            <ReleaseNotification />
+          </Loading>
           <ReloadPrompt />
         </PreferencesProvider>
         <Toaster />
@@ -188,14 +219,7 @@ function AppRoot(props: RouteSectionProps) {
 }
 
 function App() {
-  return (
-    <HashRouter root={AppRoot}>
-      <Route path="/" />
-      <Route path="/connect" />
-      <Route path="/settings/:tab" />
-      <Route path="*404" component={() => <Navigate href="/" />} />
-    </HashRouter>
-  );
+  return <Router>{(props) => <AppRoot {...props} />}</Router>;
 }
 
 export default App;

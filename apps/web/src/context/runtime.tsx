@@ -1,4 +1,4 @@
-import type { SetStoreFunction } from "solid-js";
+import type { StoreSetter } from "solid-js";
 import { createContext, useContext } from "solid-js";
 import type {
   NetworkQuality,
@@ -22,7 +22,7 @@ export type { NetworkQuality };
 
 export const RuntimeContext = createContext<{
   runtime: RuntimeState;
-  setRuntime: SetStoreFunction<RuntimeState>;
+  setRuntime: StoreSetter<RuntimeState>;
 }>();
 
 export function useRuntime() {

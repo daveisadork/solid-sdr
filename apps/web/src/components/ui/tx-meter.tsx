@@ -1,12 +1,11 @@
 import * as MeterPrimitive from "@kobalte/core/meter";
+import type { JSX } from "@solidjs/web";
 import {
   createEffect,
   createMemo,
   createSignal,
   For,
-  type JSX,
   Match,
-  onCleanup,
   Show,
   Switch,
 } from "solid-js";
@@ -72,12 +71,15 @@ function Meter(props: MeterProps) {
   const { radio } = useFlexRadio();
   const [value, setValue] = createSignal(0);
 
-  createEffect(() => {
-    const sub = radio()
-      ?.meter(props.meter?.id)
-      ?.on("data", ({ value }) => setValue(value));
-    onCleanup(() => sub?.unsubscribe());
-  });
+  createEffect(
+    () => ({ id: props.meter?.id, activeRadio: radio() }),
+    ({ id, activeRadio }) => {
+      const sub = activeRadio
+        ?.meter(id)
+        ?.on("data", ({ value }) => setValue(value));
+      return () => sub?.unsubscribe();
+    },
+  );
 
   const stops = createMemo(() => {
     if (Array.isArray(props.stops)) return props.stops;
@@ -168,12 +170,14 @@ function Meter(props: MeterProps) {
           <For each={tickLabels()}>
             {(label) => (
               <div
-                class="w-0 basis-0 flex flex-col"
-                classList={{
-                  "items-center": !(label.isEdge && props.containTickLabels),
-                  "items-start": label.isMin && props.containTickLabels,
-                  "items-end": label.isMax && props.containTickLabels,
-                }}
+                class={[
+                  "w-0 basis-0 flex flex-col",
+                  {
+                    "items-center": !(label.isEdge && props.containTickLabels),
+                    "items-start": label.isMin && props.containTickLabels,
+                    "items-end": label.isMax && props.containTickLabels,
+                  },
+                ]}
               >
                 <Show
                   when={
@@ -207,23 +211,27 @@ export function TxMeter() {
     Object.values(state.status.meter).find((meter) => meter.name === "REFPWR"),
   );
 
-  createEffect(() => {
-    const id = fwdPwrMeter()?.id;
-    if (id === undefined) return;
-    const sub = radio()
-      ?.meter(id)
-      ?.on("data", (event) => setFwdPwrWatts(dbmToWatts(event.value, 1)));
-    onCleanup(() => sub?.unsubscribe());
-  });
+  createEffect(
+    () => ({ id: fwdPwrMeter()?.id, activeRadio: radio() }),
+    ({ id, activeRadio }) => {
+      if (id === undefined) return;
+      const sub = activeRadio
+        ?.meter(id)
+        ?.on("data", (event) => setFwdPwrWatts(dbmToWatts(event.value, 1)));
+      return () => sub?.unsubscribe();
+    },
+  );
 
-  createEffect(() => {
-    const id = refPwrMeter()?.id;
-    if (id === undefined) return;
-    const sub = radio()
-      ?.meter(id)
-      ?.on("data", (event) => setRefPwrWatts(dbmToWatts(event.value, 1)));
-    onCleanup(() => sub?.unsubscribe());
-  });
+  createEffect(
+    () => ({ id: refPwrMeter()?.id, activeRadio: radio() }),
+    ({ id, activeRadio }) => {
+      if (id === undefined) return;
+      const sub = activeRadio
+        ?.meter(id)
+        ?.on("data", (event) => setRefPwrWatts(dbmToWatts(event.value, 1)));
+      return () => sub?.unsubscribe();
+    },
+  );
 
   const swr = createMemo(() => {
     const fwdWatts = fwdPwrWatts();

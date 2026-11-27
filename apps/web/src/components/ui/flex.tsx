@@ -1,5 +1,6 @@
-import type { Component, ComponentProps } from "solid-js";
-import { mergeProps, splitProps } from "solid-js";
+import type { ComponentProps } from "@solidjs/web";
+import type { Component } from "solid-js";
+import { merge, omit } from "solid-js";
 
 import { cn } from "~/lib/utils";
 
@@ -20,7 +21,7 @@ type FlexProps = ComponentProps<"div"> & {
 };
 
 const Flex: Component<FlexProps> = (rawProps) => {
-  const props = mergeProps(
+  const props = merge(
     {
       flexDirection: "row",
       justifyContent: "between",
@@ -28,12 +29,14 @@ const Flex: Component<FlexProps> = (rawProps) => {
     } satisfies FlexProps,
     rawProps,
   );
-  const [local, others] = splitProps(props, [
+  const local = props;
+  const others = omit(
+    local,
     "flexDirection",
     "justifyContent",
     "alignItems",
     "class",
-  ]);
+  );
 
   return (
     <div

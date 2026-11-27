@@ -1,5 +1,5 @@
 import type { SliceController } from "@repo/flexlib";
-import { createEffect, createSignal, For, Show } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
 import {
   NumberField,
   NumberFieldDecrementTrigger,
@@ -19,11 +19,8 @@ export const ModeControls = (props: {
   slice: SliceState;
   controller: SliceController;
 }) => {
-  const [rawMark, setRawMark] = createSignal(2125);
-  const [rawShift, setRawShift] = createSignal(170);
-
-  createEffect(() => setRawMark(props.slice.rttyMarkHz));
-  createEffect(() => setRawShift(props.slice.rttyShiftHz));
+  const [rawMark, setRawMark] = createSignal(() => props.slice.rttyMarkHz);
+  const [rawShift, setRawShift] = createSignal(() => props.slice.rttyShiftHz);
 
   return (
     <Popover>

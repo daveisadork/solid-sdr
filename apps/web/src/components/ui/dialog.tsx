@@ -2,14 +2,9 @@ import * as DialogPrimitive from "@kobalte/core/dialog";
 import type { PolymorphicProps } from "@kobalte/core/polymorphic";
 import { createMediaQuery } from "@solid-primitives/media";
 import { cva, type VariantProps } from "class-variance-authority";
-import type {
-  Accessor,
-  Component,
-  ComponentProps,
-  JSX,
-  ValidComponent,
-} from "solid-js";
-import { createContext, Show, splitProps, useContext } from "solid-js";
+import type { ComponentProps, JSX, ValidComponent } from "@solidjs/web";
+import type { Accessor, Component } from "solid-js";
+import { createContext, Show, useContext, omit } from "solid-js";
 
 import { cn } from "~/lib/utils";
 
@@ -25,7 +20,8 @@ type DialogProps = DialogPrimitive.DialogRootProps & {
 };
 
 const Dialog: Component<DialogProps> = (props) => {
-  const [local, rest] = splitProps(props, ["variant"]);
+  const local = props;
+  const rest = omit(local, "variant");
   const isSm = createMediaQuery("(min-width: 40rem)");
   const isSheet = () => {
     const variant = local.variant ?? "auto";
@@ -33,13 +29,13 @@ const Dialog: Component<DialogProps> = (props) => {
   };
 
   return (
-    <DialogContext.Provider
+    <DialogContext
       value={{
         isSheet,
       }}
     >
       <DialogPrimitive.Root {...rest} />
-    </DialogContext.Provider>
+    </DialogContext>
   );
 };
 
@@ -62,7 +58,8 @@ type DialogPortalProps = DialogPrimitive.DialogPortalProps &
   VariantProps<typeof portalVariants>;
 
 const DialogPortal: Component<DialogPortalProps> = (props) => {
-  const [local, rest] = splitProps(props, ["position", "children"]);
+  const local = props;
+  const rest = omit(local, "position", "children");
   return (
     <DialogPrimitive.Portal {...rest}>
       <div class={portalVariants({ position: local.position })}>
@@ -78,7 +75,7 @@ type DialogOverlayProps<T extends ValidComponent = "div"> =
 const DialogOverlay = <T extends ValidComponent = "div">(
   props: PolymorphicProps<T, DialogOverlayProps<T>>,
 ) => {
-  const [, rest] = splitProps(props as DialogOverlayProps, ["class"]);
+  const rest = omit(props as DialogOverlayProps, "class");
   return (
     <DialogPrimitive.Overlay
       class={cn(
@@ -129,12 +126,8 @@ type DialogContentProps<T extends ValidComponent = "div"> =
 const DialogContent = <T extends ValidComponent = "div">(
   props: PolymorphicProps<T, DialogContentProps<T>>,
 ) => {
-  const [local, rest] = splitProps(props as DialogContentProps, [
-    "position",
-    "class",
-    "children",
-    "hideOverlay",
-  ]);
+  const local = props as DialogContentProps;
+  const rest = omit(local, "position", "class", "children", "hideOverlay");
   const { isSheet } = useContext(DialogContext);
   const ctx = DialogPrimitive.useDialogContext();
 
@@ -209,7 +202,8 @@ const DialogContent = <T extends ValidComponent = "div">(
 const DialogHeader: Component<
   ComponentProps<"div"> & { sticky?: boolean | undefined }
 > = (props) => {
-  const [local, rest] = splitProps(props, ["class", "sticky"]);
+  const local = props;
+  const rest = omit(local, "class", "sticky");
   const sticky = () => local.sticky ?? true;
   return (
     <div
@@ -226,7 +220,8 @@ const DialogHeader: Component<
 const DialogFooter: Component<
   ComponentProps<"div"> & { sticky?: boolean | undefined }
 > = (props) => {
-  const [local, rest] = splitProps(props, ["class", "sticky"]);
+  const local = props;
+  const rest = omit(local, "class", "sticky");
   return (
     <div
       class={cn(
@@ -247,7 +242,7 @@ type DialogTitleProps<T extends ValidComponent = "h2"> =
 const DialogTitle = <T extends ValidComponent = "h2">(
   props: PolymorphicProps<T, DialogTitleProps<T>>,
 ) => {
-  const [, rest] = splitProps(props as DialogTitleProps, ["class"]);
+  const rest = omit(props as DialogTitleProps, "class");
   return (
     <DialogPrimitive.Title
       class={cn(
@@ -267,7 +262,7 @@ type DialogDescriptionProps<T extends ValidComponent = "p"> =
 const DialogDescription = <T extends ValidComponent = "p">(
   props: PolymorphicProps<T, DialogDescriptionProps<T>>,
 ) => {
-  const [, rest] = splitProps(props as DialogDescriptionProps, ["class"]);
+  const rest = omit(props as DialogDescriptionProps, "class");
   return (
     <DialogPrimitive.Description
       class={cn("text-sm text-muted-foreground", props.class)}

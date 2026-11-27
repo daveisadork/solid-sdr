@@ -1,4 +1,4 @@
-import { createEffect, createMemo, onCleanup } from "solid-js";
+import { createEffect, createMemo, } from "solid-js";
 import {
   CONTROL_REGISTRY,
   type ControlAction,
@@ -246,17 +246,19 @@ export function MidiControl() {
     };
   });
 
-  createEffect(() => {
-    const handler = onMessage();
-    inputs.forEach((input) => {
-      input.addEventListener("midimessage", handler);
-    });
-    onCleanup(() =>
-      inputs.forEach((input) => {
-        input.removeEventListener("midimessage", handler);
-      }),
-    );
-  });
+  createEffect(
+    () => ({ handler: onMessage(), ports: [...inputs.values()] }),
+    ({ handler, ports }) => {
+      for (const input of ports) {
+        input.addEventListener("midimessage", handler);
+      }
+      return () => {
+        for (const input of ports) {
+          input.removeEventListener("midimessage", handler);
+        }
+      };
+    },
+  );
 
   return null;
 }

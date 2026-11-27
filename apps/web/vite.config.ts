@@ -43,7 +43,7 @@ export default defineConfig({
       registerType: "prompt",
       injectRegister: false,
       devOptions: {
-        enabled: true,
+        enabled: false,
         // generateSW globs dist, which does not exist in `vite`. Give workbox a dummy file.
         suppressWarnings: true,
       },

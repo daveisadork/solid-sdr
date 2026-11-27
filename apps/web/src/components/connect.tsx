@@ -1,7 +1,8 @@
 import { getModelInfo } from "@repo/flexlib";
 import { Key } from "@solid-primitives/keyed";
 import { useMatch, useNavigate } from "@solidjs/router";
-import { type ComponentProps, createEffect, For, Show } from "solid-js";
+import type { ComponentProps } from "@solidjs/web";
+import { createEffect, For, Show } from "solid-js";
 import { Dynamic } from "@solidjs/web";
 import useFlexRadio, { ConnectionState } from "~/context/flexradio";
 import MdiCheckNetworkOutline from "~icons/mdi/check-network-outline";
@@ -30,6 +31,7 @@ import {
 import { ProgressCircle } from "./ui/progress-circle";
 import { Skeleton } from "./ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
+import { cn } from "~/lib/utils";
 
 const STATUS_MAP: Record<string, ComponentProps<typeof Badge>["variant"]> = {
   Available: "success",
@@ -48,12 +50,13 @@ export default function Connect() {
   // Opening the dialog acts as "disconnect" when a connection is live; the
   // RouteGuard in app.tsx handles navigating here on connection loss and
   // away again once connected.
-  createEffect((lastOpen) => {
-    if (open() && !lastOpen) {
-      disconnect();
-    }
-    return open();
-  }, open());
+  createEffect(
+    open,
+    (isOpen) => {
+      if (isOpen) disconnect();
+    },
+    { defer: true },
+  );
 
   const label = () =>
     state.clientHandle ? "Disconnect from radio" : "Connect to radio";
@@ -187,13 +190,12 @@ export default function Connect() {
                     <div>
                       <Button
                         size="icon"
-                        classList={{
+                        class={cn("[&_svg]:size-full p-2", {
                           "bg-success text-success-foreground":
                             radio.availableClients > 0,
                           "bg-warning text-warning-foreground":
                             !radio.availableClients,
-                        }}
-                        class="[&_svg]:size-full p-2"
+                        })}
                         disabled={
                           state.connectModal.status ===
                             ConnectionState.connecting ||

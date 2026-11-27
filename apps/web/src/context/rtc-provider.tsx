@@ -4,7 +4,6 @@ import {
   makeHeartbeatWS,
 } from "@solid-primitives/websocket";
 import {
-  batch,
   createEffect,
   createSignal,
   createStore,
@@ -159,33 +158,35 @@ export const RtcProvider: ParentComponent = (props) => {
       iceGatheringState,
       iceConnectionState,
     } = this;
-    setRtcState({
-      connectionState,
-      signalingState,
-      iceGatheringState,
-      iceConnectionState,
+    setRtcState((draft) => {
+      Object.assign(draft, {
+        connectionState,
+        signalingState,
+        iceGatheringState,
+        iceConnectionState,
+      });
     });
   }
 
-  createEffect(() => {
-    signalingWs.addEventListener("message", onMessage);
-    signalingWs.addEventListener("open", onOpen);
-    onCleanup(() => {
-      signalingWs.removeEventListener("message", onMessage);
-      signalingWs.removeEventListener("open", onOpen);
-    });
+  signalingWs.addEventListener("message", onMessage);
+  signalingWs.addEventListener("open", onOpen);
+  onCleanup(() => {
+    signalingWs.removeEventListener("message", onMessage);
+    signalingWs.removeEventListener("open", onOpen);
   });
 
-  createEffect(() => {
-    batch(() => {
-      if (signalingWsState() !== WebSocket.OPEN) {
+  createEffect(
+    () => ({
+      open: signalingWsState() === WebSocket.OPEN,
+      config: rtcConfig(),
+    }),
+    ({ open, config }) => {
+      if (!open) {
         setPeerConnection(null);
         setServerVersion(null);
         setRtcConfig(null);
         return;
       }
-
-      const config = rtcConfig();
       if (!config) return;
 
       const pc = new RTCPeerConnection(
@@ -206,7 +207,7 @@ export const RtcProvider: ParentComponent = (props) => {
         pc.addTransceiver("audio", { direction: "sendrecv" }),
       );
 
-      onCleanup(() => {
+      return () => {
         if (
           pc.connectionState !== "closed" &&
           pc.connectionState !== "failed"
@@ -221,23 +222,31 @@ export const RtcProvider: ParentComponent = (props) => {
         pc.removeEventListener("icecandidate", onIceCandidate);
         pc.removeEventListener("track", onTrack);
         setAudioTransceiver(null);
-      });
-    });
-  });
+      };
+    },
+  );
 
-  createEffect(() => {
-    const connectionState = rtcState.connectionState;
-    if (connectionState && ["failed", "closed"].includes(connectionState)) {
-      setPeerConnection(null);
-    }
-  });
+  createEffect(
+    () => {
+      const connectionState = rtcState.connectionState;
+      return (
+        !!connectionState && ["failed", "closed"].includes(connectionState)
+      );
+    },
+    (ended) => {
+      if (ended) setPeerConnection(null);
+    },
+  );
 
-  createEffect(() =>
-    audioTransceiver()?.sender.replaceTrack(remoteAudioTxTrack()),
+  createEffect(
+    () => ({ transceiver: audioTransceiver(), track: remoteAudioTxTrack() }),
+    ({ transceiver, track }) => {
+      void transceiver?.sender.replaceTrack(track);
+    },
   );
 
   return (
-    <RtcCtx.Provider
+    <RtcCtx
       value={{
         peerConnection,
         rtcState: rtcState,
@@ -249,7 +258,7 @@ export const RtcProvider: ParentComponent = (props) => {
       }}
     >
       {props.children}
-    </RtcCtx.Provider>
+    </RtcCtx>
   );
 };
 

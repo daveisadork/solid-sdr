@@ -1,8 +1,8 @@
 import * as ComboboxPrimitive from "@kobalte/core/combobox";
 import type { PolymorphicProps } from "@kobalte/core/polymorphic";
 import { cva } from "class-variance-authority";
-import type { JSX, ValidComponent } from "solid-js";
-import { Show, splitProps } from "solid-js";
+import type { JSX, ValidComponent } from "@solidjs/web";
+import { Show, omit } from "solid-js";
 import { cn } from "~/lib/utils";
 
 const Combobox = ComboboxPrimitive.Root;
@@ -19,7 +19,8 @@ type ComboboxItemProps<T extends ValidComponent = "li"> =
 const ComboboxItem = <T extends ValidComponent = "li">(
   props: PolymorphicProps<T, ComboboxItemProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as ComboboxItemProps, ["class"]);
+  const local = props as ComboboxItemProps;
+  const others = omit(local, "class");
   return (
     <ComboboxPrimitive.Item
       class={cn(
@@ -39,9 +40,8 @@ type ComboboxItemIndicatorProps<T extends ValidComponent = "div"> =
 const ComboboxItemIndicator = <T extends ValidComponent = "div">(
   props: PolymorphicProps<T, ComboboxItemIndicatorProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as ComboboxItemIndicatorProps, [
-    "children",
-  ]);
+  const local = props as ComboboxItemIndicatorProps;
+  const others = omit(local, "children");
   return (
     <ComboboxPrimitive.ItemIndicator {...others}>
       <Show
@@ -74,7 +74,8 @@ type ComboboxSectionProps<T extends ValidComponent = "li"> =
 const ComboboxSection = <T extends ValidComponent = "li">(
   props: PolymorphicProps<T, ComboboxSectionProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as ComboboxSectionProps, ["class"]);
+  const local = props as ComboboxSectionProps;
+  const others = omit(local, "class");
   return (
     <ComboboxPrimitive.Section
       class={cn(
@@ -96,9 +97,8 @@ type ComboboxControlProps<
 const ComboboxControl = <T, U extends ValidComponent = "div">(
   props: PolymorphicProps<U, ComboboxControlProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as ComboboxControlProps<T>, [
-    "class",
-  ]);
+  const local = props as ComboboxControlProps<T>;
+  const others = omit(local, "class");
   return (
     <ComboboxPrimitive.Control
       class={cn(
@@ -116,7 +116,8 @@ type ComboboxInputProps<T extends ValidComponent = "input"> =
 const ComboboxInput = <T extends ValidComponent = "input">(
   props: PolymorphicProps<T, ComboboxInputProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as ComboboxInputProps, ["class"]);
+  const local = props as ComboboxInputProps;
+  const others = omit(local, "class");
   return (
     <ComboboxPrimitive.Input
       class={cn(
@@ -137,10 +138,8 @@ type ComboboxTriggerProps<T extends ValidComponent = "button"> =
 const ComboboxTrigger = <T extends ValidComponent = "button">(
   props: PolymorphicProps<T, ComboboxTriggerProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as ComboboxTriggerProps, [
-    "class",
-    "children",
-  ]);
+  const local = props as ComboboxTriggerProps;
+  const others = omit(local, "class", "children");
   return (
     <ComboboxPrimitive.Trigger
       class={cn("size-4 opacity-50", local.class)}
@@ -179,7 +178,8 @@ type ComboboxContentProps<T extends ValidComponent = "div"> =
 const ComboboxContent = <T extends ValidComponent = "div">(
   props: PolymorphicProps<T, ComboboxContentProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as ComboboxContentProps, ["class"]);
+  const local = props as ComboboxContentProps;
+  const others = omit(local, "class");
   return (
     <ComboboxPrimitive.Portal>
       <ComboboxPrimitive.Content
@@ -219,7 +219,8 @@ type ComboboxLabelProps<T extends ValidComponent = "label"> =
 const ComboboxLabel = <T extends ValidComponent = "label">(
   props: PolymorphicProps<T, ComboboxLabelProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as ComboboxLabelProps, ["class"]);
+  const local = props as ComboboxLabelProps;
+  const others = omit(local, "class");
   return (
     <ComboboxPrimitive.Label
       class={cn(labelVariants(), local.class)}

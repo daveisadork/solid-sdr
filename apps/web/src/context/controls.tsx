@@ -1,10 +1,4 @@
-import {
-  type Accessor,
-  batch,
-  createContext,
-  produce,
-  useContext,
-} from "solid-js";
+import { type Accessor, createContext, useContext } from "solid-js";
 import {
   memoryChannelsByFrequency,
   stepMemoryChannel,
@@ -416,12 +410,10 @@ export const CONTROL_DEFINITIONS = [
         const filterLow = nextFrequency + slice.filterLowHz / 1_000_000;
         const filterHigh = nextFrequency + slice.filterHighHz / 1_000_000;
 
-        batch(() => {
-          if (filterHigh > panHigh || filterLow < panLow) {
-            pan.setCenterFrequency(pan.centerFrequencyMHz + deltaMhz);
-          }
-          slice.setFrequency(nextFrequency, false);
-        });
+        if (filterHigh > panHigh || filterLow < panLow) {
+          pan.setCenterFrequency(pan.centerFrequencyMHz + deltaMhz);
+        }
+        slice.setFrequency(nextFrequency, false);
         return;
       }
 
@@ -649,15 +641,9 @@ export const CONTROL_DEFINITIONS = [
 
       if (enableSplit) {
         source.clone().then((child) => {
-          batch(() => {
-            ctx.setRuntime("split", source.id, {
-              child: child.id,
-              parent: null,
-            });
-            ctx.setRuntime("split", child.id, {
-              child: null,
-              parent: source.id,
-            });
+          ctx.setRuntime((draft) => {
+            draft.split[source.id] = { child: child.id, parent: null };
+            draft.split[child.id] = { child: null, parent: source.id };
           });
           child.setMute(true);
           if (source.isTransmitEnabled) {
@@ -681,13 +667,10 @@ export const CONTROL_DEFINITIONS = [
         splitParent.isTransmitEnabled || splitChild.isTransmitEnabled,
       );
       splitChild.close().then(() => {
-        ctx.setRuntime(
-          "split",
-          produce((split) => {
-            delete split[splitParent.id];
-            delete split[splitChild.id];
-          }),
-        );
+        ctx.setRuntime((draft) => {
+          delete draft.split[splitParent.id];
+          delete draft.split[splitChild.id];
+        });
       });
     },
   }),
@@ -714,21 +697,15 @@ export const CONTROL_DEFINITIONS = [
 
       if (!splitParent || !splitChild) return;
 
-      batch(() => {
-        ctx.setRuntime("split", splitChild.id, {
-          child: splitParent.id,
-          parent: null,
-        });
-        ctx.setRuntime("split", splitParent.id, {
-          child: null,
-          parent: splitChild.id,
-        });
-
-        const partnerMute = splitParent.isMuted;
-        splitParent.enableTransmit(splitChild.isTransmitEnabled);
-        splitParent.setMute(splitChild.isMuted);
-        splitChild.setMute(partnerMute);
+      ctx.setRuntime((draft) => {
+        draft.split[splitChild.id] = { child: splitParent.id, parent: null };
+        draft.split[splitParent.id] = { child: null, parent: splitChild.id };
       });
+
+      const partnerMute = splitParent.isMuted;
+      splitParent.enableTransmit(splitChild.isTransmitEnabled);
+      splitParent.setMute(splitChild.isMuted);
+      splitChild.setMute(partnerMute);
     },
   }),
 

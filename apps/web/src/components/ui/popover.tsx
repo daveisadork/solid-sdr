@@ -1,7 +1,8 @@
 import type { PolymorphicProps } from "@kobalte/core/polymorphic";
 import * as PopoverPrimitive from "@kobalte/core/popover";
-import type { Component, JSX, ValidComponent } from "solid-js";
-import { splitProps } from "solid-js";
+import type { JSX, ValidComponent } from "@solidjs/web";
+import type { Component } from "solid-js";
+import { omit } from "solid-js";
 
 import { cn } from "~/lib/utils";
 
@@ -18,10 +19,8 @@ type PopoverCloseButtonProps<T extends ValidComponent = "button"> =
 const PopoverCloseButton = <T extends ValidComponent = "button">(
   props: PolymorphicProps<T, PopoverCloseButtonProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as PopoverCloseButtonProps, [
-    "children",
-    "class",
-  ]);
+  const local = props as PopoverCloseButtonProps;
+  const others = omit(local, "children", "class");
   return (
     <PopoverPrimitive.CloseButton
       class={cn(
@@ -63,7 +62,8 @@ type PopoverContentProps<T extends ValidComponent = "div"> =
 const PopoverContent = <T extends ValidComponent = "div">(
   props: PolymorphicProps<T, PopoverContentProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as PopoverContentProps, ["class"]);
+  const local = props as PopoverContentProps;
+  const others = omit(local, "class");
   return (
     <PopoverPrimitive.Portal>
       <PopoverPrimitive.Content

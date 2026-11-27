@@ -77,8 +77,7 @@ export function GpsStatus(props: { class?: string }) {
         >
           <div class="aspect-square size-control flex items-center">
             <MaterialSymbolsSatelliteAlt
-              class="size-[90%]"
-              classList={{
+              class={cn("size-[90%]", {
                 "animate-yellow-warmup": WARMUP_STATUSES.has(
                   radio().gpsStatus ?? "",
                 ),
@@ -89,7 +88,7 @@ export function GpsStatus(props: { class?: string }) {
                 "text-yellow-500": HOLDOVER_STATUSES.has(
                   radio().gpsStatus ?? "",
                 ),
-              }}
+              })}
             />
           </div>
           <Show when={radio().gpsGrid}>

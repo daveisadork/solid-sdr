@@ -1,4 +1,5 @@
-import { type ComponentProps, type JSX, Show, splitProps } from "solid-js";
+import type { ComponentProps, JSX } from "@solidjs/web";
+import { Show, omit } from "solid-js";
 import { cn } from "../../lib/utils";
 import {
   Switch,
@@ -20,13 +21,15 @@ type SimpleSwitchProps = ComponentProps<typeof Switch> & {
 };
 
 export const SimpleSwitch = (props: SimpleSwitchProps) => {
-  const [local, switchProps] = splitProps(props, [
+  const local = props;
+  const switchProps = omit(
+    local,
     "class",
     "description",
     "label",
     "tooltip",
     "tooltipProps",
-  ]);
+  );
 
   return (
     <Tooltip {...local.tooltipProps}>

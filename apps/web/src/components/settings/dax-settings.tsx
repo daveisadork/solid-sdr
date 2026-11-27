@@ -54,7 +54,9 @@ function InnerDaxSettings() {
             class="flex"
             checked={preferences.dax.tx.enabled}
             onChange={(checked) =>
-              setPreferences("dax", "tx", "enabled", checked)
+              setPreferences((draft) => {
+                draft.dax.tx.enabled = checked;
+              })
             }
           >
             <SwitchLabel class="grow flex items-center">
@@ -72,7 +74,9 @@ function InnerDaxSettings() {
               value={preferences.dax.tx.inputDeviceId}
               onChange={(value) => {
                 if (!value) return;
-                setPreferences("dax", "tx", "inputDeviceId", value);
+                setPreferences((draft) => {
+                  draft.dax.tx.inputDeviceId = value;
+                });
               }}
               options={inputs().map((d) => d.deviceId)}
               itemComponent={(props) => (
@@ -101,7 +105,9 @@ function InnerDaxSettings() {
               value={preferences.dax.tx.channelMode}
               onChange={(value) => {
                 if (!value) return;
-                setPreferences("dax", "tx", "channelMode", value);
+                setPreferences((draft) => {
+                  draft.dax.tx.channelMode = value;
+                });
               }}
               options={["left", "both", "right"]}
               itemComponent={(props) => (
@@ -135,7 +141,9 @@ function InnerDaxSettings() {
           <SimpleSwitch
             checked={preferences.dax.tx.reducedBandwidth}
             onChange={(checked) =>
-              setPreferences("dax", "tx", "reducedBandwidth", checked)
+              setPreferences((draft) => {
+                draft.dax.tx.reducedBandwidth = checked;
+              })
             }
             label="Reduced Bandwidth"
           />
@@ -143,7 +151,9 @@ function InnerDaxSettings() {
             <SimpleSwitch
               checked={preferences.dax.tx.autoGainControl}
               onChange={(checked) =>
-                setPreferences("dax", "tx", "autoGainControl", checked)
+                setPreferences((draft) => {
+                  draft.dax.tx.autoGainControl = checked;
+                })
               }
               label="Auto Gain Control"
             />
@@ -152,7 +162,9 @@ function InnerDaxSettings() {
             <SimpleSwitch
               checked={preferences.dax.tx.echoCancellation}
               onChange={(checked) =>
-                setPreferences("dax", "tx", "echoCancellation", checked)
+                setPreferences((draft) => {
+                  draft.dax.tx.echoCancellation = checked;
+                })
               }
               label="Echo Cancellation"
             />
@@ -161,7 +173,9 @@ function InnerDaxSettings() {
             <SimpleSwitch
               checked={preferences.dax.tx.noiseSuppression}
               onChange={(checked) =>
-                setPreferences("dax", "tx", "noiseSuppression", checked)
+                setPreferences((draft) => {
+                  draft.dax.tx.noiseSuppression = checked;
+                })
               }
               label="Noise Suppression"
             />
@@ -170,7 +184,9 @@ function InnerDaxSettings() {
             <SimpleSwitch
               checked={preferences.dax.tx.voiceIsolation}
               onChange={(checked) =>
-                setPreferences("dax", "tx", "voiceIsolation", checked)
+                setPreferences((draft) => {
+                  draft.dax.tx.voiceIsolation = checked;
+                })
               }
               label="Voice Isolation"
             />
@@ -190,7 +206,9 @@ function InnerDaxSettings() {
                 class="flex"
                 checked={preferences.dax.rx[channel].enabled}
                 onChange={(checked) =>
-                  setPreferences("dax", "rx", channel, "enabled", checked)
+                  setPreferences((draft) => {
+                    draft.dax.rx[channel].enabled = checked;
+                  })
                 }
               >
                 <SwitchLabel class="grow flex items-center">
@@ -208,13 +226,9 @@ function InnerDaxSettings() {
                   value={preferences.dax.rx[channel].outputDeviceId}
                   onChange={(value) => {
                     if (!value) return;
-                    setPreferences(
-                      "dax",
-                      "rx",
-                      channel,
-                      "outputDeviceId",
-                      value,
-                    );
+                    setPreferences((draft) => {
+                      draft.dax.rx[channel].outputDeviceId = value;
+                    });
                   }}
                   options={outputs().map((d) => d.deviceId)}
                   itemComponent={(props) => {
@@ -248,7 +262,9 @@ function InnerDaxSettings() {
                   value={preferences.dax.rx[channel].channelMode}
                   onChange={(value) => {
                     if (!value) return;
-                    setPreferences("dax", "rx", channel, "channelMode", value);
+                    setPreferences((draft) => {
+                      draft.dax.rx[channel].channelMode = value;
+                    });
                   }}
                   options={["left", "both", "right"]}
                   itemComponent={(props) => (
@@ -286,7 +302,9 @@ function InnerDaxSettings() {
                 step={1}
                 value={[preferences.dax.rx[channel].gain]}
                 onChange={([value]) =>
-                  setPreferences("dax", "rx", channel, "gain", value)
+                  setPreferences((draft) => {
+                    draft.dax.rx[channel].gain = value;
+                  })
                 }
                 getValueLabel={({ values }) => `${values[0]}%`}
                 label="Gain"
@@ -302,12 +320,15 @@ function InnerDaxSettings() {
 export function DaxSettings() {
   const audioPermission = createPermission("microphone");
 
-  createEffect(() => {
-    if (audioPermission() === "prompt")
+  createEffect(
+    () => audioPermission() === "prompt",
+    (needsPrompt) => {
+      if (!needsPrompt) return;
       navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
         for (const track of stream.getTracks()) track.stop();
       });
-  });
+    },
+  );
 
   return (
     <DialogContent>

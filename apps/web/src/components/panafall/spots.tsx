@@ -2,13 +2,12 @@ import { Key } from "@solid-primitives/keyed";
 import { createElementSize } from "@solid-primitives/resize-observer";
 import { throttle } from "@solid-primitives/scheduled";
 import { cva } from "class-variance-authority";
+import type { JSX } from "@solidjs/web";
 import {
   createEffect,
   createMemo,
   createSignal,
   For,
-  type JSX,
-  onCleanup,
   Show,
   untrack,
 } from "solid-js";
@@ -196,7 +195,8 @@ export function Spots(props: { pan: PanadapterState }) {
   // previous level when possible so the display doesn't shuffle every FT8 cycle.
   let prevLevels = new Map<string, number>();
 
-  const calculateLayout = async () => {
+  // Pure: reads the layout inputs (tracked when run as an effect's compute).
+  const computeLayout = () => {
     const maxLevels = preferences.spots.levels;
     const { bandwidthMHz, centerFrequencyMHz } = props.pan;
     const estimateWidth = estimateWidthFunc();
@@ -304,28 +304,38 @@ export function Spots(props: { pan: PanadapterState }) {
       }
     }
 
-    prevLevels = nextLevels;
-    setLayout(result);
+    return { result, nextLevels };
   };
 
-  createEffect(calculateLayout);
-  const throttledCalculateLayout = throttle(calculateLayout, 250);
+  const applyLayout = (next: ReturnType<typeof computeLayout>) => {
+    prevLevels = next.nextLevels;
+    setLayout(next.result);
+  };
 
-  createEffect(() => {
-    const sub = radio()?.on("change", (change) => {
+  createEffect(computeLayout, applyLayout);
+  // Spot list changes are deliberately untracked above; recompute on a throttle.
+  const throttledCalculateLayout = throttle(
+    () => applyLayout(untrack(computeLayout)),
+    250,
+  );
+
+  createEffect(radio, (activeRadio) => {
+    const sub = activeRadio?.on("change", (change) => {
       if (change.entity === "spot") {
         throttledCalculateLayout();
       }
     });
-    onCleanup(() => sub?.unsubscribe());
+    return () => sub?.unsubscribe();
   });
 
   return (
     <div
-      class="absolute font-mono inset-0 bottom-freq-scale -translate-y-(--spots-position) z-(--z-cell-flags) pointer-events-none"
-      classList={{
-        [FONT_SIZES[preferences.spots.fontSize]]: true,
-      }}
+      class={[
+        "absolute font-mono inset-0 bottom-freq-scale -translate-y-(--spots-position) z-(--z-cell-flags) pointer-events-none",
+        {
+          [FONT_SIZES[preferences.spots.fontSize]]: true,
+        },
+      ]}
       style={{
         "--spots-position": `${preferences.spots.position}%`,
         "--spot-spacing": `${preferences.spots.verticalSpacing}%`,

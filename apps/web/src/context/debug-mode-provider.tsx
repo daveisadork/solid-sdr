@@ -52,9 +52,5 @@ export const DebugModeProvider: ParentComponent = (props) => {
       }),
   };
 
-  return (
-    <DebugModeContext.Provider value={value}>
-      {props.children}
-    </DebugModeContext.Provider>
-  );
+  return <DebugModeContext value={value}>{props.children}</DebugModeContext>;
 };

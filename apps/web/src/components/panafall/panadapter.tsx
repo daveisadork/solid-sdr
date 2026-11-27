@@ -6,7 +6,6 @@ import {
   createMemo,
   createSignal,
   For,
-  onCleanup,
   Show,
 } from "solid-js";
 import useFlexRadio, {
@@ -82,58 +81,74 @@ export function Panadapter(props: {
     });
   });
 
-  createEffect(() => {
-    const { gradients } = preferences.palette;
-    const { stops } = gradients[props.waterfall.gradientIndex];
-    const offscreen = new OffscreenCanvas(1, props.pan.height);
-    const ctx = offscreen.getContext("2d");
-    if (!ctx) return;
-    const gradient = ctx.createLinearGradient(
-      offscreen.width,
-      offscreen.height,
-      0,
-      0,
-    );
-    stops.forEach(({ offset, color }) => {
-      gradient.addColorStop(offset, color);
-    });
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, offscreen.width, offscreen.height);
-    const imageData = ctx.getImageData(0, 0, offscreen.width, offscreen.height);
-    const data = imageData.data;
-    const css = new Array<string>(data.length / 4);
-    for (let index = 0; index < css.length; index++) {
-      const offset = index * 4;
-      const r = data[offset];
-      const g = data[offset + 1];
-      const b = data[offset + 2];
-      const a = data[offset + 3] / 255;
-      css[index] = `rgba(${r}, ${g}, ${b}, ${a})`;
-    }
-    setPaletteCss(css);
-  });
+  createEffect(
+    () => ({
+      // Copied so edits to individual stops retrigger; apply is untracked.
+      stops: preferences.palette.gradients[
+        props.waterfall.gradientIndex
+      ].stops.map(({ offset, color }) => ({ offset, color })),
+      height: props.pan.height,
+    }),
+    ({ stops, height }) => {
+      const offscreen = new OffscreenCanvas(1, height);
+      const ctx = offscreen.getContext("2d");
+      if (!ctx) return;
+      const gradient = ctx.createLinearGradient(
+        offscreen.width,
+        offscreen.height,
+        0,
+        0,
+      );
+      stops.forEach(({ offset, color }) => {
+        gradient.addColorStop(offset, color);
+      });
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, offscreen.width, offscreen.height);
+      const imageData = ctx.getImageData(
+        0,
+        0,
+        offscreen.width,
+        offscreen.height,
+      );
+      const data = imageData.data;
+      const css = new Array<string>(data.length / 4);
+      for (let index = 0; index < css.length; index++) {
+        const offset = index * 4;
+        const r = data[offset];
+        const g = data[offset + 1];
+        const b = data[offset + 2];
+        const a = data[offset + 3] / 255;
+        css[index] = `rgba(${r}, ${g}, ${b}, ${a})`;
+      }
+      setPaletteCss(css);
+    },
+  );
 
   const resizeCallback = debounce(async (width: number, height: number) => {
     await props.controller.setSize({ width, height });
   }, 250);
 
-  createEffect(() => {
-    const { width, height } = panadapterWrapperSize;
-    if (!width || !height) return;
-    const density = pixelDensity();
-    const scale = deviceScale();
-    resizeCallback(
-      Math.round((width * density) / scale),
-      Math.round((height * density) / scale),
-    );
-  });
+  createEffect(
+    () => ({
+      width: panadapterWrapperSize.width,
+      height: panadapterWrapperSize.height,
+      density: pixelDensity(),
+      scale: deviceScale(),
+    }),
+    ({ width, height, density, scale }) => {
+      if (!width || !height) return;
+      resizeCallback(
+        Math.round((width * density) / scale),
+        Math.round((height * density) / scale),
+      );
+    },
+  );
 
   // Hand the canvas to a worker that owns all rasterization. transferControl-
   // ToOffscreen is one-shot per element, so this is keyed to the canvas ref;
   // if the canvas ever remounts, the old worker is torn down and a new one
   // takes over the new canvas.
-  createEffect(() => {
-    const canvas = canvasRef();
+  createEffect(canvasRef, (canvas) => {
     if (!canvas) return;
     const w = new Worker(new URL("./panadapter.worker.ts", import.meta.url), {
       type: "module",
@@ -142,14 +157,16 @@ export function Panadapter(props: {
     w.postMessage({ type: "init", canvas: offscreen, sab }, [offscreen]);
     w.onmessage = (event: MessageEvent) => {
       if (event.data?.type === "fps") {
-        setRuntime("fps", "P", event.data.value);
+        setRuntime((draft) => {
+          draft.fps.P = event.data.value;
+        });
       }
     };
     setWorker(w);
-    onCleanup(() => {
+    return () => {
       w.terminate();
       setWorker(undefined);
-    });
+    };
   });
 
   // Push rendering config to the worker whenever any input changes. These all
@@ -157,17 +174,9 @@ export function Panadapter(props: {
   // re-posting the whole config on any change is cheap. The worker sizes its
   // backing store from the expected pan dimensions × scale and derives the
   // per-frame draw scale from the actual bin count it receives.
-  createEffect(() => {
-    const w = worker();
-    if (!w) return;
-    const { gradients } = preferences.palette;
-    // Unwrap reactive store proxies to plain data — structuredClone (used by
-    // postMessage) can't serialize Solid store proxies.
-    const stops = (gradients[props.waterfall.gradientIndex]?.stops ?? []).map(
-      ({ offset, color }) => ({ offset, color }),
-    );
-    w.postMessage({
-      type: "config",
+  createEffect(
+    () => ({
+      w: worker(),
       config: {
         width: props.pan.width,
         height: props.pan.height,
@@ -176,11 +185,19 @@ export function Panadapter(props: {
         fillStyle: preferences.fillStyle,
         peakStyle: preferences.peakStyle,
         gradientStyle: preferences.gradientStyle,
-        gradientStops: stops,
+        // Unwrap reactive store proxies to plain data — structuredClone (used
+        // by postMessage) can't serialize Solid store proxies.
+        gradientStops: (
+          preferences.palette.gradients[props.waterfall.gradientIndex]?.stops ??
+          []
+        ).map(({ offset, color }) => ({ offset, color })),
         showFps: preferences.showFps,
       },
-    });
-  });
+    }),
+    ({ w, config }) => {
+      w?.postMessage({ type: "config", config });
+    },
+  );
 
   // Accumulate FFT packets directly into the shared buffer. On the main thread
   // this is just a typed-array copy into shared memory per packet — no
@@ -188,12 +205,11 @@ export function Panadapter(props: {
   // bin count, then bump the sequence counter (and notify) so the worker draws
   // it. Frames rotate through NUM_BUFFERS slots so the writer never overwrites
   // the slot the worker is reading.
-  createEffect(() => {
-    const w = worker();
-    if (!w) return;
-    const subscription = props.controller.on(
-      "data",
-      (packet: VitaFFTPacket) => {
+  createEffect(
+    () => ({ w: worker(), controller: props.controller }),
+    ({ w, controller }) => {
+      if (!w) return;
+      const subscription = controller.on("data", (packet: VitaFFTPacket) => {
         const numBins = packet.numBins;
         if (numBins === 0) return;
         const startBin = packet.startBinIndex;
@@ -213,11 +229,11 @@ export function Panadapter(props: {
           Atomics.notify(control, CONTROL_SEQ);
           writeBuf = (writeBuf + 1) % NUM_BUFFERS;
         }
-      },
-    );
-    if (!subscription) return;
-    onCleanup(subscription.unsubscribe);
-  });
+      });
+      if (!subscription) return;
+      return () => subscription.unsubscribe();
+    },
+  );
 
   const txBackgroundColor = createMemo(() => {
     if (state.status.radio.interlockTxClientHandle !== state.clientHandleInt) {

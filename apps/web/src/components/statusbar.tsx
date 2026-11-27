@@ -1,13 +1,11 @@
 import { Button } from "@kobalte/core/button";
 import { ToggleButton } from "@kobalte/core/toggle-button";
+import type { JSX, ValidComponent } from "@solidjs/web";
 import {
   createEffect,
   createMemo,
   createSignal,
-  type JSXElement,
-  onCleanup,
   Show,
-  type ValidComponent,
 } from "solid-js";
 import { Dynamic } from "@solidjs/web";
 import useFlexRadio from "~/context/flexradio";
@@ -83,19 +81,20 @@ function RemoteAudioToggle(props: { class?: string | undefined }) {
     <Tooltip>
       <TooltipTrigger
         as={ToggleButton}
-        class={cn("size-control aspect-square", props.class)}
-        classList={{
+        class={cn("size-control aspect-square", props.class, {
           "text-error-foreground":
             preferences.remoteAudio.rx.enabled &&
             audioPermission() === "denied",
           "text-warning-foreground":
             preferences.remoteAudio.rx.enabled &&
             audioPermission() === "prompt",
-        }}
+        })}
         pressed={preferences.remoteAudio.rx.enabled}
         aria-label={label()}
         onChange={(pressed) =>
-          setPreferences("remoteAudio", "rx", "enabled", pressed)
+          setPreferences((draft) => {
+            draft.remoteAudio.rx.enabled = pressed;
+          })
         }
       >
         <Dynamic
@@ -121,7 +120,7 @@ const qualityIcons: Record<NetworkQuality, ValidComponent> = {
   off: MaterialSymbolsSignalWifiBadOutline,
 };
 
-const InfoItem = (props: { label: JSXElement; value: JSXElement }) => (
+const InfoItem = (props: { label: JSX.Element; value: JSX.Element }) => (
   <>
     <span class="font-medium">{props.label}:</span>
     <span class="text-right">{props.value}</span>
@@ -135,12 +134,11 @@ function NetworkStatus() {
       <HoverCardTrigger as={"div"} class="flex gap-1 items-center font-mono">
         <Dynamic
           component={qualityIcons[runtime.network.overall.quality]}
-          class="size-control"
-          classList={{
+          class={cn("size-control", {
             "text-yellow-500": runtime.network.overall.quality === "good",
             "text-orange-500": runtime.network.overall.quality === "fair",
             "text-red-500": runtime.network.overall.quality === "poor",
-          }}
+          })}
         />
       </HoverCardTrigger>
       <HoverCardContent class="w-auto fancy-bg-background text-sm">
@@ -209,36 +207,42 @@ export function StatusBar() {
     Object.values(state.status.meter).find((meter) => meter.name === "PATEMP"),
   );
 
-  createEffect(() => {
-    const id = voltageMeter()?.id;
-    if (id === undefined) return;
-    const sub = radio()
-      ?.meter(id)
-      ?.on("data", ({ value }) => setVoltage(value));
-    onCleanup(() => {
-      sub?.unsubscribe();
-      setVoltage();
-    });
-  });
+  createEffect(
+    () => ({ id: voltageMeter()?.id, activeRadio: radio() }),
+    ({ id, activeRadio }) => {
+      if (id === undefined) return;
+      const sub = activeRadio
+        ?.meter(id)
+        ?.on("data", ({ value }) => setVoltage(value));
+      return () => {
+        sub?.unsubscribe();
+        setVoltage();
+      };
+    },
+  );
 
-  createEffect(() => {
-    const id = tempMeter()?.id;
-    if (id === undefined) return;
-    const sub = radio()
-      ?.meter(id)
-      ?.on("data", ({ value }) => setTemp(value));
-    onCleanup(() => {
-      sub?.unsubscribe();
-      setTemp();
-    });
-  });
+  createEffect(
+    () => ({ id: tempMeter()?.id, activeRadio: radio() }),
+    ({ id, activeRadio }) => {
+      if (id === undefined) return;
+      const sub = activeRadio
+        ?.meter(id)
+        ?.on("data", ({ value }) => setTemp(value));
+      return () => {
+        sub?.unsubscribe();
+        setTemp();
+      };
+    },
+  );
 
   return (
     <div
-      class="absolute inset-x-0 bottom-0 h-statusbar flex shrink-0 items-center w-full py-2 sm:gap-4 sm:px-3 justify-evenly text-sm font-mono select-none z-(--z-chrome) fancy-bg-background"
-      classList={{
-        "border-t": !preferences.enableTransparencyEffects,
-      }}
+      class={[
+        "absolute inset-x-0 bottom-0 h-statusbar flex shrink-0 items-center w-full py-2 sm:gap-4 sm:px-3 justify-evenly text-sm font-mono select-none z-(--z-chrome) fancy-bg-background",
+        {
+          "border-t": !preferences.enableTransparencyEffects,
+        },
+      ]}
     >
       <Connect />
       <AddPanafallButton />

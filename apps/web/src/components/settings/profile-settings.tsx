@@ -2,14 +2,8 @@ import type * as DialogPrimitive from "@kobalte/core/dialog";
 import { createDisclosureState } from "@kobalte/core/primitives/create-disclosure-state";
 import { RadioGroup } from "@kobalte/core/radio-group";
 import type { Radio } from "@repo/flexlib";
-import {
-  createEffect,
-  createSignal,
-  For,
-  type JSX,
-  Show,
-  splitProps,
-} from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { createEffect, createSignal, For, Show, omit } from "solid-js";
 import useFlexRadio from "~/context/flexradio";
 import MaterialSymbolsDelete from "~icons/material-symbols/delete";
 import MaterialSymbolsDeviceReset from "~icons/material-symbols/device-reset";
@@ -52,14 +46,16 @@ export function CreateProfileDialog(
     children?: JSX.Element;
   },
 ) {
-  const [local, rest] = splitProps(props, [
+  const local = props;
+  const rest = omit(
+    local,
     "children",
     "defaultOpen",
     "kind",
     "onOpenChange",
     "open",
     "radio",
-  ]);
+  );
   const [name, setName] = createSignal("");
   const disclosureState = createDisclosureState({
     open: () => local.open,
@@ -67,8 +63,8 @@ export function CreateProfileDialog(
     onOpenChange: (isOpen) => local.onOpenChange?.(isOpen),
   });
 
-  createEffect(() => {
-    if (!disclosureState.isOpen()) setName("");
+  createEffect(disclosureState.isOpen, (isOpen) => {
+    if (!isOpen) setName("");
   });
 
   return (

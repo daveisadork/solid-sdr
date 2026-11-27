@@ -2,25 +2,20 @@ import type { PolymorphicProps } from "@kobalte/core/polymorphic";
 import { Polymorphic } from "@kobalte/core/polymorphic";
 import type { VariantProps } from "class-variance-authority";
 import { cva } from "class-variance-authority";
-import type {
-  Accessor,
-  Component,
-  ComponentProps,
-  JSX,
-  ValidComponent,
-} from "solid-js";
+import type { ComponentProps, JSX, ValidComponent } from "@solidjs/web";
+import type { Accessor, Component } from "solid-js";
 import {
   createContext,
   createEffect,
   createMemo,
   createSignal,
   Match,
-  mergeProps,
+  merge,
   onCleanup,
   Show,
   Switch,
-  splitProps,
   useContext,
+  omit,
 } from "solid-js";
 import type { ButtonProps } from "~/components/ui/button";
 import { Button } from "~/components/ui/button";
@@ -65,17 +60,18 @@ function useSidebar() {
 }
 
 export function useIsMobile(fallback = false) {
-  const [isMobile, setIsMobile] = createSignal(fallback);
+  const mql =
+    typeof window === "undefined"
+      ? undefined
+      : window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
+  // Seeded from the query directly: writing the signal during setup throws.
+  const [isMobile, setIsMobile] = createSignal(mql?.matches ?? fallback);
 
-  createEffect(() => {
-    const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
-    const onChange = (e: MediaQueryListEvent | MediaQueryList) => {
-      setIsMobile(e.matches);
-    };
+  if (mql) {
+    const onChange = (e: MediaQueryListEvent) => setIsMobile(e.matches);
     mql.addEventListener("change", onChange);
-    onChange(mql);
     onCleanup(() => mql.removeEventListener("change", onChange));
-  });
+  }
 
   return isMobile;
 }
@@ -90,11 +86,13 @@ type SidebarProviderProps = Omit<ComponentProps<"div">, "style"> & {
 };
 
 const SidebarProvider: Component<SidebarProviderProps> = (rawProps) => {
-  const props = mergeProps(
+  const props = merge(
     { defaultOpen: true, shortcut: SIDEBAR_KEYBOARD_SHORTCUT as string | null },
     rawProps,
   );
-  const [local, others] = splitProps(props, [
+  const local = props;
+  const others = omit(
+    local,
     "defaultOpen",
     "open",
     "onOpenChange",
@@ -102,7 +100,7 @@ const SidebarProvider: Component<SidebarProviderProps> = (rawProps) => {
     "class",
     "style",
     "children",
-  ]);
+  );
 
   const isMobile = useIsMobile();
   const [openMobile, setOpenMobile] = createSignal(false);
@@ -128,19 +126,21 @@ const SidebarProvider: Component<SidebarProviderProps> = (rawProps) => {
   };
 
   // Adds a keyboard shortcut to toggle the sidebar.
-  createEffect(() => {
-    const shortcut = local.shortcut;
-    if (shortcut == null) return;
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === shortcut && (event.metaKey || event.ctrlKey)) {
-        event.preventDefault();
-        toggleSidebar();
-      }
-    };
+  createEffect(
+    () => local.shortcut,
+    (shortcut) => {
+      if (shortcut == null) return;
+      const handleKeyDown = (event: KeyboardEvent) => {
+        if (event.key === shortcut && (event.metaKey || event.ctrlKey)) {
+          event.preventDefault();
+          toggleSidebar();
+        }
+      };
 
-    window.addEventListener("keydown", handleKeyDown);
-    onCleanup(() => window.removeEventListener("keydown", handleKeyDown));
-  });
+      window.addEventListener("keydown", handleKeyDown);
+      return () => window.removeEventListener("keydown", handleKeyDown);
+    },
+  );
 
   // We add a state so that we can do data-state="expanded" or "collapsed".
   // This makes it easier to style the sidebar with Tailwind classes.
@@ -157,7 +157,7 @@ const SidebarProvider: Component<SidebarProviderProps> = (rawProps) => {
   };
 
   return (
-    <SidebarContext.Provider value={contextValue}>
+    <SidebarContext value={contextValue}>
       <div
         style={{
           "--sidebar-width": SIDEBAR_WIDTH,
@@ -172,7 +172,7 @@ const SidebarProvider: Component<SidebarProviderProps> = (rawProps) => {
       >
         {local.children}
       </div>
-    </SidebarContext.Provider>
+    </SidebarContext>
   );
 };
 
@@ -184,7 +184,7 @@ type SidebarProps = ComponentProps<"div"> & {
 };
 
 const Sidebar: Component<SidebarProps> = (rawProps) => {
-  const props = mergeProps<SidebarProps[]>(
+  const props = merge<SidebarProps[]>(
     {
       side: "left",
       variant: "sidebar",
@@ -193,14 +193,16 @@ const Sidebar: Component<SidebarProps> = (rawProps) => {
     },
     rawProps,
   );
-  const [local, others] = splitProps(props, [
+  const local = props;
+  const others = omit(
+    local,
     "side",
     "variant",
     "collapsible",
     "gap",
     "class",
     "children",
-  ]);
+  );
 
   const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
 
@@ -293,11 +295,8 @@ type SidebarTriggerProps<T extends ValidComponent = "button"> =
 const SidebarTrigger = <T extends ValidComponent = "button">(
   props: SidebarTriggerProps<T>,
 ) => {
-  const [local, others] = splitProps(props as SidebarTriggerProps, [
-    "children",
-    "class",
-    "onClick",
-  ]);
+  const local = props as SidebarTriggerProps;
+  const others = omit(local, "children", "class", "onClick");
   const { toggleSidebar } = useSidebar();
 
   return (
@@ -340,14 +339,15 @@ const SidebarTrigger = <T extends ValidComponent = "button">(
 };
 
 const SidebarRail: Component<ComponentProps<"button">> = (props) => {
-  const [local, others] = splitProps(props, ["class"]);
+  const local = props;
+  const others = omit(local, "class");
   const { toggleSidebar } = useSidebar();
 
   return (
     <button
       data-sidebar="rail"
       aria-label="Toggle Sidebar"
-      tabIndex={-1}
+      tabindex={-1}
       onClick={toggleSidebar}
       title="Toggle Sidebar"
       class={cn(
@@ -365,7 +365,8 @@ const SidebarRail: Component<ComponentProps<"button">> = (props) => {
 };
 
 const SidebarInset: Component<ComponentProps<"main">> = (props) => {
-  const [local, others] = splitProps(props, ["class"]);
+  const local = props;
+  const others = omit(local, "class");
   return (
     <main
       class={cn(
@@ -385,7 +386,8 @@ type SidebarInputProps<T extends ValidComponent = "input"> = ComponentProps<
 const SidebarInput = <T extends ValidComponent = "input">(
   props: SidebarInputProps<T>,
 ) => {
-  const [local, others] = splitProps(props as SidebarInputProps, ["class"]);
+  const local = props as SidebarInputProps;
+  const others = omit(local, "class");
   return (
     <TextField>
       <TextFieldInput
@@ -401,7 +403,8 @@ const SidebarInput = <T extends ValidComponent = "input">(
 };
 
 const SidebarHeader: Component<ComponentProps<"div">> = (props) => {
-  const [local, others] = splitProps(props, ["class"]);
+  const local = props;
+  const others = omit(local, "class");
   return (
     <div
       data-sidebar="header"
@@ -412,7 +415,8 @@ const SidebarHeader: Component<ComponentProps<"div">> = (props) => {
 };
 
 const SidebarFooter: Component<ComponentProps<"div">> = (props) => {
-  const [local, others] = splitProps(props, ["class"]);
+  const local = props;
+  const others = omit(local, "class");
   return (
     <div
       data-sidebar="footer"
@@ -429,7 +433,8 @@ type SidebarSeparatorProps<T extends ValidComponent = "hr"> = ComponentProps<
 const SidebarSeparator = <T extends ValidComponent = "hr">(
   props: SidebarSeparatorProps<T>,
 ) => {
-  const [local, others] = splitProps(props as SidebarSeparatorProps, ["class"]);
+  const local = props as SidebarSeparatorProps;
+  const others = omit(local, "class");
   return (
     <Separator
       data-sidebar="separator"
@@ -440,7 +445,8 @@ const SidebarSeparator = <T extends ValidComponent = "hr">(
 };
 
 const SidebarContent: Component<ComponentProps<"div">> = (props) => {
-  const [local, others] = splitProps(props, ["class"]);
+  const local = props;
+  const others = omit(local, "class");
   return (
     <div
       data-sidebar="content"
@@ -454,7 +460,8 @@ const SidebarContent: Component<ComponentProps<"div">> = (props) => {
 };
 
 const SidebarGroup: Component<ComponentProps<"div">> = (props) => {
-  const [local, others] = splitProps(props, ["class"]);
+  const local = props;
+  const others = omit(local, "class");
   return (
     <div
       data-sidebar="group"
@@ -470,9 +477,8 @@ type SidebarGroupLabelProps<T extends ValidComponent = "div"> =
 const SidebarGroupLabel = <T extends ValidComponent = "div">(
   props: PolymorphicProps<T, SidebarGroupLabelProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as SidebarGroupLabelProps, [
-    "class",
-  ]);
+  const local = props as SidebarGroupLabelProps;
+  const others = omit(local, "class");
 
   return (
     <Polymorphic<SidebarGroupLabelProps>
@@ -494,9 +500,8 @@ type SidebarGroupActionProps<T extends ValidComponent = "button"> =
 const SidebarGroupAction = <T extends ValidComponent = "button">(
   props: PolymorphicProps<T, SidebarGroupActionProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as SidebarGroupActionProps, [
-    "class",
-  ]);
+  const local = props as SidebarGroupActionProps;
+  const others = omit(local, "class");
   return (
     <Polymorphic<SidebarGroupActionProps>
       as="button"
@@ -514,7 +519,8 @@ const SidebarGroupAction = <T extends ValidComponent = "button">(
 };
 
 const SidebarGroupContent: Component<ComponentProps<"div">> = (props) => {
-  const [local, others] = splitProps(props, ["class"]);
+  const local = props;
+  const others = omit(local, "class");
   return (
     <div
       data-sidebar="group-content"
@@ -525,7 +531,8 @@ const SidebarGroupContent: Component<ComponentProps<"div">> = (props) => {
 };
 
 const SidebarMenu: Component<ComponentProps<"ul">> = (props) => {
-  const [local, others] = splitProps(props, ["class"]);
+  const local = props;
+  const others = omit(local, "class");
   return (
     <ul
       data-sidebar="menu"
@@ -536,7 +543,8 @@ const SidebarMenu: Component<ComponentProps<"ul">> = (props) => {
 };
 
 const SidebarMenuItem: Component<ComponentProps<"li">> = (props) => {
-  const [local, others] = splitProps(props, ["class"]);
+  const local = props;
+  const others = omit(local, "class");
   return (
     <li
       data-sidebar="menu-item"
@@ -578,17 +586,12 @@ type SidebarMenuButtonProps<T extends ValidComponent = "button"> =
 const SidebarMenuButton = <T extends ValidComponent = "button">(
   rawProps: PolymorphicProps<T, SidebarMenuButtonProps<T>>,
 ) => {
-  const props = mergeProps(
+  const props = merge(
     { isActive: false, variant: "default", size: "default" },
     rawProps,
   );
-  const [local, others] = splitProps(props as SidebarMenuButtonProps, [
-    "isActive",
-    "tooltip",
-    "variant",
-    "size",
-    "class",
-  ]);
+  const local = props as SidebarMenuButtonProps;
+  const others = omit(local, "isActive", "tooltip", "variant", "size", "class");
   const { isMobile, state } = useSidebar();
 
   const button = (
@@ -625,11 +628,9 @@ type SidebarMenuActionProps<T extends ValidComponent = "button"> =
 const SidebarMenuAction = <T extends ValidComponent = "button">(
   rawProps: PolymorphicProps<T, SidebarMenuActionProps<T>>,
 ) => {
-  const props = mergeProps({ showOnHover: false }, rawProps);
-  const [local, others] = splitProps(props as SidebarMenuActionProps, [
-    "class",
-    "showOnHover",
-  ]);
+  const props = merge({ showOnHover: false }, rawProps);
+  const local = props as SidebarMenuActionProps;
+  const others = omit(local, "class", "showOnHover");
 
   return (
     <Polymorphic<SidebarMenuActionProps>
@@ -653,7 +654,8 @@ const SidebarMenuAction = <T extends ValidComponent = "button">(
 };
 
 const SidebarMenuBadge: Component<ComponentProps<"div">> = (props) => {
-  const [local, others] = splitProps(props, ["class"]);
+  const local = props;
+  const others = omit(local, "class");
   return (
     <div
       data-sidebar="menu-badge"
@@ -676,8 +678,9 @@ type SidebarMenuSkeletonProps = ComponentProps<"div"> & {
 };
 
 const SidebarMenuSkeleton: Component<SidebarMenuSkeletonProps> = (rawProps) => {
-  const props = mergeProps({ showIcon: false }, rawProps);
-  const [local, others] = splitProps(props, ["class", "showIcon"]);
+  const props = merge({ showIcon: false }, rawProps);
+  const local = props;
+  const others = omit(local, "class", "showIcon");
 
   // Random width between 50 to 90%.
   const width = createMemo(() => `${Math.floor(Math.random() * 40) + 50}%`);
@@ -703,7 +706,8 @@ const SidebarMenuSkeleton: Component<SidebarMenuSkeletonProps> = (rawProps) => {
 };
 
 const SidebarMenuSub: Component<ComponentProps<"ul">> = (props) => {
-  const [local, others] = splitProps(props, ["class"]);
+  const local = props;
+  const others = omit(local, "class");
   return (
     <ul
       data-sidebar="menu-sub"
@@ -730,12 +734,9 @@ type SidebarMenuSubButtonProps<T extends ValidComponent = "a"> =
 const SidebarMenuSubButton = <T extends ValidComponent = "a">(
   rawProps: PolymorphicProps<T, SidebarMenuSubButtonProps<T>>,
 ) => {
-  const props = mergeProps({ size: "md" }, rawProps);
-  const [local, others] = splitProps(props as SidebarMenuSubButtonProps, [
-    "size",
-    "isActive",
-    "class",
-  ]);
+  const props = merge({ size: "md" }, rawProps);
+  const local = props as SidebarMenuSubButtonProps;
+  const others = omit(local, "size", "isActive", "class");
 
   return (
     <Polymorphic<SidebarMenuSubButtonProps>

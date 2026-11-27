@@ -1,15 +1,15 @@
 import type { Radio } from "@repo/flexlib";
 import { Dynamic } from "@solidjs/web";
 import { unzip, zip } from "fflate";
-import type { SetStoreFunction } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import type { StoreSetter } from "solid-js";
 import {
   createEffect,
   createMemo,
-  createResource,
   createSignal,
   createStore,
   For,
-  type JSX,
+  Loading,
   Show,
 } from "solid-js";
 import useFlexRadio from "~/context/flexradio";
@@ -178,20 +178,21 @@ function createSelectionState(getMeta: () => ParsedMeta | null) {
     USB_CABLES: false,
   });
 
-  createEffect(() => {
-    const m = getMeta();
+  createEffect(getMeta, (m) => {
     if (!m) return;
     const toRecord = (items: string[]) =>
       Object.fromEntries(items.map((k) => [k, true]));
-    setSel({
-      GLOBAL_PROFILES: toRecord(m.GLOBAL_PROFILES),
-      HW_PROFILES: toRecord(m.HW_PROFILES),
-      MIC_PROFILES: toRecord(m.MIC_PROFILES),
-      MEMORIES: toRecord(m.MEMORIES),
-      preferences: m.preferences,
-      TNFS: m.TNFS,
-      XVTRS: m.XVTRS,
-      USB_CABLES: m.USB_CABLES,
+    setSel((draft) => {
+      Object.assign(draft, {
+        GLOBAL_PROFILES: toRecord(m.GLOBAL_PROFILES),
+        HW_PROFILES: toRecord(m.HW_PROFILES),
+        MIC_PROFILES: toRecord(m.MIC_PROFILES),
+        MEMORIES: toRecord(m.MEMORIES),
+        preferences: m.preferences,
+        TNFS: m.TNFS,
+        XVTRS: m.XVTRS,
+        USB_CABLES: m.USB_CABLES,
+      });
     });
   });
 
@@ -227,22 +228,26 @@ function createSelectionState(getMeta: () => ParsedMeta | null) {
     if (!m) return;
     const toRecord = (items: string[]) =>
       Object.fromEntries(items.map((k) => [k, val]));
-    setSel({
-      GLOBAL_PROFILES: toRecord(m.GLOBAL_PROFILES),
-      HW_PROFILES: toRecord(m.HW_PROFILES),
-      MIC_PROFILES: toRecord(m.MIC_PROFILES),
-      MEMORIES: toRecord(m.MEMORIES),
-      preferences: m.preferences ? val : false,
-      TNFS: m.TNFS ? val : false,
-      USB_CABLES: m.USB_CABLES ? val : false,
-      XVTRS: m.XVTRS ? val : false,
+    setSel((draft) => {
+      Object.assign(draft, {
+        GLOBAL_PROFILES: toRecord(m.GLOBAL_PROFILES),
+        HW_PROFILES: toRecord(m.HW_PROFILES),
+        MIC_PROFILES: toRecord(m.MIC_PROFILES),
+        MEMORIES: toRecord(m.MEMORIES),
+        preferences: m.preferences ? val : false,
+        TNFS: m.TNFS ? val : false,
+        USB_CABLES: m.USB_CABLES ? val : false,
+        XVTRS: m.XVTRS ? val : false,
+      });
     });
   };
 
   const toggleSection = (section: SectionKey, val: boolean) => {
     const m = getMeta();
     if (!m) return;
-    setSel(section, Object.fromEntries(m[section].map((k) => [k, val])));
+    setSel((draft) => {
+      draft[section] = Object.fromEntries(m[section].map((k) => [k, val]));
+    });
   };
 
   return { sel, setSel, allSelected, anySelected, toggleAll, toggleSection };
@@ -261,10 +266,9 @@ type CheckboxRowProps = {
 
 const CheckboxRow = (props: CheckboxRowProps) => (
   <Label
-    class={cn("flex gap-2 items-center", props.class)}
-    classList={{
+    class={cn("flex gap-2 items-center", props.class, {
       "opacity-50": props.disabled,
-    }}
+    })}
   >
     <Checkbox
       class="pointer-events-none"
@@ -327,7 +331,7 @@ const Section = (props: SectionProps) => {
 type SelectionPanelProps = {
   meta: ParsedMeta;
   sel: SelectionState;
-  setSel: SetStoreFunction<SelectionState>;
+  setSel: StoreSetter<SelectionState>;
   allSelected: boolean;
   anySelected: boolean;
   onToggleAll: (val: boolean) => void;
@@ -354,55 +358,87 @@ const SelectionPanel = (props: SelectionPanelProps) => (
         items={props.meta.GLOBAL_PROFILES}
         checked={props.sel.GLOBAL_PROFILES}
         onToggle={(val) => props.onToggleSection("GLOBAL_PROFILES", val)}
-        onToggleItem={(item, val) => props.setSel("GLOBAL_PROFILES", item, val)}
+        onToggleItem={(item, val) =>
+          props.setSel((draft) => {
+            draft.GLOBAL_PROFILES[item] = val;
+          })
+        }
       />
       <Section
         label="TX Profiles"
         items={props.meta.HW_PROFILES}
         checked={props.sel.HW_PROFILES}
         onToggle={(val) => props.onToggleSection("HW_PROFILES", val)}
-        onToggleItem={(item, val) => props.setSel("HW_PROFILES", item, val)}
+        onToggleItem={(item, val) =>
+          props.setSel((draft) => {
+            draft.HW_PROFILES[item] = val;
+          })
+        }
       />
       <Section
         label="Mic Profiles"
         items={props.meta.MIC_PROFILES}
         checked={props.sel.MIC_PROFILES}
         onToggle={(val) => props.onToggleSection("MIC_PROFILES", val)}
-        onToggleItem={(item, val) => props.setSel("MIC_PROFILES", item, val)}
+        onToggleItem={(item, val) =>
+          props.setSel((draft) => {
+            draft.MIC_PROFILES[item] = val;
+          })
+        }
       />
       <Section
         label="Memories"
         items={props.meta.MEMORIES}
         checked={props.sel.MEMORIES}
         onToggle={(val) => props.onToggleSection("MEMORIES", val)}
-        onToggleItem={(item, val) => props.setSel("MEMORIES", item, val)}
+        onToggleItem={(item, val) =>
+          props.setSel((draft) => {
+            draft.MEMORIES[item] = val;
+          })
+        }
         formatItem={(item) => item.replace("|", " – ")}
       />
       <CheckboxRow
         disabled={!props.meta.preferences}
         checked={props.sel.preferences}
-        onChange={(val) => props.setSel("preferences", val)}
+        onChange={(val) =>
+          props.setSel((draft) => {
+            draft.preferences = val;
+          })
+        }
       >
         Preferences
       </CheckboxRow>
       <CheckboxRow
         disabled={!props.meta.TNFS}
         checked={props.sel.TNFS}
-        onChange={(val) => props.setSel("TNFS", val)}
+        onChange={(val) =>
+          props.setSel((draft) => {
+            draft.TNFS = val;
+          })
+        }
       >
         TNFs
       </CheckboxRow>
       <CheckboxRow
         disabled={!props.meta.XVTRS}
         checked={props.sel.XVTRS}
-        onChange={(val) => props.setSel("XVTRS", val)}
+        onChange={(val) =>
+          props.setSel((draft) => {
+            draft.XVTRS = val;
+          })
+        }
       >
         XVTRs
       </CheckboxRow>
       <CheckboxRow
         disabled={!props.meta.USB_CABLES}
         checked={props.sel.USB_CABLES}
-        onChange={(val) => props.setSel("USB_CABLES", val)}
+        onChange={(val) =>
+          props.setSel((draft) => {
+            draft.USB_CABLES = val;
+          })
+        }
       >
         USB Cables
       </CheckboxRow>
@@ -417,7 +453,7 @@ function ImportExportInner(props: { radio: Radio }) {
   const busy = () => exporting() || importing();
 
   // Export
-  const [exportMeta] = createResource(async () => {
+  const exportMeta = createMemo(async () => {
     const buf = await props.radio.createDownload("db_meta_data").start();
     return parseDbMetaData(new TextDecoder().decode(buf));
   });
@@ -490,19 +526,16 @@ function ImportExportInner(props: { radio: Radio }) {
     }
   };
 
-  createEffect(() => {
+  createEffect(importFile, (file) => {
     setImportError(null);
     setImportMeta(null);
     setFlexPayload(null);
-    const file = importFile();
     if (!file) return;
     handleFileChange(file);
   });
 
-  createEffect(() => {
-    if (activeTab() === "import") {
-      setImportFile();
-    }
+  createEffect(activeTab, (tab) => {
+    if (tab === "import") setImportFile();
   });
 
   const [importing, setImporting] = createSignal(false);
@@ -546,22 +579,23 @@ function ImportExportInner(props: { radio: Radio }) {
         </TabsList>
 
         <TabsContent value="export" class="flex flex-col">
-          <Show
-            when={exportMeta()}
+          <Loading
             fallback={<div class="text-muted-foreground text-sm">Loading…</div>}
           >
-            {(m) => (
-              <SelectionPanel
-                meta={m()}
-                sel={exportSel}
-                setSel={setExportSel}
-                allSelected={exportAllSelected()}
-                anySelected={exportAnySelected()}
-                onToggleAll={exportToggleAll}
-                onToggleSection={exportToggleSection}
-              />
-            )}
-          </Show>
+            <Show when={exportMeta()}>
+              {(m) => (
+                <SelectionPanel
+                  meta={m()}
+                  sel={exportSel}
+                  setSel={setExportSel}
+                  allSelected={exportAllSelected()}
+                  anySelected={exportAnySelected()}
+                  onToggleAll={exportToggleAll}
+                  onToggleSection={exportToggleSection}
+                />
+              )}
+            </Show>
+          </Loading>
         </TabsContent>
 
         <TabsContent value="import" class="flex flex-col gap-2">

@@ -46,30 +46,31 @@ export function MidiValueRing(props: {
     return props.forceNote || message.command === 8 || message.command === 9;
   };
 
-  createEffect(() => {
-    const message = props.message;
-
-    if (!isNoteMessage(message)) {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-        timeoutId = undefined;
+  createEffect(
+    () => props.message,
+    (message) => {
+      if (!isNoteMessage(message)) {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = undefined;
+        }
+        setLatchedOn(false);
+        return;
       }
-      setLatchedOn(false);
-      return;
-    }
 
-    if (isNoteOn(message)) {
-      if (timeoutId) clearTimeout(timeoutId);
-      setLatchedOn(true);
-      timeoutId = setTimeout(() => {
-        timeoutId = undefined;
-        setLatchedOn(isNoteOn(props.message));
-      }, 250);
-      return;
-    }
+      if (isNoteOn(message)) {
+        if (timeoutId) clearTimeout(timeoutId);
+        setLatchedOn(true);
+        timeoutId = setTimeout(() => {
+          timeoutId = undefined;
+          setLatchedOn(isNoteOn(props.message));
+        }, 250);
+        return;
+      }
 
-    if (!timeoutId) setLatchedOn(false);
-  });
+      if (!timeoutId) setLatchedOn(false);
+    },
+  );
 
   onCleanup(() => {
     if (timeoutId) clearTimeout(timeoutId);
@@ -111,12 +112,14 @@ export function MidiValueRing(props: {
         y={CENTER}
         text-anchor="middle"
         dominant-baseline="middle"
-        class="text-[24px] font-bold"
-        classList={{
-          "fill-green-500": isNoteMessage(props.message) && latchedOn(),
-          "fill-red-500": isNoteMessage(props.message) && !latchedOn(),
-          "fill-current": !isNoteMessage(props.message),
-        }}
+        class={[
+          "text-[24px] font-bold",
+          {
+            "fill-green-500": isNoteMessage(props.message) && latchedOn(),
+            "fill-red-500": isNoteMessage(props.message) && !latchedOn(),
+            "fill-current": !isNoteMessage(props.message),
+          },
+        ]}
       >
         <Show when={isNoteMessage(props.message)} fallback={`${percent()}%`}>
           {noteLabel()}

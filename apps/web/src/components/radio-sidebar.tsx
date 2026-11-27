@@ -6,7 +6,6 @@ import {
   createMemo,
   createSignal,
   For,
-  onCleanup,
   Show,
 } from "solid-js";
 import {
@@ -76,7 +75,9 @@ const COMMAND_DEBOUNCE_MS = 200;
 
 function TxSection() {
   const { state, radio } = useFlexRadio();
-  const [rawRfPower, setRawRfPower] = createSignal(0);
+  const [rawRfPower, setRawRfPower] = createSignal(
+    () => state.status.radio.rfPower,
+  );
   const [fwdPwrWatts, setFwdPwrWatts] = createSignal(0);
   const [refPwrWatts, setRefPwrWatts] = createSignal(0);
   const [createProfile, setCreateProfile] = createSignal(false);
@@ -89,16 +90,17 @@ function TxSection() {
 
   const debouncedSetRfPower = debounce(setRfPower, 200);
 
-  createEffect(() => setRawRfPower(state.status.radio.rfPower));
-
-  createEffect(() => {
-    if (rawRfPower() === state.status.radio.rfPower) return;
-    const updateFunc =
-      state.status.radio.interlockState === "TRANSMITTING"
-        ? setRfPower
-        : debouncedSetRfPower;
-    updateFunc(rawRfPower());
-  });
+  createEffect(
+    () => ({
+      raw: rawRfPower(),
+      current: state.status.radio.rfPower,
+      transmitting: state.status.radio.interlockState === "TRANSMITTING",
+    }),
+    ({ raw, current, transmitting }) => {
+      if (raw === current) return;
+      (transmitting ? setRfPower : debouncedSetRfPower)(raw);
+    },
+  );
 
   const fwdPwrMeter = createMemo(() =>
     Object.values(state.status.meter).find((meter) => meter.name === "FWDPWR"),
@@ -108,23 +110,27 @@ function TxSection() {
     Object.values(state.status.meter).find((meter) => meter.name === "REFPWR"),
   );
 
-  createEffect(() => {
-    const id = fwdPwrMeter()?.id;
-    if (id === undefined) return;
-    const sub = radio()
-      ?.meter(id)
-      ?.on("data", (event) => setFwdPwrWatts(dbmToWatts(event.value, 1)));
-    onCleanup(() => sub?.unsubscribe());
-  });
+  createEffect(
+    () => ({ id: fwdPwrMeter()?.id, activeRadio: radio() }),
+    ({ id, activeRadio }) => {
+      if (id === undefined) return;
+      const sub = activeRadio
+        ?.meter(id)
+        ?.on("data", (event) => setFwdPwrWatts(dbmToWatts(event.value, 1)));
+      return () => sub?.unsubscribe();
+    },
+  );
 
-  createEffect(() => {
-    const id = refPwrMeter()?.id;
-    if (id === undefined) return;
-    const sub = radio()
-      ?.meter(id)
-      ?.on("data", (event) => setRefPwrWatts(dbmToWatts(event.value, 1)));
-    onCleanup(() => sub?.unsubscribe());
-  });
+  createEffect(
+    () => ({ id: refPwrMeter()?.id, activeRadio: radio() }),
+    ({ id, activeRadio }) => {
+      if (id === undefined) return;
+      const sub = activeRadio
+        ?.meter(id)
+        ?.on("data", (event) => setRefPwrWatts(dbmToWatts(event.value, 1)));
+      return () => sub?.unsubscribe();
+    },
+  );
 
   const swr = createMemo(() => {
     const fwdWatts = fwdPwrWatts();
@@ -453,35 +459,46 @@ function MicSection() {
   const afInputPeak = () =>
     useBrowserLevel() ? browserReading(browserPeak()) : micPeakValue();
 
-  createEffect(() => {
-    if (
+  createEffect(
+    () =>
       useBrowserLevel() ||
       (!state.status.radio.meterInRx && !state.status.radio.mox)
-    )
-      return setMicPeakValue(-150);
+        ? null
+        : { id: micPeakMeter()?.id, activeRadio: radio() },
+    (source) => {
+      if (!source) {
+        setMicPeakValue(-150);
+        return;
+      }
+      if (source.id === undefined) return;
+      const sub = source.activeRadio
+        ?.meter(source.id)
+        ?.on("data", ({ value }) => setMicPeakValue(roundToDecimals(value, 1)));
+      return () => sub?.unsubscribe();
+    },
+  );
 
-    const id = micPeakMeter()?.id;
-    if (id === undefined) return;
-    const sub = radio()
-      ?.meter(id)
-      ?.on("data", ({ value }) => setMicPeakValue(roundToDecimals(value, 1)));
-    onCleanup(() => sub?.unsubscribe());
-  });
-
-  createEffect(() => {
-    if (
+  createEffect(
+    () =>
       NON_VOICE_MODES.has(state.status.radio.txMode) ||
       (!state.status.radio.meterInRx && !state.status.radio.mox) ||
       !state.status.radio.speechProcessorEnabled
-    )
-      return setCompPeakValue(-150);
-    const id = compPeakMeter()?.id;
-    if (id === undefined) return;
-    const sub = radio()
-      ?.meter(id)
-      ?.on("data", ({ value }) => setCompPeakValue(roundToDecimals(value, 1)));
-    onCleanup(() => sub?.unsubscribe());
-  });
+        ? null
+        : { id: compPeakMeter()?.id, activeRadio: radio() },
+    (source) => {
+      if (!source) {
+        setCompPeakValue(-150);
+        return;
+      }
+      if (source.id === undefined) return;
+      const sub = source.activeRadio
+        ?.meter(source.id)
+        ?.on("data", ({ value }) =>
+          setCompPeakValue(roundToDecimals(value, 1)),
+        );
+      return () => sub?.unsubscribe();
+    },
+  );
 
   return (
     <div class="flex flex-col gap-3">
@@ -736,13 +753,15 @@ function CwSection() {
   const { state, radio } = useFlexRadio();
   const [createProfile, setCreateProfile] = createSignal(false);
 
-  const [rawPitch, setRawPitch] = createSignal(state.status.radio.cwPitchHz);
-  const [rawDelay, setRawDelay] = createSignal(
-    state.status.radio.cwBreakInDelayMs,
+  const [rawPitch, setRawPitch] = createSignal(
+    () => state.status.radio.cwPitchHz,
   );
-  const [rawSpeed, setRawSpeed] = createSignal(state.status.radio.cwSpeedWpm);
-
-  createEffect(() => setRawPitch(state.status.radio.cwPitchHz));
+  const [rawDelay, setRawDelay] = createSignal(
+    () => state.status.radio.cwBreakInDelayMs,
+  );
+  const [rawSpeed, setRawSpeed] = createSignal(
+    () => state.status.radio.cwSpeedWpm,
+  );
 
   const applyPitch = () =>
     rawPitch() !== state.status.radio.cwPitchHz
@@ -758,9 +777,6 @@ function CwSection() {
     minBreakInDelayMs(state.status.radio.cwSpeedWpm),
   );
 
-  createEffect(() => setRawDelay(state.status.radio.cwBreakInDelayMs));
-  createEffect(() => setRawSpeed(state.status.radio.cwSpeedWpm));
-
   const applyDelay = (value: number) => {
     if (value === state.status.radio.cwBreakInDelayMs) return;
     radio()?.setCwBreakInDelayMs(value);
@@ -773,15 +789,19 @@ function CwSection() {
   };
   const debouncedApplySpeed = debounce(applySpeed, COMMAND_DEBOUNCE_MS);
 
-  createEffect(() => {
-    if (rawDelay() === state.status.radio.cwBreakInDelayMs) return;
-    debouncedApplyDelay(rawDelay());
-  });
+  createEffect(
+    () => ({ raw: rawDelay(), current: state.status.radio.cwBreakInDelayMs }),
+    ({ raw, current }) => {
+      if (raw !== current) debouncedApplyDelay(raw);
+    },
+  );
 
-  createEffect(() => {
-    if (rawSpeed() === state.status.radio.cwSpeedWpm) return;
-    debouncedApplySpeed(rawSpeed());
-  });
+  createEffect(
+    () => ({ raw: rawSpeed(), current: state.status.radio.cwSpeedWpm }),
+    ({ raw, current }) => {
+      if (raw !== current) debouncedApplySpeed(raw);
+    },
+  );
 
   return (
     <div class="flex flex-col gap-3">
@@ -995,14 +1015,11 @@ function PhoneSection() {
   const { state, radio } = useFlexRadio();
 
   const [rawFilterLow, setRawFilterLow] = createSignal(
-    state.status.radio.txFilterLowHz,
+    () => state.status.radio.txFilterLowHz,
   );
   const [rawFilterHigh, setRawFilterHigh] = createSignal(
-    state.status.radio.txFilterHighHz,
+    () => state.status.radio.txFilterHighHz,
   );
-
-  createEffect(() => setRawFilterLow(state.status.radio.txFilterLowHz));
-  createEffect(() => setRawFilterHigh(state.status.radio.txFilterHighHz));
 
   const applyFilterLow = () =>
     rawFilterLow() !== state.status.radio.txFilterLowHz
@@ -1265,7 +1282,11 @@ export function RadioSidebar() {
             multiple
             collapsible
             value={preferences.sidebarPanels}
-            onChange={(value) => setPreferences("sidebarPanels", value)}
+            onChange={(value) =>
+              setPreferences((draft) => {
+                draft.sidebarPanels = value;
+              })
+            }
             class="select-none"
           >
             <TxSection />

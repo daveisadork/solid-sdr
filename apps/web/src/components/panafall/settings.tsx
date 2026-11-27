@@ -19,6 +19,7 @@ import useFlexRadio, {
 } from "~/context/flexradio";
 import { usePanafall } from "~/context/panafall";
 import { usePreferences } from "~/context/preferences";
+import { cn } from "~/lib/utils";
 import BaselineDisplaySettings from "~icons/ic/baseline-display-settings";
 import { LicenseGate } from "../license-gate";
 import { Button } from "../ui/button";
@@ -96,22 +97,27 @@ function DisplaySettings(props: {
 }) {
   const { preferences, setPreferences } = usePreferences();
   const [rawPanBackgroundColor, setRawPanBackgroundColor] = createSignal(
-    preferences.panBackgroundColor,
+    () => preferences.panBackgroundColor,
   );
 
-  createEffect(() => setRawPanBackgroundColor(preferences.panBackgroundColor));
-
-  createEffect(() => {
-    const rawColor = rawPanBackgroundColor();
-    if (rawColor === preferences.panBackgroundColor) return;
-    try {
-      const color = parseColor(rawColor);
-      console.log(color.toString("css"));
-      setPreferences("panBackgroundColor", rawColor);
-    } catch (_e) {
-      // Invalid color, ignore
-    }
-  });
+  createEffect(
+    () => ({
+      rawColor: rawPanBackgroundColor(),
+      current: preferences.panBackgroundColor,
+    }),
+    ({ rawColor, current }) => {
+      if (rawColor === current) return;
+      try {
+        const color = parseColor(rawColor);
+        console.log(color.toString("css"));
+        setPreferences((draft) => {
+          draft.panBackgroundColor = rawColor;
+        });
+      } catch (_e) {
+        // Invalid color, ignore
+      }
+    },
+  );
 
   return (
     <div class="text-sm flex flex-col gap-3">
@@ -119,12 +125,14 @@ function DisplaySettings(props: {
         value={preferences.peakStyle}
         onChange={(value) => {
           if (!value) return;
-          setPreferences("peakStyle", value);
+          setPreferences((draft) => {
+            draft.peakStyle = value;
+          });
         }}
       >
         <SegmentedControlLabel>Peak Style</SegmentedControlLabel>
+        <SegmentedControlIndicator />
         <SegmentedControlGroup>
-          <SegmentedControlIndicator />
           <SegmentedControlItemsList>
             <For each={["none", "points", "line"]}>
               {(style) => (
@@ -142,12 +150,14 @@ function DisplaySettings(props: {
         value={preferences.fillStyle}
         onChange={(value) => {
           if (!value) return;
-          setPreferences("fillStyle", value);
+          setPreferences((draft) => {
+            draft.fillStyle = value;
+          });
         }}
       >
         <SegmentedControlLabel>Fill Style</SegmentedControlLabel>
+        <SegmentedControlIndicator />
         <SegmentedControlGroup>
-          <SegmentedControlIndicator />
           <SegmentedControlItemsList>
             <For each={["none", "solid", "gradient"]}>
               {(style) => (
@@ -165,12 +175,14 @@ function DisplaySettings(props: {
         value={preferences.gradientStyle}
         onChange={(value) => {
           if (!value) return;
-          setPreferences("gradientStyle", value);
+          setPreferences((draft) => {
+            draft.gradientStyle = value;
+          });
         }}
       >
         <SegmentedControlLabel>Gradient Style</SegmentedControlLabel>
+        <SegmentedControlIndicator />
         <SegmentedControlGroup>
-          <SegmentedControlIndicator />
           <SegmentedControlItemsList>
             <For each={["color", "classic"]}>
               {(style) => (
@@ -355,7 +367,9 @@ function DisplaySettings(props: {
         <SimpleSwitch
           checked={preferences.showDisplayMarkers}
           onChange={(checked) => {
-            setPreferences("showDisplayMarkers", checked);
+            setPreferences((draft) => {
+              draft.showDisplayMarkers = checked;
+            });
           }}
           label="Show Band Plan"
         />
@@ -382,17 +396,23 @@ function AntennaSettings(props: {
   panadapter: PanadapterState;
   panadapterController: PanadapterController;
 }) {
-  const [rawFrequency, setRawFrequency] = createSignal(0);
-  const [rawBandwidth, setRawBandwidth] = createSignal(0);
-  const [rawHighDbm, setRawHighDbm] = createSignal(0);
-  const [rawLowDbm, setRawLowDbm] = createSignal(0);
+  const [rawFrequency, setRawFrequency] = createSignal(
+    () => props.panadapter.centerFrequencyMHz,
+  );
+  const [rawBandwidth, setRawBandwidth] = createSignal(
+    () => props.panadapter.bandwidthMHz,
+  );
+  const [rawHighDbm, setRawHighDbm] = createSignal(
+    () => props.panadapter.highDbm,
+  );
+  const [rawLowDbm, setRawLowDbm] = createSignal(() => props.panadapter.lowDbm);
 
-  createEffect(() => props.panadapterController.refreshRfGainInfo());
-
-  createEffect(() => setRawFrequency(props.panadapter.centerFrequencyMHz));
-  createEffect(() => setRawBandwidth(props.panadapter.bandwidthMHz));
-  createEffect(() => setRawHighDbm(props.panadapter.highDbm));
-  createEffect(() => setRawLowDbm(props.panadapter.lowDbm));
+  createEffect(
+    () => props.panadapterController,
+    (controller) => {
+      controller.refreshRfGainInfo();
+    },
+  );
 
   return (
     <div class="text-sm flex flex-col gap-3">
@@ -634,11 +654,13 @@ export function PanSettings() {
     <div class="absolute top-0 left-(--cell-inset-left) max-h-[calc(100%-var(--cell-inset-bottom))] p-2 flex z-(--z-chrome) pointer-events-none transition-[left] duration-200 ease-linear">
       <div ref={setMenuRef}>
         <ToggleGroup
-          class="grid grid-cols-1 gap-1 pointer-events-auto rounded-lg fancy-bg-card border shadow-black overflow-auto max-h-full"
-          classList={{
-            "p-2": open(),
-            "rounded-r-none border-r-0": Boolean(openSection()) && open(),
-          }}
+          class={cn(
+            "grid grid-cols-1 gap-1 pointer-events-auto rounded-lg fancy-bg-card border shadow-black overflow-auto max-h-full",
+            {
+              "p-2": open(),
+              "rounded-r-none border-r-0": Boolean(openSection()) && open(),
+            },
+          )}
           style={{
             "scrollbar-width": "thin",
           }}

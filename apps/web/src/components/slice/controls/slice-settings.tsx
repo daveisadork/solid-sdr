@@ -83,7 +83,9 @@ export const SliceSettings = (props: {
           onChange={(value) => {
             if (!value) return;
             if (value !== preferences.sliceTxMeter) {
-              setPreferences("sliceTxMeter", value);
+              setPreferences((draft) => {
+                draft.sliceTxMeter = value;
+              });
             }
           }}
           options={["power", "swr"]}
